@@ -1,0 +1,45 @@
+# C++
+*.o
+*.out
+*.exe
+*.dll
+*.so
+build/
+bin/
+
+# JavaScript
+node_modules/
+dist/
+build/
+.DS_Store
+
+# Mobile (Android)
+/build
+*.apk
+*.ap_
+*.aab
+*.dex
+/captures/
+.gradle
+/local.properties
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+
+# Mobile (iOS)
+build/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+.swiftpm/
+Package.resolved
+Pods/
+.build/
+*.ipa
+*.dSYM.zip
+*.dSYM
