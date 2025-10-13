@@ -3,287 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Netlify App Store</title>
+    <title>Andy's Dev Studio</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Using a serif font for a classical, "parchment" look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=IM+Fell+English+SC&display=swap');
+
         body {
-            font-family: 'Inter', sans-serif;
+            /* Very dark background for a deep, shadowed feel (Stone/Void) */
+            background-color: #1a1a1a;
+            color: #cccccc; /* Light gray for body text */
+            font-family: 'Inter', serif;
         }
-        .cart-item-enter {
-            animation: slideIn 0.3s ease-out forwards;
+        .medieval-title {
+            font-family: 'IM Fell English SC', serif;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Stronger shadow */
         }
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
+        .stone-frame {
+            /* --- TEXTURED STONE STYLES --- */
+            background-color: #333333; /* Dark gray stone color */
+            border: 3px solid #555555; /* Lighter border highlight/metal edge */
+
+            /* Gradient overlay to simulate rough, uneven texture */
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 8px 8px; /* Control the grain size */
+
+            /* Box shadow for depth and chiseled look */
+            box-shadow:
+                inset 0 0 15px rgba(0, 0, 0, 0.7), /* Deep internal shadow for raw stone depth */
+                0 8px 15px rgba(0, 0, 0, 0.8); /* Stronger outer shadow */
+        }
+        .content-plaque {
+            /* --- DARK PARCHMENT/LEDGER STYLES --- */
+            background-color: #4d3c2a; /* Darker olive/brown parchment base */
+            color: #f0f0f0; /* Ensure text is light on dark background */
+            border: 2px solid #5a5a5a; /* Metallic outline */
+
+            /* Texture for parchment/fiber look */
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 4px 4px; /* Smaller grain for paper texture */
+
+            box-shadow:
+                inset 0 0 15px rgba(0, 0, 0, 0.8), /* Deep internal shadow for aged look */
+                0 4px 10px rgba(0, 0, 0, 0.5); /* Outer shadow for lift */
+        }
+        .iron-button {
+            background-color: #4a4a4a;
+            color: #ffcc66; /* Pale Gold/Amber */
+            border: 1px solid #777;
+            box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5); /* Chiseled 3D look */
+        }
+        .iron-button:hover {
+            background-color: #5a5a5a;
+            box-shadow: 0 2px #222, 0 4px 6px rgba(0, 0, 0, 0.5); /* Pressed look */
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body>
 
-    <!-- Header -->
-    <header class="bg-white shadow-md sticky top-0 z-50">
-        <nav class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="#" class="text-2xl font-bold text-gray-800">
-                <i class="fas fa-rocket text-indigo-600"></i>
-                AppLaunch
-            </a>
-            <div class="hidden md:flex items-center space-x-6">
-                <a href="#features" class="text-gray-600 hover:text-indigo-600 transition duration-300">Features</a>
-                <a href="#pricing" class="text-gray-600 hover:text-indigo-600 transition duration-300">Pricing</a>
-                <a href="#contact" class="text-gray-600 hover:text-indigo-600 transition duration-300">Contact</a>
+    <!-- Header: Guild Banner (Stone/Metal Frame) -->
+    <header class="p-6 stone-frame shadow-xl sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-4xl font-bold text-amber-300 medieval-title">
+                <a href="index.html">Andy's Dev Studio</a>
             </div>
-            <button id="cart-button" class="relative text-gray-600 hover:text-indigo-600 transition duration-300">
-                <i class="fas fa-shopping-cart fa-lg"></i>
-                <span id="cart-count" class="absolute -top-2 -right-2 bg-indigo-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">0</span>
-            </button>
-        </nav>
+            <a href="https://github.com/kayrugold/projects" target="_blank" class="px-4 py-2 iron-button font-semibold rounded-lg transition duration-300">
+                View Repository Archives
+            </a>
+        </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="bg-white">
-        <div class="container mx-auto px-6 py-20 text-center">
-            <h1 class="text-4xl md:text-6xl font-bold text-gray-800 leading-tight">The Future of Applications, Today.</h1>
-            <p class="mt-4 text-lg text-gray-600">Discover powerful apps to boost your productivity and streamline your workflow.</p>
-            <a href="#pricing" class="mt-8 inline-block bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg shadow-lg hover:bg-indigo-700 transition duration-300 transform hover:-translate-y-1">Explore Apps</a>
-        </div>
-    </section>
+    <!-- Main Storefront Content: Set against the Stone Wall -->
+    <main class="max-w-7xl mx-auto px-4 py-16 md:py-24">
+        <h1 class="text-5xl md:text-6xl font-extrabold text-center mb-16 text-amber-300 medieval-title text-shadow-lg">
+            Wares for the Modern Alchemist
+        </h1>
 
-    <!-- Apps Listing -->
-    <main id="pricing" class="container mx-auto px-6 py-16">
-        <h2 class="text-3xl font-bold text-center mb-12">Our Flagship Applications</h2>
-        <div id="app-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <!-- App items will be injected here by JavaScript -->
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-10">
+
+            <!-- Product Card 1: Factor Hunter (The Tome) -->
+            <div class="p-6 rounded-lg content-plaque hover:border-amber-300 transition duration-500 transform hover:-translate-y-1">
+
+                <!-- Combined Icon and Thumbnail Row (Horizontal Layout) -->
+                <div class="flex items-center space-x-4 mb-4 border-b pb-4 border-gray-400">
+
+                    <!-- 1. Product Icon (Left side) -->
+                    <div class="w-1/4 flex-shrink-0 text-5xl text-amber-300 text-center">
+                        <span role="img" aria-label="Ancient Scroll">📜</span>
+                    </div>
+
+                    <!-- 2. Thumbnail Group (Right side) -->
+                    <div class="w-3/4 flex space-x-2">
+                        <!-- Thumbnail 1 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-600 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/factorhunter/thumb_01.png" alt="Factor Hunter Thumbnail 1" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/222/aaa?text=T1';"/>
+                        </div>
+                        <!-- Thumbnail 2 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-600 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/factorhunter/thumb_02.png" alt="Factor Hunter Thumbnail 2" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/222/aaa?text=T2';"/>
+                        </div>
+                        <!-- Thumbnail 3 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-600 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/factorhunter/thumb_03.png" alt="Factor Hunter Thumbnail 3" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/222/aaa?text=T3';"/>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="text-3xl font-bold text-amber-300 mb-2 medieval-title">Factor Hunter</h2>
+                <p class="text-gray-300 mb-4 h-16">
+                    The essential grimoire for advanced number factoring, prime divisor hunting, and numerical alchemy.
+                </p>
+                <div class="text-3xl font-extrabold text-white mb-6">$49 (One-Time)</div>
+                <a href="factorhunter_landing.html" class="w-full block text-center py-3 iron-button font-bold rounded-sm transition duration-300">
+                    View & Acquire Wares
+                </a>
+            </div>
+
+            <!-- Product Card 2: Placeholder for Coder's Quill -->
+            <div class="p-6 rounded-lg content-plaque opacity-60">
+
+                <!-- Combined Icon and Thumbnail Row (Horizontal Layout) -->
+                <div class="flex items-center space-x-4 mb-4 border-b pb-4 border-gray-400">
+
+                    <!-- 1. Product Icon (Left side) -->
+                    <div class="w-1/4 flex-shrink-0 text-5xl text-amber-300 text-center opacity-60">
+                        <span role="img" aria-label="Quill and Ink">🖋️</span>
+                    </div>
+
+                    <!-- 2. Thumbnail Group (Right side) -->
+                    <div class="w-3/4 flex space-x-2">
+                        <!-- Thumbnail 1 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-500 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/codeanalyzer/thumb_01.png" alt="CodeAnalyzer Thumbnail 1" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/333/666?text=T1';"/>
+                        </div>
+                        <!-- Thumbnail 2 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-500 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/codeanalyzer/thumb_02.png" alt="CodeAnalyzer Thumbnail 2" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/333/666?text=T2';"/>
+                        </div>
+                        <!-- Thumbnail 3 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-500 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/codeanalyzer/thumb_03.png" alt="CodeAnalyzer Thumbnail 3" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/333/666?text=T3';"/>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="text-3xl font-bold text-gray-500 mb-2 medieval-title">The Coder's Quill</h2>
+                <p class="text-gray-400 mb-4 h-16">
+                    Static analysis tools for C++ and Python, ensuring your scripts are free of dark magic and bugs.
+                </p>
+                <div class="text-3xl font-extrabold text-gray-500 mb-6">$79</div>
+                <button disabled class="w-full block text-center py-3 bg-gray-600 text-gray-400 font-bold rounded-sm cursor-not-allowed">
+                    Wares Unavailable
+                </button>
+            </div>
+
+            <!-- Product Card 3: Placeholder for Traveler's Map -->
+            <div class="p-6 rounded-lg content-plaque opacity-60">
+
+                <!-- Combined Icon and Thumbnail Row (Horizontal Layout) -->
+                <div class="flex items-center space-x-4 mb-4 border-b pb-4 border-gray-400">
+
+                    <!-- 1. Product Icon (Left side) -->
+                    <div class="w-1/4 flex-shrink-0 text-5xl text-amber-300 text-center opacity-60">
+                        <span role="img" aria-label="Old Map">🗺️</span>
+                    </div>
+
+                    <!-- 2. Thumbnail Group (Right side) -->
+                    <div class="w-3/4 flex space-x-2">
+                        <!-- Thumbnail 1 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-500 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/travelermap/thumb_01.png" alt="Traveler's Map Thumbnail 1" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/333/666?text=T1';"/>
+                        </div>
+                        <!-- Thumbnail 2 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-500 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/travelermap/thumb_02.png" alt="Traveler's Map Thumbnail 2" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/333/666?text=T2';"/>
+                        </div>
+                        <!-- Thumbnail 3 -->
+                        <div class="w-1/3 h-20 bg-gray-800 border-2 border-gray-500 rounded-sm overflow-hidden flex items-center justify-center">
+                            <img src="products/travelermap/thumb_03.png" alt="Traveler's Map Thumbnail 3" class="w-full h-full object-cover"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/333/666?text=T3';"/>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="text-3xl font-bold text-gray-500 mb-2 medieval-title">The Traveler's Map</h2>
+                <p class="text-gray-400 mb-4 h-16">
+                    A mobile planner built with Flutter, guiding your projects like a reliable celestial compass.
+                </p>
+                <div class="text-3xl font-extrabold text-gray-500 mb-6">$1.99/mo</div>
+                <button disabled class="w-full block text-center py-3 bg-gray-600 text-gray-400 font-bold rounded-sm cursor-not-allowed">
+                    Wares Unavailable
+                </button>
+            </div>
+
         </div>
     </main>
 
-    <!-- Cart Modal -->
-    <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <!-- Modal Header -->
-            <div class="flex justify-between items-center p-5 border-b">
-                <h3 class="text-xl font-semibold">Your Shopping Cart</h3>
-                <button id="close-cart-button" class="text-gray-500 hover:text-gray-800">&times;</button>
-            </div>
-            <!-- Modal Body -->
-            <div id="cart-items" class="p-5 max-h-96 overflow-y-auto">
-                <!-- Cart items will be displayed here -->
-            </div>
-            <!-- Modal Footer -->
-            <div class="p-5 border-t">
-                <div class="flex justify-between items-center font-bold text-lg mb-4">
-                    <span>Total:</span>
-                    <span id="cart-total">$0.00</span>
-                </div>
-                <button id="checkout-button" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-300">
-                    Proceed to Checkout
-                </button>
-                 <button id="clear-cart-button" class="w-full mt-2 bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition duration-300">
-                    Clear Cart
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Success Message -->
-    <div id="success-message" class="hidden fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg animate-pulse">
-        Item added to cart!
-    </div>
-
-    <!-- Footer -->
-    <footer id="contact" class="bg-gray-800 text-white">
-        <div class="container mx-auto px-6 py-10">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
-                <div>
-                    <h3 class="text-lg font-semibold mb-4">AppLaunch</h3>
-                    <p class="text-gray-400">Building the future of software, one app at a time.</p>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
-                    <ul>
-                        <li><a href="#features" class="hover:text-indigo-400">Features</a></li>
-                        <li><a href="#pricing" class="hover:text-indigo-400">Pricing</a></li>
-                        <li><a href="#" class="hover:text-indigo-400">Terms of Service</a></li>
-                        <li><a href="#" class="hover:text-indigo-400">Privacy Policy</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-4">Connect With Us</h3>
-                    <div class="flex justify-center md:justify-start space-x-4">
-                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-facebook fa-lg"></i></a>
-                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-twitter fa-lg"></i></a>
-                        <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-github fa-lg"></i></a>
-                    </div>
-                </div>
-            </div>
-            <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-500">
-                <p>&copy; 2025 AppLaunch. All rights reserved.</p>
-            </div>
+    <!-- Footer (Stone/Metal Frame) -->
+    <footer class="p-8 stone-frame mt-12">
+        <div class="max-w-7xl mx-auto text-center text-sm text-gray-400">
+            <p>&copy; 2024 Andy's Dev Studio. Guild Rules Apply.</p>
         </div>
     </footer>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const appList = document.getElementById('app-list');
-            const cartButton = document.getElementById('cart-button');
-            const closeCartButton = document.getElementById('close-cart-button');
-            const cartModal = document.getElementById('cart-modal');
-            const cartItemsContainer = document.getElementById('cart-items');
-            const cartCount = document.getElementById('cart-count');
-            const cartTotal = document.getElementById('cart-total');
-            const checkoutButton = document.getElementById('checkout-button');
-            const clearCartButton = document.getElementById('clear-cart-button');
-            const successMessage = document.getElementById('success-message');
-
-            // --- App Data ---
-            const apps = [
-                { id: 1, name: 'SyncMaster Pro', price: 49.99, description: 'Seamlessly sync files across all your devices with enterprise-grade security.', icon: 'fa-sync-alt' },
-                { id: 2, name: 'QuantumLeap AI', price: 99.99, description: 'Leverage the power of AI to analyze data and predict market trends.', icon: 'fa-brain' },
-                { id: 3, name: 'CodeWeaver Studio', price: 79.99, description: 'An intelligent IDE that accelerates your development workflow.', icon: 'fa-code' },
-                { id: 4, name: 'PixelPerfect Suite', price: 69.99, description: 'A complete graphic design toolkit for creative professionals.', icon: 'fa-palette' },
-                { id: 5, name: 'SecureVault Pass', price: 29.99, description: 'Manage and protect all your passwords with one master key.', icon: 'fa-shield-alt' },
-                { id: 6, name: 'FlowState Planner', price: 19.99, description: 'Organize your tasks, projects, and life with this intuitive planner.', icon: 'fa-tasks' },
-            ];
-            
-            // --- State ---
-            let cart = JSON.parse(localStorage.getItem('cart')) || [];
-
-            // --- Functions ---
-            const renderApps = () => {
-                appList.innerHTML = apps.map(app => `
-                    <div class="bg-white rounded-lg shadow-lg overflow-hidden transform hover:-translate-y-2 transition-transform duration-300">
-                        <div class="p-8">
-                            <div class="flex items-center mb-4">
-                                <i class="fas ${app.icon} text-4xl text-indigo-500"></i>
-                                <h3 class="text-2xl font-bold ml-4">${app.name}</h3>
-                            </div>
-                            <p class="text-gray-600 mb-6">${app.description}</p>
-                            <div class="flex justify-between items-center">
-                                <span class="text-3xl font-bold text-gray-900">$${app.price.toFixed(2)}</span>
-                                <button data-id="${app.id}" class="add-to-cart-btn bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-200 transition duration-300">
-                                    Add to Cart
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            };
-
-            const renderCart = () => {
-                cartItemsContainer.innerHTML = '';
-                if (cart.length === 0) {
-                    cartItemsContainer.innerHTML = '<p class="text-gray-500">Your cart is empty.</p>';
-                    checkoutButton.disabled = true;
-                    checkoutButton.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                     checkoutButton.disabled = false;
-                    checkoutButton.classList.remove('opacity-50', 'cursor-not-allowed');
-                    cart.forEach(item => {
-                        const cartItem = document.createElement('div');
-                        cartItem.className = 'flex justify-between items-center mb-4 cart-item-enter';
-                        cartItem.innerHTML = `
-                            <div>
-                                <h4 class="font-semibold">${item.name}</h4>
-                                <p class="text-sm text-gray-500">$${item.price.toFixed(2)} x ${item.quantity}</p>
-                            </div>
-                            <div class="flex items-center">
-                                <span class="font-bold mr-4">$${(item.price * item.quantity).toFixed(2)}</span>
-                                <button data-id="${item.id}" class="remove-from-cart-btn text-red-500 hover:text-red-700">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        `;
-                        cartItemsContainer.appendChild(cartItem);
-                    });
-                }
-                updateCartInfo();
-            };
-
-            const updateCartInfo = () => {
-                const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-                const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                cartCount.textContent = totalItems;
-                cartTotal.textContent = `$${totalPrice.toFixed(2)}`;
-                localStorage.setItem('cart', JSON.stringify(cart));
-            };
-
-            const addToCart = (id) => {
-                const app = apps.find(a => a.id === id);
-                const cartItem = cart.find(item => item.id === id);
-
-                if (cartItem) {
-                    cartItem.quantity++;
-                } else {
-                    cart.push({ ...app, quantity: 1 });
-                }
-                showSuccessMessage();
-                renderCart();
-            };
-            
-            const showSuccessMessage = () => {
-                successMessage.classList.remove('hidden');
-                setTimeout(() => {
-                     successMessage.classList.add('hidden');
-                }, 2000);
-            };
-
-            const removeFromCart = (id) => {
-                cart = cart.filter(item => item.id !== id);
-                renderCart();
-            };
-
-            const toggleCartModal = () => {
-                cartModal.classList.toggle('hidden');
-            };
-
-            // --- Event Listeners ---
-            cartButton.addEventListener('click', toggleCartModal);
-            closeCartButton.addEventListener('click', toggleCartModal);
-            cartModal.addEventListener('click', (e) => {
-                if (e.target === cartModal) {
-                    toggleCartModal();
-                }
-            });
-
-            appList.addEventListener('click', (e) => {
-                if (e.target.closest('.add-to-cart-btn')) {
-                    const id = parseInt(e.target.closest('.add-to-cart-btn').dataset.id);
-                    addToCart(id);
-                }
-            });
-
-            cartItemsContainer.addEventListener('click', (e) => {
-                if (e.target.closest('.remove-from-cart-btn')) {
-                    const id = parseInt(e.target.closest('.remove-from-cart-btn').dataset.id);
-                    removeFromCart(id);
-                }
-            });
-            
-            clearCartButton.addEventListener('click', () => {
-                cart = [];
-                renderCart();
-            });
-
-            checkoutButton.addEventListener('click', () => {
-                // In a real app, this would redirect to a payment page.
-                alert('Redirecting to checkout...');
-                cart = [];
-                renderCart();
-                toggleCartModal();
-            });
-
-
-            // --- Initial Load ---
-            renderApps();
-            renderCart();
-        });
-    </script>
 </body>
 </html>
