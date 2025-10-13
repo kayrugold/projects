@@ -9,9 +9,9 @@
     <style>
         /* Shared Styles from Storefront */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=IM+Fell+English+SC&display=swap');
-        
+
         body {
-            background-color: #1a1a1a; 
+            background-color: #1a1a1a;
             color: #cccccc;
             font-family: 'Inter', serif;
         }
@@ -23,23 +23,23 @@
         .stone-frame {
             background-color: #333333;
             border: 3px solid #555555;
-            background-image: 
+            background-image:
                 linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 8px 8px;
-            box-shadow: 
+            box-shadow:
                 inset 0 0 15px rgba(0, 0, 0, 0.7),
                 0 8px 15px rgba(0, 0, 0, 0.8);
         }
         .content-plaque {
-            background-color: #4d3c2a; 
+            background-color: #4d3c2a;
             color: #f0f0f0;
             border: 2px solid #5a5a5a;
-            background-image: 
+            background-image:
                 linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 4px 4px;
-            box-shadow: 
+            box-shadow:
                 inset 0 0 15px rgba(0, 0, 0, 0.8),
                 0 4px 10px rgba(0, 0, 0, 0.5);
         }
@@ -75,22 +75,22 @@
 
     <!-- Main Product Content -->
     <main class="max-w-7xl mx-auto px-4 py-12 md:py-16">
-        
+
         <div class="grid lg:grid-cols-3 gap-10">
-            
+
             <!-- Left Column: Image Gallery and Icon -->
             <div class="lg:col-span-2 space-y-6">
-                
+
                 <h1 class="text-5xl font-extrabold text-amber-300 medieval-title mb-6">
                     The MathPro Tome 📜
                 </h1>
-                
+
                 <!-- Main Featured Image -->
                 <div id="main-image-container" class="bg-gray-800 stone-frame p-2">
                     <!-- Placeholder image path -->
-                    <img id="main-product-image" 
-                         src="products/mathpro/screenshot_a.jpg" 
-                         alt="Main MathPro Screenshot" 
+                    <img id="main-product-image"
+                         src="products/mathpro/screenshot_a.jpg"
+                         alt="Main MathPro Screenshot"
                          class="w-full h-auto object-cover rounded-sm"
                          onerror="this.onerror=null; this.src='https://placehold.co/800x450/333/ccc?text=Product+Hero+Image';"/>
                 </div>
@@ -98,21 +98,21 @@
                 <!-- Thumbnail Gallery -->
                 <div class="flex space-x-4 p-4 content-plaque overflow-x-auto">
                     <!-- Thumbnail 1 (Active by default) -->
-                    <img src="products/mathpro/thumb_01.png" alt="Screenshot 1" data-full-src="products/mathpro/screenshot_a.jpg" 
+                    <img src="products/factorhunter/screenshot_a.jpg" alt="Screenshot 1" data-full-src="products/mathpro/screenshot_a.jpg"
                          class="w-24 h-24 object-cover border-2 rounded-sm cursor-pointer gallery-active hover:border-amber-500 transition duration-150"
                          onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S1';"
                          onclick="changeMainImage(this)"
                          id="thumb1"/>
 
                     <!-- Thumbnail 2 -->
-                    <img src="products/mathpro/thumb_02.png" alt="Screenshot 2" data-full-src="products/mathpro/screenshot_b.jpg" 
+                    <img src="products/factorhunter/screenshot_b.jpg" alt="Screenshot 2" data-full-src="products/mathpro/screenshot_b.jpg"
                          class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
                          onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S2';"
                          onclick="changeMainImage(this)"
                          id="thumb2"/>
 
                     <!-- Thumbnail 3 -->
-                    <img src="products/mathpro/thumb_03.png" alt="Screenshot 3" data-full-src="products/mathpro/screenshot_c.jpg" 
+                    <img src="products/factorhunter/screenshot_c.jpg" alt="Screenshot 3" data-full-src="products/mathpro/screenshot_c.jpg"
                          class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
                          onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S3';"
                          onclick="changeMainImage(this)"
@@ -120,7 +120,7 @@
 
                     <!-- You can add more thumbnails here -->
                 </div>
-                
+
                 <!-- Detailed Product Description -->
                 <div class="content-plaque p-6 space-y-4">
                     <h2 class="text-3xl font-bold text-amber-300 medieval-title">The Grimoire's Power</h2>
@@ -133,21 +133,21 @@
                         <li>**Engineered Trajectories:** Optimized C++ core for speed in real-time applications.</li>
                         <li>**Eternal License:** A one-time toll grants perpetual access to this version.</li>
                     </ul>
-                    
+
                     <h2 class="text-3xl font-bold text-amber-300 medieval-title pt-4">System Requirements</h2>
                     <p class="text-gray-200">
                         Requires a sturdy machine (PC or Linux) with a 64-bit processor and at least 4GB of memory. Optimized for Ubuntu environments (including WSL).
                     </p>
                 </div>
             </div>
-            
+
             <!-- Right Column: Pricing and Purchase -->
             <div class="lg:col-span-1">
                 <div class="content-plaque p-6 sticky top-28">
                     <div class="text-xl font-semibold mb-4 text-amber-300 border-b pb-2 border-gray-500">
                         Acquire This Artifact
                     </div>
-                    
+
                     <div class="text-5xl font-extrabold text-white mb-6">
                         $49
                         <span class="text-lg font-normal text-gray-400 block mt-1">One-Time License</span>
@@ -157,7 +157,7 @@
                     <a href="YOUR_STRIPE_CHECKOUT_LINK_HERE" target="_blank" class="w-full block text-center py-4 iron-button font-bold text-xl rounded-sm transition duration-300 uppercase tracking-widest">
                         Pay the Toll (Buy Now)
                     </a>
-                    
+
                     <p class="text-xs text-center text-gray-400 mt-4">
                         Secure transaction handled by Stripe Merchant Guild.
                     </p>
@@ -183,7 +183,7 @@
         function changeMainImage(clickedThumbnail) {
             const mainImage = document.getElementById('main-product-image');
             const newSrc = clickedThumbnail.getAttribute('data-full-src');
-            
+
             if (newSrc) {
                 // Update the main image source
                 mainImage.src = newSrc;
