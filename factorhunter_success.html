@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acquisition Complete! - Andy's Dev Studio</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Shared Styles from Storefront */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=IM+Fell+English+SC&display=swap');
+        
+        body {
+            /* Very dark background for a deep, shadowed feel (Stone/Void) */
+            background-color: #1a1a1a; 
+            color: #cccccc;
+            font-family: 'Inter', serif;
+        }
+        .medieval-title {
+            font-family: 'IM Fell English SC', serif;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+        .stone-frame {
+            /* --- TEXTURED STONE STYLES --- */
+            background-color: #333333; 
+            border: 3px solid #555555;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 8px 8px;
+            box-shadow: 
+                inset 0 0 15px rgba(0, 0, 0, 0.7),
+                0 8px 15px rgba(0, 0, 0, 0.8);
+        }
+        .content-plaque {
+            /* --- DARK PARCHMENT/LEDGER STYLES --- */
+            background-color: #4d3c2a; 
+            color: #f0f0f0;
+            border: 2px solid #5a5a5a;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 4px 4px; 
+            box-shadow: 
+                inset 0 0 15px rgba(0, 0, 0, 0.8),
+                0 4px 10px rgba(0, 0, 0, 0.5); 
+        }
+        .iron-button {
+            background-color: #4a4a4a;
+            color: #ffcc66; /* Pale Gold/Amber */
+            border: 1px solid #777;
+            box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5); 
+        }
+        .iron-button:hover {
+            background-color: #5a5a5a;
+            box-shadow: 0 2px #222, 0 4px 6px rgba(0, 0, 0, 0.5); 
+        }
+        .download-button {
+            background-color: #15803d; /* Dark Green Success */
+            color: #fef3c7; /* Light Amber text */
+            box-shadow: 0 4px #0c4f23, 0 8px 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s ease-in-out;
+        }
+        .download-button:hover {
+            background-color: #16a34a;
+            box-shadow: 0 2px #0c4f23, 0 4px 6px rgba(0, 0, 0, 0.5); 
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header: Guild Banner (Stone/Metal Frame) -->
+    <header class="p-6 stone-frame shadow-xl sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-4xl font-bold text-amber-300 medieval-title">
+                <a href="index.html">Andy's Dev Studio</a>
+            </div>
+            <a href="index.html" class="px-4 py-2 iron-button font-semibold rounded-lg transition duration-300">
+                Back to Wares
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Success Content -->
+    <main class="max-w-4xl mx-auto px-4 py-16 md:py-24">
+        
+        <div class="content-plaque p-8 md:p-12 text-center">
+            
+            <div class="text-6xl mb-6 text-amber-300">
+                <span role="img" aria-label="Acquisition Complete">✨</span>
+            </div>
+            
+            <h1 class="text-4xl font-extrabold text-white medieval-title mb-4">
+                Acquisition Complete!
+            </h1>
+            
+            <p class="text-2xl text-amber-300 mb-8">
+                The toll has been paid. You may now retrieve your artifact.
+            </p>
+
+            <h2 class="text-3xl font-bold text-white medieval-title mb-6">
+                Factor Hunter Tome
+            </h2>
+            
+            <!-- Download Button (Crucial Step) -->
+            <a href="YOUR_SECURE_DOWNLOAD_URL_HERE" target="_blank" class="w-full inline-block md:w-auto px-10 py-4 download-button font-bold text-2xl rounded-sm transition duration-300 uppercase tracking-widest">
+                Download Factor Hunter
+            </a>
+            
+            <div class="mt-10 text-left space-y-4">
+                <h3 class="text-xl font-bold text-amber-300 border-b pb-2 border-gray-500">
+                    Your License Key
+                </h3>
+                <p class="text-gray-200">
+                    A parchment containing your license key has been dispatched to the raven-post (email) you provided during checkout. Please check your inbox.
+                </p>
+                <div class="bg-gray-700 p-3 rounded-md text-center text-xl text-yellow-300 font-mono select-all">
+                    YOUR-LICENSE-KEY-WILL-BE-SENT-VIA-EMAIL
+                </div>
+
+                <h3 class="text-xl font-bold text-amber-300 border-b pb-2 border-gray-500 pt-4">
+                    Important Scrolls
+                </h3>
+                <p class="text-gray-200">
+                    The software package contains all necessary scripts and instructions. If you encounter any dark magic or errors, consult the <a href="#" class="text-amber-300 hover:text-amber-500 underline">support documentation</a>.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer (Stone/Metal Frame) -->
+    <footer class="p-8 stone-frame mt-12">
+        <div class="max-w-7xl mx-auto text-center text-sm text-gray-400">
+            <p>&copy; 2024 Andy's Dev Studio. Guild Rules Apply.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathPro Tome - Andy's Dev Studio</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Shared Styles from Storefront */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=IM+Fell+English+SC&display=swap');
+        
+        body {
+            background-color: #1a1a1a; 
+            color: #cccccc;
+            font-family: 'Inter', serif;
+        }
+        .medieval-title {
+            font-family: 'IM Fell English SC', serif;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+        .stone-frame {
+            background-color: #333333;
+            border: 3px solid #555555;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 8px 8px;
+            box-shadow: 
+                inset 0 0 15px rgba(0, 0, 0, 0.7),
+                0 8px 15px rgba(0, 0, 0, 0.8);
+        }
+        .content-plaque {
+            background-color: #4d3c2a; 
+            color: #f0f0f0;
+            border: 2px solid #5a5a5a;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 4px 4px;
+            box-shadow: 
+                inset 0 0 15px rgba(0, 0, 0, 0.8),
+                0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+        .iron-button {
+            background-color: #4a4a4a;
+            color: #ffcc66; /* Pale Gold/Amber */
+            border: 1px solid #777;
+            box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5);
+        }
+        .iron-button:hover {
+            background-color: #5a5a5a;
+            box-shadow: 0 2px #222, 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+        /* Custom Styles for this page */
+        .gallery-active {
+            border: 4px solid #ffcc66; /* Amber border for active image */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header: Guild Banner (Stone/Metal Frame) -->
+    <header class="p-6 stone-frame shadow-xl sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-4xl font-bold text-amber-300 medieval-title">
+                <a href="index.html">Andy's Dev Studio</a>
+            </div>
+            <a href="index.html" class="px-4 py-2 iron-button font-semibold rounded-lg transition duration-300">
+                Back to Wares
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Product Content -->
+    <main class="max-w-7xl mx-auto px-4 py-12 md:py-16">
+        
+        <div class="grid lg:grid-cols-3 gap-10">
+            
+            <!-- Left Column: Image Gallery and Icon -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <h1 class="text-5xl font-extrabold text-amber-300 medieval-title mb-6">
+                    The MathPro Tome 📜
+                </h1>
+                
+                <!-- Main Featured Image -->
+                <div id="main-image-container" class="bg-gray-800 stone-frame p-2">
+                    <!-- Placeholder image path -->
+                    <img id="main-product-image" 
+                         src="products/mathpro/screenshot_a.jpg" 
+                         alt="Main MathPro Screenshot" 
+                         class="w-full h-auto object-cover rounded-sm"
+                         onerror="this.onerror=null; this.src='https://placehold.co/800x450/333/ccc?text=Product+Hero+Image';"/>
+                </div>
+
+                <!-- Thumbnail Gallery -->
+                <div class="flex space-x-4 p-4 content-plaque overflow-x-auto">
+                    <!-- Thumbnail 1 (Active by default) -->
+                    <img src="products/mathpro/thumb_01.png" alt="Screenshot 1" data-full-src="products/mathpro/screenshot_a.jpg" 
+                         class="w-24 h-24 object-cover border-2 rounded-sm cursor-pointer gallery-active hover:border-amber-500 transition duration-150"
+                         onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S1';"
+                         onclick="changeMainImage(this)"
+                         id="thumb1"/>
+
+                    <!-- Thumbnail 2 -->
+                    <img src="products/mathpro/thumb_02.png" alt="Screenshot 2" data-full-src="products/mathpro/screenshot_b.jpg" 
+                         class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
+                         onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S2';"
+                         onclick="changeMainImage(this)"
+                         id="thumb2"/>
+
+                    <!-- Thumbnail 3 -->
+                    <img src="products/mathpro/thumb_03.png" alt="Screenshot 3" data-full-src="products/mathpro/screenshot_c.jpg" 
+                         class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
+                         onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S3';"
+                         onclick="changeMainImage(this)"
+                         id="thumb3"/>
+
+                    <!-- You can add more thumbnails here -->
+                </div>
+                
+                <!-- Detailed Product Description -->
+                <div class="content-plaque p-6 space-y-4">
+                    <h2 class="text-3xl font-bold text-amber-300 medieval-title">The Grimoire's Power</h2>
+                    <p class="text-gray-200">
+                        The MathPro Tome is an ancient but meticulously maintained software artifact designed for scholars, engineers, and apprentices in the modern realm. It contains powerful algorithms for calculating complex trajectories, deciphering statistical runes, and predicting celestial movements with unmatched precision. This is the only tool you need to banish numerical errors from your projects.
+                    </p>
+                    <ul class="list-disc list-inside space-y-2 pl-4 text-gray-300">
+                        <li>**Numerical Alchemy:** Advanced solvers for differential equations and linear algebra.</li>
+                        <li>**Statistical Sorcery:** Predictive modeling and hypothesis testing with interactive charts.</li>
+                        <li>**Engineered Trajectories:** Optimized C++ core for speed in real-time applications.</li>
+                        <li>**Eternal License:** A one-time toll grants perpetual access to this version.</li>
+                    </ul>
+                    
+                    <h2 class="text-3xl font-bold text-amber-300 medieval-title pt-4">System Requirements</h2>
+                    <p class="text-gray-200">
+                        Requires a sturdy machine (PC or Linux) with a 64-bit processor and at least 4GB of memory. Optimized for Ubuntu environments (including WSL).
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Right Column: Pricing and Purchase -->
+            <div class="lg:col-span-1">
+                <div class="content-plaque p-6 sticky top-28">
+                    <div class="text-xl font-semibold mb-4 text-amber-300 border-b pb-2 border-gray-500">
+                        Acquire This Artifact
+                    </div>
+                    
+                    <div class="text-5xl font-extrabold text-white mb-6">
+                        $49
+                        <span class="text-lg font-normal text-gray-400 block mt-1">One-Time License</span>
+                    </div>
+
+                    <!-- Stripe Checkout Link Placeholder -->
+                    <a href="YOUR_STRIPE_CHECKOUT_LINK_HERE" target="_blank" class="w-full block text-center py-4 iron-button font-bold text-xl rounded-sm transition duration-300 uppercase tracking-widest">
+                        Pay the Toll (Buy Now)
+                    </a>
+                    
+                    <p class="text-xs text-center text-gray-400 mt-4">
+                        Secure transaction handled by Stripe Merchant Guild.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer (Stone/Metal Frame) -->
+    <footer class="p-8 stone-frame mt-12">
+        <div class="max-w-7xl mx-auto text-center text-sm text-gray-400">
+            <p>&copy; 2024 Andy's Dev Studio. Guild Rules Apply.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Image Gallery Functionality -->
+    <script>
+        /**
+         * Changes the main product image when a thumbnail is clicked.
+         * @param {HTMLElement} clickedThumbnail The thumbnail image element that was clicked.
+         */
+        function changeMainImage(clickedThumbnail) {
+            const mainImage = document.getElementById('main-product-image');
+            const newSrc = clickedThumbnail.getAttribute('data-full-src');
+            
+            if (newSrc) {
+                // Update the main image source
+                mainImage.src = newSrc;
+                mainImage.alt = clickedThumbnail.alt;
+
+                // Remove active class from all thumbnails
+                document.querySelectorAll('.content-plaque img').forEach(img => {
+                    img.classList.remove('gallery-active');
+                    img.classList.add('border-gray-600');
+                    img.classList.remove('border-amber-500');
+                });
+
+                // Add active class to the clicked thumbnail
+                clickedThumbnail.classList.add('gallery-active');
+                clickedThumbnail.classList.remove('border-gray-600');
+            }
+        }
+    </script>
+</body>
+</html>
