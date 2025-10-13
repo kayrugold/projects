@@ -14,6 +14,7 @@
             background-color: #1a1a1a;
             color: #cccccc;
             font-family: 'Inter', serif;
+            min-height: 100vh;
         }
         .medieval-title {
             font-family: 'IM Fell English SC', serif;
@@ -48,6 +49,7 @@
             color: #ffcc66; /* Pale Gold/Amber */
             border: 1px solid #777;
             box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s ease;
         }
         .iron-button:hover {
             background-color: #5a5a5a;
@@ -57,6 +59,9 @@
         .gallery-active {
             border: 4px solid #ffcc66; /* Amber border for active image */
         }
+
+        /* NOTE: The original file had lightbox styles that are now removed,
+           as this version uses a simpler thumbnail swap logic. */
     </style>
 </head>
 <body>
@@ -89,34 +94,34 @@
                 <div id="main-image-container" class="bg-gray-800 stone-frame p-2">
                     <!-- Placeholder image path -->
                     <img id="main-product-image"
-                         src="products/factorhunter/featuredimg.jpg"
-                         alt="Main Factor Hunter Screenshot"
-                         class="w-full h-auto object-cover rounded-sm"
-                         onerror="this.onerror=null; this.src='https://placehold.co/800x450/333/ccc?text=Product+Hero+Image';"/>
+                            src="products/factorhunter/featuredimg.jpg"
+                            alt="Main Factor Hunter Screenshot"
+                            class="w-full h-auto object-cover rounded-sm"
+                            onerror="this.onerror=null; this.src='https://placehold.co/800x450/333/ccc?text=Product+Hero+Image';"/>
                 </div>
 
                 <!-- Thumbnail Gallery -->
                 <div class="flex space-x-4 p-4 content-plaque overflow-x-auto">
                     <!-- Thumbnail 1 (Active by default) -->
                     <img src="products/factorhunter/screenshot_a.jpg" alt="Screenshot 1" data-full-src="products/factorhunter/screenshot_a.jpg"
-                         class="w-24 h-24 object-cover border-2 rounded-sm cursor-pointer gallery-active hover:border-amber-500 transition duration-150"
-                         onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S1';"
-                         onclick="changeMainImage(this)"
-                         id="thumb1"/>
+                            class="w-24 h-24 object-cover border-2 rounded-sm cursor-pointer gallery-active hover:border-amber-500 transition duration-150"
+                            onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S1';"
+                            onclick="changeMainImage(this)"
+                            id="thumb1"/>
 
                     <!-- Thumbnail 2 -->
                     <img src="products/factorhunter/screenshot_b.jpg" alt="Screenshot 2" data-full-src="products/factorhunter/screenshot_b.jpg"
-                         class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
-                         onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S2';"
-                         onclick="changeMainImage(this)"
-                         id="thumb2"/>
+                            class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
+                            onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S2';"
+                            onclick="changeMainImage(this)"
+                            id="thumb2"/>
 
                     <!-- Thumbnail 3 -->
                     <img src="products/factorhunter/screenshot_c.jpg" alt="Screenshot 3" data-full-src="products/factorhunter/screenshot_c.jpg"
-                         class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
-                         onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S3';"
-                         onclick="changeMainImage(this)"
-                         id="thumb3"/>
+                            class="w-24 h-24 object-cover border-2 border-gray-600 rounded-sm cursor-pointer hover:border-amber-500 transition duration-150"
+                            onerror="this.onerror=null; this.src='https://placehold.co/96x96/333/ccc?text=S3';"
+                            onclick="changeMainImage(this)"
+                            id="thumb3"/>
 
                     <!-- You can add more thumbnails here -->
                 </div>
@@ -148,19 +153,45 @@
                         Acquire This Artifact
                     </div>
 
+                    <!--
+                        ----------------------------------------------------------------------
+                        OPTION 1: PAID PRODUCT (UNCOMMENT THIS BLOCK TO ACTIVATE STRIPE PAYMENT)
+                        ----------------------------------------------------------------------
+                    -->
+                    <!--
                     <div class="text-5xl font-extrabold text-white mb-6">
                         $1.99
                         <span class="text-lg font-normal text-gray-400 block mt-1">One-Time License</span>
                     </div>
 
-                    <!-- Stripe Checkout Link Placeholder -->
-                    <a href="https://buy.stripe.com/7sY6oHggT29v3Oibxr8EM00" target="_blank" class="w-full block text-center py-4 iron-button font-bold text-xl rounded-sm transition duration-300 uppercase tracking-widest">
+                    <a href="YOUR_STRIPE_CHECKOUT_LINK_HERE" target="_blank" class="w-full block text-center py-4 iron-button font-bold text-xl rounded-sm transition duration-300 uppercase tracking-widest">
                         Pay the Toll (Buy Now)
                     </a>
 
                     <p class="text-xs text-center text-gray-400 mt-4">
                         Secure transaction handled by Stripe Merchant Guild.
                     </p>
+                    -->
+
+                    <!--
+                        ----------------------------------------------------------------------
+                        OPTION 2: FREE PRODUCT (COMMENT OUT THIS BLOCK TO ACTIVATE PAID OPTION)
+                        ----------------------------------------------------------------------
+                    -->
+                    <div class="text-5xl font-extrabold text-white mb-6">
+                        $0.00
+                        <span class="text-lg font-normal text-gray-400 block mt-1">A Free Gift</span>
+                    </div>
+
+                    <!-- IMPORTANT: Replace the placeholder below with your secure, non-guessable download URL! -->
+                    <a href="YOUR_SECURE_DOWNLOAD_URL_HERE" class="w-full block text-center py-4 iron-button font-bold text-xl rounded-sm transition duration-300 uppercase tracking-widest">
+                        Claim the Artifact
+                    </a>
+
+                    <p class="text-xs text-center text-gray-400 mt-4">
+                        Instant download. No payment required.
+                    </p>
+
                 </div>
             </div>
 
