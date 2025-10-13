@@ -9,10 +9,10 @@
     <style>
         /* Shared Styles from Storefront */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=IM+Fell+English+SC&display=swap');
-        
+
         body {
             /* Very dark background for a deep, shadowed feel (Stone/Void) */
-            background-color: #1a1a1a; 
+            background-color: #1a1a1a;
             color: #cccccc;
             font-family: 'Inter', serif;
         }
@@ -23,38 +23,38 @@
         }
         .stone-frame {
             /* --- TEXTURED STONE STYLES --- */
-            background-color: #333333; 
+            background-color: #333333;
             border: 3px solid #555555;
-            background-image: 
+            background-image:
                 linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
             background-size: 8px 8px;
-            box-shadow: 
+            box-shadow:
                 inset 0 0 15px rgba(0, 0, 0, 0.7),
                 0 8px 15px rgba(0, 0, 0, 0.8);
         }
         .content-plaque {
             /* --- DARK PARCHMENT/LEDGER STYLES --- */
-            background-color: #4d3c2a; 
+            background-color: #4d3c2a;
             color: #f0f0f0;
             border: 2px solid #5a5a5a;
-            background-image: 
+            background-image:
                 linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-            background-size: 4px 4px; 
-            box-shadow: 
+            background-size: 4px 4px;
+            box-shadow:
                 inset 0 0 15px rgba(0, 0, 0, 0.8),
-                0 4px 10px rgba(0, 0, 0, 0.5); 
+                0 4px 10px rgba(0, 0, 0, 0.5);
         }
         .iron-button {
             background-color: #4a4a4a;
             color: #ffcc66; /* Pale Gold/Amber */
             border: 1px solid #777;
-            box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5); 
+            box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5);
         }
         .iron-button:hover {
             background-color: #5a5a5a;
-            box-shadow: 0 2px #222, 0 4px 6px rgba(0, 0, 0, 0.5); 
+            box-shadow: 0 2px #222, 0 4px 6px rgba(0, 0, 0, 0.5);
         }
         .download-button {
             background-color: #15803d; /* Dark Green Success */
@@ -64,7 +64,7 @@
         }
         .download-button:hover {
             background-color: #16a34a;
-            box-shadow: 0 2px #0c4f23, 0 4px 6px rgba(0, 0, 0, 0.5); 
+            box-shadow: 0 2px #0c4f23, 0 4px 6px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
@@ -84,17 +84,17 @@
 
     <!-- Main Success Content -->
     <main class="max-w-4xl mx-auto px-4 py-16 md:py-24">
-        
+
         <div class="content-plaque p-8 md:p-12 text-center">
-            
+
             <div class="text-6xl mb-6 text-amber-300">
                 <span role="img" aria-label="Acquisition Complete">✨</span>
             </div>
-            
+
             <h1 class="text-4xl font-extrabold text-white medieval-title mb-4">
                 Acquisition Complete!
             </h1>
-            
+
             <p class="text-2xl text-amber-300 mb-8">
                 The toll has been paid. You may now retrieve your artifact.
             </p>
@@ -102,12 +102,12 @@
             <h2 class="text-3xl font-bold text-white medieval-title mb-6">
                 Factor Hunter Tome
             </h2>
-            
+
             <!-- Download Button (Crucial Step) -->
             <a href="YOUR_SECURE_DOWNLOAD_URL_HERE" target="_blank" class="w-full inline-block md:w-auto px-10 py-4 download-button font-bold text-2xl rounded-sm transition duration-300 uppercase tracking-widest">
                 Download Factor Hunter
             </a>
-            
+
             <div class="mt-10 text-left space-y-4">
                 <h3 class="text-xl font-bold text-amber-300 border-b pb-2 border-gray-500">
                     Your License Key
@@ -133,6 +133,10 @@
     <footer class="p-8 stone-frame mt-12">
         <div class="max-w-7xl mx-auto text-center text-sm text-gray-400">
             <p>&copy; 2024 Andy's Dev Studio. Guild Rules Apply.</p>
+            <p class="mt-2">
+                <a href="eula.html" class="text-amber-300 hover:text-amber-400 transition duration-300">EULA</a> |
+                <a href="privacypolicy.html" class="text-amber-300 hover:text-amber-400 transition duration-300">Privacy Policy</a>
+            </p>
         </div>
     </footer>
 
