@@ -7,8 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'factor_scanner_isolate.dart';
 import 'math_utils.dart';
+import 'info_page.dart'; // <--- ADDED IMPORT
 
 const int trialDivisionLimit = 2000;
+const String APP_VERSION = "1.0.0+1"; // <--- ADDED VERSION CONSTANT
 
 void main() {
   runApp(const FactorHunterApp());
@@ -250,33 +252,58 @@ class _HomePageState extends State<HomePage> {
   BigInt _parseBigInt(String text) {
     text = text.replaceAll(RegExp(r'\s+'), '');
     if (text.isEmpty) return BigInt.zero;
+    
+    // 1. Try to parse as scientific notation first
     final BigInt? sci = _tryParseScientific(text);
     if (sci != null) return sci;
-    return BigInt.parse(text);
+    
+    // 2. Fallback to standard BigInt parsing
+    try {
+        return BigInt.parse(text);
+    } catch (e) {
+        // Handle case where BigInt.parse fails (e.g., non-numeric characters)
+        _addLog('Error parsing BigInt: $text is not a valid large integer or scientific notation.');
+        // If parsing fails, return zero or throw, depending on desired behavior.
+        // Returning BigInt.zero prevents a crash but logs the error.
+        return BigInt.zero; 
+    }
   }
 
   BigInt? _tryParseScientific(String text) {
     final lower = text.toLowerCase();
+    
+    // Quick exit if no scientific notation marker is found
     if (!lower.contains('e')) return null;
+
     final parts = lower.split('e');
     if (parts.length < 2) return null;
+    
+    // Manually parse parts for robustness
     final mantissaStr = parts[0];
-    final rest = parts.sublist(1).join('e');
-    final mantissa = BigInt.tryParse(mantissaStr);
-    if (mantissa == null) return null;
-    final m = RegExp(r'^([+-]?\d+)([+-]\d+)?$').firstMatch(rest);
-    if (m == null) return null;
-    final exponent = int.tryParse(m.group(1)!);
-    if (exponent == null) return null;
-    BigInt offset = BigInt.zero;
-    if (m.groupCount >= 2 && m.group(2) != null && m.group(2)!.isNotEmpty) {
-      offset = BigInt.parse(m.group(2)!);
-    }
+    final exponentStr = parts.sublist(1).join('e'); // In case of weird input like '1e1e9'
+    
+    // 1. Parse Mantissa (Base number)
+    final mantissaDouble = double.tryParse(mantissaStr);
+    if (mantissaDouble == null) return null; // Not a valid number before 'e'
+
+    // 2. Parse Exponent
+    final exponent = int.tryParse(exponentStr);
+    if (exponent == null) return null; // Not a valid exponent after 'e'
+
+    // Convert the result of the double to a string without scientific notation, 
+    // then parse as BigInt. This is the simplest way to handle standard scientific format 
+    // like 1e9 or 5.2e12 when the result fits in a standard BigInt (which it should, 
+    // as it's typically used for the exponent b, or the addend c, not the base a).
     try {
-      final pow10 = BigInt.from(10).pow(exponent);
-      return mantissa * pow10 + offset;
-    } catch (_) {
-      return null;
+        // Use double arithmetic for the initial calculation, then convert to BigInt
+        // for safety when dealing with very large numbers.
+        final double resultDouble = mantissaDouble * math.pow(10, exponent).toDouble();
+        
+        // Return BigInt from the result string to maintain precision for large numbers
+        return BigInt.parse(resultDouble.round().toString());
+
+    } catch (e) {
+        return null; 
     }
   }
 
@@ -292,6 +319,15 @@ class _HomePageState extends State<HomePage> {
       final c = _parseBigInt(_addendController.text);
       final d = _parseBigInt(_divisorController.text);
       if (d <= BigInt.zero) throw const FormatException("Divisor must be positive.");
+      
+      // Error check: If any input failed to parse, the result will be zero, 
+      // which would produce a bad division.
+      if (a == BigInt.zero || b == BigInt.zero || d == BigInt.zero) {
+          _addLog("Warning: Input parsing failed (value is zero). Cannot verify divisor.");
+          setState(() { _status = "Error: Invalid Input"; });
+          return;
+      }
+      
       final remPow = a.modPow(b, d);
       final finalRem = (remPow + c) % d;
       _addLog("a^b mod d = $remPow");
@@ -360,6 +396,21 @@ class _HomePageState extends State<HomePage> {
         _factors.clear();
       }
     });
+    
+    // We only need to check for fatal scan errors here. The actual BigInt values 
+    // are sourced from the controllers when spawning the workers.
+    final a = _parseBigInt(_baseController.text);
+    final b = _parseBigInt(_exponentController.text);
+    final min = _parseBigInt(_minLimitController.text);
+    final max = _parseBigInt(_maxLimitController.text);
+    
+    if (a == BigInt.zero || b == BigInt.zero || min >= max) {
+        _addLog("Scan Error: Base, Exponent, Min/Max range must be valid and positive.");
+        _stopScan();
+        setState(() { _status = "Error: Invalid Scan Parameters"; });
+        return;
+    }
+
 
     _addLog("Number to factor: ${_baseController.text}^${_exponentController.text} + ${_addendController.text}");
 
@@ -370,13 +421,12 @@ class _HomePageState extends State<HomePage> {
     
     _addLog("Main scan will begin from ${_minLimitController.text}.");
 
-    final min = _parseBigInt(_minLimitController.text);
-    final max = _parseBigInt(_maxLimitController.text);
+    
     final int initialChunk = int.tryParse(_chunkSizeController.text) ?? 200000;
     _targetChunkSeconds = double.tryParse(_targetChunkSecondsController.text) ?? _targetChunkSeconds;
     _minChunkSize = int.tryParse(_minChunkSizeController.text) ?? _minChunkSize;
     _maxChunkSize = int.tryParse(_maxChunkSizeController.text) ?? _maxChunkSize;
-
+ 
     _totalWork = (max - min) + BigInt.one;
     if (_totalWork < BigInt.zero) _totalWork = BigInt.zero;
     
@@ -575,6 +625,18 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Factor Hunter"),
+        actions: [ 
+          IconButton( // <--- ADDED INFO BUTTON
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'App Information',
+            onPressed: () {
+              // Navigate to the new info page
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const InfoPage()),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
