@@ -66,7 +66,7 @@ class _AboutTab extends StatelessWidget {
           const SizedBox(height: 20),
           const Text("Developer: Andy's Dev Studio"),
           const Text("Contact: andysdevstudio@gmail.com"),
-          const Text("Website: andysdevstudio.netlify.app"),
+          const Text("Website: andysdevstudio.pages.dev"),
           const SizedBox(height: 30),
           Text("Legal", style: Theme.of(context).textTheme.titleLarge),
           const Divider(height: 10),
