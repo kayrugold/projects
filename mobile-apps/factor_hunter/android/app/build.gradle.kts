@@ -5,6 +5,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Import the necessary Java I/O classes for reading the file
+import java.io.FileInputStream
+import java.util.Properties
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+// Below this, you will find the 'android' block
+
 android {
     namespace = "com.example.factor_hunter"
     compileSdk = flutter.compileSdkVersion
@@ -30,11 +42,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Remove or comment out any existing signingConfig line (like signingConfigs.getByName("debug"))
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true 
+            // ... (other release settings)
+            //signingConfig = signingConfigs.getByName("debug")
         }
     }
 }

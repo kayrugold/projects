@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Geometric Factoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --secondary: #dc2626;
+            --success: #059669;
+            --info: #0284c7;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            overflow-x: hidden;
+        }
+        .main-container {
+            min-height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 1rem;
+            padding-bottom: 2rem;
+        }
+        .content-wrapper {
+            width: 100%;
+            max-width: 32rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+                        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            background: white;
+            border-radius: 0.75rem;
+        }
+        #visualizationCanvas {
+            border: 2px solid #e5e7eb;
+            background-color: #ffffff;
+            touch-action: none;
+            display: block;
+            width: 100%;
+            border-radius: 0.5rem;
+            cursor: pointer;
+        }
+        .canvas-container {
+            height: 350px;
+            width: 100%;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        .katex { font-size: 1.1em !important; }
+        .result-box p { margin-bottom: 0.5rem; }
+        .algebraic-summary, .vieta-section {
+            color: white;
+            border-radius: 0.75rem;
+        }
+        .algebraic-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .vieta-section {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+        .algebraic-equation {
+            font-size: 1.25em;
+            margin: 0.5rem 0;
+        }
+        .vieta-equation {
+            font-size: 1.3em;
+            margin: 0.75rem 0;
+            font-weight: bold;
+        }
+
+        /* Mobile First */
+        @media (max-width: 639px) {
+            .main-container {
+                padding: 1rem;
+            }
+            .canvas-container {
+                height: 350px;
+            }
+            h1 { font-size: 1.875rem; line-height: 2.25rem; }
+            .text-base { font-size: 1rem; }
+            .text-sm { font-size: 0.875rem; }
+            .text-xs { font-size: 0.75rem; }
+        }
+
+        /* Tablet */
+        @media (min-width: 640px) {
+            .main-container {
+                padding: 1.5rem;
+            }
+            .canvas-container {
+                height: 400px;
+            }
+        }
+
+        /* Desktop */
+        @media (min-width: 768px) {
+            .main-container {
+                padding: 2rem;
+            }
+            .canvas-container {
+                height: 450px;
+            }
+            h1 { font-size: 2.25rem; line-height: 2.5rem; }
+        }
+
+        /* Large Desktop */
+        @media (min-width: 1024px) {
+            .main-container {
+                padding: 3rem;
+            }
+            .canvas-container {
+                height: 500px;
+            }
+        }
+
+        /* Extra Large */
+        @media (min-width: 1280px) {
+            .canvas-container {
+                height: 550px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="content-wrapper">
+        <!-- Header -->
+        <div class="text-center w-full mb-6">
+            <h1 class="font-extrabold text-gray-900 mb-2">Interactive Geometric Factoring</h1>
+            <p class="text-gray-600">Drag the line or use Auto-Solve to find integer factors.</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="card p-4 sm:p-6 space-y-4">
+            <p class="text-sm text-gray-700 text-center">
+                The intersection points of the parabola <span class="font-semibold text-violet-600" id="parabolaEq"></span>
+                and the line <span class="font-semibold text-red-600" id="lineEq"></span>
+                solve the equation <span class="font-mono">x² - Mx - N = 0</span>.
+            </p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="inputN" class="block text-sm font-medium text-gray-700">N (Number to Factor)</label>
+                    <input type="number" id="inputN" value="1007" required
+                           class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border-2 text-base">
+                </div>
+                <div>
+                    <label for="inputM" class="block text-sm font-medium text-gray-700">M (Line Slope)</label>
+                    <input type="number" id="inputM" value="34" required step="1"
+                           class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border-2 text-base">
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="flex flex-wrap justify-center sm:justify-start space-x-0 sm:space-x-4 space-y-2 sm:space-y-0">
+                    <label class="inline-flex items-center text-sm">
+                        <input type="radio" name="gridType" value="linear" checked class="form-radio text-violet-600 h-4 w-4">
+                        <span class="ml-2 text-gray-700">Linear Grid</span>
+                    </label>
+                    <label class="inline-flex items-center text-sm">
+                        <input type="radio" name="gridType" value="log" class="form-radio text-violet-600 h-4 w-4">
+                        <span class="ml-2 text-gray-700">Log Grid</span>
+                    </label>
+                </div>
+                <div class="flex gap-2 w-full sm:w-auto justify-center sm:justify-end">
+                    <button id="autoSolveButton"
+                        class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 disabled:opacity-50 text-sm flex-1 sm:flex-none">
+                        Auto-Solve
+                    </button>
+                    <button id="updateNButton"
+                        class="bg-violet-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-violet-700 disabled:opacity-50 text-sm flex-1 sm:flex-none">
+                        Update N
+                    </button>
+                </div>
+            </div>
+
+            <div class="canvas-container">
+                <canvas id="visualizationCanvas"></canvas>
+            </div>
+
+            <div id="results" class="result-box p-4 bg-gray-100 rounded-lg min-h-[70px] text-center flex items-center justify-center">
+                <p id="resultText" class="text-gray-600 italic text-sm">Drag on the graph to change M and find integer factors.</p>
+            </div>
+
+            <!-- Step-by-step math summary -->
+            <div id="mathSummary" class="p-4 bg-white rounded-lg border text-sm text-gray-800"></div>
+        </div>
+
+        <!-- Algebraic expressions -->
+        <div id="algebraicSummary" class="algebraic-summary card p-4 sm:p-6 mt-6 w-full">
+            <div class="text-center">
+                <h2 class="text-2xl font-bold mb-4">Algebraic Summary</h2>
+                <div class="space-y-3">
+                    <div class="algebraic-equation">
+                        <span id="algParabola">y = x^2 - N</span>
+                    </div>
+                    <div class="algebraic-equation">
+                        <span id="algLine">y = Mx</span>
+                    </div>
+                    <div class="algebraic-equation text-lg font-bold text-yellow-200">
+                        <span id="algEquation">x^2 - Mx - N = 0</span>
+                    </div>
+                    <div class="text-sm opacity-90">
+                        <p><strong>Quadratic Formula:</strong> \( x = \frac{M \pm \sqrt{M^2 + 4N}}{2} \)</p>
+                        <p><strong>Factors:</strong> When roots are integers F₁, F₂: <span id="algFactors">N = F₁ × F₂</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vieta's Formulas Section -->
+        <div id="vietaSummary" class="vieta-section card p-4 sm:p-6 mt-6 w-full">
+            <div class="text-center">
+                <h2 class="text-2xl font-bold mb-4">🧮 Vieta's Formulas</h2>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
+                        <div>
+                            <div class="vieta-equation text-amber-100">
+                                <span id="vietaSum">F₁ + F₂ = M</span>
+                            </div>
+                            <p class="text-sm opacity-90 mt-1">Sum of Roots</p>
+                        </div>
+                        <div>
+                            <div class="vieta-equation text-amber-100">
+                                <span id="vietaProduct">F₁ × F₂ = N</span>
+                            </div>
+                            <p class="text-sm opacity-90 mt-1">Product of Roots</p>
+                        </div>
+                    </div>
+                    <div class="bg-black/20 rounded-lg p-4">
+                        <p class="text-sm opacity-90 mb-2"><strong>Current Values:</strong></p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
+                            <div>
+                                <div class="text-lg font-bold text-yellow-200">
+                                    <span id="vietaSumCurrent">19 + 53 = 72</span>
+                                </div>
+                                <p class="text-xs">But M = 34</p>
+                            </div>
+                            <div>
+                                <div class="text-lg font-bold text-yellow-200">
+                                    <span id="vietaProductCurrent">19 × 53 = 1007</span>
+                                </div>
+                                <p class="text-xs">✓ Matches N = 1007</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-sm opacity-90">
+                        <p><strong>When Factored:</strong> Choose M = |F₁ - F₂| = |19 - 53| = 34</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+const canvas = document.getElementById('visualizationCanvas');
+const ctx = canvas.getContext('2d');
+const inputN = document.getElementById('inputN');
+const inputM = document.getElementById('inputM');
+const updateNButton = document.getElementById('updateNButton');
+const autoSolveButton = document.getElementById('autoSolveButton');
+const resultText = document.getElementById('resultText');
+const gridRadios = document.querySelectorAll('input[name="gridType"]');
+const parabolaEq = document.getElementById('parabolaEq');
+const lineEq = document.getElementById('lineEq');
+const mathSummary = document.getElementById('mathSummary');
+const algParabola = document.getElementById('algParabola');
+const algLine = document.getElementById('algLine');
+const algEquation = document.getElementById('algEquation');
+const algFactors = document.getElementById('algFactors');
+const vietaSum = document.getElementById('vietaSum');
+const vietaProduct = document.getElementById('vietaProduct');
+const vietaSumCurrent = document.getElementById('vietaSumCurrent');
+const vietaProductCurrent = document.getElementById('vietaProductCurrent');
+
+let currentGridType = 'linear';
+let N_VALUE = parseFloat(inputN.value);
+let M_VALUE = parseInt(inputM.value);
+let lastResult = null;
+let isDragging = false;
+
+let W, H, originX, originY, scaleX, scaleY, maxAbsX;
+
+function recalculateScale(N, M, roots) {
+    const container = document.querySelector('.canvas-container');
+    W = container.clientWidth - 4; // account for border
+    H = container.clientHeight;
+    canvas.width = W;
+    canvas.height = H;
+
+    const maxRoot = roots ? Math.max(...roots.map(Math.abs)) : Math.sqrt(Math.abs(N)) + 10;
+    maxAbsX = Math.max(maxRoot * 1.5, 20);
+    const yAtMaxX = maxAbsX * maxAbsX - N;
+    const yIntersection = roots ? Math.abs(M * Math.max(...roots.map(Math.abs))) : Math.abs(M*maxAbsX);
+    const maxAbsY = Math.max(Math.abs(yAtMaxX), yIntersection, Math.abs(N), 100);
+    originX = W / 2;
+    originY = H / 2 + (N / maxAbsY) * (H / 4);
+    scaleX = (W * 0.9) / (2 * maxAbsX);
+    scaleY = (H * 0.9) / (2 * maxAbsY);
+}
+
+const worldToPixelX = x => originX + x * scaleX;
+const worldToPixelY = y => originY - y * scaleY;
+const pixelToWorldX = px => (px - originX) / scaleX;
+const pixelToWorldY = py => (originY - py) / scaleY;
+
+function drawGrid(isLog) {
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 0.5;
+    ctx.font = '10px Inter';
+    ctx.fillStyle = '#6b7280';
+    const maxAbsY = (H * 0.9) / (2 * scaleY);
+    for (let i = -10; i <= 10; i++) {
+        const x = i * maxAbsX / 10;
+        ctx.beginPath(); ctx.moveTo(worldToPixelX(x), 0); ctx.lineTo(worldToPixelX(x), H); ctx.stroke();
+        const y = i * maxAbsY / 10;
+        ctx.beginPath(); ctx.moveTo(0, worldToPixelY(y)); ctx.lineTo(W, worldToPixelY(y)); ctx.stroke();
+    }
+}
+
+function drawAxes() {
+    ctx.strokeStyle = '#374151';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(W, originY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, H); ctx.stroke();
+}
+
+function drawFunctions(N, M, result) {
+    const numSegments = 400;
+    const minX = -maxAbsX;
+    const stepX = maxAbsX * 2 / numSegments;
+    ctx.strokeStyle = 'var(--primary)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let i = 0; i <= numSegments; i++) {
+        const x = minX + i * stepX;
+        const y = x * x - N;
+        const px = worldToPixelX(x);
+        const py = worldToPixelY(y);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = 'var(--secondary)';
+    ctx.beginPath();
+    ctx.moveTo(worldToPixelX(minX), worldToPixelY(M * minX));
+    ctx.lineTo(worldToPixelX(maxAbsX), worldToPixelY(M * maxAbsX));
+    ctx.stroke();
+    if (result && result.success) {
+        ctx.fillStyle = 'var(--success)';
+        result.roots.forEach(x => {
+            const y = M * x;
+            const px = worldToPixelX(x);
+            const py = worldToPixelY(y);
+            ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill();
+        });
+    }
+}
+
+function drawScene() {
+    recalculateScale(N_VALUE, M_VALUE, lastResult ? lastResult.roots : null);
+    ctx.clearRect(0, 0, W, H);
+    drawGrid(currentGridType === 'log');
+    drawAxes();
+    drawFunctions(N_VALUE, M_VALUE, lastResult);
+    updateEquations();
+    updateAlgebraicSummary();
+    updateVietaSummary();
+}
+
+// Rest of the functions remain exactly the same...
+function updateAlgebraicSummary() {
+    algParabola.textContent = `y = x² - ${N_VALUE}`;
+    algLine.textContent = `y = ${M_VALUE}x`;
+    algEquation.textContent = `x² - ${M_VALUE}x - ${N_VALUE} = 0`;
+    if (lastResult && lastResult.success) {
+        algFactors.textContent = `${N_VALUE} = ${lastResult.F1} × ${lastResult.F2}`;
+    } else {
+        algFactors.textContent = `${N_VALUE} = F₁ × F₂`;
+    }
+}
+
+function updateVietaSummary() {
+    vietaSum.textContent = `F₁ + F₂ = M`;
+    vietaProduct.textContent = `F₁ × F₂ = N`;
+
+    if (lastResult && lastResult.success) {
+        const sum = lastResult.F1 + lastResult.F2;
+        const diff = Math.abs(lastResult.F1 - lastResult.F2);
+        vietaSumCurrent.textContent = `${lastResult.F1} + ${lastResult.F2} = ${sum}`;
+        vietaProductCurrent.textContent = `${lastResult.F1} × ${lastResult.F2} = ${N_VALUE}`;
+        document.querySelector('#vietaSumCurrent').parentElement.querySelector('p').textContent =
+            sum === M_VALUE ? `✓ Matches M = ${M_VALUE}` : `But M = ${M_VALUE} (use |F₁ - F₂| = ${diff})`;
+        document.querySelector('#vietaProductCurrent').parentElement.querySelector('p').textContent =
+            `✓ Matches N = ${N_VALUE}`;
+    } else {
+        const fac = findFactors(N_VALUE);
+        if (fac && fac.f1 !== 1) {
+            vietaSumCurrent.textContent = `${fac.f2} + ${fac.f1} = ${fac.f1 + fac.f2}`;
+            vietaProductCurrent.textContent = `${fac.f2} × ${fac.f1} = ${N_VALUE}`;
+            document.querySelector('#vietaSumCurrent').parentElement.querySelector('p').textContent =
+                `But M = ${M_VALUE}`;
+            document.querySelector('#vietaProductCurrent').parentElement.querySelector('p').textContent =
+                `✓ Matches N = ${N_VALUE}`;
+        } else {
+            vietaSumCurrent.textContent = `? + ? = ${M_VALUE}`;
+            vietaProductCurrent.textContent = `? × ? = ${N_VALUE}`;
+        }
+    }
+}
+
+function findFactors(N) {
+    N = Math.abs(N);
+    if (N < 1) return null;
+    for (let i = 2; i <= Math.sqrt(N); i++) {
+        if (N % i === 0) {
+            return { f1: N / i, f2: i };
+        }
+    }
+    return { f1: N, f2: 1 };
+}
+
+function getMathSummaryHtml(d, isSuccess) {
+    const x1Fixed = d.x1.toFixed(4);
+    const x2Fixed = d.x2.toFixed(4);
+    const y1 = (d.M * d.x1).toFixed(4);
+    const y2 = (d.M * d.x2).toFixed(4);
+    const sqrtDFixed = d.sqrtD.toFixed(4);
+    return `
+        <p>Parabola: \\(y = x^2 - ${d.N}\\)</p>
+        <p>Line: \\(y = ${d.M} x\\)</p>
+        <p>Set equal: \\(x^2 - ${d.M} x - ${d.N} = 0\\)</p>
+        <p>Discriminant: \\(D = ${d.M}^2 + 4 \\times ${d.N} = ${d.D}\\)</p>
+        <p>\\(\\sqrt{D} \\approx ${sqrtDFixed}\\)</p>
+        <p>Roots:</p>
+        <p>\\(x_1 \\approx \\frac{${d.M} + \\sqrt{D}}{2} = ${x1Fixed}\\)</p>
+        <p>\\(x_2 \\approx \\frac{${d.M} - \\sqrt{D}}{2} = ${x2Fixed}\\)</p>
+        <p>Intersection Points:</p>
+        <p>Point 1: \\((${x1Fixed}, ${y1})\\)</p>
+        <p>Point 2: \\((${x2Fixed}, ${y2})\\)</p>
+        ${isSuccess ? `<p>Exact Integer Factors: ${d.F1} and ${d.F2}</p>` : `<p>Approximate Rounded Factors: ${d.F1} and ${d.F2} (product ≠ ${d.N})</p>`}
+    `;
+}
+
+const factoringWorker = new Worker(URL.createObjectURL(new Blob([`(${function() {
+    self.onmessage = function(e) {
+        const { N, M } = e.data;
+        const discriminant = M * M + 4 * N;
+        if (discriminant < 0) {
+            postMessage({ error: 'No real roots', N, M, D: discriminant });
+            return;
+        }
+        const sqrtD = Math.sqrt(discriminant);
+        const x1 = (M + sqrtD) / 2;
+        const x2 = (M - sqrtD) / 2;
+        const F1 = Math.round(x1);
+        const F2 = Math.round(-x2);
+        postMessage({ N, M, D: discriminant, sqrtD, x1, x2, F1, F2, success: F1 * F2 === N });
+    };
+}})()`], { type: 'application/javascript' })));
+
+factoringWorker.onmessage = function(e) {
+    const d = e.data;
+    if (d.error) {
+        lastResult = null;
+        resultText.parentElement.className = 'result-box p-4 bg-amber-100 rounded-lg min-h-[70px] text-center flex items-center justify-center';
+        resultText.innerHTML = `<p class="text-amber-800">No real intersections (negative discriminant).</p>`;
+        mathSummary.innerHTML = `
+            <p>Parabola: \\(y = x^2 - ${d.N}\\)</p>
+            <p>Line: \\(y = ${d.M} x\\)</p>
+            <p>Set equal: \\(x^2 - ${d.M} x - ${d.N} = 0\\)</p>
+            <p>Discriminant: \\(D = ${d.M}^2 + 4 \\times ${d.N} = ${d.D}\\)</p>
+            <p>Since D < 0, no real roots.</p>
+        `;
+    } else if (!d.success) {
+        lastResult = null;
+        resultText.parentElement.className = 'result-box p-4 bg-amber-100 rounded-lg min-h-[70px] text-center flex items-center justify-center';
+        resultText.innerHTML = `<p class="text-amber-800">No integer factors found for M = ${d.M}.</p>`;
+        mathSummary.innerHTML = getMathSummaryHtml(d, false);
+    } else {
+        lastResult = { ...d, roots: [d.x1, d.x2] };
+        resultText.parentElement.className = 'result-box p-4 bg-green-100 rounded-lg min-h-[70px] text-center flex items-center justify-center';
+        resultText.innerHTML = `<p class="text-green-800 font-semibold">Factors Found: ${d.F1} × ${d.F2} = ${d.N}</p>`;
+        mathSummary.innerHTML = getMathSummaryHtml(d, true);
+    }
+    renderMathInElement(mathSummary);
+    drawScene();
+};
+
+function getCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function updateSlopeFromCoords(coords) {
+    const worldX = pixelToWorldX(coords.x);
+    const worldY = pixelToWorldY(coords.y);
+    const newM = Math.round(worldY / worldX);
+    M_VALUE = newM;
+    inputM.value = newM;
+    drawScene();
+    factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+}
+
+canvas.addEventListener('mousedown', e => { isDragging = true; updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('mousemove', e => { if (isDragging) updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('touchstart', e => { isDragging = true; updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('touchmove', e => { if (isDragging) updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('touchend', () => isDragging = false);
+
+function updateEquations() {
+    parabolaEq.textContent = `y = x² - ${N_VALUE}`;
+    lineEq.textContent = `y = ${M_VALUE}x`;
+    renderMathInElement(parabolaEq.parentElement);
+}
+
+updateNButton.addEventListener('click', () => {
+    N_VALUE = parseFloat(inputN.value);
+    factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+});
+
+inputM.addEventListener('change', () => {
+    M_VALUE = parseInt(inputM.value);
+    factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+});
+
+[inputN, inputM].forEach(inp => inp.addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+        N_VALUE = parseFloat(inputN.value);
+        M_VALUE = parseInt(inputM.value);
+        factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+    }
+}));
+
+autoSolveButton.addEventListener('click', () => {
+    const fac = findFactors(N_VALUE);
+    if (fac) {
+        const larger = Math.max(fac.f1, fac.f2);
+        const smaller = Math.min(fac.f1, fac.f2);
+        M_VALUE = larger - smaller;
+        inputM.value = M_VALUE;
+        factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+    } else {
+        alert('Invalid N for factoring.');
+    }
+});
+
+gridRadios.forEach(radio => radio.addEventListener('change', e => {
+    currentGridType = e.target.value;
+    drawScene();
+}));
+
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        drawScene();
+        factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+    }, 100);
+});
+
+window.addEventListener('resize', () => setTimeout(drawScene, 250));
+
+renderMathInElement(document.getElementById('algebraicSummary'));
+renderMathInElement(document.getElementById('vietaSummary'));
+</script>
+</body>
+</html>
