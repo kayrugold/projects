@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Logarithmic Prime Terrain Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #000; color: #fff; touch-action: none; }
+        canvas { display: block; }
+        #info-container { position: absolute; top: 10px; left: 10px; padding: 15px; background-color: rgba(0, 0, 0, 0.7); border-radius: 10px; max-width: 350px; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px); pointer-events: all; }
+        #info-container h1 { margin-top: 0; font-size: 1.2em; color: #4dd0e1; }
+        .info-item { margin-bottom: 8px; font-size: 0.9em; }
+        .info-label { font-weight: bold; color: #a7a7a7; }
+        #blocker { position: absolute; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; }
+        #instructions { text-align: center; padding: 20px; background-color: rgba(0, 0, 0, 0.8); border-radius: 10px; cursor: pointer; }
+        #instructions h2 { margin-top: 0; }
+        #compass-container { position: absolute; bottom: 20px; right: 20px; padding: 10px 15px; background-color: rgba(0, 0, 0, 0.7); border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px); font-size: 1.5em; font-weight: bold; color: #e0e0e0; }
+        #spawn-container { margin-top: 15px; }
+        #set-spawn-btn { padding: 8px 12px; background-color: #4dd0e1; border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; width: 100%; }
+        #spawn-url-input { margin-top: 8px; width: calc(100% - 16px); padding: 8px; background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 5px; color: #fff; }
+
+        /* Factor Hunter Modal Styles */
+        #nav-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); display: none; /* Hidden by default */
+            justify-content: center; align-items: center; z-zIndex: 100;
+            backdrop-filter: blur(8px);
+        }
+        #nav-content {
+            background-color: rgba(30, 30, 40, 0.95); padding: 30px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); width: 350px; text-align: center;
+            border: 2px solid #ffaa00; /* Gold/Factor color */
+        }
+        #nav-content h2 { color: #ffaa00; margin-top: 0; }
+        #nav-content p { margin-bottom: 10px; font-size: 0.9em; color: #ccc; }
+        .input-group { text-align: left; margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #ccc; font-size: 0.9em; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        #exponent-input, .input-grid input {
+            width: 100%; box-sizing: border-box; padding: 10px; border-radius: 5px;
+            border: 1px solid #555; background-color: #0f0f1a; color: #fff; font-size: 1.1em;
+            text-align: center;
+        }
+        #jump-button {
+            padding: 10px 20px; background-color: #ffaa00; border: none; border-radius: 5px;
+            color: #000; font-weight: bold; cursor: pointer; transition: background-color 0.2s;
+            width: 100%;
+        }
+        #jump-button:hover { background-color: #ffd700; }
+        #factor-display { color: #ffaa00; font-weight: bold; margin-top: 10px; font-size: 1.1em; }
+
+        #speed-controls { margin-top: 15px; }
+        #speed-multiplier-input { width: 100px; }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="info-container">
+        <h1>Prime Terrain Explorer</h1>
+        <div class="info-item"><span class="info-label">Position (log scale):</span> <span id="position-display">~10^...</span></div>
+        <div class="info-item"><span class="info-label">Current Chunk:</span> <span id="chunk-coords-display">[0, 0]</span></div>
+        <hr style="border-color: rgba(255,255,255,0.1);">
+        <div class="info-item"><span class="info-label">Local Prime Density:</span> <span id="density-display">N/A</span></div>
+        <div class="info-item"><span class="info-label">Avg. Prime Gap:</span> <span id="gap-display">N/A</span></div>
+        <div id="factor-display">Target: <span id="target-n-display">N/A</span></div>
+        <div id="found-factor-display" style="color:#ffaa00; font-weight:bold; font-size:1.1em;">Factor: Searching...</div>
+        <div id="spawn-container">
+            <button id="set-spawn-btn">Set Spawn Point</button>
+            <input type="text" id="spawn-url-input" placeholder="Spawn URL will appear here" readonly>
+        </div>
+    </div>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h2>Click to Explore</h2>
+            <p>
+                <b>Desktop:</b> WASD to move, SHIFT to run, <b>SPACE to jump</b>, Q/E to turn, MOUSE to look<br>
+                Press <b>P</b> for Factor Hunter Controls.
+            </p>
+        </div>
+    </div>
+
+    <!-- Factor Hunter Control Panel -->
+    <div id="nav-modal">
+        <div id="nav-content">
+            <h2>Factor Hunter Controls</h2>
+            <p>Define your target number $N=a^b+c$ and starting position.</p>
+
+            <div class="input-group">
+                 <label for="exponent-input">Starting Log Exponent ($k$)</label>
+                 <input type="text" id="exponent-input" value="3.01" placeholder="e.g., 10 or 100">
+            </div>
+
+            <label>Target Number Parameters ($a^b+c$)</label>
+            <div class="input-grid">
+                <input type="text" id="base-a-input" value="10" placeholder="Base (a)">
+                <input type="text" id="exp-b-input" value="3" placeholder="Exponent (b)">
+                <input type="text" id="add-c-input" value="7" placeholder="Addend (c)">
+            </div>
+
+            <div class="input-group" id="speed-controls">
+                <label for="speed-multiplier-input">Movement Speed Multiplier (Walk/Sprint)</label>
+                <input type="number" id="speed-multiplier-input" value="1.0" step="0.1" min="0.1" max="10.0">
+            </div>
+
+            <button id="jump-button">JUMP & START HUNT</button>
+            <p style="margin-top: 20px; font-size: 0.8em; color: #aaa;">Press ESC to close.</p>
+        </div>
+    </div>
+
+    <div id="compass-container">
+        <span id="compass-display">N</span>
+    </div>
+
+    <script>
+        // --- Core Components & State ---
+        let scene, camera, renderer, raycaster, yawObject;
+        const clock = new THREE.Clock();
+        const chunkManager = new Map();
+        let primeDataWorker;
+        // Reduced player height based on WORLD_SCALE_FACTOR
+        const PLAYER_HEIGHT = 2.5;
+        // Factor to visually shrink the avatar and expand perceived world size
+        const WORLD_SCALE_FACTOR = 0.5;
+        let moveState = { forward: 0, right: 0, turn: 0, isSprinting: false };
+        let velocity = new THREE.Vector3();
+        let canJump = false;
+        // Physics constants are scaled by WORLD_SCALE_FACTOR
+        const GRAVITY = 100.0 * WORLD_SCALE_FACTOR;
+        const JUMP_VELOCITY = 25.0 * WORLD_SCALE_FACTOR;
+        const ACTIVE_DAMPING = 0.9;
+        const SINK_SMOOTHING = 5.0;
+        const GROUND_FRICTION = 0.8;
+        // Base movement speed constant (used in velocity calculations)
+        const BASE_MOVE_SPEED_CONSTANT = 120;
+        let BASE_MOVE_SPEED = 70; // Current effective walk speed
+        const activeTouches = new Map();
+        let isLocked = false;
+        let isNavModalOpen = false;
+
+        // --- Factor Hunter State ---
+        const FACTOR_TAIL_LENGTH = 120;
+        let targetNParams = { a: "10", b: "3", c: "7" }; // Pre-set to 10^3 + 7 = 1007
+        let foundFactor = null;
+        let factorCometMesh;
+        let cometAttributes;
+
+        // --- Integrated and Tuned Sensitivity Settings ---
+        const SENSITIVITY = {
+            MOVE: 0.005,
+            LOOK: 0.002,
+            TOUCH_LOOK: 0.002,
+            STRAFE_LEFT_MOD: 1.2,
+            MOVE_BACKWARD_MOD: 1.1,
+            KEYBOARD_TURN_SPEED: 1.5,
+            SPRINT_MULTIPLIER: 2.5
+        };
+
+        const blocker = document.getElementById('blocker');
+        const instructions = document.getElementById('instructions');
+        const navModal = document.getElementById('nav-modal');
+        const exponentInput = document.getElementById('exponent-input');
+        const baseAInput = document.getElementById('base-a-input');
+        const expBInput = document.getElementById('exp-b-input');
+        const addCInput = document.getElementById('add-c-input');
+        const speedMultiplierInput = document.getElementById('speed-multiplier-input');
+
+        // CHUNK_SIZE increased for better chunk alignment and walkability
+        const CHUNK_SIZE = 160, CHUNK_SEGMENTS = 32, VIEW_DISTANCE = 3;
+        const LOG_BASE_EXPONENT = 1n;
+        const LOG_SCALE_PER_CHUNK = 0.005;
+        const SEA_LEVEL = -100;
+
+        // --- Global Group Declarations (Switched to VAR to prevent redeclaration errors on re-run) ---
+        var atmosphereGroup;
+        var primeParticleGroup;
+        var factorCometGroup;
+        var glowTexture;
+        var gridTexture;
+
+        // --- Perlin Noise Generator (lightweight implementation) ---
+        const noise = (() => { const p = new Uint8Array(512); for(let i=0; i < 256; i++) p[i] = i; for(let i=255; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } for(let i=0; i < 256; i++) p[i+256] = p[i]; const f=t=>t*t*t*(t*(t*6-15)+10), l=(t,a,b)=>a+t*(b-a), g=(h,x,y,z)=>{const u=h<8?x:y,v=h<4?y:h==12||h==14?x:z;return((h&1)==0?u:-u)+((h&2)==0?v:-v);}; return { get: (x,y,z=0) => { const X=Math.floor(x)&255,Y=Math.floor(y)&255,Z=Math.floor(z)&255; x-=Math.floor(x);y-=Math.floor(y);z-=Math.floor(z); const u=f(x),v=f(y),w=f(z),A=p[X]+Y,AA=p[A]+Z,AB=p[A+1]+Z,B=p[X+1]+Y,BA=p[B]+Z,BB=p[B+1]+Z; return l(w,l(v,l(u,g(p[AA],x,y,z),g(p[BA],x-1,y,z)),l(u,g(p[AB],x,y-1,z),g(p[BB],x-1,y-1,z))),l(v,l(u,g(p[AA+1],x,y,z-1),g(p[BA+1],x-1,y,z-1)),l(u,g(p[AB+1],x,y-1,z-1),g(p[BB+1],x-1,y-1,z-1)))); } }; })();
+
+        // --- BigInt Utility for Parsing and PowMod ---
+        function parseBigInt(s) {
+            s = String(s).trim().toLowerCase();
+            if (s === '') return 0n;
+            if (s.includes('e')) {
+                const [baseStr, expStr] = s.split('e');
+                return BigInt(baseStr || '1') * (10n ** BigInt(expStr));
+            }
+            if (/^-?\d+$/.test(s)) return BigInt(s);
+            return BigInt(s);
+        }
+
+        // --- Low-Range Factor Check (New Function) ---
+        async function checkSmallFactors() {
+            const TARGET_LIMIT = 1000n; // Check for factors up to 1000
+            const a = parseBigInt(targetNParams.a);
+            const b = parseBigInt(targetNParams.b);
+            const c = parseBigInt(targetNParams.c);
+
+            for (let p = 2n; p <= TARGET_LIMIT; p++) {
+                if (p % 2n === 0n && p > 2n) continue;
+                if (p % 3n === 0n && p > 3n) continue;
+
+                if (p > 5n) {
+                    let isPrime = true;
+                    for (let i = 5n; i * i <= p; i += 6n) {
+                        if (p % i === 0n || p % (i + 2n) === 0n) {
+                            isPrime = false;
+                            break;
+                        }
+                    }
+                    if (!isPrime) continue;
+                }
+
+                // Factor Check: (a^b + c) mod p === 0
+                const remPow = powMod(a, b, p);
+                const finalRem = (remPow + (c % p) + p) % p;
+
+                if (finalRem === 0n) {
+                    return p.toString();
+                }
+            }
+            return null;
+        }
+
+        function powMod(b,e,m){let r=1n;b%=m;while(e>0n){if(e%2n===1n)r=(r*b)%m;b=(b*b)%m;e/=2n}return r}
+
+
+        // --- Web Worker Setup (Now checks for factor of a^b+c) ---
+        function setupWorker() {
+            const code = `
+                function powMod(b,e,m){let r=1n;b%=m;while(e>0n){if(e%2n===1n)r=(r*b)%m;b=(b*b)%m;e/=2n}return r}
+                function R(i,a){const n=a-i;if(n<=0n)return i;const t=n.toString(2).length,o=Math.ceil(t/8);let g;do{const c=new Uint8Array(o);crypto.getRandomValues(c),g=0n;for(let l=0;l<o;l++)g=g<<8n|BigInt(c[l])}while(g>n);return i+g}
+                function m(i,a=5){if(i<2n)return!1;if(i===2n||i===3n)return!0;if(i%2n===0n)return!1;let n=i-1n,t=0n;for(;n%2n===0n;)n/=2n,t++;for(let o=0;o<a;o++){const g=R(2n,i-2n);let c=powMod(g,n,i);if(c===1n||c===i-1n)continue;let l=0n;for(l=1n;l<t;l++){if(c=powMod(c,2n,i),c===i-1n)break}if(l===t)return!1}return!0}
+
+                self.onmessage=function(i){
+                    const{chunkX:a,chunkZ:n,startLog:t,endLog:o, targetA:ta, targetB:tb, targetC:tc}=i.data;
+                    const bigA=BigInt(ta), bigB=BigInt(tb), bigC=BigInt(tc);
+
+                    const g=10n**BigInt(Math.round(t)),c=10n**BigInt(Math.round(o)),l=[],r=75;
+                    let foundFactorPrime = null;
+
+                    for(let s=0;s<r;s++){
+                        let d=R(g,c);
+                        d%2n===0n&&d++;
+                        if(m(d)){
+                            l.push(d);
+                            if (d > 1000n) {
+                                const remPow = powMod(bigA, bigB, d);
+                                const finalRem = (remPow + (bigC % d) + d) % d;
+                                if (finalRem === 0n) {
+                                    foundFactorPrime = d.toString();
+                                }
+                            }
+                        }
+                    }
+                    l.sort((s,d)=>s<d?-1:s>d?1:0);
+                    const e=l.length/r;
+                    let h=0n,u=[0,0,0,0,0,0];
+                    if(l.length>1)for(let s=1;s<l.length;s++)h+=l[s]-l[s-1];
+                    if(l.length>0)for(const s of l)u[Number(s%6n)]++;
+                    const k=l.length>1?h/BigInt(l.length-1):0n;
+
+                    self.postMessage({
+                        chunkX:a,chunkZ:n,
+                        stats:{density:e,avgGap:k.toString(),residueMod6:u},
+                        primes: l.map(String),
+                        factorPrime: foundFactorPrime
+                    });
+                };
+            `;
+            return new Worker(URL.createObjectURL(new Blob([code],{type:'application/javascript'})));
+        }
+
+        // --- Utility to create a soft glow texture for particles ---
+        function createGlowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.5)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // --- Init Atmosphere/Comet Logic ---
+        var atmosphereGroup;
+        var primeParticleGroup;
+        var factorCometGroup;
+        var glowTexture;
+        var gridTexture;
+
+        function animateOcean(time) {
+            // Creates the parallax shift effect
+            atmosphereGroup.rotation.y += 0.0001 * time;
+        }
+
+        // --- Factor Comet Tail Logic ---
+        let tailGeometry, tailParticles;
+        let positions, opacities, sizes, life;
+        let particleCursor = 0;
+
+        function initCometTailSystem() {
+            const MAX_PARTICLES = 5000;
+            tailGeometry = new THREE.BufferGeometry();
+
+            positions = new Float32Array(MAX_PARTICLES * 3);
+            opacities = new Float32Array(MAX_PARTICLES);
+            sizes = new Float32Array(MAX_PARTICLES);
+            life = new Float32Array(MAX_PARTICLES);
+
+            tailGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            tailGeometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1));
+            tailGeometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+
+            const tailMaterial = new THREE.PointsMaterial({
+                size: 20,
+                color: 0xffaa00,
+                map: glowTexture,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                vertexColors: false,
+                sizeAttenuation: true
+            });
+
+            factorCometMesh = new THREE.Sprite(tailMaterial);
+            factorCometMesh.scale.set(10, 10, 10);
+            factorCometMesh.material.color.set(0xffd700);
+
+            // Create the tail (Points)
+            tailParticles = new THREE.Points(tailGeometry, tailMaterial.clone());
+            tailParticles.material.size = 5;
+            tailParticles.material.color.set(0xffaa00);
+
+            factorCometGroup = new THREE.Group();
+            factorCometGroup.add(tailParticles);
+            factorCometGroup.add(factorCometMesh);
+            factorCometGroup.visible = false;
+            scene.add(factorCometGroup);
+        }
+
+        function updateFactorComet(delta, elapsedTime) {
+            if (foundFactor) {
+                factorCometGroup.visible = true;
+                const factorChunk = chunkManager.get(foundFactor.chunkId);
+
+                // Determine anchor point: if small factor (0,0), else the found chunk.
+                const targetChunk = factorChunk || chunkManager.get(foundFactor.chunkId);
+
+                if (targetChunk) {
+
+                    const orbitRadius = 80;
+                    const orbitSpeed = 0.5;
+                    const angle = elapsedTime * orbitSpeed;
+
+                    const cometX = targetChunk.x * CHUNK_SIZE + CHUNK_SIZE / 2 + orbitRadius * Math.cos(angle);
+                    const cometZ = targetChunk.z * CHUNK_SIZE + CHUNK_SIZE / 2 + orbitRadius * Math.sin(angle);
+                    const cometY = 160 + 5 * Math.sin(angle * 2);
+
+                    const cometPos = new THREE.Vector3(cometX, cometY, cometZ);
+
+                    factorCometMesh.position.copy(cometPos);
+
+                    if (Math.random() < 0.8) {
+                        positions[particleCursor * 3 + 0] = cometX;
+                        positions[particleCursor * 3 + 1] = cometY;
+                        positions[particleCursor * 3 + 2] = cometZ;
+                        opacities[particleCursor] = 1.0;
+                        sizes[particleCursor] = 10;
+                        life[particleCursor] = 1.0;
+                        particleCursor = (particleCursor + 1) % FACTOR_TAIL_LENGTH;
+                    }
+                }
+
+                for (let i = 0; i < FACTOR_TAIL_LENGTH; i++) {
+                    if (life[i] > 0) {
+                        life[i] -= delta * 1.5;
+                        opacities[i] = life[i] * 0.8;
+                        sizes[i] *= 0.98;
+                        const prevIndex = (i - 1 + FACTOR_TAIL_LENGTH) % FACTOR_TAIL_LENGTH;
+
+                        const dirX = positions[i * 3 + 0] - positions[prevIndex * 3 + 0];
+                        const dirZ = positions[i * 3 + 2] - positions[prevIndex * 3 + 2];
+                        positions[i * 3 + 0] += dirX * delta * 5;
+                        positions[i * 3 + 2] += dirZ * delta * 5;
+                    } else {
+                        opacities[i] = 0;
+                        sizes[i] = 0;
+                    }
+                }
+
+                tailGeometry.attributes.position.needsUpdate = true;
+                tailGeometry.attributes.aOpacity = new THREE.BufferAttribute(opacities, 1);
+                tailGeometry.attributes.aSize = new THREE.BufferAttribute(sizes, 1);
+                tailGeometry.attributes.aOpacity.needsUpdate = true;
+                tailGeometry.attributes.aSize.needsUpdate = true;
+
+            } else {
+                factorCometGroup.visible = false;
+            }
+        }
+        // --- END Factor Comet Logic ---
+
+
+        function initAtmosphere() {
+            atmosphereGroup = new THREE.Group();
+            scene.add(atmosphereGroup);
+
+            // 1. Starfield (Backdrop)
+            const STAR_COUNT = 5000;
+            const starGeometry = new THREE.BufferGeometry();
+            const starVertices = [];
+            const starColors = [];
+            for (let i = 0; i < STAR_COUNT; i++) {
+                const distance = 1000 + Math.random() * 2000;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                starVertices.push(distance * Math.sin(phi) * Math.cos(theta));
+                starVertices.push(distance * Math.sin(phi) * Math.sin(theta));
+                starVertices.push(distance * Math.cos(phi));
+
+                const brightness = Math.random() * 0.5 + 0.5;
+                starColors.push(brightness, brightness, brightness);
+            }
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+            const starMaterial = new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.9 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            atmosphereGroup.add(stars);
+
+            // 2. Distant Planets/Moon
+            const moonGeo = new THREE.SphereGeometry(70, 32, 32);
+            const moonMat = new THREE.MeshLambertMaterial({ color: 0xc0c0d0 });
+            const moon = new THREE.Mesh(moonGeo, moonMat);
+            // Increased planet scale/visibility
+            moon.scale.setScalar(5); // Increased visibility
+            moon.position.set(-6000, 3000, 10000); // Placed further away
+            atmosphereGroup.add(moon);
+
+            const planetGeo = new THREE.SphereGeometry(30, 32, 32);
+            const planetMat = new THREE.MeshLambertMaterial({ color: 0x8a2be2 });
+            const planet = new THREE.Mesh(planetGeo, planetMat);
+            planet.scale.setScalar(3); // Increased visibility
+            planet.position.set(8000, 2000, -5000);
+            atmosphereGroup.add(planet);
+
+            // 3. Prime Particle Group
+            primeParticleGroup = new THREE.Group();
+            scene.add(primeParticleGroup);
+        }
+
+        function init() {
+            window.addEventListener('unhandledrejection', (event) => {
+                if (event.reason && event.reason.name === 'SecurityError') {
+                    event.preventDefault();
+                    console.warn("SecurityError (Pointer Lock) ignored.");
+                    return;
+                }
+            });
+
+            scene = new THREE.Scene();
+            const skyColor = 0x010111;
+            scene.background = new THREE.Color(skyColor);
+            scene.fog = new THREE.FogExp2(0x010111, 0.003);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, VIEW_DISTANCE * CHUNK_SIZE * 5);
+            yawObject = new THREE.Object3D();
+            yawObject.add(camera);
+            scene.add(yawObject);
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const startX = parseFloat(urlParams.get('x')) || 0;
+            const startZ = parseFloat(urlParams.get('z')) || 0;
+            yawObject.position.set(startX, PLAYER_HEIGHT, startZ);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            glowTexture = createGlowTexture();
+
+            // --- Grid Texture Setup ---
+            const canvasGrid = document.createElement('canvas');
+            canvasGrid.width = 256; canvasGrid.height = 256;
+            const contextGrid = canvasGrid.getContext('2d');
+            contextGrid.fillStyle = '#000000';
+            contextGrid.fillRect(0, 0, 256, 256);
+            contextGrid.strokeStyle = 'rgba(255, 255, 255, 1.0)'; // BRIGHT WHITE lines
+            contextGrid.lineWidth = 4; // Thicker lines
+            for (let i = 0; i < 256; i += 32) {
+                contextGrid.beginPath();
+                contextGrid.moveTo(i, 0); contextGrid.lineTo(i, 256);
+                contextGrid.moveTo(0, i); contextGrid.lineTo(256, i);
+                contextGrid.stroke();
+            }
+            gridTexture = new THREE.CanvasTexture(canvasGrid);
+            gridTexture.wrapS = gridTexture.wrapT = THREE.RepeatWrapping;
+            // The grid repeat setting is adjusted inside generateChunkMesh for world space
+            // --- End Grid Texture Setup ---
+
+            // Initial lighting setup
+            scene.add(new THREE.AmbientLight(0xffffff, 1.0)); // Increased Ambient light
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x080820, 1.5); // Increased intensity
+            scene.add(hemiLight);
+
+            // Player-fixed spotlight for ground clues (Harmonic Spot)
+            const spotlight = new THREE.SpotLight(0xffffff, 2.0, 40, Math.PI / 8, 0.1, 0.5); // Tighter, stronger beam
+            spotlight.position.set(0, 10, 0);
+            spotlight.target.position.set(0, 0, -20);
+            yawObject.add(spotlight);
+            yawObject.add(spotlight.target);
+            yawObject.userData.spotlight = spotlight;
+
+            raycaster = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0), 0, PLAYER_HEIGHT * 2);
+            setupEventListeners();
+            primeDataWorker = setupWorker();
+            primeDataWorker.onmessage = (e) => {
+                const { chunkX, chunkZ, stats, primes, factorPrime } = e.data;
+                const chunk = chunkManager.get(`${chunkX},${chunkZ}`);
+                if (chunk && chunk.state === 'loading') {
+                    chunk.stats = stats;
+                    chunk.primes = primes.map(p => BigInt(p));
+                    generateChunkMesh(chunk, true);
+
+                    if (factorPrime && !foundFactor) {
+                        foundFactor = { prime: BigInt(factorPrime), chunkId: chunk.id };
+                        document.getElementById('found-factor-display').innerHTML = `Factor: <span style="color:#ffd700;">${factorPrime}</span>`;
+                    }
+                }
+            };
+            initAtmosphere();
+            initCometTailSystem();
+            updateChunks();
+            animate();
+        }
+
+        // --- Helper: Get Log Exponent from World Position ---
+        function getLogExponent(x, z) {
+            const distance = Math.hypot(x, z);
+            const baseExpNum = Number(LOG_BASE_EXPONENT);
+            return baseExpNum + distance * LOG_SCALE_PER_CHUNK;
+        }
+
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+
+        function toggleNavModal(open) {
+            isNavModalOpen = open;
+            navModal.style.display = open ? 'flex' : 'none';
+            if (open) {
+                document.exitPointerLock();
+
+                const pos = yawObject.position;
+                const exp = getLogExponent(pos.x, pos.z).toFixed(4);
+                exponentInput.value = exp;
+                exponentInput.focus();
+
+                baseAInput.value = targetNParams.a;
+                expBInput.value = targetNParams.b;
+                addCInput.value = targetNParams.c;
+                // Update speed multiplier input when opening modal
+                speedMultiplierInput.value = (BASE_MOVE_SPEED / 70).toFixed(1);
+            } else {
+                // Apply new speed setting when closing modal
+                const multiplier = parseFloat(speedMultiplierInput.value) || 1.0;
+                BASE_MOVE_SPEED = 70 * multiplier;
+                setTimeout(() => {
+                    try {
+                        document.body.requestPointerLock();
+                    } catch (e) {
+                        console.warn("Pointer Lock request failed after modal close:", e.name);
+                    }
+                }, 100);
+            }
+        }
+
+        async function jumpAndStartHunt() {
+            targetNParams.a = baseAInput.value;
+            targetNParams.b = expBInput.value;
+            targetNParams.c = addCInput.value;
+            document.getElementById('target-n-display').textContent = `${targetNParams.a}^${targetNParams.b} + ${targetNParams.c}`;
+            document.getElementById('found-factor-display').textContent = 'Factor: Searching...';
+            foundFactor = null;
+
+            const smallFactor = await checkSmallFactors();
+            if (smallFactor) {
+                const startChunkId = `0,0`;
+                foundFactor = { prime: BigInt(smallFactor), chunkId: startChunkId };
+                document.getElementById('found-factor-display').innerHTML = `Factor: <span style="color:#ffd700;">${smallFactor}</span> (Found instantly in low range!)`;
+            }
+
+            const targetExp = parseFloat(exponentInput.value);
+            if (isNaN(targetExp)) {
+                console.error("Please enter a valid number for the exponent.");
+                return;
+            }
+
+            const baseExpNum = Number(LOG_BASE_EXPONENT);
+            let R = Math.max(0, (targetExp - baseExpNum) / LOG_SCALE_PER_CHUNK);
+
+            const angle = Math.random() * 2 * Math.PI;
+            const newX = R * Math.cos(angle);
+            const newZ = R * Math.sin(angle);
+
+            yawObject.position.set(newX, 50, newZ);
+
+            chunkManager.forEach(data => {
+                if (data.mesh) scene.remove(data.mesh);
+                if (data.primeParticles) primeParticleGroup.remove(data.primeParticles);
+                if (data.gapMarkers) scene.remove(data.gapMarkers);
+            });
+            chunkManager.clear();
+
+            updateChunks();
+            toggleNavModal(false);
+        }
+
+        function setupEventListeners() {
+            window.addEventListener('resize', onWindowResize, false);
+            instructions.addEventListener('click', () => {
+                if (!isNavModalOpen) {
+                    try {
+                        document.body.requestPointerLock();
+                    } catch (e) {
+                        console.warn("Initial Pointer Lock request failed:", e.name);
+                    }
+                }
+            });
+            document.addEventListener('pointerlockchange', () => {
+                isLocked = document.pointerLockElement === document.body;
+                blocker.style.display = isLocked ? 'none' : 'flex';
+            }, false);
+
+            document.getElementById('jump-button').addEventListener('click', jumpAndStartHunt);
+            exponentInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') jumpAndStartHunt(); });
+            baseAInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') jumpAndStartHunt(); });
+            expBInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') jumpAndStartHunt(); });
+            addCInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') jumpAndStartHunt(); });
+
+            // FIX: Add Enter key listener for the speed multiplier input
+            speedMultiplierInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    // Apply speed and close modal
+                    const multiplier = parseFloat(speedMultiplierInput.value) || 1.0;
+                    BASE_MOVE_SPEED = 70 * multiplier;
+                    toggleNavModal(false);
+                }
+            });
+
+
+            const keyMap = { KeyW: 'forward', KeyS: 'backward', KeyA: 'left', KeyD: 'right', KeyQ: 'turnLeft', KeyE: 'turnRight', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', KeyP: 'panel' };
+            document.addEventListener('keydown', (e) => {
+                if(e.code === 'KeyP') { toggleNavModal(true); return; }
+                if(isNavModalOpen) { if (e.key === 'Escape') toggleNavModal(false); return; }
+
+                if(keyMap[e.code]) {
+                    if(e.code === 'KeyW') moveState.forward = 1;
+                    if(e.code === 'KeyS') moveState.forward = -1;
+                    if(e.code === 'KeyA') moveState.right = -1;
+                    if(e.code === 'KeyD') moveState.right = 1;
+                    if(e.code === 'KeyQ') moveState.turn = 1;
+                    if(e.code === 'KeyE') moveState.turn = -1;
+                    if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') moveState.isSprinting = true;
+                    if(e.code === 'Space' && canJump === true) {
+                        velocity.y = JUMP_VELOCITY;
+                        canJump = false;
+                    }
+                }
+            });
+            document.addEventListener('keyup', (e) => {
+                 if(keyMap[e.code]) {
+                    if(e.code === 'KeyW' || e.code === 'KeyS') moveState.forward = 0;
+                    if(e.code === 'KeyA' || e.code === 'KeyD') moveState.right = 0;
+                    if(e.code === 'KeyQ' || e.code === 'KeyE') moveState.turn = 0;
+                    if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') moveState.isSprinting = false;
+                }
+            });
+            document.addEventListener('mousemove', (e) => {
+                // CRITICAL FIX: Ensure mouse look is always attached when locked
+                if(isLocked) {
+                    yawObject.rotation.y -= e.movementX * SENSITIVITY.LOOK;
+                    camera.rotation.x -= e.movementY * SENSITIVITY.LOOK;
+                    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+                }
+            });
+
+            document.getElementById('set-spawn-btn').addEventListener('click', () => {
+                const x = yawObject.position.x.toFixed(2);
+                const z = yawObject.position.z.toFixed(2);
+                const url = `${window.location.origin}${window.location.pathname}?x=${x}&z=${z}`;
+                const input = document.getElementById('spawn-url-input');
+                input.value = url;
+                input.select();
+                try {
+                    document.execCommand('copy');
+                } catch (err) {
+                    console.warn('Could not copy URL to clipboard');
+                }
+            });
+
+            renderer.domElement.addEventListener('touchstart', (e) => { e.preventDefault(); isLocked = true; blocker.style.display = 'none'; for (const touch of e.changedTouches) { activeTouches.set(touch.identifier, { startX: touch.clientX, startY: touch.clientY, currentX: touch.clientX, currentY: touch.clientY, }); } }, { passive: false });
+            renderer.domElement.addEventListener('touchmove', (e) => { e.preventDefault(); for (const touch of e.touches) { const activeTouch = activeTouches.get(touch.identifier); if (activeTouch) { activeTouch.currentX = touch.clientX; activeTouch.currentY = touch.clientY; } } }, { passive: false });
+            const onTouchEnd = (e) => { e.preventDefault(); for (const touch of e.changedTouches) { activeTouches.delete(touch.identifier); } };
+            renderer.domElement.addEventListener('touchend', onTouchEnd);
+            renderer.domElement.addEventListener('touchcancel', onTouchEnd);
+        }
+
+        function handleTouchControls() {
+            if (activeTouches.size === 0) return;
+            const screenWidth = window.innerWidth;
+            for (const touch of activeTouches.values()) {
+                const deltaX = touch.currentX - touch.startX;
+                const deltaY = touch.currentY - touch.startY;
+
+                if (touch.startX < screenWidth / 2) {
+                    const forwardMultiplier = (deltaY > 0) ? SENSITIVITY.MOVE_BACKWARD_MOD : 1.0;
+                    const strafeMultiplier = (deltaX < 0) ? SENSITIVITY.STRAFE_LEFT_MOD : 1.0;
+                    const forwardSpeed = deltaY * SENSITIVITY.MOVE * forwardMultiplier * BASE_MOVE_SPEED * 4;
+                    const strafeSpeed = deltaX * SENSITIVITY.MOVE * strafeMultiplier * BASE_MOVE_SPEED * 4;
+                    if (Math.abs(forwardSpeed) > 1) moveState.forward = -Math.sign(forwardSpeed);
+                    else moveState.forward = 0;
+                    if (Math.abs(strafeSpeed) > 1) moveState.right = Math.sign(strafeSpeed);
+                    else moveState.right = 0;
+                } else {
+                    yawObject.rotation.y -= deltaX * SENSITIVITY.TOUCH_LOOK * 0.1;
+                    camera.rotation.x -= deltaY * SENSITIVITY.TOUCH_LOOK * 0.1;
+                    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+                }
+            }
+        }
+
+        function updateChunks() {
+            const playerPos = yawObject.position;
+            const cx = Math.floor(playerPos.x/CHUNK_SIZE);
+            const cz = Math.floor(playerPos.z/CHUNK_SIZE);
+            const loaded = new Set();
+
+            for (let x=cx-VIEW_DISTANCE; x<=cx+VIEW_DISTANCE; x++) {
+                for (let z=cz-VIEW_DISTANCE; z<=cz+VIEW_DISTANCE; z++) {
+                    const id=`${x},${z}`;
+                    loaded.add(id);
+                    if (!chunkManager.has(id)) {
+                        const data={x,z,id,state:'loading',mesh:null,stats:null, primes:[]};
+                        chunkManager.set(id,data);
+                        generateChunkMesh(data,false);
+
+                        const chunkCenterX = x * CHUNK_SIZE + CHUNK_SIZE / 2;
+                        const chunkCenterZ = z * CHUNK_SIZE + CHUNK_SIZE / 2;
+                        const logCenter = getLogExponent(chunkCenterX, chunkCenterZ);
+                        const logStart = logCenter - LOG_SCALE_PER_CHUNK;
+                        const logEnd = logCenter + LOG_SCALE_PER_CHUNK;
+
+                        primeDataWorker.postMessage({
+                            chunkX:x, chunkZ:z,
+                            startLog:logStart, endLog:logEnd,
+                            targetA: targetNParams.a,
+                            targetB: targetNParams.b,
+                            targetC: targetNParams.c
+                        });
+                    }
+                }
+            }
+
+            chunkManager.forEach((data,id) => {
+                if (!loaded.has(id)) {
+                    if (data.mesh) scene.remove(data.mesh);
+                    data.primeParticles && primeParticleGroup.remove(data.primeParticles);
+                    data.gapMarkers && scene.remove(data.gapMarkers); // Clean up gap markers
+                    chunkManager.delete(id);
+                }
+            });
+
+            atmosphereGroup.position.copy(playerPos);
+            atmosphereGroup.position.y = 0;
+        }
+
+        function addPrimeVisualization(chunkData, logExponent) {
+            if (chunkData.primeParticles) primeParticleGroup.remove(chunkData.primeParticles);
+
+            const primes = chunkData.primes || [];
+            if (primes.length === 0) return;
+
+            const colors = [];
+            const colorFactor = new THREE.Color();
+            const chunkBaseX = chunkData.x * CHUNK_SIZE;
+            const chunkBaseZ = chunkData.z * CHUNK_SIZE;
+
+            const R1_COLOR = new THREE.Color(0x40e0d0);
+            const R5_COLOR = new THREE.Color(0xff4500);
+
+            const particleCount = primes.length;
+            const positions = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+
+            const BASE_STAR_HEIGHT = 150;
+
+            primes.forEach((p, i) => {
+                const pNum = Number(p);
+                // Scatter the particles fully within the chunk boundaries
+                const x = chunkBaseX + Math.random() * CHUNK_SIZE;
+                const z = chunkBaseZ + Math.random() * CHUNK_SIZE;
+
+                const intensityMod = Math.min(1.0, 0.5 + (pNum % 1000) / 2000);
+
+                const residue = pNum % 6;
+                if (residue === 1) {
+                    colorFactor.copy(R1_COLOR).multiplyScalar(intensityMod);
+                } else if (residue === 5) {
+                    colorFactor.copy(R5_COLOR).multiplyScalar(intensityMod);
+                } else {
+                    colorFactor.set(0xffffff).multiplyScalar(intensityMod * 0.2);
+                }
+
+                positions[i * 3 + 0] = x;
+                positions[i * 3 + 1] = BASE_STAR_HEIGHT + (Math.sin(pNum * 0.1) * 15);
+                positions[i * 3 + 2] = z;
+
+                colors.push(colorFactor.r, colorFactor.g, colorFactor.b);
+
+                // STAR SIZE FIX: Use a simpler, non-logarithmic scaling to ensure visibility
+                const STAR_SIZE = 1;
+                const sizeFactor = Math.log10(pNum + 1) / Math.log10(100); // Scale size by log magnitude
+                sizes[i] = STAR_SIZE * 15 * sizeFactor * intensityMod; // Dramatically increase base size
+                sizes[i] = Math.max(3.0, sizes[i]); // Ensure minimum visible size
+            });
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+            const mat = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                sizeAttenuation: true,
+                map: glowTexture,
+                blending: THREE.AdditiveBlending
+            });
+
+            const particles = new THREE.Points(geo, mat);
+            chunkData.primeParticles = particles;
+            primeParticleGroup.add(particles);
+        }
+
+
+        function generateChunkMesh(chunkData, hasPrimeData) {
+            const chunkCenterX = chunkData.x * CHUNK_SIZE + CHUNK_SIZE / 2;
+            const chunkCenterZ = chunkData.z * CHUNK_SIZE + CHUNK_SIZE / 2;
+            const logExponent = getLogExponent(chunkCenterX, chunkCenterZ);
+
+            if(chunkData.mesh && chunkData.gapMarkers){
+                // Pass logExponent since it's now required by addPrimeVisualization
+                addPrimeVisualization(chunkData, logExponent);
+                chunkData.state = 'loaded';
+                return;
+            }
+            else if(chunkData.mesh){
+                return;
+            }
+
+            // Create geometry with increased size for overlap
+            const geo = new THREE.PlaneGeometry(CHUNK_SIZE + 2, CHUNK_SIZE + 2, CHUNK_SEGMENTS, CHUNK_SEGMENTS);
+            geo.rotateX(-Math.PI/2);
+            const pos = geo.attributes.position;
+            const colors = new Float32Array(pos.count * 3);
+
+
+            // Prime Gap Geometry Placeholder
+            let gapMarkers = new THREE.Group();
+
+            // Pre-calculate positions for UV mapping
+            const uvData = new Float32Array(pos.count * 2);
+            let uvIndex = 0;
+
+
+            for(let i = 0; i < pos.count; i++){
+                const vx = pos.getX(i);
+                const vz = pos.getZ(i);
+                // Calculate absolute world coordinates (wx, wz) correctly inside the loop
+                const wx = chunkData.x * CHUNK_SIZE + vx;
+                const wz = chunkData.z * CHUNK_SIZE + vz;
+
+                // Base Noise Layer (to give general Earthlike shape)
+                const continentScale = 0.002;
+                let h_smooth = 0;
+                let frequency = 0.015;
+                let amplitude = 50;
+                for (let j = 0; j < 8; j++) {
+                    h_smooth += noise.get(wx * frequency, wz * frequency) * amplitude;
+                    frequency *= 2.1;
+                    amplitude *= 0.4;
+                }
+
+                // Set initial base height to 0 for walkable floor
+                let h = 0;
+
+                if(hasPrimeData){
+                    const { density, avgGap } = chunkData.stats;
+                    const logN = logExponent * Math.log(10);
+                    const expectedDensity = 1 / logN;
+                    const densityVariance = density - expectedDensity;
+
+                    // --- Force 1: Density Spikes (Mountains) ---
+                    let h_prime = densityVariance * 120000;
+
+                    // --- Force 2: Prime Gap Markers (Craters/Fissures) ---
+                    const avgGapNum = Number(BigInt(avgGap));
+                    const expectedGap = logN;
+                    const gapVarianceRatio = Math.max(0, (avgGapNum - expectedGap) / expectedGap);
+
+                    // Create deep, non-linear fissures based on huge prime gaps
+                    h_prime -= Math.pow(gapVarianceRatio, 2) * 200;
+
+                    // --- Force 3: Residue Field (Ground Texture) ---
+                    const { residueMod6 } = chunkData.stats;
+                    const totalR = residueMod6[1] + residueMod6[5] + 1;
+                    const r1Ratio = residueMod6[1] / totalR;
+                    const r5Ratio = residueMod6[5] / totalR;
+
+                    h_prime += (r1Ratio - r5Ratio) * 20;
+
+                    // --- Local Geomancy Field (Player-centric Smoothing) ---
+                    const playerX = yawObject.position.x;
+                    const playerZ = yawObject.position.z;
+
+                    const distToPlayer = Math.hypot(wx - playerX, wz - playerZ);
+                    const SMOOTH_RADIUS = CHUNK_SIZE / 4;
+
+                    let h_anomalous = h + h_prime;
+
+                    if (distToPlayer < SMOOTH_RADIUS) {
+                        const blend = 1.0 - (distToPlayer / SMOOTH_RADIUS);
+                        h = THREE.MathUtils.lerp(h_anomalous, h_smooth, blend);
+                    } else {
+                        h = h_anomalous;
+                    }
+
+                    // Monolith Placement
+                    if (i === Math.floor(pos.count/2) && gapVarianceRatio > 12) {
+                        const markerGeo = new THREE.BoxGeometry(CHUNK_SIZE / 12, 400, CHUNK_SIZE / 12);
+                        const markerMat = new THREE.MeshLambertMaterial({ color: 0x8A2BE2 });
+                        const marker = new THREE.Mesh(markerGeo, markerMat);
+                        marker.position.set(vx, h + 200, vz); // Position monolith relative to final height
+                        gapMarkers.add(marker);
+                    }
+                }
+
+                // Ensure base height is always above the negative void
+                h = Math.max(0, h);
+
+                let baseColor;
+                // Dark, fractured colors
+                if (h < 50) {
+                    baseColor = new THREE.Color(0x202028).lerp(new THREE.Color(0x403020), h/50); // Dark Rock/Brown
+                } else if (h < 100){
+                    baseColor = new THREE.Color(0x403020); // Rock/Brown
+                } else {
+                    baseColor = new THREE.Color(0xaaaaaa); // Snow/High peaks
+                }
+
+                if(hasPrimeData){
+                    // Color shift based on local density (darker = lower density, brighter = higher density)
+                    const densityField = Math.min(1, Math.max(0, (h - 0) / 100)); // Normalize height for color mix
+                    baseColor.lerp(new THREE.Color(0x40e0d0), densityField * 0.1);
+                }
+
+                pos.setY(i, h);
+                colors.set([baseColor.r, baseColor.g, baseColor.b], i * 3);
+
+                // --- UV Calculation for Anchored Grid ---
+                // Map world coordinates to texture space (normalized by CHUNK_SIZE / 4 for repetition frequency)
+                uvData[uvIndex++] = wx / (CHUNK_SIZE / 4);
+                uvData[uvIndex++] = wz / (CHUNK_SIZE / 4);
+                // --- END UV CALCULATION ---
+            }
+
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geo.computeVertexNormals();
+
+            // --- Apply Grid Texture (Used for movement/spatial cue) ---
+            const mat = new THREE.MeshStandardMaterial({
+                vertexColors: true,
+                flatShading: true,
+                map: gridTexture,
+                transparent: true,
+                opacity: 0.9,
+            });
+
+            // Assign the calculated UVs
+            geo.setAttribute('uv', new THREE.BufferAttribute(uvData, 2));
+            // --- END Grid Texture ---
+
+            const mesh = new THREE.Mesh(geo, mat);
+            // Offset chunk position slightly to compensate for the +2 border size for stitching
+            mesh.position.set(chunkData.x * CHUNK_SIZE - 1, 0, chunkData.z * CHUNK_SIZE - 1);
+            chunkData.mesh = mesh;
+            chunkData.state = hasPrimeData ? 'loaded' : 'loading';
+            scene.add(mesh);
+            scene.add(gapMarkers);
+            chunkData.gapMarkers = gapMarkers;
+
+            if(hasPrimeData) addPrimeVisualization(chunkData, logExponent);
+        };
+
+        function updateUI() {
+            const pos=yawObject.position;
+            const cx=Math.floor(pos.x/CHUNK_SIZE),cz=Math.floor(pos.z/CHUNK_SIZE);
+            const exp=getLogExponent(pos.x, pos.z).toFixed(4);
+            document.getElementById('position-display').textContent=`~10^${exp}`;
+            document.getElementById('chunk-coords-display').textContent=`[${cx}, ${cz}]`;
+            const chunkId=`${cx},${cz}`;
+            const chunk=chunkManager.get(chunkId);
+            if(chunk&&chunk.stats){
+                const s=chunk.stats;
+                document.getElementById('density-display').textContent=s.density.toFixed(5);
+                const ags=s.avgGap;
+                document.getElementById('gap-display').textContent=ags.length>10?`${ags.slice(0,4)}...e${ags.length-1}`:ags;
+            } else {
+                document.getElementById('density-display').textContent='Loading...';
+                document.getElementById('gap-display').textContent='Loading...';
+            }
+            updateCompass();
+        };
+
+        function updateCompass() {
+            const compass = document.getElementById('compass-display');
+            const angle = (yawObject.rotation.y * 180 / Math.PI) % 360;
+            const normalizedAngle = (angle < 0) ? angle + 360 : angle;
+
+            if (normalizedAngle >= 315 || normalizedAngle < 45) {
+                compass.textContent = 'N';
+            } else if (normalizedAngle >= 45 && normalizedAngle < 135) {
+                compass.textContent = 'E';
+            } else if (normalizedAngle >= 135 && normalizedAngle < 225) {
+                compass.textContent = 'S';
+            } else { // 225 to 315
+                compass.textContent = 'W';
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            if (isNavModalOpen) {
+                renderer.render(scene, camera);
+                return;
+            }
+
+            // --- HARMONIC SPOTLIGHT UPDATE ---
+            const targetSpotlight = yawObject.userData.spotlight;
+            if (targetSpotlight) {
+                const pos=yawObject.position;
+                const cx=Math.floor(pos.x/CHUNK_SIZE),cz=Math.floor(pos.z/CHUNK_SIZE);
+                const chunk=chunkManager.get(`${cx},${cz}`);
+
+                if (chunk && chunk.stats) {
+                    const stats = chunk.stats;
+                    const logN = getLogExponent(pos.x, pos.z) * Math.log(10);
+                    const expectedDensity = 1 / logN;
+
+                    // Ratio of actual density vs expected density
+                    const densityRatio = stats.density / expectedDensity;
+
+                    // Color based on Density Ratio (High Density = Blue, Low Density = Red)
+                    const color = new THREE.Color(0xffffff);
+                    if (densityRatio > 1.2) { // High Density (Blue/Cyan - safety)
+                        color.setRGB(0.2, 0.8, 1.0);
+                    } else if (densityRatio < 0.8) { // Low Density (Red/Orange - danger/gap)
+                        color.setRGB(1.0, 0.4, 0.2);
+                    } else { // Neutral
+                        color.setRGB(0.8, 0.8, 0.8);
+                    }
+                    targetSpotlight.color.lerp(color, 0.1);
+                    targetSpotlight.intensity = 1.5 + (Math.sin(elapsedTime * 5) * 0.5); // Increased base intensity
+                }
+            }
+
+            // Apply camera shake if sprinting
+            const isSprinting = moveState.isSprinting && (moveState.forward !== 0 || moveState.right !== 0);
+            if (isSprinting && isLocked && canJump) {
+                // Apply FOV warp and camera shake simultaneously
+                const targetFOV = 90;
+                camera.fov += (targetFOV - camera.fov) * 10 * delta; // Faster FOV change
+                camera.updateProjectionMatrix();
+
+                const shakeIntensity = 0.08 * WORLD_SCALE_FACTOR; // Stronger shake
+                camera.position.x = Math.sin(elapsedTime * 40) * shakeIntensity;
+                camera.position.z = Math.cos(elapsedTime * 40) * shakeIntensity;
+            } else {
+                // Return FOV to normal
+                const targetFOV = 75;
+                camera.fov += (targetFOV - camera.fov) * 5 * delta;
+                camera.updateProjectionMatrix();
+
+                camera.position.x = 0;
+                camera.position.z = 0;
+            }
+
+
+
+            velocity.y -= GRAVITY * delta;
+
+            if (isLocked) {
+                handleTouchControls();
+
+                const sprintMultiplier = moveState.isSprinting ? SENSITIVITY.SPRINT_MULTIPLIER : 1.0;
+                const moveSpeed = BASE_MOVE_SPEED * delta * sprintMultiplier;
+
+                let targetVelocityX = 0;
+                let targetVelocityZ = 0;
+
+                if (moveState.forward !== 0) {
+                    const multiplier = (moveState.forward < 0) ? SENSITIVITY.MOVE_BACKWARD_MOD : 1.0;
+                    targetVelocityZ = -moveState.forward * moveSpeed * multiplier;
+                }
+                if (moveState.right !== 0) {
+                    const multiplier = (moveState.right < 0) ? SENSITIVITY.STRAFE_LEFT_MOD : 1.0;
+                    targetVelocityX = moveState.right * moveSpeed * multiplier;
+                }
+                if (moveState.turn !== 0) {
+                    yawObject.rotation.y += moveState.turn * SENSITIVITY.KEYBOARD_TURN_SPEED * delta;
+                }
+
+                const isMoving = moveState.forward !== 0 || moveState.right !== 0;
+
+                if (isMoving) {
+                    velocity.x += (targetVelocityX - velocity.x) * ACTIVE_DAMPING * delta * 5;
+                    velocity.z += (targetVelocityZ - velocity.z) * ACTIVE_DAMPING * delta * 5;
+                } else if (canJump) {
+                    velocity.x *= Math.pow(GROUND_FRICTION, delta * 30);
+                    velocity.z *= Math.pow(GROUND_FRICTION, delta * 30);
+                } else {
+                    velocity.x *= Math.pow(0.99, delta * 30);
+                    velocity.z *= Math.pow(0.99, delta * 30);
+                }
+
+                // --- Apply the scaling factor to the final movement (double compensation for speed) ---
+                // The speed boost of 2.0 ensures perceived movement is fast enough for the large world.
+                const speedCompensation = 2.0;
+                const translationFactor = delta * (1/BASE_MOVE_SPEED_CONSTANT) / WORLD_SCALE_FACTOR * speedCompensation;
+
+                yawObject.translateX(velocity.x * translationFactor * (BASE_MOVE_SPEED / 70)); // Apply variable speed here
+                yawObject.translateZ(velocity.z * translationFactor * (BASE_MOVE_SPEED / 70)); // Apply variable speed here
+
+            }
+
+            yawObject.position.y += velocity.y * delta;
+
+            raycaster.ray.origin.copy(yawObject.position);
+            raycaster.ray.origin.y += 0.1;
+            const chunkMeshes=Array.from(chunkManager.values()).map(c=>c.mesh).filter(Boolean);
+            const intersections=chunkMeshes.length>0?raycaster.intersectObjects(chunkMeshes):[];
+
+            if(intersections.length > 0){
+                const closestIntersection = intersections[0];
+                const groundY = closestIntersection.point.y;
+                const distToGround = closestIntersection.distance;
+                const standingHeight = groundY + PLAYER_HEIGHT;
+
+                if (distToGround < PLAYER_HEIGHT + 0.5) {
+
+                    if (velocity.y < 0) {
+                        velocity.y = 0;
+                    }
+
+                    if (yawObject.position.y < standingHeight) {
+                        yawObject.position.y += (standingHeight - yawObject.position.y) * SINK_SMOOTHING * delta;
+                    }
+
+                    canJump = true;
+                }
+            } else {
+                canJump = false;
+
+                if (yawObject.position.y < SEA_LEVEL + PLAYER_HEIGHT) {
+                    yawObject.position.y = SEA_LEVEL + PLAYER_HEIGHT;
+                    velocity.y = Math.max(0, velocity.y);
+                    canJump = true;
+                }
+            }
+
+            animateOcean(elapsedTime);
+            updateFactorComet(delta, elapsedTime);
+            updateChunks();
+            updateUI();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = function() {
+            document.getElementById('target-n-display').textContent = `${targetNParams.a}^${targetNParams.b} + ${targetNParams.c}`;
+            init();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lattice Explorer</title>
+    <!-- Using big-integer.min.js, as seen in your files -->
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <!-- Using Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Simple Inter font stack */
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overscroll-behavior: none; /* Prevents pull-to-refresh */
+            overflow: hidden; /* Prevent body scroll */
+        }
+
+        #appContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #fff; /* Set background here */
+        }
+
+        /* Div for prime grid cells, sits behind canvas */
+        #primeGridCells {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none; /* Clicks go through to canvas */
+            overflow: hidden;
+        }
+
+        /* Style for individual prime/composite cells */
+        .prime-cell {
+            position: absolute;
+            font-size: 8px;
+            color: rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,0,0,0.05);
+            box-sizing: border-box; /* Include border in size */
+            overflow: hidden;
+            will-change: transform, width, height;
+        }
+        .prime-cell.prime {
+            background-color: rgba(0, 255, 0, 0.2); /* Bright green */
+        }
+        .prime-cell.composite {
+            background-color: rgba(60, 60, 60, 0.1); /* Dark gray */
+        }
+
+        /* Canvas for drawing, sits on top of grid cells */
+        #latticeCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent; /* Make canvas transparent */
+            z-index: 2; /* Canvas is above prime grid */
+            cursor: grab;
+        }
+        #latticeCanvas:active {
+            cursor: grabbing;
+        }
+
+        /* Controls panel, sits on top of everything */
+        #controls {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            z-index: 10;
+            max-width: calc(100vw - 2rem);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            transition: all 0.3s ease-in-out;
+        }
+        /* Wrapper for collapsible content */
+        #controlsContent {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            overflow-y: auto; /* Allow content to scroll */
+            transition: all 0.3s ease-in-out;
+            max-height: 80vh; /* Set a max-height for transition */
+        }
+        /* Collapsed state */
+        #controls.collapsed {
+            width: auto; /* Shrink to fit title bar */
+            max-width: none; /* Override max-w-md */
+            gap: 0;
+        }
+        #controls.collapsed #controlsContent {
+           max-height: 0;
+           padding: 0; /* Hide padding */
+           margin: 0; /* Hide gap */
+           opacity: 0;
+           overflow: hidden;
+        }
+        #toggleControls {
+            transition: transform 0.3s ease;
+        }
+        #controls.collapsed #toggleControls {
+            transform: rotate(-180deg); /* Flip arrow */
+        }
+
+        /* Coordinate Display */
+        #coordDisplay {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            z-index: 10;
+            display: none; /* Hidden by default */
+            pointer-events: none; /* Won't block clicks */
+        }
+        /* Styling for the list of plotted lattices */
+        #latticeListContainer .lattice-item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.25rem 0.75rem;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            background-color: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        /* Number and factors */
+        #latticeListContainer .lattice-info {
+            grid-column: 1;
+            grid-row: 1;
+            font-weight: 600;
+        }
+        #latticeListContainer .lattice-factors {
+            grid-column: 1;
+            grid-row: 2;
+            font-size: 0.75rem;
+            color: #555;
+            word-break: break-all;
+        }
+        /* Controls for visibility, offsets, and removal */
+        #latticeListContainer .lattice-controls {
+            grid-column: 1 / span 2;
+            grid-row: 3;
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        /* Toggles for line types */
+        #latticeListContainer .lattice-toggles {
+            grid-column: 1 / span 2;
+            grid-row: 4; /* Place on a new row */
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+        #latticeListContainer label, #globalToggles label { /* General label styling */
+            font-size: 0.875rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        #latticeListContainer .lattice-controls input[type="number"] {
+            width: 4rem;
+            font-size: 0.875rem;
+        }
+        /* Style for color input */
+        #latticeListContainer .lattice-controls input[type="color"] {
+            width: 1.5rem;
+            height: 1.5rem;
+            padding: 0;
+            border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        #latticeListContainer .remove-btn {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            background: none;
+            border: none;
+            color: #999;
+            font-weight: bold;
+            cursor: pointer;
+            align-self: center;
+        }
+        #latticeListContainer .remove-btn:hover {
+            color: #000;
+        }
+        /* Style for sequence input group */
+        .input-group-separator {
+             border-top: 1px solid #e5e7eb;
+             padding-top: 0.75rem;
+             margin-top: 0.75rem;
+        }
+        .sequence-group .flex label {
+            white-space: nowrap; /* Prevent label wrapping */
+        }
+         /* Style for global toggles */
+        #globalToggles {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="bg-white">
+
+    <!-- App container -->
+    <div id="appContainer">
+        <!-- Container for prime grid cells -->
+        <div id="primeGridCells"></div>
+
+        <!-- Canvas for drawing -->
+        <canvas id="latticeCanvas"></canvas>
+    </div>
+
+    <!-- UI Controls -->
+    <div id="controls" class="w-full max-w-md">
+        <div class="flex justify-between items-center">
+            <h1 class="text-xl font-bold text-gray-800">Lattice Explorer</h1>
+            <button id="toggleControls" class="p-1 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </div>
+
+        <div id="controlsContent">
+            <!-- Input section -->
+            <div class="flex gap-2">
+                <input type="text" id="numberInput" value="1007" class="flex-grow w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter a number (e.g., 1007)">
+                <button id="plotButton" class="px-4 py-2 font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
+                    Plot
+                </button>
+                <button id="clearButton" class="px-4 py-2 font-semibold text-gray-700 bg-gray-200 rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                    Clear
+                </button>
+            </div>
+            <p class="text-xs text-gray-500">Use Arrow Up/Down in box to inc/dec and plot.</p>
+
+            <!-- Sequence Plotting Section -->
+            <div class="sequence-group input-group-separator">
+                <p class="text-sm font-medium text-gray-700 mb-2">Plot Sequence</p>
+                <div class="flex gap-2 items-end">
+                    <label class="flex flex-col">
+                        <span class="text-xs text-gray-500">Start</span>
+                        <input type="text" id="sequenceStartInput" value="7" class="w-20 px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+                    <label class="flex flex-col">
+                         <span class="text-xs text-gray-500">End</span>
+                        <input type="text" id="sequenceEndInput" value="197" class="w-20 px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </label>
+                    <button id="plotSequenceButton" class="px-4 py-1 h-fit font-semibold text-white bg-green-600 rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75">
+                        Plot Sequence
+                    </button>
+                </div>
+            </div>
+
+            <!-- NEW: Global Toggles Section -->
+            <div class="global-toggles input-group-separator">
+                 <p class="text-sm font-medium text-gray-700 mb-2">Global Toggles (Apply to All)</p>
+                 <div id="globalToggles">
+                     <label>
+                         <input type="checkbox" class="global-toggle-input" data-type="core" checked>
+                         Core
+                     </label>
+                     <label>
+                         <input type="checkbox" class="global-toggle-input" data-type="factors" checked>
+                         Factors
+                     </label>
+                     <label>
+                         <input type="checkbox" class="global-toggle-input" data-type="diamonds" checked>
+                         Diamonds
+                     </label>
+                     <label>
+                         <input type="checkbox" class="global-toggle-input" data-type="intersections" checked>
+                         Dots
+                     </label>
+                 </div>
+            </div>
+
+            <!-- Container for plotted lattice layers -->
+            <div id="latticeListContainer" class="flex flex-col gap-3 input-group-separator"></div>
+        </div>
+    </div>
+
+    <!-- Coordinate Display -->
+    <div id="coordDisplay"></div>
+
+    <script>
+        // --- 1. WORKER CODE (as a string to create a Blob) ---
+        const workerCode = `
+        function customSqrt(n) {
+            if (n.isNegative()) throw new Error("Cannot sqrt negative number");
+            if (n.lt(2)) return n;
+            let x = n.shiftRight(1);
+            if (x.isZero()) return n;
+            let y;
+            while (true) {
+                y = x.add(n.divide(x)).shiftRight(1);
+                if (y.geq(x)) {
+                    return x;
+                }
+                x = y;
+            }
+        }
+        function getAllDivisors(factors) {
+            const factorCounts = new Map();
+            for (const factor of factors) {
+                const fStr = factor.toString();
+                factorCounts.set(fStr, (factorCounts.get(fStr) || 0) + 1);
+            }
+            let divisorsList = [self.bigInt(1)];
+            for(const [fStr, count] of factorCounts.entries()) {
+                const factor = self.bigInt(fStr);
+                const currentSize = divisorsList.length;
+                for (let i = 0; i < currentSize; i++) {
+                    let d = divisorsList[i];
+                    for (let j = 0; j < count; j++) {
+                        d = d.multiply(factor);
+                        divisorsList.push(d);
+                    }
+                }
+            }
+            return Array.from(new Set(divisorsList.map(d => d.toString()))).map(s => self.bigInt(s)).sort((a, b) => a.compareTo(b));
+        }
+        function getPrimeFactors(n) {
+            const factors = [];
+            let currentN = self.bigInt(n);
+            while (currentN.isEven()) {
+                factors.push(self.bigInt(2));
+                currentN = currentN.divide(2);
+            }
+            let limit = customSqrt(currentN);
+            for (let i = self.bigInt(3); i.leq(limit); i = i.add(2)) {
+                while (currentN.mod(i).isZero()) {
+                    factors.push(i);
+                    currentN = currentN.divide(i);
+                    limit = customSqrt(currentN); // Re-calculate limit
+                }
+            }
+            if (currentN.gt(1)) {
+                factors.push(currentN);
+            }
+            return factors;
+        }
+        function getFactorPairs(n, primeFactors) {
+            const divisors = getAllDivisors(primeFactors);
+            const pairs = [];
+            const limit = customSqrt(n);
+            for (const d of divisors) {
+                if (d.gt(limit)) {
+                    break;
+                }
+                if (n.mod(d).isZero()) {
+                    pairs.push([d, n.divide(d)]);
+                }
+            }
+            return pairs;
+        }
+        self.onmessage = function(e) {
+            self.importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+            const numStr = e.data.number;
+            const n = self.bigInt(numStr);
+            try {
+                const primeFactors = getPrimeFactors(n);
+                const factorPairs = getFactorPairs(n, primeFactors);
+                self.postMessage({
+                    number: numStr,
+                    primeFactors: primeFactors.map(f => f.toString()),
+                    factorPairs: factorPairs.map(p => [p[0].toString(), p[1].toString()])
+                });
+            } catch (err) {
+                self.postMessage({ number: numStr, error: err.message });
+            }
+        };
+        `;
+
+        // --- 2. GLOBAL STATE & UI ELEMENTS ---
+        const canvas = document.getElementById('latticeCanvas');
+        const ctx = canvas.getContext('2d');
+        const primeGridCells = document.getElementById('primeGridCells');
+
+        const numberInput = document.getElementById('numberInput');
+        const plotButton = document.getElementById('plotButton');
+        const clearButton = document.getElementById('clearButton');
+        const latticeListContainer = document.getElementById('latticeListContainer');
+        const coordDisplay = document.getElementById('coordDisplay');
+        const sequenceStartInput = document.getElementById('sequenceStartInput');
+        const sequenceEndInput = document.getElementById('sequenceEndInput');
+        const plotSequenceButton = document.getElementById('plotSequenceButton');
+        const globalTogglesContainer = document.getElementById('globalToggles'); // NEW
+
+        const lattices = new Map();
+        let transform = { x: 0, y: 0, scale: 1 };
+        let isPanning = false;
+        let lastPanPoint = { x: 0, y: 0 };
+        let hoveredInfo = null;
+        let needsRedraw = true;
+        const colors = ['#E63946', '#457B9D', '#31a354', '#754F8E', '#F4A261', '#2A9D8F', '#E76F51', '#6A040F'];
+        let worker;
+        let isPlottingSequence = false;
+
+        // --- 3. HELPER & PRIMALITY FUNCTIONS (Main Thread) ---
+
+        function powMod(base, exp, mod) {
+            let result = bigInt.one;
+            base = base.mod(mod);
+            while (exp.gt(0)) {
+                if (exp.isOdd()) result = result.multiply(base).mod(mod);
+                exp = exp.shiftRight(1);
+                base = base.square().mod(mod);
+            }
+            return result;
+        }
+
+        function millerRabinTest(n) {
+            if (n.leq(1)) return false;
+            if (n.leq(3)) return true;
+            if (n.isEven()) return false;
+            let d = n.prev();
+            let s = bigInt.zero;
+            while (d.isEven()) {
+                d = d.shiftRight(1);
+                s = s.add(1);
+            }
+            const witnesses = [2, 3, 5, 7, 11]; // Reduced set for speed
+            for (const a_num of witnesses) {
+                let a = bigInt(a_num);
+                if (n.eq(a)) return true;
+                let x = powMod(a, d, n);
+                if (x.isUnit() || x.eq(n.prev())) continue;
+                let composite = true;
+                for (let i = bigInt.one; i.lt(s); i = i.add(1)) {
+                    x = x.square().mod(n);
+                    if (x.eq(n.prev())) {
+                        composite = false;
+                        break;
+                    }
+                    if (x.isUnit()) break;
+                }
+                if (composite) return false;
+            }
+            return true;
+        }
+
+        const primeTestCache = new Map();
+        function isPrime(n) {
+            const nStr = n.toString();
+            if (primeTestCache.has(nStr)) {
+                return primeTestCache.get(nStr);
+            }
+            if (n.leq(1)) return false;
+            if (n.leq(100)) {
+                 const smallPrimes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+                 const result = smallPrimes.some(p => n.eq(p));
+                 primeTestCache.set(nStr, result);
+                 return result;
+            }
+            if (n.isEven()) return false;
+            const result = millerRabinTest(n);
+            primeTestCache.set(nStr, result);
+            return result;
+        }
+
+        function getViewBounds() {
+            const minX = (0 - transform.x) / transform.scale;
+            const maxX = (canvas.width - transform.x) / transform.scale;
+            const minY = (0 - transform.y) / transform.scale;
+            const maxY = (canvas.height - transform.y) / transform.scale;
+            return { minX, maxX, minY, maxY };
+        }
+
+        function worldToScreen(x, y) {
+            return {
+                x: x * transform.scale + transform.x,
+                y: y * transform.scale + transform.y
+            };
+        }
+
+        function screenToWorld(x, y) {
+            return {
+                x: (x - transform.x) / transform.scale,
+                y: (y - transform.y) / transform.scale
+            };
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (transform.x === 0 && transform.y === 0) {
+                transform.x = canvas.width / 2;
+                transform.y = canvas.height / 2;
+            }
+            needsRedraw = true;
+        }
+
+        // --- 4. DRAWING FUNCTIONS ---
+
+        function drawLoop() {
+            if (needsRedraw) {
+                needsRedraw = false;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                primeGridCells.innerHTML = '';
+
+                ctx.save();
+                ctx.translate(transform.x, transform.y);
+                ctx.scale(transform.scale, transform.scale);
+
+                const bounds = getViewBounds();
+                drawGrid(bounds);
+                drawOriginAxes(bounds);
+
+                for (const lattice of lattices.values()) {
+                    if (lattice.visible) {
+                        if (lattice.showPrimeGrid) {
+                            drawPrimeGridForLattice(lattice, bounds);
+                        }
+                        drawLattice(lattice, bounds); // Pass toggles
+                    }
+                }
+                ctx.restore();
+
+                if (hoveredInfo) {
+                    coordDisplay.style.display = 'block';
+                    coordDisplay.textContent = `(${hoveredInfo.x.toFixed(2)}, ${hoveredInfo.y.toFixed(2)}) ${hoveredInfo.label}`;
+                    ctx.save();
+                    ctx.translate(transform.x, transform.y);
+                    ctx.scale(transform.scale, transform.scale);
+                    ctx.fillStyle = '#333';
+                    ctx.beginPath();
+                    ctx.arc(hoveredInfo.x, hoveredInfo.y, 5 / transform.scale, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    coordDisplay.style.display = 'none';
+                }
+            }
+            requestAnimationFrame(drawLoop);
+        }
+
+        function drawGrid(bounds) {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1 / transform.scale;
+            const baseGridSize = 100;
+            let gridSize = baseGridSize;
+            while (gridSize * transform.scale < 50) gridSize *= 5;
+            while (gridSize * transform.scale > 150) gridSize /= 5;
+            const startX = Math.floor(bounds.minX / gridSize) * gridSize;
+            const endX = Math.ceil(bounds.maxX / gridSize) * gridSize;
+            const startY = Math.floor(bounds.minY / gridSize) * gridSize;
+            const endY = Math.ceil(bounds.maxY / gridSize) * gridSize;
+            ctx.beginPath();
+            for (let x = startX; x <= endX; x += gridSize) {
+                ctx.moveTo(x, startY);
+                ctx.lineTo(x, endY);
+            }
+            for (let y = startY; y <= endY; y += gridSize) {
+                ctx.moveTo(startX, y);
+                ctx.lineTo(endX, y);
+            }
+            ctx.stroke();
+        }
+
+        function drawOriginAxes(bounds) {
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 2 / transform.scale;
+            ctx.beginPath();
+            ctx.moveTo(bounds.minX, 0); ctx.lineTo(bounds.maxX, 0);
+            ctx.moveTo(0, bounds.minY); ctx.lineTo(0, bounds.maxY);
+            ctx.stroke();
+        }
+
+        function drawPrimeGridForLattice(lattice, bounds) {
+            const worldCellSize = 1;
+            const screenCellSize = worldCellSize * transform.scale;
+            if (screenCellSize < 30) return;
+
+            const N = Number(lattice.number.toString());
+            const offsetBounds = {
+                minX: Math.floor(bounds.minX - lattice.originOffset.x),
+                maxX: Math.ceil(bounds.maxX - lattice.originOffset.x),
+                minY: Math.floor(bounds.minY - lattice.originOffset.y),
+                maxY: Math.ceil(bounds.maxY - lattice.originOffset.y)
+            };
+            const startX = Math.max(-N, offsetBounds.minX);
+            const endX = Math.min(N, offsetBounds.maxX);
+            const startY = Math.max(-N, offsetBounds.minY);
+            const endY = Math.min(N, offsetBounds.maxY);
+
+            if (endX - startX > 200 || endY - startY > 200) return;
+
+            const fragment = document.createDocumentFragment();
+            for (let x = startX; x <= endX; x++) {
+                for (let y = startY; y <= endY; y++) {
+                    const nX = bigInt(Math.abs(x));
+                    const nY = bigInt(Math.abs(y));
+                    const isXPrime = (nX.gt(1) && isPrime(nX));
+                    const isXComposite = (nX.gt(1) && !isXPrime);
+                    const isYPrime = (nY.gt(1) && isPrime(nY));
+                    const isYComposite = (nY.gt(1) && !isYPrime);
+
+                    let cellClass = 'prime-cell';
+                    if (isXComposite || isYComposite) cellClass += ' composite';
+                    if (isXPrime || isYPrime) cellClass += ' prime';
+
+                    if (isXPrime || isXComposite || isYPrime || isYComposite) {
+                        const cell = document.createElement('div');
+                        cell.className = cellClass;
+                        const screenPos = worldToScreen(x + lattice.originOffset.x, y + lattice.originOffset.y);
+                        cell.style.transform = `translate(${screenPos.x}px, ${screenPos.y}px)`;
+                        cell.style.width = `${screenCellSize}px`;
+                        cell.style.height = `${screenCellSize}px`;
+                        fragment.appendChild(cell);
+                    }
+                }
+            }
+            primeGridCells.appendChild(fragment);
+        }
+
+        /**
+         * Draws all components for a single lattice layer,
+         * respecting the toggles.
+         */
+        function drawLattice(lattice, bounds) {
+            const { color, originOffset, equations, intersections, toggles } = lattice;
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2 / transform.scale;
+            ctx.translate(originOffset.x, originOffset.y);
+
+            const offsetBounds = {
+                minX: bounds.minX - originOffset.x,
+                maxX: bounds.maxX - originOffset.x,
+                minY: bounds.minY - originOffset.y,
+                maxY: bounds.maxY - originOffset.y
+            };
+
+            // Conditionally draw each equation category
+            const drawEqs = (eqs) => {
+                if (!eqs) return; // Safety check
+                for (const eq of eqs) {
+                    switch (eq.type) {
+                        case 'line': drawLine(eq.m, eq.c, offsetBounds); break;
+                        case 'vline': drawVerticalLine(eq.x, offsetBounds); break;
+                        case 'hline': drawHorizontalLine(eq.y, offsetBounds); break;
+                        case 'hyperbola': drawHyperbola(eq.N, offsetBounds); break;
+                    }
+                }
+            };
+
+            if (toggles.core) drawEqs(equations.core);
+            if (toggles.factors) drawEqs(equations.factors);
+            if (toggles.diamonds) drawEqs(equations.diamonds);
+
+            // Conditionally draw intersection dots
+            if (toggles.intersections) {
+                ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+                const dotRadius = 4 / transform.scale;
+                for (const point of intersections) {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, dotRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // --- 4a. Specific Drawing Helpers ---
+        function drawLine(m, c, bounds) {
+            const y1 = m * bounds.minX + c;
+            const y2 = m * bounds.maxX + c;
+            ctx.beginPath(); ctx.moveTo(bounds.minX, y1); ctx.lineTo(bounds.maxX, y2); ctx.stroke();
+        }
+        function drawVerticalLine(x, bounds) {
+            ctx.beginPath(); ctx.moveTo(x, bounds.minY); ctx.lineTo(x, bounds.maxY); ctx.stroke();
+        }
+        function drawHorizontalLine(y, bounds) {
+            ctx.beginPath(); ctx.moveTo(bounds.minX, y); ctx.lineTo(bounds.maxX, y); ctx.stroke();
+        }
+        function drawHyperbola(N, bounds) {
+            if (N === 0) return;
+            const step = (bounds.maxX - bounds.minX) / 1000;
+            ctx.beginPath();
+            let first = true;
+            for (let x = Math.max(step, bounds.minX); x <= bounds.maxX; x += step) {
+                const y = N / x;
+                if (y < bounds.minY || y > bounds.maxY) { first = true; continue; }
+                if (first) { ctx.moveTo(x, y); first = false; }
+                else { ctx.lineTo(x, y); }
+            }
+            ctx.stroke();
+            ctx.beginPath();
+            first = true;
+            for (let x = Math.min(-step, bounds.maxX); x >= bounds.minX; x -= step) {
+                const y = N / x;
+                if (y < bounds.minY || y > bounds.maxY) { first = true; continue; }
+                if (first) { ctx.moveTo(x, y); first = false; }
+                else { ctx.lineTo(x, y); }
+            }
+            ctx.stroke();
+        }
+
+        // --- 5. UI & STATE MANAGEMENT ---
+
+        /**
+         * Sends a number to the worker for processing.
+         * @param {string} numStr - The number as a string.
+         */
+        function requestLatticeData(numStr) {
+             if (lattices.has(numStr)) {
+                // Already plotted, just ensure it's visible
+                lattices.get(numStr).visible = true;
+                updateLatticeListUI();
+                needsRedraw = true;
+                return;
+            }
+            // Temporarily disable buttons during processing if needed
+            // plotButton.disabled = true;
+            // plotSequenceButton.disabled = true;
+            worker.postMessage({ number: numStr });
+        }
+
+        /**
+         * Plots a single number from the main input.
+         */
+        function plotSingleNumber() {
+            const numStr = numberInput.value.trim();
+            if (!numStr) return;
+            try {
+                bigInt(numStr); // Validate input
+                requestLatticeData(numStr);
+            } catch (e) {
+                alert("Invalid number format.");
+            }
+        }
+
+        /**
+         * Plots a sequence of numbers.
+         */
+        async function plotSequence() {
+            if (isPlottingSequence) return; // Prevent multiple sequences at once
+
+            let startNum, endNum;
+            try {
+                startNum = bigInt(sequenceStartInput.value.trim());
+                endNum = bigInt(sequenceEndInput.value.trim());
+            } catch (e) {
+                alert("Invalid start or end number for sequence.");
+                return;
+            }
+
+            if (startNum.gt(endNum)) {
+                alert("Start number must be less than or equal to end number.");
+                return;
+            }
+
+            isPlottingSequence = true;
+            plotSequenceButton.disabled = true;
+            plotSequenceButton.textContent = "Plotting...";
+
+            for (let currentNum = startNum; currentNum.leq(endNum); currentNum = currentNum.add(1)) {
+                 if (!lattices.has(currentNum.toString())) {
+                    requestLatticeData(currentNum.toString());
+                    // Wait for the worker to likely finish before sending the next
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                 } else {
+                     // If already plotted, make sure it's visible
+                     const lattice = lattices.get(currentNum.toString());
+                     if (lattice) lattice.visible = true;
+                 }
+            }
+             updateLatticeListUI(); // Update UI once after adding potentially visible items
+             needsRedraw = true;
+
+            plotSequenceButton.disabled = false;
+            plotSequenceButton.textContent = "Plot Sequence";
+            isPlottingSequence = false;
+        }
+
+
+        function clearAll() {
+            lattices.clear();
+            primeTestCache.clear(); // Clear primality cache
+            updateLatticeListUI();
+            needsRedraw = true;
+        }
+
+        function updateLatticeListUI() {
+            latticeListContainer.innerHTML = '';
+            // Sort keys numerically for consistent order (important for colors)
+            const sortedKeys = Array.from(lattices.keys()).sort((a, b) => bigInt(a).compareTo(bigInt(b)));
+
+            sortedKeys.forEach((key, index) => {
+                const lattice = lattices.get(key);
+                const item = document.createElement('div');
+                item.className = 'lattice-item';
+                const factors = lattice.primeFactors.length > 6 ? `${lattice.primeFactors.slice(0, 6).join('×')}...` : lattice.primeFactors.join('×');
+
+                const { core, factors: factorToggle, diamonds, intersections } = lattice.toggles;
+
+                item.innerHTML = `
+                    <div class="lattice-info">${lattice.number.toString()}</div>
+                    <button class="remove-btn" data-key="${key}" title="Remove lattice">✕</button>
+                    <div class="lattice-factors">(${factors || 'Prime'})</div>
+
+                    <!-- Row 3: Main Controls -->
+                    <div class="lattice-controls">
+                        <label title="Change lattice color">
+                            <input type="color" class="color-input" data-key="${key}" value="${lattice.color}" title="Change lattice color">
+                        </label>
+                        <label>
+                            <input type="checkbox" class="vis-toggle" data-key="${key}" ${lattice.visible ? 'checked' : ''}>
+                            Visible
+                        </label>
+                        <label>
+                            <input type="checkbox" class="prime-grid-toggle" data-key="${key}" ${lattice.showPrimeGrid ? 'checked' : ''}>
+                            Prime Grid
+                        </label>
+                        <label>
+                            X: <input type="number" class="offset-input border rounded px-1" data-key="${key}" data-axis="x" value="${lattice.originOffset.x}">
+                        </label>
+                        <label>
+                            Y: <input type="number" class="offset-input border rounded px-1" data-key="${key}" data-axis="y" value="${lattice.originOffset.y}">
+                        </label>
+                    </div>
+
+                    <!-- Row 4: Toggle Checkboxes -->
+                    <div class="lattice-toggles">
+                        <label>
+                            <input type="checkbox" class="toggle-input" data-key="${key}" data-type="core" ${core ? 'checked' : ''}>
+                            Core
+                        </label>
+                        <label>
+                            <input type="checkbox" class="toggle-input" data-key="${key}" data-type="factors" ${factorToggle ? 'checked' : ''}>
+                            Factors
+                        </label>
+                        <label>
+                            <input type="checkbox" class="toggle-input" data-key="${key}" data-type="diamonds" ${diamonds ? 'checked' : ''}>
+                            Diamonds
+                        </label>
+                        <label>
+                            <input type="checkbox" class="toggle-input" data-key="${key}" data-type="intersections" ${intersections ? 'checked' : ''}>
+                            Dots
+                        </label>
+                    </div>
+                `;
+                latticeListContainer.appendChild(item);
+            });
+        }
+
+        /**
+         * Generates categorized equations for a lattice.
+         * @returns {object} - { core: [], factors: [], diamonds: [] }
+         */
+        function generateLatticeEquations(lattice) {
+            const { number, factorPairs } = lattice;
+            const N = Number(number.toString());
+
+            const eqs = {
+                core: [],
+                factors: [],
+                diamonds: []
+            };
+
+            eqs.core.push({ type: 'line', m: 1, c: 0, label: 'y = x' });
+            eqs.core.push({ type: 'line', m: -1, c: 0, label: 'y = -x' });
+            eqs.core.push({ type: 'hyperbola', N: N, label: `xy = ${N}` });
+            eqs.core.push({ type: 'hyperbola', N: -N, label: `xy = -${N}` });
+
+            for (const [pStr, qStr] of factorPairs) {
+                const p = Number(pStr); const q = Number(qStr);
+
+                // Factor Lines
+                eqs.factors.push({ type: 'vline', x: p, label: `x = ${p}` });
+                eqs.factors.push({ type: 'vline', x: -p, label: `x = -${p}` });
+                eqs.factors.push({ type: 'hline', y: p, label: `y = ${p}` });
+                eqs.factors.push({ type: 'hline', y: -p, label: `y = -${p}` });
+                if (p !== q) {
+                    eqs.factors.push({ type: 'vline', x: q, label: `x = ${q}` });
+                    eqs.factors.push({ type: 'vline', x: -q, label: `x = -${q}` });
+                    eqs.factors.push({ type: 'hline', y: q, label: `y = ${q}` });
+                    eqs.factors.push({ type: 'hline', y: -q, label: `y = -${q}` });
+                }
+
+                // Diamond Lines
+                const p_plus_q = p + q; const q_minus_p = q - p;
+                eqs.diamonds.push({ type: 'line', m: 1, c: p_plus_q, label: `y = x + ${p_plus_q}` });
+                eqs.diamonds.push({ type: 'line', m: 1, c: -p_plus_q, label: `y = x - ${p_plus_q}` });
+                eqs.diamonds.push({ type: 'line', m: -1, c: p_plus_q, label: `y = -x + ${p_plus_q}` });
+                eqs.diamonds.push({ type: 'line', m: -1, c: -p_plus_q, label: `y = -x - ${p_plus_q}` });
+                if (p !== q) {
+                    eqs.diamonds.push({ type: 'line', m: 1, c: q_minus_p, label: `y = x + ${q_minus_p}` });
+                    eqs.diamonds.push({ type: 'line', m: 1, c: -q_minus_p, label: `y = x - ${q_minus_p}` });
+                    eqs.diamonds.push({ type: 'line', m: -1, c: q_minus_p, label: `y = -x + ${q_minus_p}` });
+                    eqs.diamonds.push({ type: 'line', m: -1, c: -q_minus_p, label: `y = -x - ${q_minus_p}` });
+                }
+            }
+            return eqs;
+        }
+
+        function generateLatticeIntersections(lattice) {
+            const { factorPairs } = lattice;
+            const points = new Set();
+            for (const [pStr, qStr] of factorPairs) {
+                const p = Number(pStr); const q = Number(qStr);
+                const addPoints = (x, y) => {
+                    points.add(JSON.stringify({x: x, y: y})); points.add(JSON.stringify({x: -x, y: y}));
+                    points.add(JSON.stringify({x: x, y: -y})); points.add(JSON.stringify({x: -x, y: -y}));
+                };
+                addPoints(p, q);
+                if (p !== q) addPoints(q, p);
+            }
+            return Array.from(points).map(s => JSON.parse(s));
+        }
+
+
+        // --- 6. EVENT LISTENERS ---
+
+        function handleWorkerMessage(e) {
+             // Re-enable buttons if not plotting sequence OR if this is the last message
+            if (!isPlottingSequence) {
+                 plotButton.disabled = false;
+                 plotSequenceButton.disabled = false;
+                 plotButton.textContent = "Plot";
+            }
+
+            const { number, primeFactors, factorPairs, error } = e.data;
+            if (error) {
+                console.error(`Worker error for ${number}: ${error}`);
+                // Don't alert during sequence plotting
+                if (!isPlottingSequence) alert(`Error factoring ${number}: ${error}`);
+                return;
+            }
+
+            // Determine color index based on current size before adding
+            const colorIndex = lattices.size % colors.length;
+
+            const newLattice = {
+                number: bigInt(number),
+                primeFactors: primeFactors,
+                factorPairs: factorPairs,
+                color: colors[colorIndex], // Assign color based on order
+                visible: true,
+                originOffset: { x: 0, y: 0 },
+                showPrimeGrid: false,
+                toggles: { core: true, factors: true, diamonds: true, intersections: true },
+                equations: { core: [], factors: [], diamonds: [] },
+                intersections: []
+            };
+            newLattice.equations = generateLatticeEquations(newLattice);
+            newLattice.intersections = generateLatticeIntersections(newLattice);
+            lattices.set(number, newLattice);
+            updateLatticeListUI(); // Update UI immediately
+            needsRedraw = true;
+        }
+
+        function handleInputKey(e) {
+            if (e.key === 'Enter') {
+                plotSingleNumber(); // Use the dedicated single plot function
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                try {
+                    let num = bigInt(numberInput.value);
+                    num = (e.key === 'ArrowUp') ? num.add(1) : num.subtract(1);
+                    if (num.isZero()) num = (e.key === 'ArrowUp') ? num.add(1) : num.subtract(1);
+                    numberInput.value = num.toString();
+                    plotSingleNumber(); // Plot the new single number
+                } catch (err) { /* ignore */ }
+            }
+        }
+
+        /**
+         * Updated to check toggles before snapping.
+         */
+        function findSnapPoint(worldX, worldY) {
+            const worldThreshold = 8 / transform.scale;
+            let bestSnap = null;
+            let minDelta = worldThreshold;
+            const visibleLattices = Array.from(lattices.values()).filter(l => l.visible).reverse();
+
+            for (const lattice of visibleLattices) {
+                const ox = lattice.originOffset.x; const oy = lattice.originOffset.y;
+                const lx = worldX - ox; const ly = worldY - oy;
+
+                const checkEqs = (eqs) => {
+                    if (!eqs) return; // Safety check
+                    for (const eq of eqs) {
+                        let dist = Infinity; let snappedY = ly;
+                        switch (eq.type) {
+                            case 'line':
+                                dist = Math.abs(eq.m * lx - ly + eq.c) / Math.sqrt(eq.m * eq.m + 1);
+                                snappedY = eq.m * lx + eq.c;
+                                break;
+                            case 'vline':
+                                dist = Math.abs(lx - eq.x);
+                                snappedY = ly;
+                                break;
+                            case 'hline':
+                                dist = Math.abs(ly - eq.y);
+                                snappedY = eq.y;
+                                break;
+                            case 'hyperbola':
+                                if (lx !== 0) {
+                                    const h_y = eq.N / lx;
+                                    dist = Math.abs(ly - h_y);
+                                    snappedY = h_y;
+                                }
+                                break;
+                        }
+                        if (dist < minDelta) {
+                            minDelta = dist;
+                            if (eq.type === 'vline') {
+                                bestSnap = { x: eq.x + ox, y: worldY, label: eq.label };
+                            } else {
+                                bestSnap = { x: worldX, y: snappedY + oy, label: eq.label };
+                            }
+                        }
+                    }
+                };
+
+                if (lattice.toggles.core) checkEqs(lattice.equations.core);
+                if (lattice.toggles.factors) checkEqs(lattice.equations.factors);
+                if (lattice.toggles.diamonds) checkEqs(lattice.equations.diamonds);
+
+                if (bestSnap) return bestSnap;
+            }
+            return null;
+        }
+
+
+        function handleCoordinateSnap(e) {
+            if (isPanning) {
+                hoveredInfo = null;
+                return;
+            };
+            const clientX = e.clientX; const clientY = e.clientY;
+            const worldX = (clientX - transform.x) / transform.scale;
+            const worldY = (clientY - transform.y) / transform.scale;
+            hoveredInfo = findSnapPoint(worldX, worldY);
+            needsRedraw = true;
+        }
+
+        // --- Pan & Zoom Listeners ---
+        canvas.addEventListener('mousedown', (e) => {
+            isPanning = true;
+            lastPanPoint = { x: e.clientX, y: e.clientY };
+            canvas.style.cursor = 'grabbing';
+            hoveredInfo = null;
+            needsRedraw = true;
+        });
+        canvas.addEventListener('mouseup', () => {
+            isPanning = false;
+            canvas.style.cursor = 'grab';
+        });
+        canvas.addEventListener('mouseleave', () => {
+            isPanning = false;
+            canvas.style.cursor = 'grab';
+            if (hoveredInfo) {
+                hoveredInfo = null;
+                needsRedraw = true;
+            }
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                const dx = e.clientX - lastPanPoint.x; const dy = e.clientY - lastPanPoint.y;
+                transform.x += dx; transform.y += dy;
+                lastPanPoint = { x: e.clientX, y: e.clientY };
+            } else {
+                handleCoordinateSnap(e);
+            }
+            needsRedraw = true;
+        });
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = 1.1;
+            const delta = e.deltaY > 0 ? 1 / zoomFactor : zoomFactor;
+            const mouse = { x: e.clientX, y: e.clientY };
+            const worldPosBefore = {
+                x: (mouse.x - transform.x) / transform.scale,
+                y: (mouse.y - transform.y) / transform.scale
+            };
+            transform.scale *= delta;
+            transform.x = mouse.x - worldPosBefore.x * transform.scale;
+            transform.y = mouse.y - worldPosBefore.y * transform.scale;
+            handleCoordinateSnap(e);
+            needsRedraw = true;
+        });
+
+        // --- Touch Listeners ---
+        let lastTouchDist = 0;
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            hoveredInfo = null;
+            if (e.touches.length === 1) {
+                const clientX = e.touches[0].clientX; const clientY = e.touches[0].clientY;
+                const worldX = (clientX - transform.x) / transform.scale;
+                const worldY = (clientY - transform.y) / transform.scale;
+                hoveredInfo = findSnapPoint(worldX, worldY);
+                if (hoveredInfo) { isPanning = false; } else { isPanning = true; }
+                lastPanPoint = { x: clientX, y: clientY };
+            } else if (e.touches.length === 2) {
+                isPanning = false;
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastTouchDist = Math.hypot(dx, dy);
+            }
+            needsRedraw = true;
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1 && isPanning) {
+                const dx = e.touches[0].clientX - lastPanPoint.x;
+                const dy = e.touches[0].clientY - lastPanPoint.y;
+                transform.x += dx; transform.y += dy;
+                lastPanPoint = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else if (e.touches.length === 1 && !isPanning) {
+                handleCoordinateSnap(e.touches[0]);
+            } else if (e.touches.length === 2) {
+                isPanning = false;
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const newDist = Math.hypot(dx, dy);
+                if (lastTouchDist === 0) { lastTouchDist = newDist; return; }
+                const delta = newDist / lastTouchDist;
+                const touchCenter = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+                const worldPosBefore = {
+                    x: (touchCenter.x - transform.x) / transform.scale,
+                    y: (touchCenter.y - transform.y) / transform.scale
+                };
+                transform.scale *= delta;
+                transform.x = touchCenter.x - worldPosBefore.x * transform.scale;
+                transform.y = touchCenter.y - worldPosBefore.y * transform.scale;
+                lastTouchDist = newDist;
+            }
+            needsRedraw = true;
+        }, { passive: false });
+        canvas.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) isPanning = false;
+            lastTouchDist = 0;
+            if (hoveredInfo) {
+                hoveredInfo = null;
+                needsRedraw = true;
+            }
+        });
+
+        // --- UI Listeners (Event Delegation) ---
+        latticeListContainer.addEventListener('click', (e) => {
+            const key = e.target.dataset.key;
+            if (key && e.target.classList.contains('remove-btn')) {
+                lattices.delete(key);
+                updateLatticeListUI();
+                needsRedraw = true;
+            }
+        });
+
+        latticeListContainer.addEventListener('change', (e) => {
+            const key = e.target.dataset.key;
+            if (!key) return;
+            const lattice = lattices.get(key);
+            if (!lattice) return;
+            if (e.target.classList.contains('vis-toggle')) {
+                lattice.visible = e.target.checked;
+            } else if (e.target.classList.contains('offset-input')) {
+                const axis = e.target.dataset.axis;
+                lattice.originOffset[axis] = Number(e.target.value) || 0;
+            } else if (e.target.classList.contains('prime-grid-toggle')) {
+                lattice.showPrimeGrid = e.target.checked;
+                if(e.target.checked) primeTestCache.clear();
+            } else if (e.target.classList.contains('toggle-input')) {
+                // Handle individual component toggles
+                const type = e.target.dataset.type;
+                if (lattice.toggles.hasOwnProperty(type)) {
+                    lattice.toggles[type] = e.target.checked;
+                }
+            }
+            needsRedraw = true; // Trigger redraw for any change
+        });
+
+        latticeListContainer.addEventListener('input', (e) => {
+            const key = e.target.dataset.key;
+            if (!key) return;
+            const lattice = lattices.get(key);
+            if (lattice && e.target.classList.contains('color-input')) {
+                lattice.color = e.target.value;
+                needsRedraw = true;
+            }
+        });
+
+        // NEW: Listener for Global Toggles
+        globalTogglesContainer.addEventListener('change', (e) => {
+            if (e.target.classList.contains('global-toggle-input')) {
+                const type = e.target.dataset.type;
+                const isChecked = e.target.checked;
+
+                // Apply change to all existing lattices
+                for (const lattice of lattices.values()) {
+                    if (lattice.toggles.hasOwnProperty(type)) {
+                        lattice.toggles[type] = isChecked;
+                    }
+                }
+
+                // Update the individual checkboxes in the list UI
+                updateLatticeListUI();
+                needsRedraw = true;
+            }
+        });
+
+        // --- 7. INITIALIZATION ---
+        function init() {
+            const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+            worker = new Worker(URL.createObjectURL(workerBlob));
+            worker.onmessage = handleWorkerMessage;
+            plotButton.addEventListener('click', plotSingleNumber);
+            plotSequenceButton.addEventListener('click', plotSequence);
+            clearButton.addEventListener('click', clearAll);
+            numberInput.addEventListener('keydown', handleInputKey);
+            document.getElementById('toggleControls').addEventListener('click', () => {
+                document.getElementById('controls').classList.toggle('collapsed');
+            });
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            plotSingleNumber(); // Plot the initial single number
+            drawLoop();
+        }
+        init();
+    </script>
+</body>
+</html>
+

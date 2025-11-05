@@ -1,0 +1,939 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"/>
+ <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+ <title>Resizable Snapping Rectangle with Auto-Panning, Factor Highlight, and Fireworks</title>
+ <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.52/Tone.js"></script>
+ <style>
+   body {
+     margin: 0;
+     overflow: hidden;
+     touch-action: none; /* Prevent browser gestures */
+     font-family: 'Inter', sans-serif;
+   }
+   canvas {
+     display: block;
+     background: #fff;
+     touch-action: none;
+     transition: background-color 0.5s ease; /* Smooth color transition */
+   }
+   #info {
+     position: absolute;
+     top: 10px;
+     left: 10px;
+     background: rgba(255, 255, 255, 0.8);
+     padding: 10px;
+     border: 1px solid black;
+     font-family: Arial, sans-serif;
+     font-size: 14px;
+     border-radius: 8px;
+   }
+   .info-group {
+     display: flex;
+     align-items: center;
+     margin-bottom: 5px;
+   }
+   .info-group label {
+     margin-right: 5px;
+     white-space: nowrap;
+   }
+   .info-input {
+     width: 100px;
+     padding: 3px;
+     border: 1px solid #ccc;
+     border-radius: 3px;
+   }
+   #status {
+     margin-top: 5px;
+     color: gray;
+   }
+   hr {
+     margin: 10px 0;
+     border-color: #ddd;
+   }
+   .red-text {
+     color: red;
+   }
+   .green-text {
+     color: green;
+   }
+   .yellow-text {
+       color: #ff9900;
+   }
+   .gray-text { color:#666; }
+   .badge { padding:1px 6px; border-radius:10px; border:1px solid #ccc; font-size:12px; margin-left:6px; }
+ </style>
+</head>
+<body>
+<canvas id="gridCanvas"></canvas>
+<div id="info">
+ <div class="info-group">
+   <label for="valueInput">Total Blocks:</label>
+   <input type="text" id="valueInput" class="info-input" value="10000000000" inputmode="text">
+ </div>
+ <div class="info-group">
+   <label><input type="checkbox" id="primeToggle" checked> Prime check (≤ 1e12)</label>
+ </div>
+ <div id="status"></div>
+ <hr>
+ <span id="labelTotalBlocks">Total Blocks:</span> <span id="totalBlocksDisplay"></span><br>
+ Width (A): <span id="width"></span><span id="widthPrime" class="badge gray-text"></span><br>
+ Height (B): <span id="height"></span><span id="heightPrime" class="badge gray-text"></span><br>
+ <span id="labelBlocksRemaining">Blocks Remaining:</span> <span id="blocks"></span><br>
+ <span id="labelModRemainder" style="display:none;">Mod Remainder:</span> <span id="modRemainder" style="display:none;"></span><br>
+ Diagonal Slope: <span id="slope"></span><br>
+ Diagonal Angle: <span id="angle"></span>°<br>
+ Center Point: <span id="centerPoint"></span>
+</div>
+
+<script>
+const canvas = document.getElementById("gridCanvas");
+const ctx = canvas.getContext("2d");
+const body = document.body;
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let gridSize = 20;
+let scale = 1;
+let offsetX = 0, offsetY = 0;
+let isPanning = false;
+let lastTouchDist = 0;
+let lastPan = null;
+
+const valueInput = document.getElementById('valueInput');
+const statusDiv = document.getElementById('status');
+const totalBlocksDisplay = document.getElementById('totalBlocksDisplay');
+const infoWidth = document.getElementById('width');
+const infoHeight = document.getElementById('height');
+const infoBlocks = document.getElementById('blocks');
+const infoModRemainder = document.getElementById('modRemainder');
+const labelTotalBlocks = document.getElementById('labelTotalBlocks');
+const labelBlocksRemaining = document.getElementById('labelBlocksRemaining');
+const labelModRemainder = document.getElementById('labelModRemainder');
+const infoSlope = document.getElementById('slope');
+const infoAngle = document.getElementById('angle');
+const infoCenterPoint = document.getElementById('centerPoint');
+
+let totalBlocks = bigInt(1007);
+let originalInput = bigInt(1007);
+let totalBase = null;
+let totalExponent = null;
+let totalMultiplication = null;
+let totalAddition = null;
+let exactWidth = bigInt(0);
+let exactHeight = bigInt(0);
+let isBigNumberMode = false;
+
+// The rect object holds the visual representation's dimensions
+let rect = {x: 2, y: 2, w: 0, h: 0};
+
+let handles = [];
+let activeHandle = null;
+
+// Threshold for switching from linear to logarithmic grid visualization
+const logarithmicThreshold = 75;
+
+// Array to hold firework particles
+let fireworks = [];
+const FIREWORK_COUNT = 300; // Increased count for a more dramatic effect
+const FIREWORK_LIFETIME = 240; // Increased lifetime
+const FIREWORK_MAX_VELOCITY_FACTOR = 0.02; // New, much larger factor for wider spread
+
+let isSuccessState = false;
+
+// Tone.js setup for sound effects
+let synth = null;
+let reverb = null;
+async function initializeAudio() {
+   try {
+       await Tone.start();
+       synth = new Tone.PolySynth(Tone.Synth, {
+           oscillator: { type: "sine" },
+           envelope: {
+               attack: 0.05,
+               decay: 0.2,
+               sustain: 0.1,
+               release: 0.5,
+           },
+       }).toDestination();
+       reverb = new Tone.Reverb(2).toDestination();
+       synth.connect(reverb);
+   } catch (e) {
+       console.error("Audio initialization failed:", e);
+   }
+}
+
+/**
+* Creates a new firework burst.
+*/
+function createFireworks() {
+ fireworks = []; // Clear existing fireworks
+ const maxInitialVelocity = Math.max(canvas.width, canvas.height) * FIREWORK_MAX_VELOCITY_FACTOR;
+ for (let i = 0; i < FIREWORK_COUNT; i++) {
+   fireworks.push({
+     x: canvas.width / 2,
+     y: canvas.height / 2,
+     vx: (Math.random() - 0.5) * maxInitialVelocity,
+     vy: (Math.random() - 0.5) * maxInitialVelocity,
+     radius: 5, // Increased particle size
+     color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+     alpha: 1,
+     life: FIREWORK_LIFETIME
+   });
+ }
+}
+
+/**
+* Draws and updates the firework particles.
+*/
+function drawFireworks() {
+ for (let i = fireworks.length - 1; i >= 0; i--) {
+   let p = fireworks[i];
+   p.x += p.vx;
+   p.y += p.vy;
+   p.vy += 0.05; // Gravity
+   p.alpha -= 1 / FIREWORK_LIFETIME;
+   p.life--;
+
+   if (p.life <= 0) {
+     fireworks.splice(i, 1);
+     continue;
+   }
+
+   ctx.fillStyle = p.color;
+   ctx.globalAlpha = p.alpha;
+   ctx.beginPath();
+   ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+   ctx.fill();
+ }
+ ctx.globalAlpha = 1; // Reset alpha
+}
+
+/**
+* Custom square root function for big-integer numbers using the Newton-Raphson method.
+* @param {bigInt} n The big-integer for which to find the square root.
+* @returns {bigInt} The integer square root of n.
+*/
+function customSqrt(n) {
+ if (n.isNegative()) {
+   console.error("Cannot compute square root of a negative number.");
+   return bigInt(-1);
+ }
+ if (n.lesserOrEquals(1)) {
+   return n;
+ }
+ let x = n.divide(2);
+ let y = n.divide(x);
+ while (x.greater(y)) {
+   x = x.add(y).divide(2);
+   y = n.divide(x);
+ }
+ if (x.times(x).greater(n)) {
+   return x.minus(1);
+ }
+ return x;
+}
+
+// Helper: distance between 2 points
+function dist(x1, y1, x2, y2) {
+ return Math.hypot(x2 - x1, y2 - y1);
+}
+
+
+// --- Lightweight prime check (cached, only when value changes) ---
+const PRIME_CHECK_LIMIT = bigInt("1000000000000"); // 1e12
+const SMALL_PRIMES = [2,3,5,7,11,13,17,19,23,29,31]; // quick sieve
+const MR_BASES = [2,3,5,7,11]; // deterministic for n < 2^64 (covers ≤1e12)
+const widthPrimeEl  = document.getElementById('widthPrime');
+const heightPrimeEl = document.getElementById('heightPrime');
+const primeToggleEl = document.getElementById('primeToggle') || { checked: true };
+
+const primeCache = new Map(); // key: n.toString(), value: "prime"|"composite"|"too-large"
+let lastWidthStr  = "";
+let lastHeightStr = "";
+
+function isTooLargeForPrimeCheck(n) {
+ return n.greater(PRIME_CHECK_LIMIT);
+}
+
+function trialDivisionSmall(n) {
+ for (const p of SMALL_PRIMES) {
+   const bp = bigInt(p);
+   if (n.equals(bp)) return true;
+   if (n.mod(bp).isZero()) return false;
+ }
+ return null; // inconclusive
+}
+
+function millerRabin(n) {
+ if (n.lesser(2)) return false;
+ if (n.equals(2)) return true;
+ if (n.isEven()) return false;
+
+ // write n-1 = d * 2^s
+ let d = n.minus(1);
+ let s = 0;
+ while (d.isEven()) { d = d.divide(2); s++; }
+
+ for (const a of MR_BASES) {
+   const A = bigInt(a);
+   if (A.greaterOrEquals(n)) continue;
+   let x = A.modPow(d, n);
+   if (x.equals(1) || x.equals(n.minus(1))) continue;
+
+   let cont = false;
+   for (let r = 1; r < s; r++) {
+     x = x.multiply(x).mod(n);
+     if (x.equals(n.minus(1))) { cont = true; break; }
+   }
+   if (!cont) return false;
+ }
+ return true;
+}
+
+function primeStatus(n) {
+ // Cache
+ const key = n.toString();
+ if (primeCache.has(key)) return primeCache.get(key);
+
+ if (n.lesser(2)) { primeCache.set(key, "composite"); return "composite"; }
+ if (isTooLargeForPrimeCheck(n)) { primeCache.set(key, "too-large"); return "too-large"; }
+
+ const td = trialDivisionSmall(n);
+ let res;
+ if (td === true) res = "prime";
+ else if (td === false) res = "composite";
+ else res = millerRabin(n) ? "prime" : "composite";
+
+ primeCache.set(key, res);
+ return res;
+}
+
+function setPrimeBadge(el, status) {
+ if (!el) return;
+ if (status === "prime")   { el.textContent = "Prime";      el.className = "badge green-text"; }
+ else if (status === "composite") { el.textContent = "Composite";  el.className = "badge red-text"; }
+ else { el.textContent = "Too large"; el.className = "badge gray-text"; }
+}
+
+/**
+* Updates the information panel on the canvas.
+*/
+function updateInfo() {
+ const blocksUsed = exactWidth.times(exactHeight);
+
+ // --- BEGIN: FIX FOR FACTOR HIGHLIGHTING IN BIG NUMBER MODE ---
+ // The original code was only checking divisibility for the small number case.
+ // This new logic correctly checks divisibility for both cases.
+ let isWidthDivisible = false;
+ let isHeightDivisible = false;
+
+ if (!isBigNumberMode) {
+   // Standard numbers: check divisibility directly
+   isWidthDivisible = exactWidth.greater(0) && originalInput.mod(exactWidth).isZero();
+   isHeightDivisible = exactHeight.greater(0) && originalInput.mod(exactHeight).isZero();
+ } else {
+   // Big number mode: check divisibility using modular exponentiation
+   if (exactWidth.greater(0)) {
+       let term1 = totalMultiplication.mod(exactWidth);
+       let term2 = totalBase.modPow(totalExponent, exactWidth);
+       let rem = term1.multiply(term2).plus(totalAddition).mod(exactWidth);
+       if (rem.isNegative()) rem = rem.add(exactWidth);
+       isWidthDivisible = rem.isZero();
+   }
+   if (exactHeight.greater(0)) {
+       let term1 = totalMultiplication.mod(exactHeight);
+       let term2 = totalBase.modPow(totalExponent, exactHeight);
+       let rem = term1.multiply(term2).plus(totalAddition).mod(exactHeight);
+       if (rem.isNegative()) rem = rem.add(exactHeight);
+       isHeightDivisible = rem.isZero();
+   }
+ }
+
+ // Set the colors based on the divisibility check.
+ infoWidth.className = isWidthDivisible ? "green-text" : "red-text";
+ infoHeight.className = isHeightDivisible ? "green-text" : "red-text";
+
+ // --- END: FIX FOR FACTOR HIGHLIGHTING ---
+
+ if (isBigNumberMode) {
+   // Mode 2: Big numbers (fixed total, mod remainder)
+   labelTotalBlocks.style.display = 'inline';
+   labelBlocksRemaining.style.display = 'none';
+   labelModRemainder.style.display = 'inline';
+   infoBlocks.style.display = 'none';
+   infoModRemainder.style.display = 'inline';
+
+   let baseStr = totalBase.toString();
+   let multStr = totalMultiplication.toString();
+   let addStr = totalAddition.isNegative() ? " - 1" : totalAddition.isZero() ? "" : " + " + totalAddition.toString();
+
+   // Display the number in the correct format
+   if (multStr === "1") {
+     totalBlocksDisplay.innerText = `${baseStr}^${formatNumberWithCommas(totalExponent)}${addStr}`;
+   } else {
+     totalBlocksDisplay.innerText = `${multStr} * ${baseStr}^${formatNumberWithCommas(totalExponent)}${addStr}`;
+   }
+
+   // Calculate the remainder using modular exponentiation
+   if (blocksUsed.isZero()) {
+       infoModRemainder.innerText = "N/A (Blocks Used is 0)";
+   } else {
+       const term1 = totalMultiplication.mod(blocksUsed);
+       const term2 = totalBase.modPow(totalExponent, blocksUsed);
+       let totalRemainder = term1.multiply(term2).plus(totalAddition).mod(blocksUsed);
+
+       // Adjust for negative remainders
+       if (totalRemainder.isNegative()) {
+           totalRemainder = totalRemainder.add(blocksUsed);
+       }
+       infoModRemainder.innerText = formatNumberWithCommas(totalRemainder);
+       infoModRemainder.className = totalRemainder.isZero() ? "green-text" : "red-text";
+   }
+ } else {
+   // Mode 1: Normal numbers (fixed total, blocks remaining)
+   labelTotalBlocks.style.display = 'inline';
+   labelBlocksRemaining.style.display = 'inline';
+   labelModRemainder.style.display = 'none';
+   infoBlocks.style.display = 'inline';
+   infoModRemainder.style.display = 'none';
+
+   totalBlocksDisplay.innerText = formatNumberWithCommas(totalBlocks);
+   const blocksRemaining = totalBlocks.minus(blocksUsed);
+   infoBlocks.innerText = formatNumberWithCommas(blocksRemaining);
+   infoBlocks.className = blocksRemaining.isZero() ? "green-text" : "red-text";
+ }
+
+ // Update the DOM with the common values
+ infoWidth.innerText = formatNumberWithCommas(exactWidth);
+ infoHeight.innerText = formatNumberWithCommas(exactHeight);
+
+ // Use the visual, scaled-down dimensions for slope and angle
+ infoSlope.innerText = (rect.h / rect.w).toFixed(2);
+ infoAngle.innerText = (Math.atan2(rect.h, rect.w) * 180 / Math.PI).toFixed(1);
+
+ const centerX = rect.x + rect.w / 2;
+ const centerY = rect.y + rect.h / 2;
+ infoCenterPoint.innerText = `(${centerX.toFixed(2)}, ${centerY.toFixed(2)})`;
+
+
+ // --- Lightweight prime status (cached, only when value changes) ---
+ if (primeToggleEl.checked) {
+   const wStr = exactWidth.toString();
+   const hStr = exactHeight.toString();
+
+   if (wStr !== lastWidthStr) {
+     lastWidthStr = wStr;
+     setPrimeBadge(widthPrimeEl, primeStatus(exactWidth));
+   }
+   if (hStr !== lastHeightStr) {
+     lastHeightStr = hStr;
+     setPrimeBadge(heightPrimeEl, primeStatus(exactHeight));
+   }
+ } else {
+   setPrimeBadge(widthPrimeEl, "too-large");  // neutral
+   setPrimeBadge(heightPrimeEl, "too-large"); // neutral
+ }
+}
+
+/**
+* Plays a simple sound effect with Tone.js
+*/
+function playSynthChord() {
+   if (!synth) return;
+   const now = Tone.now();
+   const chord = ["C4", "E4", "G4"];
+   synth.triggerAttackRelease(chord, "8n", now);
+   synth.triggerAttackRelease(chord, "8n", now + 0.2);
+   synth.triggerAttackRelease(chord, "8n", now + 0.4);
+}
+
+
+/**
+* Updates the positions of the resizable handles based on the rectangle.
+*/
+function updateHandles() {
+ handles = [
+   {x: rect.x, y: rect.y, name: "tl"},
+   {x: rect.x + rect.w, y: rect.y, name: "tr"},
+   {x: rect.x, y: rect.y + rect.h, name: "bl"},
+   {x: rect.x + rect.w, y: rect.y + rect.h, name: "br"}
+ ];
+}
+
+/**
+* Draws the grid, rectangle, and handles on the canvas.
+*/
+function drawGrid() {
+ // Check the state for highlighting
+ let isWidthDivisible = false;
+ let isHeightDivisible = false;
+ 
+ if (!isBigNumberMode) {
+   isWidthDivisible = exactWidth.greater(0) && originalInput.mod(exactWidth).isZero();
+   isHeightDivisible = exactHeight.greater(0) && originalInput.mod(exactHeight).isZero();
+ } else {
+   if (exactWidth.greater(0)) {
+       let term1 = totalMultiplication.mod(exactWidth);
+       let term2 = totalBase.modPow(totalExponent, exactWidth);
+       let rem = term1.multiply(term2).plus(totalAddition).mod(exactWidth);
+       if (rem.isNegative()) rem = rem.add(exactWidth);
+       isWidthDivisible = rem.isZero();
+   }
+   if (exactHeight.greater(0)) {
+       let term1 = totalMultiplication.mod(exactHeight);
+       let term2 = totalBase.modPow(totalExponent, exactHeight);
+       let rem = term1.multiply(term2).plus(totalAddition).mod(exactHeight);
+       if (rem.isNegative()) rem = rem.add(exactHeight);
+       isHeightDivisible = rem.isZero();
+   }
+ }
+
+ const blocksMatch = isBigNumberMode ? infoModRemainder.className === 'green-text' : exactWidth.times(exactHeight).equals(originalInput);
+ const bothFactors = isWidthDivisible && isHeightDivisible && blocksMatch;
+ const oneFactor = isWidthDivisible ^ isHeightDivisible; // Exclusive OR for partial match
+
+ // --- BEGIN: NEW HIGHLIGHTING LOGIC ---
+ if (bothFactors) {
+   canvas.style.backgroundColor = "lime";
+   if (!isSuccessState) {
+       createFireworks();
+       playSynthChord();
+       isSuccessState = true;
+   }
+ } else if (oneFactor) {
+   canvas.style.backgroundColor = "yellow";
+   isSuccessState = false;
+ } else {
+   canvas.style.backgroundColor = "#fff";
+   isSuccessState = false;
+ }
+ // --- END: NEW HIGHLIGHTING LOGIC ---
+
+ ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+ // Draw fireworks first so they are behind everything else
+ drawFireworks();
+
+ ctx.save();
+ ctx.translate(offsetX, offsetY);
+ ctx.scale(scale, scale);
+
+ const minX = -offsetX / scale / gridSize;
+ const maxX = (canvas.width - offsetX) / scale / gridSize;
+ const minY = -offsetY / scale / gridSize;
+ const maxY = (canvas.height - offsetY) / scale / gridSize;
+
+ const isLogarithmic = (isBigNumberMode && totalExponent.greaterOrEquals(logarithmicThreshold));
+
+ if (isLogarithmic) {
+   ctx.strokeStyle = "#ddd";
+   ctx.lineWidth = 1/scale;
+   const xScale = d3.scaleLog().domain([Math.max(1, minX), maxX]).range([Math.max(1, minX), maxX]);
+   const yScale = d3.scaleLog().domain([Math.max(1, minY), maxY]).range([Math.max(1, minY), maxY]);
+   xScale.ticks().forEach(tick => {
+     ctx.beginPath();
+     ctx.moveTo(tick * gridSize, minY * gridSize);
+     ctx.lineTo(tick * gridSize, maxY * gridSize);
+     ctx.stroke();
+   });
+   yScale.ticks().forEach(tick => {
+     ctx.beginPath();
+     ctx.moveTo(minX * gridSize, tick * gridSize);
+     ctx.lineTo(maxX * gridSize, tick * gridSize);
+     ctx.stroke();
+   });
+ } else {
+   ctx.strokeStyle = "#ddd";
+   ctx.lineWidth = 1/scale;
+   const xScale = d3.scaleLinear().domain([minX, maxX]).range([minX, maxX]);
+   const yScale = d3.scaleLinear().domain([minY, maxY]).range([minY, maxY]);
+   xScale.ticks(20).forEach(tick => {
+     ctx.beginPath();
+     ctx.moveTo(tick * gridSize, minY * gridSize);
+     ctx.lineTo(tick * gridSize, maxY * gridSize);
+     ctx.stroke();
+   });
+   yScale.ticks(20).forEach(tick => {
+     ctx.beginPath();
+     ctx.moveTo(minX * gridSize, tick * gridSize);
+     ctx.lineTo(maxX * gridSize, tick * gridSize);
+     ctx.stroke();
+   });
+ }
+
+ ctx.strokeStyle = "blue";
+ ctx.lineWidth = 2/scale;
+ ctx.strokeRect(rect.x * gridSize, rect.y * gridSize, rect.w * gridSize, rect.h * gridSize);
+
+ // Red Diagonal Line
+ ctx.strokeStyle = "red";
+ ctx.beginPath();
+ ctx.moveTo(rect.x * gridSize, rect.y * gridSize);
+ ctx.lineTo((rect.x + rect.w) * gridSize, (rect.y + rect.h) * gridSize);
+ ctx.stroke();
+ 
+ // Green Diagonal Line
+ ctx.strokeStyle = "green";
+ ctx.beginPath();
+ ctx.moveTo((rect.x + rect.w) * gridSize, rect.y * gridSize);
+ ctx.lineTo(rect.x * gridSize, (rect.y + rect.h) * gridSize);
+ ctx.stroke();
+
+ // Draw the yellow dashed square root rectangle
+ if (!isBigNumberMode && totalBlocks.greater(0)) {
+     const sideLength = customSqrt(totalBlocks);
+     ctx.strokeStyle = "yellow";
+     ctx.lineWidth = 2 / scale;
+     ctx.setLineDash([10 / scale, 10 / scale]); // Dashed line pattern
+     
+     // Draw the square
+     ctx.strokeRect(rect.x * gridSize, rect.y * gridSize, sideLength.valueOf() * gridSize, sideLength.valueOf() * gridSize);
+
+     // Reset the line dash to a solid line for other elements
+     ctx.setLineDash([]); 
+ }
+
+ let handleSize = Math.max(10, 10/scale);
+ for (let h of handles) {
+   ctx.fillStyle = (activeHandle && activeHandle.name === h.name) ? "blue" : "orange";
+   ctx.fillRect(h.x * gridSize - handleSize/2, h.y * gridSize - handleSize/2, handleSize, handleSize);
+ }
+ 
+ 
+
+ ctx.restore();
+ updateInfo();
+ requestAnimationFrame(drawGrid);
+}
+
+updateHandles();
+drawGrid();
+
+/**
+* Parses a variety of mathematical string formats into a bigInt number.
+*/
+function parseInput(inputString) {
+ const sanitizedInput = inputString.replace(/\s/g, '');
+ const prothPattern = /^(\d+)\*2\^(\d+)\+1$/;
+ const mersennePattern = /^2\^(\d+)-1$/;
+ const powerPattern = /^(\d+)\^(.+?)(?:\+(\d+))?$/;
+
+ let match;
+
+ // Check for Proth prime format
+ match = sanitizedInput.match(prothPattern);
+ if (match) {
+   const k = bigInt(match[1]);
+   const n = bigInt(match[2]);
+   if (n.greaterOrEquals(logarithmicThreshold)) {
+     return { type: 'bigNumber', base: bigInt(2), exponent: n, multiplication: k, addition: bigInt(1) };
+   } else {
+     const total = k.multiply(bigInt(2).pow(n)).plus(1);
+     const initialSide = customSqrt(total);
+     return { type: 'number', total: total, side: initialSide };
+   }
+ }
+
+ // Check for Mersenne prime format
+ match = sanitizedInput.match(mersennePattern);
+ if (match) {
+   const exponent = bigInt(match[1]);
+   if (exponent.greaterOrEquals(logarithmicThreshold)) {
+     return { type: 'bigNumber', base: bigInt(2), exponent: exponent, multiplication: bigInt(1), addition: bigInt(-1) };
+   } else {
+     const total = bigInt(2).pow(exponent).minus(1);
+     const initialSide = customSqrt(total);
+     return { type: 'number', total: total, side: initialSide };
+   }
+ }
+
+ // Check for standard power format
+ match = sanitizedInput.match(powerPattern);
+ if (match) {
+   const base = bigInt(match[1]);
+   const exponent = bigInt(match[2]);
+   const addition = match[3] ? bigInt(match[3]) : bigInt(0);
+
+   if (exponent.greaterOrEquals(logarithmicThreshold)) {
+     return { type: 'bigNumber', base: base, exponent: exponent, multiplication: bigInt(1), addition: addition };
+   } else {
+     const total = base.pow(exponent).plus(addition);
+     const initialSide = customSqrt(total);
+     return { type: 'number', total: total, side: initialSide };
+   }
+ }
+
+ // Handle simple numbers
+ const total = bigInt(sanitizedInput);
+ const initialSide = customSqrt(total);
+ return { type: 'number', total: total, side: initialSide };
+}
+
+/**
+* Performs the main calculation logic and updates the display.
+*/
+function performCalculation() {
+ statusDiv.innerText = "Calculating...";
+ try {
+   const result = parseInput(valueInput.value);
+
+   isBigNumberMode = (result.type === 'bigNumber');
+
+   if (isBigNumberMode) {
+     originalInput = bigInt(0);
+     totalBase = result.base;
+     totalExponent = result.exponent;
+     totalMultiplication = result.multiplication;
+     totalAddition = result.addition;
+     totalBlocks = null;
+
+     exactWidth = totalExponent;
+     exactHeight = totalExponent;
+     rect.w = exactWidth.valueOf();
+     rect.h = exactHeight.valueOf();
+   } else {
+     originalInput = result.total;
+     totalBase = null;
+     totalExponent = null;
+     totalMultiplication = null;
+     totalAddition = null;
+     totalBlocks = result.total;
+     if (totalBlocks.isNegative()) {
+       statusDiv.innerText = "Error: Input must be non-negative.";
+       return;
+     }
+
+     exactWidth = result.side;
+     exactHeight = result.side;
+     rect.w = exactWidth.valueOf();
+     rect.h = exactHeight.valueOf();
+   }
+
+   const padding = 1.2;
+   const requiredScaleX = canvas.width / (rect.w * gridSize * padding);
+   const requiredScaleY = canvas.height / (rect.h * gridSize * padding);
+   scale = Math.min(requiredScaleX, requiredScaleY);
+
+   offsetX = (canvas.width / 2) - ((rect.x + rect.w / 2) * gridSize * scale);
+   offsetY = (canvas.height / 2) - ((rect.y + rect.h / 2) * gridSize * scale);
+
+   updateHandles();
+   drawGrid();
+   statusDiv.innerText = "Calculation complete.";
+
+ } catch (error) {
+   console.error("Calculation Error:", error);
+   statusDiv.innerText = "Error: Invalid input format or calculation failed.";
+ }
+}
+
+valueInput.addEventListener('keyup', (event) => {
+ if (event.key === 'Enter' || event.keyCode === 13) {
+   performCalculation();
+ }
+});
+
+function formatNumberWithCommas(bigIntNumber) {
+ if (!bigIntNumber) return "";
+ const numString = bigIntNumber.toString();
+ return numString.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// --- MOUSE CONTROLS ---
+canvas.addEventListener("mousedown", e => {
+ let mx = (e.offsetX - offsetX) / scale, my = (e.offsetY - offsetY) / scale;
+ for (let h of handles) {
+   if (dist(mx, my, h.x * gridSize, h.y * gridSize) < Math.max(15, 15/scale)) {
+     activeHandle = h;
+     drawGrid();
+     return;
+   }
+ }
+ isPanning = true;
+ lastPan = {x: e.clientX, y: e.clientY};
+});
+
+canvas.addEventListener("mousemove", e => {
+ if (activeHandle) {
+   let mx = (e.offsetX - offsetX) / scale / gridSize;
+   let my = (e.offsetY - offsetY) / scale / gridSize;
+
+   if (activeHandle.name === "tl") {
+     rect.w = Math.round(rect.w + rect.x - mx);
+     rect.h = Math.round(rect.h + rect.y - my);
+     rect.x = mx;
+     rect.y = my;
+   } else if (activeHandle.name === "tr") {
+     rect.w = Math.round(mx - rect.x);
+     rect.h = Math.round(rect.h + rect.y - my);
+     rect.y = my;
+   } else if (activeHandle.name === "bl") {
+     rect.w = Math.round(rect.w + rect.x - mx);
+     rect.x = mx;
+     rect.h = Math.round(my - rect.y);
+   } else if (activeHandle.name === "br") {
+     rect.w = Math.round(mx - rect.x);
+     rect.h = Math.round(my - rect.y);
+
+     const panThreshold = canvas.width * 0.10;
+     const panSpeedFactor = 1.5;
+
+     if (e.clientX < panThreshold) {
+       offsetX += (panThreshold - e.clientX) * panSpeedFactor;
+     }
+     if (e.clientX > canvas.width - panThreshold) {
+       offsetX -= (e.clientX - (canvas.width - panThreshold)) * panSpeedFactor;
+     }
+     // New: Auto-pan when dragging the bottom handle near the bottom of the screen
+     const panBottomThreshold = canvas.height * 0.10;
+     if (e.clientY > canvas.height - panBottomThreshold) {
+         offsetY -= (e.clientY - (canvas.height - panBottomThreshold)) * panSpeedFactor;
+     }
+   }
+
+   rect.w = Math.max(1, rect.w);
+   rect.h = Math.max(1, rect.h);
+
+   exactWidth = bigInt(Math.round(rect.w));
+   exactHeight = bigInt(Math.round(rect.h));
+
+   updateHandles();
+ } else if (isPanning && lastPan) {
+   offsetX += e.clientX - lastPan.x;
+   offsetY += e.clientY - lastPan.y;
+   lastPan = {x: e.clientX, y: e.clientY};
+ }
+});
+
+canvas.addEventListener("mouseup", () => {
+ if (activeHandle) {
+   rect.w = Math.round(rect.w);
+   rect.h = Math.round(rect.h);
+   updateHandles();
+ }
+ activeHandle = null;
+ isPanning = false;
+});
+
+// --- TOUCH CONTROLS ---
+canvas.addEventListener("touchstart", e => {
+ let touch = e.touches[0];
+ let mx = (touch.clientX - offsetX) / scale, my = (touch.clientY - offsetY) / scale;
+ for (let h of handles) {
+   if (dist(mx, my, h.x * gridSize, h.y * gridSize) < Math.max(25, 25/scale)) {
+     activeHandle = h;
+     drawGrid();
+     return;
+   }
+ }
+ isPanning = true;
+ if (e.touches.length === 2) {
+   lastTouchDist = dist(e.touches[0].clientX, e.touches[0].clientY,
+                        e.touches[1].clientX, e.touches[1].clientY);
+   lastPan = { x: (e.touches[0].clientX + e.touches[1].clientX) / 2, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+ } else {
+   lastPan = { x: touch.clientX, y: touch.clientY };
+ }
+});
+
+canvas.addEventListener("touchmove", e => {
+ e.preventDefault(); // Prevent default browser actions
+ if (activeHandle) {
+   let touch = e.touches[0];
+   let mx = (touch.clientX - offsetX) / scale / gridSize;
+   let my = (touch.clientY - offsetY) / scale / gridSize;
+
+   if (activeHandle.name === "tl") {
+     rect.w = Math.round(rect.w + rect.x - mx);
+     rect.h = Math.round(rect.h + rect.y - my);
+     rect.x = mx;
+     rect.y = my;
+   } else if (activeHandle.name === "tr") {
+     rect.w = Math.round(mx - rect.x);
+     rect.h = Math.round(rect.h + rect.y - my);
+     rect.y = my;
+   } else if (activeHandle.name === "bl") {
+     rect.w = Math.round(rect.w + rect.x - mx);
+     rect.x = mx;
+     rect.h = Math.round(my - rect.y);
+   } else if (activeHandle.name === "br") {
+     rect.w = Math.round(mx - rect.x);
+     rect.h = Math.round(my - rect.y);
+
+     const panThreshold = canvas.width * 0.10;
+     const panSpeedFactor = 1.5;
+
+     if (touch.clientX < panThreshold) {
+       offsetX += (panThreshold - touch.clientX) * panSpeedFactor;
+     }
+     if (touch.clientX > canvas.width - panThreshold) {
+       offsetX -= (touch.clientX - (canvas.width - panThreshold)) * panSpeedFactor;
+     }
+     const panBottomThreshold = canvas.height * 0.10;
+     if (touch.clientY > canvas.height - panBottomThreshold) {
+         offsetY -= (touch.clientY - (canvas.height - panBottomThreshold)) * panSpeedFactor;
+     }
+   }
+
+   rect.w = Math.max(1, rect.w);
+   rect.h = Math.max(1, rect.h);
+
+   exactWidth = bigInt(Math.round(rect.w));
+   exactHeight = bigInt(Math.round(rect.h));
+
+   updateHandles();
+ } else if (e.touches.length === 1 && isPanning && lastPan) {
+   let t = e.touches[0];
+   offsetX += t.clientX - lastPan.x;
+   offsetY += t.clientY - lastPan.y;
+   lastPan = {x: t.clientX, y: t.clientY};
+ } else if (e.touches.length === 2) {
+   let newDist = dist(e.touches[0].clientX, e.touches[0].clientY,
+                      e.touches[1].clientX, e.touches[1].clientY);
+   let factor = newDist / lastTouchDist;
+
+   let currentMidpointX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+   let currentMidpointY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+   offsetX += currentMidpointX - lastPan.x;
+   offsetY += currentMidpointY - lastPan.y;
+
+   offsetX = currentMidpointX - ((currentMidpointX - offsetX) * factor);
+   offsetY = currentMidpointY - ((currentMidpointY - offsetY) * factor);
+
+   scale *= factor;
+   lastTouchDist = newDist;
+   lastPan = {x: currentMidpointX, y: currentMidpointY};
+ }
+});
+
+canvas.addEventListener("touchend", () => {
+ if (activeHandle) {
+   rect.w = Math.round(rect.w);
+   rect.h = Math.round(rect.h);
+   updateHandles();
+ }
+ activeHandle = null;
+ isPanning = false;
+ lastTouchDist = 0;
+});
+
+window.addEventListener('resize', () => {
+ canvas.width = window.innerWidth;
+ canvas.height = window.innerHeight;
+});
+
+// Initial call to set up the display and audio
+window.onload = function() {
+ initializeAudio();
+ updateInfo();
+ performCalculation();
+};
+</script>
+</body>
+</html>

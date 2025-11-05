@@ -1,0 +1,97 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Andy's Dev Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              'sans': ['Inter', 'sans-serif'],
+              'medieval': ['IM Fell English SC', 'serif'],
+            },
+            colors: {
+              'stone': {
+                'DEFAULT': '#333333',
+                'border': '#555555',
+                'dark': '#1a1a1a',
+              },
+              'plaque': {
+                'DEFAULT': '#4d3c2a',
+                'text': '#f0f0f0',
+                'border': '#5a5a5a',
+              },
+              'amber': {
+                'DEFAULT': '#ffcc66',
+                '300': '#fbbf24',
+                '400': '#f59e0b'
+              },
+              'iron': {
+                'DEFAULT': '#4a4a4a',
+                'hover': '#5a5a5a',
+                'shadow': '#222',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #1a1a1a;
+        color: #cccccc;
+      }
+      .medieval-title {
+          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      }
+      .stone-frame {
+          background-image:
+              linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+          background-size: 8px 8px;
+          box-shadow:
+              inset 0 0 15px rgba(0, 0, 0, 0.7),
+              0 8px 15px rgba(0, 0, 0, 0.8);
+      }
+      .content-plaque {
+          background-image:
+              linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+          background-size: 4px 4px;
+          box-shadow:
+              inset 0 0 15px rgba(0, 0, 0, 0.8),
+              0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+      .iron-button {
+          box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5);
+      }
+      .iron-button:hover:not(:disabled) {
+          box-shadow: 0 2px #222, 0 4px 6px rgba(0, 0, 0, 0.5);
+      }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-_A9S-CiM.js"></script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

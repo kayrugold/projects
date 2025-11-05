@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Geometric Factoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --secondary: #dc2626;
+            --success: #059669;
+            --info: #0284c7;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+                        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        #visualizationCanvas {
+            border: 2px solid #e5e7eb;
+            background-color: #ffffff;
+            touch-action: none;
+            display: block;
+            width: 100%;
+            height: 400px;
+            cursor: pointer;
+        }
+        .katex { font-size: 1.1em !important; }
+        .result-box p { margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body class="p-2 sm:p-4 min-h-screen flex flex-col items-center justify-center">
+
+<div id="app" class="w-full max-w-2xl space-y-4">
+    <div class="text-center">
+        <h1 class="text-3xl font-extrabold text-gray-900">Interactive Geometric Factoring</h1>
+        <p class="text-gray-600 mt-1">Drag the line or use Auto-Solve to find integer factors.</p>
+    </div>
+
+    <div class="card bg-white p-4 sm:p-6 rounded-xl space-y-4">
+        <p class="text-sm text-gray-700 text-center">
+            The intersection points of the parabola <span class="font-semibold text-violet-600" id="parabolaEq"></span>
+            and the line <span class="font-semibold text-red-600" id="lineEq"></span>
+            solve the equation <span class="font-mono">x² - Mx - N = 0</span>.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="inputN" class="block text-sm font-medium text-gray-700">N (Number to Factor)</label>
+                <input type="number" id="inputN" value="1007" required
+                       class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border-2 text-base">
+            </div>
+            <div>
+                <label for="inputM" class="block text-sm font-medium text-gray-700">M (Line Slope)</label>
+                <input type="number" id="inputM" value="34" required step="1"
+                       class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-violet-500 focus:ring-violet-500 p-2 border-2 text-base">
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex space-x-4">
+                <label class="inline-flex items-center">
+                    <input type="radio" name="gridType" value="linear" checked class="form-radio text-violet-600 h-4 w-4">
+                    <span class="ml-2 text-sm text-gray-700">Linear Grid</span>
+                </label>
+                <label class="inline-flex items-center">
+                    <input type="radio" name="gridType" value="log" class="form-radio text-violet-600 h-4 w-4">
+                    <span class="ml-2 text-sm text-gray-700">Log Grid</span>
+                </label>
+            </div>
+            <div class="flex gap-2">
+                <button id="autoSolveButton"
+                    class="bg-sky-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-sky-700 disabled:opacity-50 text-sm">
+                    Auto-Solve
+                </button>
+                <button id="updateNButton"
+                    class="bg-violet-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-violet-700 disabled:opacity-50 text-sm">
+                    Update N
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 p-2 rounded-lg">
+            <canvas id="visualizationCanvas"></canvas>
+        </div>
+
+        <div id="results" class="result-box p-4 bg-gray-100 rounded-lg min-h-[70px] text-center flex items-center justify-center">
+            <p id="resultText" class="text-gray-600 italic text-sm">Drag on the graph to change M and find integer factors.</p>
+        </div>
+
+        <!-- NEW: Step-by-step math summary -->
+        <div id="mathSummary" class="p-4 bg-white rounded-lg border text-sm text-gray-800"></div>
+    </div>
+</div>
+
+<script type="module">
+const canvas = document.getElementById('visualizationCanvas');
+const ctx = canvas.getContext('2d');
+const inputN = document.getElementById('inputN');
+const inputM = document.getElementById('inputM');
+const updateNButton = document.getElementById('updateNButton');
+const autoSolveButton = document.getElementById('autoSolveButton');
+const resultText = document.getElementById('resultText');
+const gridRadios = document.querySelectorAll('input[name="gridType"]');
+const parabolaEq = document.getElementById('parabolaEq');
+const lineEq = document.getElementById('lineEq');
+const mathSummary = document.getElementById('mathSummary'); // NEW
+
+let currentGridType = 'linear';
+let N_VALUE = parseFloat(inputN.value);
+let M_VALUE = parseInt(inputM.value); // NEW: integer slope
+let lastResult = null;
+let isDragging = false;
+
+// Coordinate mapping, drawing, etc. (unchanged from your version)
+let W, H, originX, originY, scaleX, scaleY, maxAbsX;
+function recalculateScale(N, M, factors) {
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    const maxRoot = factors ? Math.max(Math.abs(factors[0]), Math.abs(factors[1])) : Math.sqrt(Math.abs(N)) + 10;
+    maxAbsX = Math.max(maxRoot * 1.5, 20);
+    const yAtMaxX = maxAbsX * maxAbsX - N;
+    const yIntersection = factors ? Math.abs(M * (factors[0] > factors[1] ? factors[0] : factors[1])) : Math.abs(M*maxAbsX);
+    const maxAbsY = Math.max(Math.abs(yAtMaxX), yIntersection, Math.abs(N), 100);
+    originX = W / 2;
+    originY = H / 2 + (N / maxAbsY) * (H / 4);
+    scaleX = (W * 0.9) / (2 * maxAbsX);
+    scaleY = (H * 0.9) / (2 * maxAbsY);
+}
+const worldToPixelX = x => originX + x * scaleX;
+const worldToPixelY = y => originY - y * scaleY;
+const pixelToWorldX = px => (px - originX) / scaleX;
+const pixelToWorldY = py => (originY - py) / scaleY;
+
+function drawGrid(isLog) {
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 0.5;
+    ctx.font = '10px Inter';
+    ctx.fillStyle = '#6b7280';
+    const maxAbsY = (H * 0.9) / (2 * scaleY);
+    for (let i = -10; i <= 10; i++) {
+        const x = i * maxAbsX / 10;
+        ctx.beginPath(); ctx.moveTo(worldToPixelX(x), 0); ctx.lineTo(worldToPixelX(x), H); ctx.stroke();
+        const y = i * maxAbsY / 10;
+        ctx.beginPath(); ctx.moveTo(0, worldToPixelY(y)); ctx.lineTo(W, worldToPixelY(y)); ctx.stroke();
+    }
+}
+function drawAxes() {
+    ctx.strokeStyle = '#374151';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, originY); ctx.lineTo(W, originY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(originX, 0); ctx.lineTo(originX, H); ctx.stroke();
+}
+function drawFunctions(N, M, result) {
+    const numSegments = 400;
+    const minX = -maxAbsX;
+    const stepX = maxAbsX * 2 / numSegments;
+    ctx.strokeStyle = 'var(--primary)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let i = 0; i <= numSegments; i++) {
+        const x = minX + i * stepX;
+        const y = x * x - N;
+        const px = worldToPixelX(x);
+        const py = worldToPixelY(y);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = 'var(--secondary)';
+    ctx.beginPath();
+    ctx.moveTo(worldToPixelX(minX), worldToPixelY(M * minX));
+    ctx.lineTo(worldToPixelX(maxAbsX), worldToPixelY(M * maxAbsX));
+    ctx.stroke();
+    if (result && result.success) {
+        ctx.fillStyle = 'var(--success)';
+        result.roots.forEach(x => {
+            const y = M * x;
+            const px = worldToPixelX(x);
+            const py = worldToPixelY(y);
+            ctx.beginPath(); ctx.arc(px, py, 6, 0, 2 * Math.PI); ctx.fill();
+        });
+    }
+}
+function drawScene() {
+    recalculateScale(N_VALUE, M_VALUE, lastResult ? lastResult.factors : null);
+    canvas.width = W; canvas.height = H;
+    ctx.clearRect(0, 0, W, H);
+    drawGrid(currentGridType === 'log');
+    drawAxes();
+    drawFunctions(N_VALUE, M_VALUE, lastResult);
+    updateEquations();
+}
+
+// Web worker
+const factoringWorker = new Worker(URL.createObjectURL(new Blob([`(${function() {
+    self.onmessage = function(e) {
+        const { N, M } = e.data;
+        const discriminant = M * M + 4 * N;
+        if (discriminant < 0) {
+            postMessage({ error: 'No real roots', N, M, D: discriminant });
+            return;
+        }
+        const sqrtD = Math.sqrt(discriminant);
+        const x1 = (M + sqrtD) / 2;
+        const x2 = (M - sqrtD) / 2;
+        const F1 = Math.round(x1);
+        const F2 = Math.round(-x2);
+        postMessage({ N, M, D: discriminant, sqrtD, x1, x2, F1, F2, success: F1 * F2 === N });
+    };
+}})()`], { type: 'application/javascript' })));
+
+factoringWorker.onmessage = function(e) {
+    const d = e.data;
+    lastResult = d.success ? d : null;
+    if (!d.success) {
+        resultText.parentElement.className = 'result-box p-4 bg-amber-100 rounded-lg';
+        resultText.innerHTML = `<p class="text-amber-800">No integer factors found for M = ${d.M}.</p>`;
+    } else {
+        resultText.parentElement.className = 'result-box p-4 bg-green-100 rounded-lg';
+        resultText.innerHTML = `<p class="text-green-800 font-semibold">Factors Found: ${d.F1} × ${d.F2} = ${d.N}</p>`;
+    }
+
+    // NEW: Full math summary
+    mathSummary.innerHTML = `
+        <p>Equation: \\(x^2 - ${d.M}x - ${d.N} = 0\\)</p>
+        <p>Discriminant: \\(D = ${d.M}^2 + 4(${d.N}) = ${d.D}\\)</p>
+        <p>\\(\\sqrt{D} = ${d.sqrtD?.toFixed(2)}\\)</p>
+        <p>Roots: \\(x_1 = \\frac{${d.M} + \\sqrt{D}}{2} = ${d.x1?.toFixed(2)}\\), \\(x_2 = \\frac{${d.M} - \\sqrt{D}}{2} = ${d.x2?.toFixed(2)}\\)</p>
+        <p>Integer Factors: \\(${d.F1}\\) and \\(${d.F2}\\)</p>`;
+    renderMathInElement(mathSummary);
+    drawScene();
+};
+
+function debounceWorker(data) {
+    factoringWorker.postMessage(data);
+}
+
+// Dragging & input handling
+function getCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+}
+function updateSlopeFromCoords(coords) {
+    const worldX = pixelToWorldX(coords.x);
+    const worldY = pixelToWorldY(coords.y);
+    const newM = Math.round(worldY / worldX); // NEW: integer slope
+    M_VALUE = newM;
+    inputM.value = newM;
+    drawScene();
+    debounceWorker({ N: N_VALUE, M: M_VALUE });
+}
+canvas.addEventListener('mousedown', e => { isDragging = true; updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('mousemove', e => { if (isDragging) updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('mouseup', () => isDragging = false);
+canvas.addEventListener('touchstart', e => { isDragging = true; updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('touchmove', e => { if (isDragging) updateSlopeFromCoords(getCoords(e)); });
+canvas.addEventListener('touchend', () => isDragging = false);
+
+function updateEquations() {
+    parabolaEq.textContent = `y = x² - ${N_VALUE}`;
+    lineEq.textContent = `y = ${M_VALUE}x`;
+    renderMathInElement(parabolaEq.parentElement);
+}
+
+updateNButton.addEventListener('click', () => {
+    N_VALUE = parseFloat(inputN.value);
+    factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+});
+inputM.addEventListener('change', () => {
+    M_VALUE = parseInt(inputM.value);
+    factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+});
+
+// NEW: Listen for Enter on both inputs
+[inputN, inputM].forEach(inp => inp.addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+        N_VALUE = parseFloat(inputN.value);
+        M_VALUE = parseInt(inputM.value);
+        factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+    }
+}));
+
+gridRadios.forEach(radio => radio.addEventListener('change', e => {
+    currentGridType = e.target.value;
+    drawScene();
+}));
+
+window.addEventListener('load', () => {
+    drawScene();
+    factoringWorker.postMessage({ N: N_VALUE, M: M_VALUE });
+});
+window.addEventListener('resize', () => setTimeout(drawScene, 250));
+</script>
+</body>
+</html>

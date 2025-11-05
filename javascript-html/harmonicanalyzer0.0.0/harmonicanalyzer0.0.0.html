@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Prime Harmonic Analyzer — Hybrid Scale</title>
+<style>
+  :root { --bg:#0b0b0c; --panel:rgba(20,20,20,0.9); --accent:#00ffaa; --muted:#9aa; --font-main: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; --font-mono: 'Courier New', Courier, monospace; }
+  html, body { height: 100%; margin: 0; font-family: var(--font-main); background: var(--bg); color: #eef; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; touch-action: none; background: #111; cursor: crosshair; }
+  .ui-panel { position: absolute; left: 12px; top: 12px; width: 340px; max-width: calc(100vw - 24px); padding: 12px; border-radius: 12px; background: var(--panel); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: #ddd; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  label { min-width: 82px; color: var(--muted); font-size: 13px; }
+  input[type=text] { flex-grow: 1; padding: 8px; border-radius: 8px; border: 1px solid #222; background: #0f1112; color: var(--accent); font-family: var(--font-mono); }
+  button { padding: 8px 10px; border-radius: 8px; border: none; background: #2563eb; color: white; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
+  button:hover:not(:disabled) { background: #1d4ed8; }
+  button:disabled { background: #555; cursor: not-allowed; }
+  hr { border: none; border-top: 1px solid #2a2a2a; margin: 12px 0; }
+  .panel-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .panel-title-main { font-weight: 700; }
+  .panel-title-sub { font-size: 12px; color: var(--muted); }
+  #nvalue { font-family: var(--font-mono); margin-top: 6px; color: #fff; word-break: break-all; }
+  #status { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 1.2em; }
+  #infoBox { position: absolute; display: none; padding: 8px; background: rgba(0,0,0,0.8); border: 1px solid var(--muted); border-radius: 6px; font-family: var(--font-mono); font-size: 12px; color: #fff; pointer-events: none; white-space: pre; z-index: 10; }
+  .info-val { color: var(--accent); }
+  #scaleIndicator { position: absolute; bottom: 12px; right: 12px; font-size: 12px; color: var(--muted); background: var(--panel); padding: 4px 8px; border-radius: 6px;}
+
+  /* Dynamic clock list styles */
+  #clocksContainer .row { margin-bottom: 10px; }
+  .clock-input { flex-grow: 1; }
+  .color-picker { padding: 0; border: none; width: 36px; height: 36px; border-radius: 8px; background: none; cursor: pointer; }
+  .remove-clock-btn { background: #ef4444; width: 36px; height: 36px; font-weight: bold; }
+  .remove-clock-btn:hover { background: #dc2626; }
+  .overlay-label { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="mainCanvas"></canvas>
+
+<div class="ui-panel">
+  <div class="panel-title">
+    <div class="panel-title-main">Modulus Clocks</div>
+    <div class="panel-title-sub">worker • cache</div>
+  </div>
+
+  <div id="clocksContainer"></div>
+  <div class="row">
+      <button id="addClockBtn" style="flex-grow: 1;">Add Clock</button>
+      <button id="clearCacheBtn">Clear Cache</button>
+  </div>
+  
+  <hr />
+
+  <div class="panel-title"><div class="panel-title-main">Target N = a^b + c</div></div>
+  <div class="row"><label for="a">a</label><input id="a" value="10" /></div>
+  <div class="row"><label for="b">b</label><input id="b" value="3" /></div>
+  <div class="row"><label for="c">c</label><input id="c" value="7" /></div>
+  <div class="row">
+    <button id="calcBtn">Calculate N</button>
+    <button id="centerOnNBtn">Center on N</button>
+    <label class="overlay-label" style="flex-grow: 1; justify-content: center;">
+        <input type="checkbox" id="lockOnNCheck"> Lock on N
+    </label>
+  </div>
+
+  <div id="nvalue">N = 1007</div>
+  <div id="status">Status: Ready.</div>
+  
+  <hr />
+
+  <div class="panel-title"><div class="panel-title-main">Prime Sieve</div></div>
+  <div class="row">
+      <label class="overlay-label" style="flex-grow: 1; justify-content: flex-start; font-size: 13px;">
+          <input type="checkbox" id="sieve6kCheck"> Show 6k ± 1 Filter
+      </label>
+  </div>
+  <div id="sieveStatus" style="font-size: 13px; color: var(--muted); margin-top: 4px; min-height: 1.2em;"></div>
+
+</div>
+
+<div id="infoBox"></div>
+<div id="scaleIndicator">Log Scale</div>
+
+<script>
+/* ---------- Utilities ---------- */
+function parseBigIntInput(s) {
+    s = String(s).trim().toLowerCase();
+    if (s === '') throw new Error('Input is empty');
+    if (s.includes('+')) {
+        return s.split('+').map(t => parseBigIntInput(t)).reduce((a, b) => a + b, 0n);
+    }
+    if (s.includes('e')) {
+        const [baseStr, expStr] = s.split('e');
+        if (!expStr) throw new Error('Invalid exponent');
+        const base = BigInt(baseStr || '1');
+        const exp = BigInt(expStr);
+        return base * (10n ** exp);
+    }
+    if (/^-?\d+$/.test(s)) return BigInt(s);
+    throw new Error('Invalid number format');
+}
+
+function approxLog10FromBigInt(big) {
+    if (big <= 0n) return 0;
+    const s = big.toString();
+    const len = s.length;
+    if (len <= 16) return Math.log10(Number(s));
+    const lead = Number(s.slice(0, 16));
+    const logLead = Math.log10(lead);
+    return (len - 1) + (logLead - 15);
+}
+function constructBigIntFromLog(logv) {
+    if (logv < 0) return 0n;
+    if (logv < 15.5) return BigInt(Math.floor(10 ** logv));
+    const k = Math.floor(logv);
+    const frac = logv - k;
+    const multiplier = 10 ** frac;
+    const highPrecisionPart = BigInt(Math.floor(multiplier * (10 ** 17)));
+    const exponent = k - 17;
+    if (exponent >= 0) return highPrecisionPart * (10n ** BigInt(exponent));
+    return highPrecisionPart / (10n ** BigInt(-exponent));
+}
+
+/* ---------- IndexedDB Caching ---------- */
+const IDB_DB_NAME = 'harmonizer_cache_v2';
+const IDB_STORE = 'samples';
+let idbDB = null;
+function openIDB() {
+    return new Promise((resolve, reject) => {
+        if (idbDB) return resolve(idbDB);
+        const req = indexedDB.open(IDB_DB_NAME, 1);
+        req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE); };
+        req.onsuccess = () => { idbDB = req.result; resolve(idbDB); };
+        req.onerror = () => reject(req.error);
+    });
+}
+function idbGet(key) { return openIDB().then(db => new Promise((res, rej) => { const r = db.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); }
+function idbPut(key, val) { return openIDB().then(db => new Promise((res, rej) => { const r = db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE).put(val, key); r.onsuccess = () => res(true); r.onerror = () => rej(r.error); })); }
+function idbClear() { return openIDB().then(db => new Promise((res, rej) => { const r = db.transaction(IDB_STORE,'readwrite').objectStore(IDB_STORE).clear(); r.onsuccess = () => res(true); r.onerror = () => rej(r.error); })); }
+
+/* ---------- Web Worker ---------- */
+const workerSrc = `
+function powMod(base, exp, mod) { let res = 1n; base %= mod; while (exp > 0n) { if ((exp & 1n) === 1n) res = (res * base) % mod; exp >>= 1n; base = (base * base) % mod; } return res; }
+function constructBigIntFromLog(logv) { if (logv < 0) return 0n; if (logv < 15.5) return BigInt(Math.floor(10 ** logv)); const k = Math.floor(logv); const frac = logv - k; const multiplier = 10 ** frac; const highPrecisionPart = BigInt(Math.floor(multiplier * (10 ** 17))); const exponent = k - 17; if (exponent >= 0) return highPrecisionPart * (10n ** BigInt(exponent)); return highPrecisionPart / (10n ** BigInt(-exponent)); }
+self.onmessage = async (e) => {
+    const { jobId, type, payload } = e.data;
+    try {
+        if (type === 'getSamples') {
+            const { primeStr, min, max, sampleCount, isLinear } = payload;
+            const p = BigInt(primeStr);
+            if (p <= 0n) throw new Error("Prime must be positive in worker.");
+            const out = [];
+            const range = max - min;
+            for (let i = 0; i < sampleCount; i++) {
+                const x = min + (i / (sampleCount - 1)) * range;
+                const n = isLinear ? BigInt(Math.round(x)) : constructBigIntFromLog(x);
+                if (n < 0n) continue;
+                const rem = n % p;
+                const ratio = Number(rem) / Number(p);
+                const isExact = (rem === 0n);
+                out.push({ x, ratio, isExact });
+                if (i % 200 === 199) postMessage({ jobId, type: 'progress', progress: Math.round(i / sampleCount * 100) });
+            }
+            postMessage({ jobId, type: 'result', result: out, progress: 100 });
+
+        } else if (type === 'calculateN') {
+            const { a, b, c, primes } = payload;
+            const bigA = BigInt(a), bigB = BigInt(b), bigC = BigInt(c);
+            const results = {};
+            for (const pStr of primes) {
+                const bigP = BigInt(pStr);
+                const rem_pow = powMod(bigA, bigB, bigP);
+                const rem = (rem_pow + (bigC % bigP) + bigP) % bigP;
+                results[pStr] = rem.toString();
+            }
+            postMessage({ jobId, type: 'result', result: results });
+        }
+    } catch (err) {
+        const errorMessage = (err instanceof Error) ? err.message : String(err);
+        postMessage({ jobId, type: 'error', error: errorMessage });
+    }
+};
+`;
+
+const worker = new Worker(URL.createObjectURL(new Blob([workerSrc], { type: 'application/javascript' })));
+const jobResolvers = new Map();
+let jobCounter = 1;
+worker.onmessage = (ev) => { const { jobId, type, ...data } = ev.data; if (!jobResolvers.has(jobId)) return; const handlers = jobResolvers.get(jobId); if (type === 'error') { handlers.reject(new Error(data.error)); jobResolvers.delete(jobId); } else if (type === 'result') { handlers.resolve(data.result); jobResolvers.delete(jobId); } else if (type === 'progress' && handlers.onprogress) { handlers.onprogress(data.progress); } };
+function postWorkerJob(type, payload, onprogress) { return new Promise((resolve, reject) => { const jobId = String(jobCounter++); jobResolvers.set(jobId, { resolve, reject, onprogress }); worker.postMessage({ jobId, type, payload }); }); }
+
+/* ---------- Canvas & Render Pipeline ---------- */
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+const infoBox = document.getElementById('infoBox');
+const scaleIndicator = document.getElementById('scaleIndicator');
+let offsetX = 0, offsetY = 0, scale = 1;
+let lastDrawRequestId = null;
+let mousePos = { x: -1, y: -1 };
+let currentScaleMode = 'log';
+
+const LINEAR_LOG_TRANSITION_WIDTH = 50;
+
+function resizeCanvas() { const dpr = window.devicePixelRatio || 1; canvas.width = Math.round(window.innerWidth * dpr); canvas.height = Math.round(window.innerHeight * dpr); canvas.style.width = window.innerWidth+'px'; canvas.style.height = window.innerHeight+'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); scheduleDraw(); }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function scheduleDraw() { if (lastDrawRequestId) cancelAnimationFrame(lastDrawRequestId); lastDrawRequestId = requestAnimationFrame(draw); }
+
+function canvasXToWorld(cx) { return (cx - offsetX) / scale; }
+function visibleRange() {
+    const dpr = window.devicePixelRatio || 1;
+    const viewWidth = canvas.width / dpr;
+    const minX = (0 - offsetX) / scale;
+    const maxX = (viewWidth - offsetX) / scale;
+    const viewSpan = maxX - minX;
+
+    if (viewSpan < LINEAR_LOG_TRANSITION_WIDTH) {
+        currentScaleMode = 'linear';
+        scaleIndicator.textContent = "Linear Scale";
+        return { isLinear: true, min: minX, max: maxX, width: viewSpan };
+    } else {
+        currentScaleMode = 'log';
+        scaleIndicator.textContent = "Log Scale";
+        const minLog = minX;
+        const maxLog = maxX;
+        return { isLinear: false, min: minLog, max: maxLog, width: maxLog - minLog };
+    }
+}
+
+const sampleCache = new Map();
+async function getSamples(primeStr, min, max, sampleCount, isLinear) {
+    const key = `${primeStr}|${min.toFixed(4)}|${max.toFixed(4)}|${sampleCount}|${isLinear}`;
+    if (sampleCache.has(key)) return sampleCache.get(key);
+    const fromIdb = await idbGet(key).catch(() => null);
+    if (fromIdb) { sampleCache.set(key, fromIdb); return fromIdb; }
+    const onprogress = (prog) => { statusEl.textContent = `Status: Computing samples for P=${primeStr.slice(0,10)}... — ${prog}%`; };
+    const result = await postWorkerJob('getSamples', { primeStr, min, max, sampleCount, isLinear }, onprogress);
+    sampleCache.set(key, result); idbPut(key, result).catch(console.warn);
+    return result;
+}
+
+function drawAxisAndTicks() {
+    ctx.save();
+    const tickLineWidth = 1 / scale;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = tickLineWidth;
+    ctx.fillStyle = '#888';
+    ctx.font = `${Math.max(8, 12 / scale)}px ${getComputedStyle(document.body).getPropertyValue('--font-mono')}`;
+    ctx.textAlign = 'center';
+
+    const view = visibleRange();
+    if (view.isLinear) {
+        const step = Math.pow(10, Math.floor(Math.log10(view.width / 5)));
+        const start = Math.floor(view.min / step) * step;
+        for (let x = start; x < view.max; x += step) {
+            const cx = x * scale + offsetX;
+            if (cx < -50 || cx > window.innerWidth + 50) continue;
+            ctx.beginPath();
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, window.innerHeight);
+            ctx.stroke();
+            ctx.fillText(x.toFixed(0), cx, window.innerHeight / 2 + 20 / scale);
+        }
+    } else { // Log scale
+        const minTick = Math.floor(view.min);
+        const maxTick = Math.ceil(view.max);
+        for (let p = minTick; p <= maxTick; p++) {
+            const cx = p * scale + offsetX;
+            if (cx < -50 || cx > window.innerWidth + 50) continue;
+            ctx.beginPath();
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, window.innerHeight);
+            ctx.stroke();
+            ctx.fillText('10^' + p, cx, window.innerHeight / 2 + 20 / scale);
+        }
+    }
+    ctx.restore();
+}
+
+async function drawModulus(primeStr, color, yCenter, yRange) {
+    const view = visibleRange();
+    const min = Math.max(view.min, 0);
+    const max = Math.max(view.max, 0);
+    if (max <= min) return;
+    
+    const adaptiveSampleCount = Math.max(200, Math.min(4000, Math.round(1000 * scale)));
+    const samples = await getSamples(primeStr, min, max, adaptiveSampleCount, view.isLinear);
+
+    const newView = visibleRange();
+    if (newView.isLinear !== view.isLinear || Math.abs(newView.min - view.min) > 0.01 * view.width) return;
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(0.5, 2 / scale);
+
+    ctx.beginPath();
+    let started = false;
+    for (const s of samples) {
+        const cx = view.isLinear ? s.x * scale + offsetX : s.x * scale + offsetX;
+        const y = yCenter - (s.ratio * yRange);
+        if (!started) { ctx.moveTo(cx, y); started = true; } else { ctx.lineTo(cx, y); }
+    }
+    ctx.stroke();
+
+    for (const s of samples) {
+        if (s.isExact) {
+            const cx = view.isLinear ? s.x * scale + offsetX : s.x * scale + offsetX;
+            ctx.beginPath();
+            ctx.arc(cx, yCenter, Math.max(3, 5 / scale), 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    ctx.font = `${Math.max(10, 14 / scale)}px ${getComputedStyle(document.body).getPropertyValue('--font-mono')}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`P = ${primeStr.length > 15 ? primeStr.slice(0,12)+'...' : primeStr}`, view.isLinear ? min * scale + offsetX : min * scale + offsetX + 10 / scale, yCenter - yRange - 10 / scale);
+    ctx.restore();
+}
+
+
+function draw6kFilter() {
+    if (!is6kSieveVisible) return;
+    const view = visibleRange();
+    if (!view.isLinear) return; // Only draw for linear scale
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(128, 0, 128, 0.1)';
+
+    const startN = Math.floor(view.min);
+    const endN = Math.ceil(view.max);
+
+    for(let n = startN; n <= endN; n++) {
+        if (n % 2 === 0 || n % 3 === 0) {
+            const x1 = n * scale + offsetX;
+            const x2 = (n + 1) * scale + offsetX;
+            if (x2 < 0 || x1 > window.innerWidth) continue;
+            ctx.fillRect(x1, 0, x2 - x1, window.innerHeight);
+        }
+    }
+    ctx.restore();
+}
+
+async function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    
+    draw6kFilter();
+    
+    const yMid = window.innerHeight / 2;
+    const yRange = 120; 
+
+    ctx.save();
+    ctx.translate(0, offsetY);
+    
+    drawAxisAndTicks();
+
+    const drawPromises = clocks.map(clock => {
+        const yPos = clock.overlay ? yMid : yMid + clock.yOffset;
+        return drawModulus(clock.p.toString(), clock.color, yPos, yRange);
+    });
+
+    try { await Promise.all(drawPromises); } catch (err) { console.error("Error during drawing:", err); statusText = `Status: Render error: ${err.message}`; }
+    
+    if (Nbig && Nbig > 1n) {
+        const view = visibleRange();
+        let x;
+        if (view.isLinear) {
+            x = Number(Nbig) * scale + offsetX;
+        } else {
+            const logN = approxLog10FromBigInt(Nbig);
+            x = logN * scale + offsetX;
+        }
+
+        ctx.save();
+        ctx.setLineDash([6 / scale, 6 / scale]);
+        ctx.strokeStyle = '#00ffaa';
+        ctx.lineWidth = Math.max(1, 3 / scale);
+        ctx.beginPath();
+        ctx.moveTo(x, -offsetY);
+        ctx.lineTo(x, window.innerHeight - offsetY);
+        ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = '#00ffaa';
+        ctx.font = `${Math.max(12, 16/scale)}px ${getComputedStyle(document.body).getPropertyValue('--font-mono')}`;
+        ctx.textAlign = 'left';
+        ctx.fillText('N', x + 8 / scale, yMid - (yRange + 130/scale) - offsetY);
+    }
+    ctx.restore();
+
+    if (mousePos.x > 0) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(mousePos.x, 0);
+        ctx.lineTo(mousePos.x, window.innerHeight);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    statusEl.textContent = statusText;
+}
+
+/* ---------- Interaction: pan/pinch/wheel ---------- */
+let pointerMap = new Map(), lastPan = null, pinchPrev = null;
+canvas.addEventListener('pointerdown', (ev) => { ev.preventDefault(); canvas.setPointerCapture(ev.pointerId); pointerMap.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); if (pointerMap.size === 1) lastPan = { x: ev.clientX, y: ev.clientY }; });
+canvas.addEventListener('pointermove', (ev) => {
+    if (!pointerMap.has(ev.pointerId)) return;
+    pointerMap.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    if (pointerMap.size === 1) {
+        if (!lastPan) return;
+        const p = pointerMap.values().next().value;
+        const dx = p.x - lastPan.x;
+        const dy = p.y - lastPan.y;
+        if (!isNLocked) {
+            offsetX += dx;
+        }
+        offsetY += dy;
+        lastPan = { x: p.x, y: p.y };
+        scheduleDraw();
+    } else if (pointerMap.size === 2) {
+        const [p1, p2] = Array.from(pointerMap.values());
+        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        if (!pinchPrev) { pinchPrev = { dist }; return; }
+        const factor = dist / pinchPrev.dist;
+        if (!isFinite(factor) || factor <= 0) return;
+        const newScale = scale * factor;
+
+        if (isNLocked && Nbig) {
+             const view = visibleRange();
+             let targetX;
+             if(view.isLinear) {
+                targetX = Number(Nbig);
+             } else {
+                targetX = approxLog10FromBigInt(Nbig);
+             }
+             const centerX = window.innerWidth / 2;
+             offsetX = centerX - (targetX * newScale);
+        } else {
+            const rect = canvas.getBoundingClientRect();
+            const midX = (p1.x + p2.x) / 2 - rect.left;
+            offsetX = midX - ((midX - offsetX) * factor);
+        }
+
+        scale = Math.max(0.0001, Math.min(1000, newScale));
+        pinchPrev.dist = dist;
+        scheduleDraw();
+    }
+});
+function onPointerUp(ev) { pointerMap.delete(ev.pointerId); try { canvas.releasePointerCapture(ev.pointerId); } catch (_) {} if (pointerMap.size < 2) pinchPrev = null; if (pointerMap.size < 1) lastPan = null; }
+canvas.addEventListener('pointerup', onPointerUp);
+canvas.addEventListener('pointerleave', onPointerUp);
+canvas.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const factor = 1 - ev.deltaY * 0.001;
+    const newScale = scale * factor;
+
+    if (isNLocked && Nbig) {
+        const view = visibleRange();
+        let targetX;
+        if(view.isLinear) {
+           targetX = Number(Nbig);
+        } else {
+           targetX = approxLog10FromBigInt(Nbig);
+        }
+        const centerX = window.innerWidth / 2;
+        offsetX = centerX - (targetX * newScale);
+    } else {
+        const rect = canvas.getBoundingClientRect();
+        const cssX = ev.clientX - rect.left;
+        offsetX = cssX - ((cssX - offsetX) * factor);
+    }
+
+    scale = Math.max(0.0001, Math.min(1000, newScale));
+    scheduleDraw();
+}, { passive: false });
+canvas.addEventListener('mousemove', (ev) => {
+    mousePos = { x: ev.clientX, y: ev.clientY };
+    const view = visibleRange();
+    const worldX = canvasXToWorld(ev.clientX);
+
+    if (worldX < 0 || clocks.length === 0) { infoBox.style.display = 'none'; return; }
+
+    const n = view.isLinear ? BigInt(Math.round(worldX)) : constructBigIntFromLog(worldX);
+    const nStr = n.toString();
+    const nDisplay = nStr.length > 40 ? nStr.slice(0, 37) + '...' : nStr;
+
+    let infoHTML = ` n ≈ <span class="info-val">${nDisplay}</span>\n`;
+    clocks.forEach((clock, i) => {
+        const rem = n % clock.p;
+        infoHTML += `n%P${i+1} = <span class="info-val">${rem}</span>\n`;
+    });
+    infoBox.innerHTML = infoHTML.trim();
+    infoBox.style.display = 'block';
+    infoBox.style.left = `${ev.clientX + 15}px`;
+    infoBox.style.top = `${ev.clientY + 15}px`;
+    scheduleDraw();
+});
+canvas.addEventListener('mouseleave', () => { mousePos = { x: -1, y: -1 }; infoBox.style.display = 'none'; scheduleDraw(); });
+
+/* ---------- UI wiring & state ---------- */
+const clocksContainer = document.getElementById('clocksContainer');
+const addClockBtn = document.getElementById('addClockBtn');
+const clearCacheBtn = document.getElementById('clearCacheBtn');
+const calcBtn = document.getElementById('calcBtn'), centerOnNBtn = document.getElementById('centerOnNBtn');
+const nvalueEl = document.getElementById('nvalue'), statusEl = document.getElementById('status');
+const aInput = document.getElementById('a'), bInput = document.getElementById('b'), cInput = document.getElementById('c');
+const lockOnNCheck = document.getElementById('lockOnNCheck');
+const sieve6kCheck = document.getElementById('sieve6kCheck');
+const sieveStatusEl = document.getElementById('sieveStatus');
+
+let statusText = 'Status: Ready.';
+let Nbig = 1007n;
+let clocks = [];
+let isNLocked = false;
+let is6kSieveVisible = false;
+
+sieve6kCheck.addEventListener('change', (e) => {
+    is6kSieveVisible = e.target.checked;
+    scheduleDraw();
+});
+
+lockOnNCheck.addEventListener('change', (e) => {
+    isNLocked = e.target.checked;
+    if (isNLocked) {
+        centerOnNBtn.click();
+    }
+});
+
+function renderClocks() {
+    clocksContainer.innerHTML = '';
+    clocks.forEach((clock, index) => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const pLabel = `P${index+1}`;
+        row.innerHTML = `
+            <input type="text" class="clock-input" value="${clock.p}" data-id="${clock.id}" placeholder="${pLabel}">
+            <input type="color" class="color-picker" value="${clock.color}" data-id="${clock.id}">
+            <label class="overlay-label">
+                <input type="checkbox" data-id="${clock.id}" ${clock.overlay ? 'checked' : ''}>
+                Overlay
+            </label>
+            <button class="remove-clock-btn" data-id="${clock.id}">X</button>
+        `;
+        clocksContainer.appendChild(row);
+    });
+}
+
+clocksContainer.addEventListener('input', (e) => {
+    const id = parseInt(e.target.dataset.id);
+    const clock = clocks.find(c => c.id === id);
+    if (!clock) return;
+
+    if (e.target.matches('.clock-input')) {
+        try {
+            const p = parseBigIntInput(e.target.value);
+            if (p > 0n) { clock.p = p; sampleCache.clear(); scheduleDraw(); }
+        } catch (err) { /* ignore */ }
+    } else if (e.target.matches('.color-picker')) {
+        clock.color = e.target.value;
+        scheduleDraw();
+    }
+});
+
+clocksContainer.addEventListener('change', (e) => {
+    if (e.target.matches('input[type="checkbox"]')) {
+        const id = parseInt(e.target.dataset.id);
+        const clock = clocks.find(c => c.id === id);
+        if (clock) { clock.overlay = e.target.checked; scheduleDraw(); }
+    }
+});
+
+clocksContainer.addEventListener('click', (e) => {
+    if (e.target.matches('.remove-clock-btn')) {
+        const id = parseInt(e.target.dataset.id);
+        clocks = clocks.filter(c => c.id !== id);
+        renderClocks();
+        scheduleDraw();
+    }
+});
+
+addClockBtn.addEventListener('click', () => {
+    const newYOffset = (clocks.filter(c => !c.overlay).length) * 240 - 120 * (clocks.length);
+    const newClock = { id: Date.now(), p: 7n, color: `hsl(${Math.random() * 360}, 80%, 60%)`, yOffset: newYOffset, overlay: false };
+    clocks.push(newClock);
+    renderClocks();
+    scheduleDraw();
+});
+
+clearCacheBtn.addEventListener('click', async () => { sampleCache.clear(); try { await idbClear(); statusText = 'Status: Cache cleared.'; } catch (err) { statusText = 'Status: Failed to clear cache.'; } scheduleDraw(); });
+
+calcBtn.addEventListener('click', async () => {
+    calcBtn.disabled = true;
+    statusText = 'Status: Computing N...';
+    nvalueEl.textContent = 'N = ...';
+    sieveStatusEl.textContent = '';
+    scheduleDraw();
+
+    try {
+        const a = aInput.value, b = bInput.value, c = cInput.value;
+        const bBig = parseBigIntInput(b);
+
+        if (bBig < 20000n) {
+            try { Nbig = parseBigIntInput(a) ** bBig + parseBigIntInput(c); nvalueEl.textContent = `N = ${Nbig.toString().length > 100 ? Nbig.toString().slice(0,100)+'...' : Nbig.toString()}`; } catch (err) { Nbig = null; nvalueEl.textContent = `N = ${a}^${b} + ${c} (too large)`; }
+        } else { Nbig = null; nvalueEl.textContent = `N = ${a}^${b} + ${c} (too large)`; }
+        
+        if (Nbig) {
+            const rem6 = Nbig % 6n;
+            if (rem6 === 1n || rem6 === 5n) { sieveStatusEl.textContent = `N Alignment: 6k ± 1 (Prime Candidate)`; sieveStatusEl.style.color = 'var(--accent)'; }
+            else if (rem6 % 2n === 0n) { sieveStatusEl.textContent = `N Alignment: Divisible by 2`; sieveStatusEl.style.color = 'var(--muted)'; }
+            else if (rem6 % 3n === 0n) { sieveStatusEl.textContent = `N Alignment: Divisible by 3`; sieveStatusEl.style.color = 'var(--muted)'; }
+        } else {
+             sieveStatusEl.textContent = `N Alignment: Too large for 6k check.`;
+             sieveStatusEl.style.color = 'var(--muted)';
+        }
+
+        if (clocks.length > 0) {
+            statusText = 'Status: Calculating remainders (worker)...';
+            scheduleDraw();
+            const primeStrings = clocks.map(c => c.p.toString());
+            const remainders = await postWorkerJob('calculateN', { a, b, c, primes: primeStrings });
+            let resultText = "Remainders: ";
+            primeStrings.forEach((pStr, i) => { const rem = remainders[pStr]; resultText += `P${i+1}=${rem}${rem === '0' ? ' (FACTOR!)': ''}; `; });
+            statusText = `Status: ${resultText}`;
+        } else {
+            statusText = 'Status: N calculated. Add clocks to check factors.';
+        }
+        scheduleDraw();
+    } catch (err) {
+        statusText = `Status: Error - ${err.message}`;
+        Nbig = null;
+        scheduleDraw();
+    } finally {
+        calcBtn.disabled = false;
+    }
+});
+
+centerOnNBtn.addEventListener('click', () => {
+    if (!Nbig || Nbig <= 0n) { statusText = 'Status: Calculate an N value first.'; scheduleDraw(); return; }
+    const view = visibleRange();
+    let targetX, newScale;
+    if(view.isLinear && Nbig < Number.MAX_SAFE_INTEGER) {
+        targetX = Number(Nbig);
+        newScale = 2; // A reasonable default scale for linear
+    } else {
+        targetX = approxLog10FromBigInt(Nbig);
+        newScale = 200; // A tighter zoom for log
+    }
+    
+    scale = newScale;
+    const centerX = window.innerWidth / 2;
+    offsetX = centerX - (targetX * scale);
+    offsetY = 0;
+    statusText = `Status: Centered on N.`;
+    scheduleDraw();
+});
+
+// --- Initial Setup ---
+function initialize() {
+    clocks = [
+        { id: Date.now(), p: 2n, color: '#00aaff', yOffset: -120, overlay: false },
+        { id: Date.now() + 1, p: 3n, color: '#ff6600', yOffset: 120, overlay: false }
+    ];
+    renderClocks();
+    scheduleDraw();
+}
+initialize();
+</script>
+</body>
+</html>
+

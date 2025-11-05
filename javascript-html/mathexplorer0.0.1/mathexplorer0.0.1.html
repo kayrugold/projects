@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Finder Adventure</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; background-color: #000; color: #fff; touch-action: none; }
+        canvas { display: block; }
+        #info-container { position: absolute; top: 10px; left: 10px; padding: 15px; background-color: rgba(0, 0, 0, 0.7); border-radius: 10px; max-width: 350px; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px); pointer-events: all; }
+        #info-container h1 { margin-top: 0; font-size: 1.2em; color: #4dd0e1; }
+        .info-item { margin-bottom: 8px; font-size: 0.9em; }
+        .info-label { font-weight: bold; color: #a7a7a7; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background-color: rgba(255, 255, 255, 0.7); border-radius: 50%; transform: translate(-50%, -50%); }
+        #blocker { position: absolute; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
+        #instructions { text-align: center; padding: 20px; background-color: rgba(0, 0, 0, 0.8); border-radius: 10px; cursor: pointer; }
+        #instructions h2 { margin-top: 0; }
+        #compass-container { position: absolute; bottom: 20px; right: 20px; padding: 10px 15px; background-color: rgba(0, 0, 0, 0.7); border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px); font-size: 1.5em; font-weight: bold; color: #e0e0e0; }
+
+        .hidden { display: none !important; }
+        #teleport-modal-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 100; }
+        #teleport-modal { background: rgba(30,30,30,0.9); padding: 25px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); width: 320px; box-shadow: 0 5px 25px rgba(0,0,0,0.5); backdrop-filter: blur(10px); }
+        #teleport-modal h2 { margin-top: 0; color: #4dd0e1; text-align: center; }
+        #teleport-modal .info-item input { width: 100%; box-sizing: border-box; background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px; border-radius: 5px; }
+        #teleport-modal button { width: 100%; padding: 10px; background-color: #4dd0e1; border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #close-teleport-btn { position: absolute; top: 15px; right: 15px; color: #aaa; font-size: 24px; font-weight: bold; cursor: pointer; line-height: 1; }
+        #close-teleport-btn:hover { color: #fff; }
+
+        #joystick-container {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: none; /* Hidden by default */
+            pointer-events: none;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        #joystick-thumb {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .volume-slider { width: 100%; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="info-container">
+        <h1>Factor Finder</h1>
+        <div class="info-item"><span class="info-label">Position:</span> <span id="position-display">Ex: 0, Ez: 0</span></div>
+        <div class="info-item"><span class="info-label" id="magnitude-label">Current Product:</span> <span id="magnitude-display">0</span></div>
+         <div class="info-item"><span class="info-label">Target Crystal:</span> <span id="target-number-display">None</span></div>
+    </div>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h2>Click to Explore</h2>
+            <p>
+                <b>Desktop:</b> WASD to move, SHIFT to run, MOUSE to look, ~ for menu.<br>
+                <b>Mobile:</b> Left side to move, Right side to look.
+            </p>
+        </div>
+    </div>
+
+    <div id="teleport-modal-container" class="hidden">
+        <div id="teleport-modal">
+            <span id="close-teleport-btn">&times;</span>
+            <h2 id="modal-title">Controls</h2>
+            <div id="teleport-container">
+                <div class="info-item">
+                    <label for="coord-x" class="info-label">X Coordinate</label>
+                    <input type="number" id="coord-x" value="53">
+                </div>
+                <div class="info-item">
+                    <label for="coord-z" class="info-label">Z Coordinate</label>
+                    <input type="number" id="coord-z" value="19">
+                </div>
+                <button id="teleport-btn">Go</button>
+            </div>
+            <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
+            <div class="info-item">
+                <label for="music-volume" class="info-label">Music Volume</label>
+                <input type="range" id="music-volume" class="volume-slider" min="0" max="1" step="0.01" value="0.5">
+             </div>
+             <div class="info-item">
+                <label for="sfx-volume" class="info-label">SFX Volume</label>
+                <input type="range" id="sfx-volume" class="volume-slider" min="0" max="1" step="0.01" value="0.8">
+             </div>
+        </div>
+    </div>
+
+    <div id="compass-container">
+        <span id="compass-display">N</span>
+    </div>
+    <div id="crosshair"></div>
+    <div id="joystick-container">
+        <div id="joystick-thumb"></div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, yawObject;
+        const clock = new THREE.Clock();
+        const chunkManager = new Map();
+        const PLAYER_HEIGHT = 5;
+        const moveState = { forward: 0, right: 0, turn: 0, turnX: 0, turnY: 0, isSprinting: false };
+        let isLocked = false;
+        let loadedFont = null;
+        let targetedCrystal = null;
+
+        const playerVelocity = new THREE.Vector3();
+        let isGrounded = false;
+        const GRAVITY = 30;
+        const JUMP_STRENGTH = 12;
+
+        const SENSITIVITY = { LOOK: 0.002, TOUCH_LOOK: 0.004, KEYBOARD_TURN_SPEED: 1.5, TOUCH_TURN_SPEED: 2.0, SPRINT_MULTIPLIER: 2.5 };
+
+        const blocker = document.getElementById('blocker');
+        const instructions = document.getElementById('instructions');
+        const teleportModalContainer = document.getElementById('teleport-modal-container');
+
+        const CHUNK_SIZE = 120;
+        const VIEW_DISTANCE = 3;
+
+        // --- Music ---
+        let musicInitialized = false;
+        let musicVolume, sfxVolume;
+        let padSynth, leadSynth, jumpSynth;
+        const scale = ["C3", "D3", "E3", "G3", "A3", "C4", "D4", "E4", "G4", "A4"];
+
+        // Touch controls state
+        let touchInProgress = false;
+        const touchState = { move: null, look: null };
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickThumb = document.getElementById('joystick-thumb');
+
+
+        function formatBigNumber(numStr, limit = 30) {
+            if (!numStr) return "N/A";
+            if (typeof numStr !== 'string') numStr = numStr.toString();
+            if (numStr.length <= limit) return numStr;
+            return `${numStr.slice(0, 10)}...e${numStr.length}`;
+        }
+
+        function initMusic() {
+            if (musicInitialized) return;
+            Tone.start();
+
+            musicVolume = new Tone.Volume(-12).toDestination(); // Start music at a reasonable volume
+            sfxVolume = new Tone.Volume(0).toDestination();
+
+            const reverb = new Tone.Reverb({ decay: 10, wet: 0.3 }).connect(musicVolume);
+
+            padSynth = new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: 'fatsawtooth', count: 3, spread: 30 },
+                envelope: { attack: 1, decay: 0.5, sustain: 0.8, release: 2 }
+            }).connect(reverb);
+
+            leadSynth = new Tone.Synth({
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 }
+            }).connect(reverb);
+
+            jumpSynth = new Tone.Synth({
+                oscillator: {type: 'triangle'},
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+            }).connect(sfxVolume);
+
+            const chords = [["C3", "E3", "G3"], ["A2", "C3", "E3"], ["G2", "B2", "D3"], ["F2", "A2", "C3"]];
+            let chordIndex = 0;
+
+            new Tone.Loop(time => {
+                const chord = chords[chordIndex % chords.length];
+                padSynth.triggerAttackRelease(chord, "4m", time);
+                chordIndex++;
+            }, "4m").start(0);
+
+            new Tone.Loop(time => {
+                const posX = Math.abs(Math.round(yawObject.position.x));
+                const posZ = Math.abs(Math.round(yawObject.position.z));
+                const noteIndex = (posX + posZ) % scale.length;
+                leadSynth.triggerAttackRelease(scale[noteIndex], "8n", time);
+            }, "8n").start("1m");
+
+            Tone.Transport.start();
+            musicInitialized = true;
+
+            // Set initial volumes from sliders
+            document.getElementById('music-volume').dispatchEvent(new Event('input'));
+            document.getElementById('sfx-volume').dispatchEvent(new Event('input'));
+        }
+
+
+        function init() {
+            scene = new THREE.Scene();
+            const bgColor = 0x0a0a0a;
+            scene.background = new THREE.Color(bgColor);
+            scene.fog = new THREE.Fog(bgColor, CHUNK_SIZE * 2, VIEW_DISTANCE * CHUNK_SIZE * 2.5);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, VIEW_DISTANCE * CHUNK_SIZE * 3);
+            yawObject = new THREE.Object3D();
+            yawObject.add(camera);
+            scene.add(yawObject);
+            yawObject.position.set(0, 10, 0);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            directionalLight.position.set(5, 10, 7.5).normalize();
+            scene.add(directionalLight);
+
+            const fontLoader = new THREE.FontLoader();
+            fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+                loadedFont = font;
+                chunkManager.forEach(chunk => addAxisDetails(chunk));
+            });
+
+            setupEventListeners();
+            updateChunks();
+            animate();
+        }
+
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+
+        function setupEventListeners() {
+            window.addEventListener('resize', onWindowResize, false);
+            instructions.addEventListener('click', () => {
+                initMusic();
+                if ( 'ontouchstart' in window ) return;
+                document.body.requestPointerLock();
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                if (touchInProgress) return;
+                isLocked = document.pointerLockElement === document.body;
+                blocker.style.display = isLocked ? 'none' : 'flex';
+            }, false);
+
+            const keyMap = { KeyW: 'forward', KeyS: 'backward', KeyA: 'left', KeyD: 'right', KeyQ: 'turnLeft', KeyE: 'turnRight', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', Backquote: 'menu' };
+            document.addEventListener('keydown', (e) => {
+                if (touchInProgress || !keyMap[e.code]) return;
+
+                if (e.code === 'Backquote') {
+                    e.preventDefault();
+                    if (isLocked) document.exitPointerLock();
+                    teleportModalContainer.classList.toggle('hidden');
+                    return;
+                }
+
+                if(isLocked) {
+                    if(e.code === 'KeyW') moveState.forward = 1; if(e.code === 'KeyS') moveState.forward = -1; if(e.code === 'KeyA') moveState.right = -1; if(e.code === 'KeyD') moveState.right = 1; if(e.code === 'KeyQ') moveState.turn = 1; if(e.code === 'KeyE') moveState.turn = -1; if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') moveState.isSprinting = true;
+                    if(e.code === 'Space' && isGrounded) {
+                        playerVelocity.y = JUMP_STRENGTH;
+                        isGrounded = false;
+                        if(musicInitialized) {
+                           jumpSynth.triggerAttackRelease("C5", "8n");
+                           jumpSynth.detune.setValueAtTime(1200, Tone.now());
+                           jumpSynth.detune.linearRampToValueAtTime(0, Tone.now() + 0.1);
+                        }
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', (e) => { if(keyMap[e.code]) { if(e.code === 'KeyW' || e.code === 'KeyS') moveState.forward = 0; if(e.code === 'KeyA' || e.code === 'KeyD') moveState.right = 0; if(e.code === 'KeyQ' || e.code === 'KeyE') moveState.turn = 0; if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') moveState.isSprinting = false; } });
+
+            document.addEventListener('mousemove', (e) => {
+                if(touchInProgress || !isLocked) return;
+                yawObject.rotation.y -= e.movementX * SENSITIVITY.LOOK;
+                camera.rotation.x -= e.movementY * SENSITIVITY.LOOK;
+                camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+            });
+
+            document.getElementById('teleport-btn').addEventListener('click', handleTeleport);
+            document.getElementById('close-teleport-btn').addEventListener('click', () => {
+                teleportModalContainer.classList.add('hidden');
+                if(!isLocked && !('ontouchstart' in window)) document.body.requestPointerLock();
+            });
+
+            // Volume Controls
+            document.getElementById('music-volume').addEventListener('input', (e) => {
+                if(musicVolume) {
+                    const value = parseFloat(e.target.value);
+                    musicVolume.volume.value = value > 0 ? Tone.gainToDb(value) : -Infinity;
+                }
+            });
+
+            document.getElementById('sfx-volume').addEventListener('input', (e) => {
+                if(sfxVolume) {
+                    const value = parseFloat(e.target.value);
+                    sfxVolume.volume.value = value > 0 ? Tone.gainToDb(value) : -Infinity;
+                }
+            });
+
+            // Touch Listeners
+            document.body.addEventListener('touchstart', handleTouchStart, false);
+            document.body.addEventListener('touchmove', handleTouchMove, false);
+            document.body.addEventListener('touchend', handleTouchEnd, false);
+            document.body.addEventListener('touchcancel', handleTouchEnd, false);
+        }
+
+        function handleTouchStart(e) {
+            initMusic();
+            touchInProgress = true;
+            blocker.style.display = 'none';
+            e.preventDefault();
+            const touches = e.changedTouches;
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                if (touch.clientX < window.innerWidth / 2 && !touchState.move) {
+                    touchState.move = { id: touch.identifier, startX: touch.clientX, startY: touch.clientY };
+                    joystickContainer.style.display = 'block';
+                    joystickContainer.style.left = `${touch.clientX - 60}px`;
+                    joystickContainer.style.top = `${touch.clientY - 60}px`;
+                } else if (touch.clientX >= window.innerWidth / 2 && !touchState.look) {
+                    touchState.look = { id: touch.identifier, startX: touch.clientX, startY: touch.clientY };
+                }
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touches = e.changedTouches;
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                if (touchState.move && touch.identifier === touchState.move.id) {
+                    const JOYSTICK_RADIUS = 60;
+                    let dx = touch.clientX - touchState.move.startX;
+                    let dy = touch.clientY - touchState.move.startY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance > JOYSTICK_RADIUS) {
+                       dx = (dx / distance) * JOYSTICK_RADIUS;
+                       dy = (dy / distance) * JOYSTICK_RADIUS;
+                    }
+                    joystickThumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+                    moveState.forward = -dy / JOYSTICK_RADIUS;
+                    moveState.right = dx / JOYSTICK_RADIUS;
+
+                } else if (touchState.look && touch.identifier === touchState.look.id) {
+                    const LOOK_RADIUS = 80;
+                    const dx = touch.clientX - touchState.look.startX;
+                    const dy = touch.clientY - touchState.look.startY;
+
+                    moveState.turnX = dx / LOOK_RADIUS;
+                    moveState.turnY = dy / LOOK_RADIUS;
+                }
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            const touches = e.changedTouches;
+            if (e.touches.length === 0) touchInProgress = false;
+
+            for (let i = 0; i < touches.length; i++) {
+                const touch = touches[i];
+                if (touchState.move && touch.identifier === touchState.move.id) {
+                    touchState.move = null;
+                    moveState.forward = 0;
+                    moveState.right = 0;
+                    joystickContainer.style.display = 'none';
+                    joystickThumb.style.transform = `translate(-50%, -50%)`;
+                } else if (touchState.look && touch.identifier === touchState.look.id) {
+                    touchState.look = null;
+                    moveState.turnX = 0;
+                    moveState.turnY = 0;
+                }
+            }
+        }
+
+
+        function handleTeleport() {
+            try {
+                const x = parseFloat(document.getElementById('coord-x').value);
+                const z = parseFloat(document.getElementById('coord-z').value);
+                if(isNaN(x) || isNaN(z)) return;
+                performTeleport({ x, z });
+                teleportModalContainer.classList.add('hidden');
+            } catch (err) { console.error("Error during teleport:", err); }
+        }
+
+        function performTeleport(coords) {
+            chunkManager.forEach((data) => {
+                if (data.mesh) scene.remove(data.mesh);
+                if (data.gridHelper) scene.remove(data.gridHelper);
+                if (data.axisDetails) data.axisDetails.forEach(obj => scene.remove(obj));
+                if (data.crystals) data.crystals.forEach(c => scene.remove(c));
+            });
+            chunkManager.clear();
+
+            yawObject.position.set(coords.x, PLAYER_HEIGHT + 10, coords.z);
+            playerVelocity.y = 0;
+            updateChunks();
+            if (!isLocked && !('ontouchstart' in window)) document.body.requestPointerLock();
+        }
+
+        function updateChunks() {
+            const playerPos = yawObject.position;
+            const cx = Math.floor(playerPos.x/CHUNK_SIZE);
+            const cz = Math.floor(playerPos.z/CHUNK_SIZE);
+            const loaded = new Set();
+            for (let x=cx-VIEW_DISTANCE; x<=cx+VIEW_DISTANCE; x++) {
+                for (let z=cz-VIEW_DISTANCE; z<=cz+VIEW_DISTANCE; z++) {
+                    const id=`${x},${z}`;
+                    loaded.add(id);
+                    if (!chunkManager.has(id)) {
+                        const data = {x, z, id, state: 'loading', mesh: null, gridHelper: null, axisDetails: [], crystals: []};
+                        chunkManager.set(id, data);
+                        generateChunkMesh(data);
+                    }
+                }
+            }
+            chunkManager.forEach((data, id) => {
+                if (!loaded.has(id)) {
+                    if (data.mesh) scene.remove(data.mesh);
+                    if (data.gridHelper) scene.remove(data.gridHelper);
+                    if (data.axisDetails) data.axisDetails.forEach(obj => scene.remove(obj));
+                    if (data.crystals) data.crystals.forEach(c => scene.remove(c));
+                    chunkManager.delete(id);
+                }
+            });
+        }
+
+        function generateChunkMesh(chunkData) {
+            const planeGeo = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE);
+            planeGeo.rotateX(-Math.PI / 2);
+            const planeMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+            const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+            planeMesh.position.set(chunkData.x * CHUNK_SIZE, 0, chunkData.z * CHUNK_SIZE);
+            const gridHelper = new THREE.GridHelper(CHUNK_SIZE, 10, 0x444444, 0x444444);
+            gridHelper.position.set(chunkData.x * CHUNK_SIZE, 0.01, chunkData.z * CHUNK_SIZE);
+            chunkData.mesh = planeMesh;
+            chunkData.gridHelper = gridHelper;
+            chunkData.state = 'loaded';
+            scene.add(planeMesh, gridHelper);
+            spawnCrystals(chunkData);
+            if (loadedFont) addAxisDetails(chunkData);
+        };
+
+        function spawnCrystals(chunkData) {
+            for(let i = 0; i < 5; i++) {
+                const x = chunkData.x * CHUNK_SIZE + (Math.random() - 0.5) * CHUNK_SIZE;
+                const z = chunkData.z * CHUNK_SIZE + (Math.random() - 0.5) * CHUNK_SIZE;
+
+                const xRounded = Math.round(x);
+                const zRounded = Math.round(z);
+
+                if (xRounded === 0 || zRounded === 0) continue;
+
+                try {
+                    const number = BigInt(xRounded) * BigInt(zRounded);
+                    const geo = new THREE.IcosahedronGeometry(1.5, 0);
+                    const mat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa8800, roughness: 0.2, metalness: 0.8 });
+                    const crystal = new THREE.Mesh(geo, mat);
+                    crystal.position.set(x, 2, z);
+                    crystal.userData.number = number.toString();
+                    scene.add(crystal);
+                    chunkData.crystals.push(crystal);
+                } catch(e) {
+                    console.warn("Could not create BigInt for crystal number.");
+                }
+            }
+        }
+
+        function addAxisDetails(chunkData) {
+            if (chunkData.axisDetails) chunkData.axisDetails.forEach(obj => scene.remove(obj));
+            chunkData.axisDetails = [];
+            const AXIS_LABEL_INTERVAL = 40;
+
+            if (chunkData.x === 0) {
+                const zLineMat = new THREE.LineBasicMaterial({ color: 0x0099ff, linewidth: 2 });
+                const zPoints = [new THREE.Vector3(0, 0.02, -CHUNK_SIZE / 2), new THREE.Vector3(0, 0.02, CHUNK_SIZE / 2)];
+                const zGeo = new THREE.BufferGeometry().setFromPoints(zPoints);
+                const zAxisLine = new THREE.Line(zGeo, zLineMat);
+                zAxisLine.position.set(0, 0, chunkData.z * CHUNK_SIZE);
+                scene.add(zAxisLine);
+                chunkData.axisDetails.push(zAxisLine);
+
+                for (let z = -CHUNK_SIZE / 2; z <= CHUNK_SIZE / 2; z += AXIS_LABEL_INTERVAL) {
+                    const worldZ = chunkData.z * CHUNK_SIZE + z;
+                    if (worldZ === 0 && chunkData.z === 0) continue;
+                    const textGeo = new THREE.TextGeometry(worldZ.toString(), { font: loadedFont, size: 2, height: 0.1 });
+                    const textMesh = new THREE.Mesh(textGeo, new THREE.MeshBasicMaterial({ color: 0xaaaaff }));
+                    textMesh.position.set(2, 0.02, worldZ);
+                    textMesh.rotation.x = -Math.PI / 2;
+                    scene.add(textMesh);
+                    chunkData.axisDetails.push(textMesh);
+                }
+            }
+
+            if (chunkData.z === 0) {
+                const xLineMat = new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 });
+                const xPoints = [new THREE.Vector3(-CHUNK_SIZE / 2, 0.02, 0), new THREE.Vector3(CHUNK_SIZE / 2, 0.02, 0)];
+                const xGeo = new THREE.BufferGeometry().setFromPoints(xPoints);
+                const xAxisLine = new THREE.Line(xGeo, xLineMat);
+                xAxisLine.position.set(chunkData.x * CHUNK_SIZE, 0, 0);
+                scene.add(xAxisLine);
+                chunkData.axisDetails.push(xAxisLine);
+
+                for (let x = -CHUNK_SIZE / 2; x <= CHUNK_SIZE / 2; x += AXIS_LABEL_INTERVAL) {
+                    const worldX = chunkData.x * CHUNK_SIZE + x;
+                    if (worldX === 0 && chunkData.x === 0) continue;
+                    const textGeo = new THREE.TextGeometry(worldX.toString(), { font: loadedFont, size: 2, height: 0.1 });
+                    const textMesh = new THREE.Mesh(textGeo, new THREE.MeshBasicMaterial({ color: 0xffaaaa }));
+                    textMesh.position.set(worldX, 0.02, 2);
+                    textMesh.rotation.x = -Math.PI / 2;
+                    scene.add(textMesh);
+                    chunkData.axisDetails.push(textMesh);
+                }
+            }
+        }
+
+        function updateUI() {
+            const pos = yawObject.position;
+            document.getElementById('position-display').textContent = `Ex: ${Math.round(pos.x)}, Ez: ${Math.round(pos.z)}`;
+
+            try {
+                const product = BigInt(Math.round(pos.x)) * BigInt(Math.round(pos.z));
+                document.getElementById('magnitude-display').textContent = formatBigNumber(product);
+            } catch(e) {
+                document.getElementById('magnitude-display').textContent = "Too large";
+            }
+
+            const targetDisplay = document.getElementById('target-number-display');
+            if (targetedCrystal) {
+                targetDisplay.textContent = formatBigNumber(targetedCrystal.userData.number);
+            } else {
+                targetDisplay.textContent = 'None';
+            }
+
+            updateCompass();
+        };
+
+        function updateCompass() { const angle = (yawObject.rotation.y*180/Math.PI)%360; const norm = (angle<0)?angle+360:angle; if(norm>=315||norm<45) document.getElementById('compass-display').textContent='N'; else if(norm>=45&&norm<135) document.getElementById('compass-display').textContent='E'; else if(norm>=135&&norm<225) document.getElementById('compass-display').textContent='S'; else document.getElementById('compass-display').textContent='W'; }
+
+        function updateTargeting() {
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera({x: 0, y: 0}, camera);
+
+            const allCrystals = Array.from(chunkManager.values()).flatMap(c => c.crystals);
+            const intersects = raycaster.intersectObjects(allCrystals);
+
+            const newTarget = (intersects.length > 0 && intersects[0].distance < 100) ? intersects[0].object : null;
+
+            if (newTarget !== targetedCrystal) {
+                if (targetedCrystal) {
+                    targetedCrystal.material.emissive.setHex(0xaa8800);
+                }
+                if (newTarget) {
+                    newTarget.material.emissive.setHex(0xffffff);
+                }
+                targetedCrystal = newTarget;
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            const sprintMultiplier = moveState.isSprinting ? SENSITIVITY.SPRINT_MULTIPLIER : 1.0;
+            const moveSpeed = 40 * delta * sprintMultiplier;
+
+            // --- MOVEMENT (Keyboard & Touch) ---
+            if (moveState.forward !== 0) yawObject.translateZ(-moveState.forward * moveSpeed);
+            if (moveState.right !== 0) yawObject.translateX(moveState.right * moveSpeed);
+
+            // --- ROTATION ---
+            // Keyboard rotation
+            if (isLocked && moveState.turn !== 0) {
+                yawObject.rotation.y += moveState.turn * SENSITIVITY.KEYBOARD_TURN_SPEED * delta;
+            }
+            // Touch rotation (continuous)
+            if (touchInProgress) {
+                if (moveState.turnX !== 0) yawObject.rotation.y -= moveState.turnX * SENSITIVITY.TOUCH_TURN_SPEED * delta;
+                if (moveState.turnY !== 0) {
+                    camera.rotation.x -= moveState.turnY * SENSITIVITY.TOUCH_TURN_SPEED * delta;
+                    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+                }
+            }
+
+            let groundY = 0;
+            const downRay = new THREE.Raycaster(yawObject.position, new THREE.Vector3(0, -1, 0));
+
+            const floors = Array.from(chunkManager.values()).map(c => c.mesh).filter(Boolean);
+
+            if(floors.length > 0) {
+                const groundIntersects = downRay.intersectObjects(floors);
+                if (groundIntersects.length > 0) {
+                    groundY = groundIntersects[0].point.y;
+                }
+            }
+
+            playerVelocity.y -= GRAVITY * delta;
+            yawObject.position.y += playerVelocity.y * delta;
+
+            const targetY = groundY + PLAYER_HEIGHT;
+            if (yawObject.position.y < targetY) {
+                yawObject.position.y = targetY;
+                playerVelocity.y = 0;
+                isGrounded = true;
+            } else {
+                isGrounded = false;
+            }
+
+            updateChunks();
+            updateTargeting();
+            updateUI();
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
+

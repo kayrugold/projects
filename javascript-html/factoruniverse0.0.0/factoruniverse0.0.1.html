@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Harmonic Factor Manifold</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000005; color: #f0f0f0; font-family: 'Inter', sans-serif; touch-action: none; }
+        #info { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(10, 10, 20, 0.7); padding: 10px 15px; border-radius: 8px; z-index: 10; width: 90%; max-width: 500px; text-align: center; font-size: 14px; backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+        .input-group { display: flex; flex-direction: column; text-align: left; }
+        input[type=text] { width: 100%; box-sizing: border-box; padding: 4px; margin: 0; border-radius: 4px; border: 1px solid #5d5d81; background-color: #1a1a3a; color: #ffffff; }
+        .result { margin-top: 5px; font-weight: bold; }
+        .factor { color: #ffff00; }
+        .non-factor { color: #aaaaff; }
+        label { cursor: pointer; user-select: none; font-size: 12px; margin-bottom: 2px; opacity: 0.8; }
+        #updateButton { grid-column: 1 / -1; width: 100%; padding: 8px; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>
+            N = (<input type="text" id="baseInput" value="10" style="width: 60px;">^<input type="text" id="exponentInput" value="2" style="width: 60px;">) + <input type="text" id="addendInput" value="10" style="width: 60px;">
+        </div>
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="minPrimeInput">Min Prime</label>
+                <input type="text" id="minPrimeInput" value="1">
+            </div>
+            <div class="input-group">
+                <label for="maxPrimeInput">Max Prime</label>
+                <input type="text" id="maxPrimeInput" value="1500">
+            </div>
+            <button id="updateButton" onclick="updateSystem()">Update System</button>
+        </div>
+        <div class="result">
+            Status: <span id="status">Ready</span><br>
+            <span id="rangeDisplay" style="font-size: 12px;"></span>
+        </div>
+        <div style="margin-top: 5px;">
+            <input type="checkbox" id="harmonicModeToggle" onchange="toggleHarmonicMode(this.checked)">
+            <label for="harmonicModeToggle">Harmonic Mode</label>
+        </div>
+    </div>
+    <div id="container" style="transition: opacity 0.3s ease-in-out;"></div>
+
+    <script>
+        // --- Setup and Constants ---
+        const ORBIT_RADIUS = 100;
+        const BLACK_HOLE_SIZE = 5;
+        const TAIL_LENGTH = 120;
+        const ZOOM_OUT_THRESHOLD = 600; // Camera distance to trigger next chunk
+        const ZOOM_IN_THRESHOLD = 100;  // Camera distance to trigger previous chunk
+
+        // --- Global State ---
+        let primeObjects = [];
+        let worker;
+        let isHarmonicMode = false;
+        let lastFactorData = [];
+        let isChunking = false;
+        
+        // --- Three.js Variables ---
+        let scene, camera, renderer, starSystem, controls, glowTexture, tailSystem;
+        let tailAttributes;
+
+        // --- DOM Elements ---
+        const statusDisplay = document.getElementById('status');
+        const container = document.getElementById('container');
+        const baseInput = document.getElementById('baseInput');
+        const exponentInput = document.getElementById('exponentInput');
+        const addendInput = document.getElementById('addendInput');
+        const updateButton = document.getElementById('updateButton');
+        const minPrimeInput = document.getElementById('minPrimeInput');
+        const maxPrimeInput = document.getElementById('maxPrimeInput');
+        const rangeDisplay = document.getElementById('rangeDisplay');
+
+        // --- Web Worker Code as a String ---
+        const workerScript = `
+            importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+            self.onmessage = function(e) {
+                const { base, exp, add, min, max } = e.data;
+                const N_Base = self.bigInt(base), N_Exp = self.bigInt(exp), N_Add = self.bigInt(add);
+                const minP = self.bigInt(min), maxP = self.bigInt(max);
+
+                function sieve(minNum, maxNum) {
+                    const sqrtMax = Math.floor(Math.sqrt(maxNum));
+                    const smallPrimes = [];
+                    const isSmallPrime = new Array(sqrtMax + 1).fill(true);
+                    isSmallPrime[0] = isSmallPrime[1] = false;
+                    for (let i = 2; i * i <= sqrtMax; i++) if (isSmallPrime[i]) for (let j = i * i; j <= sqrtMax; j += i) isSmallPrime[j] = false;
+                    for (let i = 2; i <= sqrtMax; i++) if (isSmallPrime[i]) smallPrimes.push(i);
+
+                    const isPrimeInRange = new Array(maxNum - minNum + 1).fill(true);
+                    if (minNum === 1 && isPrimeInRange.length > 0) isPrimeInRange[0] = false;
+
+                    for (const p of smallPrimes) {
+                        let start = Math.max(p * p, Math.ceil(minNum / p) * p);
+                        for (let j = start; j <= maxNum; j += p) if (j >= minNum) isPrimeInRange[j - minNum] = false;
+                    }
+                    const primes = [];
+                    for (let i = 0; i < isPrimeInRange.length; i++) if (isPrimeInRange[i]) {
+                        const currentNum = minNum + i;
+                        if (currentNum > 1) primes.push(String(currentNum));
+                    }
+                    return primes;
+                }
+
+                function powMod(b, e, m) {
+                    let r = self.bigInt(1); b = b.mod(m);
+                    while (e.greater(0)) { if (e.isOdd()) r = r.multiply(b).mod(m); e = e.divide(2); b = b.square().mod(m); }
+                    return r;
+                }
+
+                const primesToTest = sieve(Number(minP), Number(maxP));
+
+                const results = primesToTest.map(pStr => {
+                    const p = self.bigInt(pStr);
+                    try {
+                        const remPow = powMod(N_Base, N_Exp, p);
+                        const finalRem = remPow.add(N_Add).mod(p);
+                        return { prime: pStr, isFactor: finalRem.isZero(), remainder: finalRem.toString() };
+                    } catch (err) { return { prime: pStr, isFactor: false, remainder: '1', error: err.message }; }
+                });
+                self.postMessage(results);
+            };
+        `;
+
+        // --- Utility ---
+        function parseBigInt(str) {
+            str = String(str).replace(/\s/g, '');
+            if (str.includes('e') || str.includes('E')) {
+                const parts = str.toLowerCase().split('e');
+                return bigInt(parts[0]).multiply(bigInt(10).pow(bigInt(parts[1])));
+            }
+            return bigInt(str);
+        }
+
+        // --- Texture Generation ---
+        function createGlowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 128;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.6, 'rgba(200,200,255,0.3)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            context.fillStyle = gradient; context.fillRect(0, 0, 128, 128);
+            return new THREE.CanvasTexture(canvas);
+        }
+        
+        // --- Tail System ---
+        function initTailSystem() {
+            const tailGeometry = new THREE.BufferGeometry();
+            const MAX_PARTICLES = 1500 * TAIL_LENGTH; // Ensure this is large enough
+            const positions = new Float32Array(MAX_PARTICLES * 3);
+            const opacities = new Float32Array(MAX_PARTICLES);
+            const sizes = new Float32Array(MAX_PARTICLES);
+            const life = new Float32Array(MAX_PARTICLES);
+            tailGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            tailGeometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1));
+            tailGeometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+            tailGeometry.setAttribute('aLife', new THREE.BufferAttribute(life, 1));
+            tailAttributes = { positions, opacities, sizes, life, maxParticles: MAX_PARTICLES };
+            const tailMaterial = new THREE.ShaderMaterial({
+                uniforms: { uTexture: { value: glowTexture } },
+                vertexShader: `attribute float aOpacity; attribute float aSize; varying float vOpacity; void main() { vOpacity = aOpacity; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_PointSize = aSize * (300.0 / -mvPosition.z); gl_Position = projectionMatrix * mvPosition; }`,
+                fragmentShader: `uniform sampler2D uTexture; varying float vOpacity; void main() { vec4 texColor = texture2D(uTexture, gl_PointCoord); gl_FragColor = texColor * vec4(0.5, 0.8, 1.0, vOpacity); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            tailSystem = new THREE.Points(tailGeometry, tailMaterial);
+            starSystem.add(tailSystem);
+        }
+
+        // --- Three.js Initialization ---
+        function init3D() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 300; camera.position.y = 100;
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; controls.dampingFactor = 0.05;
+            controls.minDistance = 50; controls.maxDistance = 800;
+            controls.addEventListener('end', handleZoomEnd); // Event for zoom navigation
+            scene.add(new THREE.AmbientLight(0x404040, 2));
+            starSystem = new THREE.Group();
+            scene.add(starSystem);
+            starSystem.add(new THREE.Mesh(new THREE.SphereGeometry(BLACK_HOLE_SIZE, 32, 32), new THREE.MeshBasicMaterial({ color: 0x000000 })));
+            glowTexture = createGlowTexture();
+            initTailSystem();
+            window.addEventListener('resize', onWindowResize, false);
+        }
+        
+        function getHarmonicY(primeValue) { return Math.sin(primeValue * 0.1) * 20; }
+
+        function createStarOrbits(factorData) {
+            primeObjects.forEach(star => starSystem.remove(star));
+            primeObjects = [];
+            for (let i = 0; i < tailAttributes.maxParticles; i++) tailAttributes.life[i] = 0;
+
+            const gridHelper = new THREE.GridHelper(ORBIT_RADIUS * 2.5, 20, 0x222288, 0x111144);
+            const existingGrid = starSystem.children.find(c => c instanceof THREE.GridHelper);
+            if(existingGrid) starSystem.remove(existingGrid);
+            starSystem.add(gridHelper);
+
+            factorData.forEach((result, index) => {
+                const { prime: pStr, isFactor, remainder: remStr } = result;
+                const p = bigInt(pStr);
+                const pNum = Number(p);
+                let color, size;
+                if (isHarmonicMode) {
+                    const remainder = bigInt(remStr), remainderRatio = Number(remainder) / pNum;
+                    const hue = 240 * remainderRatio; 
+                    color = isFactor ? new THREE.Color(0xffff00) : new THREE.Color().setHSL( (300 - hue) / 360, 1.0, 0.6);
+                    size = isFactor ? 18 : 4 + 10 * (1 - remainderRatio);
+                } else {
+                    color = isFactor ? new THREE.Color(0xffff00) : new THREE.Color(0xffffff);
+                    size = isFactor ? 18 : 4;
+                }
+                const starMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: color, transparent: true, blending: THREE.AdditiveBlending });
+                const starSprite = new THREE.Sprite(starMaterial);
+                starSprite.scale.set(size, size, 1);
+                const radius = ORBIT_RADIUS + (pNum % 50) * 1.5; // vary radius by prime
+                const angle = pNum * 0.5;
+                const x = radius * Math.cos(angle), z = radius * Math.sin(angle);
+                let y = getHarmonicY(pNum);
+                if (!isFactor) y += (Math.random() - 0.5) * 80;
+                starSprite.position.set(x, y, z);
+                starSprite.userData = { p, isFactor, radius, angle, wobbleSpeed: Math.random()*0.05+0.02, tailParticleIndex: index*TAIL_LENGTH, currentTailSlot:0 };
+                primeObjects.push(starSprite);
+                starSystem.add(starSprite);
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            const time = performance.now() * 0.0002;
+            primeObjects.forEach(star => {
+                const data = star.userData;
+                const pNum = Number(data.p);
+                const currentAngle = data.angle + time;
+                const x = data.radius * Math.cos(currentAngle), z = data.radius * Math.sin(currentAngle);
+                if (data.isFactor) {
+                    const y = getHarmonicY(pNum + time * 50);
+                    star.position.set(x, y, z);
+                    const particleIndex = data.tailParticleIndex + data.currentTailSlot;
+                    if(particleIndex < tailAttributes.maxParticles) {
+                        tailAttributes.positions[particleIndex*3+0] = x; tailAttributes.positions[particleIndex*3+1] = y; tailAttributes.positions[particleIndex*3+2] = z;
+                        tailAttributes.sizes[particleIndex] = 6; tailAttributes.life[particleIndex] = 1.0;
+                        data.currentTailSlot = (data.currentTailSlot + 1) % TAIL_LENGTH;
+                    }
+                } else {
+                    const base_y = getHarmonicY(pNum);
+                    const noise = (Math.sin(time * 50 * data.wobbleSpeed) - 0.5) * 80;
+                    star.position.set(x, base_y + noise, z);
+                }
+            });
+            for (let i = 0; i < tailAttributes.maxParticles; i++) {
+                if (tailAttributes.life[i] > 0) {
+                    tailAttributes.life[i] -= 0.008;
+                    tailAttributes.opacities[i] = tailAttributes.life[i] * 0.5;
+                    tailAttributes.sizes[i] *= 0.99;
+                } else { tailAttributes.opacities[i] = 0; }
+            }
+            tailSystem.geometry.attributes.position.needsUpdate = true;
+            tailSystem.geometry.attributes.aOpacity.needsUpdate = true;
+            tailSystem.geometry.attributes.aSize.needsUpdate = true;
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function toggleHarmonicMode(isChecked) {
+            isHarmonicMode = isChecked;
+            if (lastFactorData.length > 0) createStarOrbits(lastFactorData);
+        }
+        
+        function handleZoomEnd() {
+            if (isChunking) return;
+            const distance = camera.position.length();
+            if (distance > ZOOM_OUT_THRESHOLD) {
+                loadNextRange();
+            } else if (distance < ZOOM_IN_THRESHOLD) {
+                loadPreviousRange();
+            }
+        }
+
+        function loadNextRange() {
+            const min = parseBigInt(minPrimeInput.value);
+            const max = parseBigInt(maxPrimeInput.value);
+            const rangeSize = max.subtract(min);
+            const newMin = max.add(1);
+            const newMax = newMin.add(rangeSize);
+            minPrimeInput.value = newMin.toString();
+            maxPrimeInput.value = newMax.toString();
+            updateSystem(true);
+        }
+
+        function loadPreviousRange() {
+            const min = parseBigInt(minPrimeInput.value);
+            if (min.lesserOrEquals(1)) return;
+            const max = parseBigInt(maxPrimeInput.value);
+            const rangeSize = max.subtract(min);
+            const newMax = min.subtract(1);
+            let newMin = newMax.subtract(rangeSize);
+            if (newMin.lesser(1)) newMin = bigInt(1);
+            minPrimeInput.value = newMin.toString();
+            maxPrimeInput.value = newMax.toString();
+            updateSystem(true);
+        }
+
+        function updateSystem(isAutoChunk = false) {
+            if (isChunking && isAutoChunk) return;
+            isChunking = true;
+            statusDisplay.textContent = 'Processing...';
+            updateButton.disabled = true;
+            if (isAutoChunk) container.style.opacity = '0.3';
+            try {
+                const N_Base = parseBigInt(baseInput.value).toString();
+                const N_Exp = parseBigInt(exponentInput.value).toString();
+                const N_Add = parseBigInt(addendInput.value).toString();
+                const minP = parseBigInt(minPrimeInput.value).toString();
+                const maxP = parseBigInt(maxPrimeInput.value).toString();
+                rangeDisplay.textContent = `Range: ${minP} to ${maxP}`;
+                
+                if (worker) worker.terminate();
+                const blob = new Blob([workerScript], { type: 'application/javascript' });
+                worker = new Worker(URL.createObjectURL(blob));
+                worker.onmessage = (e) => {
+                    statusDisplay.textContent = 'Building visualization...';
+                    lastFactorData = e.data;
+                    createStarOrbits(lastFactorData);
+                    statusDisplay.textContent = 'Exploration Active.';
+                    updateButton.disabled = false;
+                    isChunking = false;
+                    if (isAutoChunk) container.style.opacity = '1';
+                };
+                worker.onerror = (e) => {
+                    console.error("Worker error:", e);
+                    statusDisplay.textContent = 'Worker Error!';
+                    updateButton.disabled = false;
+                    isChunking = false;
+                    if (isAutoChunk) container.style.opacity = '1';
+                };
+                worker.postMessage({ base: N_Base, exp: N_Exp, add: N_Add, min: minP, max: maxP });
+            } catch (e) {
+                statusDisplay.textContent = 'Input Error!';
+                console.error("Input parsing failed:", e);
+                updateButton.disabled = false;
+                isChunking = false;
+                 if (isAutoChunk) container.style.opacity = '1';
+            }
+        }
+
+        window.onload = function() {
+            init3D();
+            updateSystem();
+            animate();
+        };
+
+    </script>
+</body>
+</html>

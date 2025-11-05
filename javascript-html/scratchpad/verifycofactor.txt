@@ -1,0 +1,78 @@
+# Save this file as 'verify_cofactor_safe_fix.py'
+import sys
+
+def get_original_number_digit(index, total_digits, addend_str):
+    """
+    Returns the digit of the original number at a given index.
+    """
+    if index == 0:
+        return 1
+    
+    addend_start_index = total_digits - len(addend_str)
+    if index >= addend_start_index:
+        addend_index = index - addend_start_index
+        return int(addend_str[addend_index])
+    
+    return 0
+
+def verify_full(cofactor_file, prime_factor):
+    """
+    Reads the cofactor in chunks and verifies the product against the
+    original number without storing the full number in memory.
+    """
+    exponent = 1000000000
+    addend = 19
+    addend_str = str(addend)
+    prime_factor_int = int(prime_factor)
+
+    # FIX: Correct total_digits to be exponent + 1
+    total_digits = exponent + 1
+
+    print("Starting full verification. This may take a while...")
+
+    remainder = 0
+    match = True
+
+    try:
+        with open(cofactor_file, 'r', encoding='utf-8') as f:
+            for i in range(total_digits):
+                orig_digit = get_original_number_digit(i, total_digits, addend_str)
+                
+                remainder = (remainder * 10) + orig_digit
+                
+                cofactor_digit = f.read(1)
+                if not cofactor_digit:
+                    match = False
+                    break
+                
+                expected_quotient = remainder // prime_factor_int
+                if expected_quotient != int(cofactor_digit):
+                    match = False
+                    print(f"\nDiscrepancy at digit {i+1}: expected {expected_quotient}, got {cofactor_digit}")
+                    break
+                
+                remainder %= prime_factor_int
+                
+                if i % 100000 == 0:
+                    progress = (i / total_digits) * 100
+                    sys.stdout.write(f"\rProgress: {progress:.2f}%")
+                    sys.stdout.flush()
+
+    except FileNotFoundError:
+        print(f"\nError: The file '{cofactor_file}' was not found.", file=sys.stderr)
+        return
+
+    sys.stdout.write(f"\rProgress: 100.00%\n")
+
+    if match and remainder == 0:
+        print("\n? Full Verification Successful!")
+        print("The cofactor in the file is a perfect match for the original number.")
+    else:
+        print("\n? Full Verification Failed.")
+        print("The numbers do not match. There was an error in the calculation or the file.")
+
+# Our specific values
+cofactor_file = 'cofactor.txt'
+prime_factor = 5104699
+
+verify_full(cofactor_file, prime_factor)

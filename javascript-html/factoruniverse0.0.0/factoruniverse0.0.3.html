@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Harmonic Factor Manifold</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000005; color: #f0f0f0; font-family: 'Inter', sans-serif; touch-action: none; }
+        #info { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(10, 10, 20, 0.7); padding: 10px 15px; border-radius: 8px; z-index: 10; width: 90%; max-width: 500px; text-align: center; font-size: 14px; backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+        .input-group { display: flex; flex-direction: column; text-align: left; }
+        input[type=text] { width: 100%; box-sizing: border-box; padding: 4px; margin: 0; border-radius: 4px; border: 1px solid #5d5d81; background-color: #1a1a3a; color: #ffffff; }
+        .result { margin-top: 5px; font-weight: bold; }
+        .factor { color: #ffff00; }
+        label { cursor: pointer; user-select: none; font-size: 12px; margin-bottom: 2px; opacity: 0.8; }
+        button { background-color: #2563eb; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #1d4ed8; }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+        #updateButton { grid-column: 1 / -1; width: 100%; }
+        .filter-active { font-size: 11px; color: #00ffaa; font-style: italic; }
+        .mode-toggles { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>
+            N = (<input type="text" id="baseInput" value="10" style="width: 60px;">^<input type="text" id="exponentInput" value="1000000000" style="width: 120px;">) + <input type="text" id="addendInput" value="19" style="width: 60px;">
+        </div>
+        <div class="input-grid">
+            <div class="input-group">
+                <label for="minPrimeInput">Min Prime</label>
+                <input type="text" id="minPrimeInput" value="5000000">
+            </div>
+            <div class="input-group">
+                <label for="maxPrimeInput">Max Prime</label>
+                <input type="text" id="maxPrimeInput" value="6000000">
+            </div>
+            <button id="updateButton" onclick="updateSystem()">Update System</button>
+        </div>
+        <div class="result">
+            Status: <span id="status">Ready</span><br>
+            <span id="rangeDisplay" style="font-size: 12px;"></span>
+            <span id="filterStatus" class="filter-active"></span>
+        </div>
+        <div class="mode-toggles">
+             <button id="backButton" style="display:none;" onclick="goBack()">&#8592; Back</button>
+            <div>
+                <input type="checkbox" id="harmonicModeToggle" onchange="toggleHarmonicMode(this.checked)">
+                <label for="harmonicModeToggle">Harmonic Mode</label>
+            </div>
+            <div>
+                <input type="checkbox" id="heatmapModeToggle" onchange="toggleHeatmapMode(this.checked)" checked>
+                <label for="heatmapModeToggle">Heatmap Mode</label>
+            </div>
+        </div>
+    </div>
+    <div id="container" style="transition: opacity 0.3s ease-in-out;"></div>
+
+    <script>
+        // --- Setup and Constants ---
+        const ORBIT_RADIUS = 100;
+        const BLACK_HOLE_SIZE = 5;
+        const TAIL_LENGTH = 120;
+        const HEATMAP_RESOLUTION = 80;
+        const STAR_MODE_THRESHOLD = 2500;
+
+        // --- Global State ---
+        let primeObjects = [];
+        let worker;
+        let isHarmonicMode = false;
+        let isHeatmapMode = true;
+        let lastFactorData = [];
+        let rangeHistory = [];
+        
+        // --- Three.js Variables ---
+        let scene, camera, renderer, starSystem, controls, glowTexture, tailSystem, heatmapSystem, hoverTarget;
+        let tailAttributes;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+
+        // --- DOM Elements ---
+        const statusDisplay = document.getElementById('status');
+        const container = document.getElementById('container');
+        const baseInput = document.getElementById('baseInput');
+        const exponentInput = document.getElementById('exponentInput');
+        const addendInput = document.getElementById('addendInput');
+        const updateButton = document.getElementById('updateButton');
+        const minPrimeInput = document.getElementById('minPrimeInput');
+        const maxPrimeInput = document.getElementById('maxPrimeInput');
+        const rangeDisplay = document.getElementById('rangeDisplay');
+        const filterStatus = document.getElementById('filterStatus');
+        const backButton = document.getElementById('backButton');
+        const heatmapModeToggle = document.getElementById('heatmapModeToggle');
+
+        // --- Web Worker Code ---
+        const workerScript = `
+            importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+            self.onmessage = function(e) { /* ... unchanged worker code ... */
+                const { base, exp, add, min, max } = e.data;
+                const N_Base = self.bigInt(base), N_Exp = self.bigInt(exp), N_Add = self.bigInt(add);
+                const minP = self.bigInt(min), maxP = self.bigInt(max);
+
+                function sieve(minNum, maxNum) {
+                    if (minNum > Number.MAX_SAFE_INTEGER || maxNum > Number.MAX_SAFE_INTEGER) { postMessage({error: "Range is too large for sieving in this browser."}); return []; }
+                    const sqrtMax = Math.floor(Math.sqrt(maxNum));
+                    const smallPrimes = []; const isSmallPrime = new Array(sqrtMax + 1).fill(true);
+                    isSmallPrime[0] = isSmallPrime[1] = false;
+                    for (let i = 2; i * i <= sqrtMax; i++) if (isSmallPrime[i]) for (let j = i * i; j <= sqrtMax; j += i) isSmallPrime[j] = false;
+                    for (let i = 2; i <= sqrtMax; i++) if (isSmallPrime[i]) smallPrimes.push(i);
+                    const isPrimeInRange = new Array(maxNum - minNum + 1).fill(true);
+                    if (minNum === 1) isPrimeInRange[0] = false;
+                    for (const p of smallPrimes) { let start = Math.max(p * p, Math.ceil(minNum / p) * p); for (let j = start; j <= maxNum; j += p) if (j >= minNum) isPrimeInRange[j - minNum] = false; }
+                    const primes = [];
+                    for (let i = 0; i < isPrimeInRange.length; i++) if (isPrimeInRange[i]) { const currentNum = minNum + i; if (currentNum > 1) primes.push(String(currentNum)); }
+                    return primes;
+                }
+
+                function powMod(b, e, m) { let r = self.bigInt(1); b = b.mod(m); while (e.greater(0)) { if (e.isOdd()) r = r.multiply(b).mod(m); e = e.divide(2); b = b.square().mod(m); } return r; }
+                function legendreSymbol(a, p) { const ls = powMod(a, p.subtract(1).divide(2), p); if (ls.equals(p.subtract(1))) return -1; return ls.toJSNumber(); }
+
+                let primesToTest = sieve(Number(minP), Number(maxP));
+                if (N_Exp.isEven() && N_Add.isPositive()) {
+                    const negC = N_Add.negate();
+                    primesToTest = primesToTest.filter(pStr => { const p = self.bigInt(pStr); if (p.equals(2)) return true; return legendreSymbol(negC, p) !== -1; });
+                }
+                
+                postMessage({ type: 'primeCount', count: primesToTest.length });
+
+                const results = [];
+                for (const pStr of primesToTest) { const p = self.bigInt(pStr); const remPow = powMod(N_Base, N_Exp, p); const finalRem = remPow.add(N_Add).mod(p); results.push({ prime: pStr, isFactor: finalRem.isZero(), remainder: finalRem.toString() }); }
+                postMessage({ type: 'results', data: results });
+            };
+        `;
+
+        // --- UTILITIES ---
+        function parseBigInt(str) { str = String(str).replace(/\s/g, ''); if (str.includes('e') || str.includes('E')) { const parts = str.toLowerCase().split('e'); return bigInt(parts[0]).multiply(bigInt(10).pow(bigInt(parts[1]))); } return bigInt(str); }
+        function createGlowTexture() { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const context = canvas.getContext('2d'); const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64); gradient.addColorStop(0, 'rgba(255,255,255,1)'); gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)'); gradient.addColorStop(0.6, 'rgba(200,200,255,0.3)'); gradient.addColorStop(1, 'rgba(0,0,0,0)'); context.fillStyle = gradient; context.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(canvas); }
+        function getHarmonicY(primeValue) { return Math.sin(primeValue * 0.1) * 20; }
+        
+        // --- 3D Systems Initialization ---
+        function initTailSystem() {
+            const tailGeometry = new THREE.BufferGeometry();
+            const MAX_PARTICLES = 5000 * TAIL_LENGTH;
+            const positions = new Float32Array(MAX_PARTICLES * 3), opacities = new Float32Array(MAX_PARTICLES), sizes = new Float32Array(MAX_PARTICLES), life = new Float32Array(MAX_PARTICLES);
+            tailGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3)); tailGeometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1)); tailGeometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1)); tailGeometry.setAttribute('aLife', new THREE.BufferAttribute(life, 1));
+            tailAttributes = { positions, opacities, sizes, life, maxParticles: MAX_PARTICLES };
+            const tailMaterial = new THREE.ShaderMaterial({
+                uniforms: { uTexture: { value: glowTexture } },
+                vertexShader: `attribute float aOpacity; attribute float aSize; varying float vOpacity; void main() { vOpacity = aOpacity; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_PointSize = aSize * (300.0 / -mvPosition.z); gl_Position = projectionMatrix * mvPosition; }`,
+                fragmentShader: `uniform sampler2D uTexture; varying float vOpacity; void main() { vec4 texColor = texture2D(uTexture, gl_PointCoord); gl_FragColor = texColor * vec4(0.5, 0.8, 1.0, vOpacity); }`,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            tailSystem = new THREE.Points(tailGeometry, tailMaterial); starSystem.add(tailSystem);
+        }
+        function initHeatmapSystem() { heatmapSystem = new THREE.Group(); starSystem.add(heatmapSystem); }
+        function initHoverTarget() {
+            hoverTarget = new THREE.Group();
+            const ring = new THREE.Mesh( new THREE.TorusGeometry(1, 0.05, 16, 100), new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 }) );
+            hoverTarget.add(ring);
+            hoverTarget.visible = false;
+            scene.add(hoverTarget);
+        }
+        function init3D() {
+            scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 300; camera.position.y = 100;
+            renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); container.appendChild(renderer.domElement);
+            controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.05;
+            controls.minDistance = 50; controls.maxDistance = 800;
+            scene.add(new THREE.AmbientLight(0x404040, 2)); starSystem = new THREE.Group(); scene.add(starSystem);
+            starSystem.add(new THREE.Mesh(new THREE.SphereGeometry(BLACK_HOLE_SIZE, 32, 32), new THREE.MeshBasicMaterial({ color: 0x000000 })));
+            glowTexture = createGlowTexture();
+            initTailSystem(); initHeatmapSystem(); initHoverTarget();
+            window.addEventListener('resize', onWindowResize, false);
+            container.addEventListener('dblclick', onCanvasDoubleClick, false);
+            container.addEventListener('mousemove', onCanvasMouseMove, false);
+        }
+        
+        // --- VISUALS CREATION ---
+        function createVisuals() {
+            primeObjects.forEach(star => starSystem.remove(star)); primeObjects = [];
+            while(heatmapSystem.children.length > 0) heatmapSystem.remove(heatmapSystem.children[0]);
+            if (isHeatmapMode) createHeatmapVisualization(lastFactorData);
+            else createStarOrbits(lastFactorData);
+            drawFactors(lastFactorData);
+        }
+
+        function createHeatmapVisualization(factorData) {
+            if (factorData.length === 0) return;
+            const grid = new Map(); let maxDensity = 0;
+            factorData.forEach(result => {
+                if(result.isFactor) return;
+                const pNum = Number(result.prime);
+                const radius = ORBIT_RADIUS + (pNum % 50) * 1.5, angle = pNum * 0.5;
+                const x = radius * Math.cos(angle), z = radius * Math.sin(angle), y = getHarmonicY(pNum);
+                const gridX = Math.floor(x / HEATMAP_RESOLUTION), gridY = Math.floor(y / HEATMAP_RESOLUTION), gridZ = Math.floor(z / HEATMAP_RESOLUTION);
+                const key = `${gridX},${gridY},${gridZ}`;
+                if (!grid.has(key)) grid.set(key, { count: 0, remSum: 0, pos: new THREE.Vector3(gridX, gridY, gridZ).multiplyScalar(HEATMAP_RESOLUTION), primes: [] });
+                const cell = grid.get(key);
+                cell.count++; cell.primes.push(pNum);
+                if (Number(result.remainder) > 0) cell.remSum += Number(bigInt(result.remainder)) / pNum;
+                if (cell.count > maxDensity) maxDensity = cell.count;
+            });
+            grid.forEach(cell => {
+                const size = 10 + (cell.count / maxDensity) * 30;
+                const opacity = 0.1 + (cell.count / maxDensity) * 0.6;
+                let color = new THREE.Color(0xaaeeff);
+                const avgRemRatio = (cell.count > 0) ? cell.remSum / cell.count : 0;
+                if (isHarmonicMode) { const hue = 240 * avgRemRatio; color.setHSL((300 - hue) / 360, 1.0, 0.6); }
+                const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: color, transparent: true, opacity: opacity, blending: THREE.AdditiveBlending }));
+                sprite.position.copy(cell.pos); sprite.scale.set(size, size, 1);
+                const avgPrime = cell.primes.reduce((a, b) => a + b, 0) / cell.count;
+                sprite.userData = { isHeatmapCluster: true, minPrime: Math.min(...cell.primes), maxPrime: Math.max(...cell.primes), avgRemRatio, count: cell.count, radius: ORBIT_RADIUS + (avgPrime % 50) * 1.5, angle: avgPrime * 0.5, avgPrime };
+                heatmapSystem.add(sprite);
+            });
+        }
+
+        function createStarOrbits(factorData) {
+            const nonFactors = factorData.filter(r => !r.isFactor);
+            nonFactors.forEach((result) => {
+                const { prime: pStr, remainder: remStr } = result;
+                const p = bigInt(pStr), pNum = Number(p);
+                let color, size;
+                if (isHarmonicMode) { const remainder = bigInt(remStr), remainderRatio = Number(remainder) / pNum, hue = 240 * remainderRatio; color = new THREE.Color().setHSL( (300 - hue) / 360, 1.0, 0.6); size = 4 + 10 * (1 - remainderRatio); }
+                else { color = new THREE.Color(0xffffff); size = 4; }
+                const starMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: color, transparent: true, blending: THREE.AdditiveBlending });
+                const starSprite = new THREE.Sprite(starMaterial); starSprite.scale.set(size, size, 1);
+                const radius = ORBIT_RADIUS + (pNum % 50) * 1.5, angle = pNum * 0.5;
+                const x = radius * Math.cos(angle), z = radius * Math.sin(angle);
+                let y = getHarmonicY(pNum) + (Math.random() - 0.5) * 80;
+                starSprite.position.set(x, y, z);
+                starSprite.userData = { p, isFactor:false, radius, angle, wobbleSpeed: Math.random()*0.05+0.02 };
+                primeObjects.push(starSprite); starSystem.add(starSprite);
+            });
+        }
+
+        function drawFactors(factorData) {
+            const factors = factorData.filter(r => r.isFactor);
+            factors.forEach((result, index) => {
+                const { prime: pStr } = result;
+                const p = bigInt(pStr), pNum = Number(p);
+                const starSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture, color: 0xffff00, transparent: true, blending: THREE.AdditiveBlending }));
+                starSprite.scale.set(18, 18, 1);
+                const radius = ORBIT_RADIUS + (pNum % 50) * 1.5, angle = pNum * 0.5;
+                starSprite.userData = { p, isFactor:true, radius, angle, tailParticleIndex: index * TAIL_LENGTH, currentTailSlot: 0 };
+                primeObjects.push(starSprite); starSystem.add(starSprite);
+            });
+        }
+        
+        // --- ANIMATION and UI LOGIC ---
+        function animate() {
+            requestAnimationFrame(animate); controls.update();
+            const time = performance.now() * 0.0002;
+            primeObjects.forEach(star => {
+                const data = star.userData; const pNum = Number(data.p), currentAngle = data.angle + time;
+                const x = data.radius * Math.cos(currentAngle), z = data.radius * Math.sin(currentAngle);
+                if (data.isFactor) {
+                    const y = getHarmonicY(pNum + time * 50); star.position.set(x, y, z);
+                    const particleIndex = data.tailParticleIndex + data.currentTailSlot;
+                    if(particleIndex < tailAttributes.maxParticles) {
+                        tailAttributes.positions[particleIndex*3+0] = x; tailAttributes.positions[particleIndex*3+1] = y; tailAttributes.positions[particleIndex*3+2] = z;
+                        tailAttributes.sizes[particleIndex] = 6; tailAttributes.life[particleIndex] = 1.0;
+                        data.currentTailSlot = (data.currentTailSlot + 1) % TAIL_LENGTH;
+                    }
+                } else { const base_y = getHarmonicY(pNum), noise = (Math.sin(time*50*data.wobbleSpeed) - 0.5) * 80; star.position.set(x, base_y + noise, z); }
+            });
+            if (isHeatmapMode) {
+                heatmapSystem.children.forEach(cluster => {
+                    const data = cluster.userData; const pNum = data.avgPrime; const currentAngle = data.angle + time * 0.2;
+                    const x = data.radius * Math.cos(currentAngle), z = data.radius * Math.sin(currentAngle);
+                    const y = getHarmonicY(pNum + time * 5);
+                    cluster.position.set(x, y, z);
+                });
+            }
+            for (let i = 0; i < tailAttributes.maxParticles; i++) {
+                if (tailAttributes.life[i] > 0) { tailAttributes.life[i] -= 0.008; tailAttributes.opacities[i] = tailAttributes.life[i] * 0.5; tailAttributes.sizes[i] *= 0.99; }
+                else { tailAttributes.opacities[i] = 0; }
+            }
+            tailSystem.geometry.attributes.position.needsUpdate = true; tailSystem.geometry.attributes.aOpacity.needsUpdate = true; tailSystem.geometry.attributes.aSize.needsUpdate = true;
+            if (hoverTarget.visible) hoverTarget.children[0].rotation.z += 0.02;
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
+        function toggleHarmonicMode(isChecked) { isHarmonicMode = isChecked; if (lastFactorData.length > 0) createVisuals(); }
+        function toggleHeatmapMode(isChecked) { isHeatmapMode = isChecked; if (lastFactorData.length > 0) createVisuals(); }
+        
+        function onCanvasMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const objectsToIntersect = isHeatmapMode ? heatmapSystem.children : primeObjects;
+            const intersects = raycaster.intersectObjects(objectsToIntersect);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+                const data = target.userData;
+                hoverTarget.position.copy(target.position);
+                
+                if (data.isHeatmapCluster) {
+                     hoverTarget.scale.setScalar(target.scale.x * 0.07);
+                } else {
+                     hoverTarget.scale.setScalar(target.scale.x * 0.2);
+                }
+               
+                hoverTarget.visible = true;
+
+                if (!hoverTarget.userData.textSprite) {
+                    hoverTarget.userData.textSprite = createTextSprite("");
+                    hoverTarget.add(hoverTarget.userData.textSprite);
+                }
+                
+                let text = '';
+                if (data.isHeatmapCluster) {
+                    const resonance = isHarmonicMode ? `Resonance: ${((1 - data.avgRemRatio) * 100).toFixed(1)}%\n` : '';
+                    const rangeSpan = data.maxPrime - data.minPrime;
+                    text = `${resonance}Range: ${data.minPrime} - ${data.maxPrime}\nSpan: ${rangeSpan} (${data.count} primes)`;
+                } else {
+                    const result = lastFactorData.find(r => r.prime === data.p.toString());
+                    if (result) {
+                        const pNum = Number(data.p);
+                        const remainder = bigInt(result.remainder);
+                        const remainderRatio = Number(remainder) / pNum;
+                        const resonance = isHarmonicMode && !data.isFactor ? `Resonance: ${((1 - remainderRatio) * 100).toFixed(1)}%\n` : '';
+                        const factorLabel = data.isFactor ? 'FACTOR\n' : '';
+                        text = `${factorLabel}${resonance}Prime: ${data.p.toString()}`;
+                    }
+                }
+                updateTextSprite(hoverTarget.userData.textSprite, text);
+
+            } else {
+                hoverTarget.visible = false;
+            }
+        }
+
+        function createTextSprite(message) { const canvas = document.createElement('canvas'); const context = canvas.getContext('2d'); const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true })); sprite.scale.set(50, 25, 1.0); return sprite; }
+        function updateTextSprite(sprite, message) {
+            const canvas = sprite.material.map.image; const context = canvas.getContext('2d');
+            canvas.width = 512; canvas.height = 256;
+            context.font = "32px Inter, sans-serif"; context.fillStyle = "rgba(200, 255, 255, 0.9)";
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            const lines = message.split('\n');
+            lines.forEach((line, i) => context.fillText(line, 10, 40 + i * 40));
+            sprite.material.map.needsUpdate = true;
+            sprite.position.set(0, (lines.length > 2 ? 3.5 : 2.5) , 0);
+        }
+
+        function onCanvasDoubleClick(event) {
+            if (!isHeatmapMode) return;
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(heatmapSystem.children);
+            if (intersects.length > 0) {
+                const { minPrime, maxPrime } = intersects[0].object.userData;
+                pushHistory();
+                minPrimeInput.value = minPrime;
+                maxPrimeInput.value = maxPrime;
+                updateSystem();
+            }
+        }
+        
+        function pushHistory() { rangeHistory.push({ min: minPrimeInput.value, max: maxPrimeInput.value }); backButton.style.display = 'inline-block'; }
+        function goBack() {
+            if (rangeHistory.length > 0) {
+                const lastRange = rangeHistory.pop();
+                minPrimeInput.value = lastRange.min; maxPrimeInput.value = lastRange.max;
+                heatmapModeToggle.checked = true; isHeatmapMode = true;
+                updateSystem();
+            }
+            if (rangeHistory.length === 0) backButton.style.display = 'none';
+        }
+
+        function updateSystem() {
+            statusDisplay.textContent = 'Processing...'; updateButton.disabled = true; filterStatus.textContent = '';
+            container.style.opacity = '0.3';
+            try {
+                const N_Base = parseBigInt(baseInput.value), N_Exp = parseBigInt(exponentInput.value), N_Add = parseBigInt(addendInput.value);
+                const minP = parseBigInt(minPrimeInput.value), maxP = parseBigInt(maxPrimeInput.value);
+                rangeDisplay.textContent = `Range: ${minP.toString()} to ${maxP.toString()}`;
+                if (N_Exp.isEven() && N_Add.isPositive()) filterStatus.textContent = 'QR Filter Active';
+                if (worker) worker.terminate();
+                const blob = new Blob([workerScript], { type: 'application/javascript' });
+                worker = new Worker(URL.createObjectURL(blob));
+                let primeCountForLOD = 0;
+                worker.onmessage = (e) => {
+                    if (e.data.error) { statusDisplay.textContent = `Error: ${e.data.error}`; updateButton.disabled = false; container.style.opacity = '1'; return; }
+                    if (e.data.type === 'primeCount') {
+                        primeCountForLOD = e.data.count;
+                        isHeatmapMode = primeCountForLOD > STAR_MODE_THRESHOLD;
+                        heatmapModeToggle.checked = isHeatmapMode;
+                        statusDisplay.textContent = `Found ${primeCountForLOD} primes. Calculating...`;
+                    } else if (e.data.type === 'results') {
+                        statusDisplay.textContent = 'Building visuals...';
+                        lastFactorData = e.data.data;
+                        createVisuals();
+                        statusDisplay.textContent = 'Active.';
+                        updateButton.disabled = false; container.style.opacity = '1';
+                    }
+                };
+                worker.onerror = (e) => { console.error("Worker error:", e); statusDisplay.textContent = 'Worker Error!'; updateButton.disabled = false; container.style.opacity = '1'; };
+                worker.postMessage({ base: N_Base.toString(), exp: N_Exp.toString(), add: N_Add.toString(), min: minP.toString(), max: maxP.toString() });
+            } catch (e) {
+                statusDisplay.textContent = 'Input Error!'; console.error("Input parsing failed:", e); updateButton.disabled = false; container.style.opacity = '1';
+            }
+        }
+
+        window.onload = function() {
+            heatmapModeToggle.checked = true; isHeatmapMode = true;
+            init3D(); updateSystem(); animate();
+        };
+
+    </script>
+</body>
+</html>

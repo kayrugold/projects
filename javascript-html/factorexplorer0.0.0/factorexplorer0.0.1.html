@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Prime Factory: Builder, Explorer & Hunter</title>
+<script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.52/Tone.js"></script>
+
+<style>
+  /* --- GLOBAL STYLES --- */
+  :root {
+    --bg-color: #f3f4f6;
+    --text-color: #1f2937;
+    --card-bg: #fff;
+    --card-text: #374151;
+    --input-bg: #f9fafb;
+    --input-border: #d1d5db;
+    --button-bg: #2563eb;
+    --button-hover: #1d4ed8;
+    --log-bg: #e2e8f0;
+    --progress-bg: #4caf50;
+    --header-color: #1d4ed8;
+    --builder-bg: #071011;
+  }
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; overflow: hidden; touch-action: none; background: var(--bg-color);}
+  canvas{display:block; width:100vw; height:100vh; touch-action:none; position: fixed; top: 0; left: 0; background-color: var(--builder-bg); transition: background-color 0.5s ease;}
+  .action-btn { padding: 4px 12px; font-size: 13px; border-radius: 4px; border: 1px solid #aaa; background-color: #f0f0f0; cursor: pointer; }
+  .action-btn:hover { background-color: #e0e0e0; }
+  .action-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+  /* Hide canvas when hunter mode is active */
+  body.hunter-active #mainCanvas { display: none; }
+
+  /* --- TAB CONTROLS --- */
+  .tabs-container {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    background: rgba(255,255,255,0.92);
+    border-radius: 8px;
+    padding: 4px;
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+  .tab-btn {
+    padding: 6px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+  }
+  .tab-btn.active {
+    background-color: #007bff;
+    color: white;
+  }
+  .ui-container.hidden { display: none !important; }
+
+  /* --- BUILDER: UI PANELS --- */
+  .ui-panel {
+    background:rgba(255,255,255,0.92); padding:8px 12px; border-radius:8px; z-index:41;
+    display: flex; flex-direction: column; gap: 6px; position: absolute;
+    transition: all 0.3s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+  #info{ left:12px; top:60px; }
+  #patternTester { right: 12px; top: 12px; width: 450px; max-width: 90vw; }
+  #primePanelContainer{ bottom:12px; left:50%; transform:translateX(-50%); width:auto; max-width:90vw; }
+  .panel-header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 4px; }
+  .panel-header h4 { margin: 0; font-size: 14px; }
+  .panel-toggle-btn { background: none; border: none; cursor: pointer; padding: 2px; line-height: 1; color: #555; }
+  .panel-toggle-btn:hover { color: #000; }
+  .ui-panel.collapsed .panel-content, .ui-panel.collapsed .panel-header h4 { display: none; }
+  #info.collapsed { width: 44px; height: 44px; padding: 0; left: 0; top: 60px; border-radius: 0 8px 8px 0; justify-content: center; align-items: center; }
+  #patternTester.collapsed { width: 44px; height: 44px; padding: 0; right: 0; top: 12px; border-radius: 8px 0 0 8px; justify-content: center; align-items: center; }
+  #primePanelContainer.collapsed { width: 180px; height: 44px; padding: 0; bottom: 0; border-radius: 8px 8px 0 0; justify-content: center; align-items: center; }
+  .ui-panel.collapsed .panel-toggle-btn { display: block; }
+
+  /* --- BUILDER: SPECIFIC ELEMENTS --- */
+    #targetContainer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #panelRow {display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap;}
+    .prime-block{width:40px;height:26px;background:var(--cell);border:2px solid var(--cell-border);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;touch-action:none;flex-shrink:0;}
+    label{font-size:12px;margin-right:6px}
+    input[type="text"], input[type="number"] {font-size:13px;padding:4px 6px; border: 1px solid #ccc; border-radius: 4px;}
+    #target, #primeSelectorInput, #shareBaseUrlInput { width: 88px; }
+    input[readonly] { background-color: #eee; }
+    .small{font-size:12px;color:#444;margin-top:6px}
+    #trashCan { position: absolute; bottom: 12px; right: 12px; width: 50px; height: 50px; background-color: rgba(255,255,255,0.92); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 50; cursor: pointer; transition: background-color 0.2s, transform 0.2s; }
+    #trashCan svg { width: 24px; height: 24px; color: #333; }
+    #trashCan.over-trash { background-color: #ffdddd; transform: scale(1.1); }
+    #trashCan.over-trash svg { color: #c00; }
+    .checkbox-container { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .checkbox-container input { margin: 0; }
+    #shareModal { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.92); padding: 20px; border-radius: 8px; z-index: 101; box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 90%; max-width: 400px; }
+    #shareModal p { margin: 0 0 10px 0; font-size: 14px; font-weight: bold; }
+    #shareModal input { width: 100%; padding: 8px; font-size: 13px; box-sizing: border-box; margin-bottom: 12px; }
+    #shareModal button { float: right; }
+    .share-url-container { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+    .share-url-container input { flex-grow: 1; width: auto; min-width: 150px; transition: border-color 0.2s; }
+    .share-url-container input.error { border-color: red; }
+    #numberInfo { font-size: 12px; color: #333; margin-top: 4px; padding-top: 4px; border-top: 1px solid #ddd; }
+    .info-prop { font-weight: bold; }
+    .pattern-input-row { display: flex; gap: 10px; align-items: center; width: 100%; flex-wrap: wrap; }
+    .pattern-input-row input { flex-grow: 1; }
+    #patternResults { margin-top: 10px; width: 100%; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.02); border-radius: 4px; padding: 6px; font-size: 12px; font-family: monospace; }
+    .result-line { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; border-bottom: 1px solid #eee; }
+    .result-line > span:last-child { display: flex; align-items: center; gap: 8px; }
+    .result-prime { color: #090; }
+    .result-composite { color: #900; }
+    .add-to-grid-btn { padding: 0; width: 20px; height: 20px; line-height: 18px; text-align: center; font-size: 16px; border-radius: 50%; flex-shrink: 0; }
+
+  /* --- EXPLORER: UI PANEL --- */
+  #explorerInfoPanel {
+    position: absolute; top: 60px; left: 10px; background: rgba(255, 255, 255, 0.85);
+    padding: 10px; border: 1px solid #ccc; font-size: 14px; border-radius: 8px;
+    z-index: 50; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  }
+   .info-group { display: flex; align-items: center; margin-bottom: 5px; }
+   .info-group label { margin-right: 5px; white-space: nowrap; }
+   .info-input { width: 100px; padding: 3px; border: 1px solid #ccc; border-radius: 3px; }
+   #status { margin-top: 5px; color: gray; }
+   hr { margin: 10px 0; border: none; border-top: 1px solid #ddd; }
+   .red-text { color: red; } .green-text { color: green; } .yellow-text { color: #ff9900; } .gray-text { color:#666; }
+   .badge { padding:1px 6px; border-radius:10px; border:1px solid #ccc; font-size:12px; margin-left:6px; }
+
+  /* --- HUNTER: UI PANEL --- */
+  #hunterContainer { display:flex; justify-content:center; align-items:start; height:100vh; padding: 2rem; padding-top: 5rem; box-sizing: border-box; overflow-y: auto; }
+  .hunter-card { max-width: 900px; width: 100%; background: var(--card-bg); border-radius: .5rem; box-shadow: 0 10px 15px rgba(0,0,0,.1); padding: 2.5rem; }
+  #hunterContainer h2 { text-align:center; color: var(--header-color); margin-bottom: 2rem; font-size:2rem; font-weight:700; margin-top: 0; }
+  #hunterContainer h3 { margin-top:1.5rem; margin-bottom:1rem; color:var(--card-text); border-bottom:2px solid var(--input-border); padding-bottom:.5rem; }
+  #hunterContainer .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 1.5rem; }
+  #hunterContainer .input-group, #hunterContainer .button-group { display:flex; flex-direction:column; }
+  #hunterContainer label { margin-bottom:.5rem; font-weight:600; }
+  #hunterContainer input[type="text"]{ padding:.75rem; border:1px solid var(--input-border); border-radius:.25rem; background:var(--input-bg); color:var(--card-text); font-size:1rem; }
+  #hunterContainer input:focus { outline:none; border-color:var(--button-bg); }
+  #hunterContainer .button-group { flex-direction:row; flex-wrap:wrap; gap:.75rem; margin-top:1rem; }
+  #hunterContainer button { padding:.75rem 1.25rem; border:none; border-radius:.25rem; background:var(--button-bg); color:#fff; font-weight:600; cursor:pointer; }
+  #hunterContainer button:hover:not(:disabled){ background: var(--button-hover); }
+  #hunterContainer button:disabled { background:#9ca3af; cursor:not-allowed; }
+  #progressBarContainer { width:100%; background:#e0e0e0; border-radius:.25rem; margin-top:1.5rem; overflow:hidden; }
+  #progressBar { height:25px; width:0%; background:var(--progress-bg); text-align:center; line-height:25px; color:white; font-weight:bold; transition: width .2s ease; }
+  #results { margin-top:1.5rem; font-weight:700; color:var(--header-color); font-size:1.1rem; }
+  #logOutput, #factorsOutput { width:100%; height:150px; overflow-y:auto; border:1px solid var(--input-border); background:var(--log-bg); padding:1rem; font-family: monospace; white-space:pre-wrap; margin-top:1rem; border-radius:.25rem; }
+  #hunterContainer .row { display:grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap:1.5rem; align-items:end; }
+  #hunterContainer details { margin-top: 1rem; border: 1px solid var(--input-border); padding: 1rem; border-radius: 0.25rem; }
+  #hunterContainer summary { font-weight: 600; cursor: pointer; }
+  #hunterContainer .h3-container { display: flex; justify-content: space-between; align-items: center; }
+  #hunterContainer .copy-button { padding: 0.25rem 0.5rem; font-size: 0.8rem; background: #6b7280; }
+</style>
+</head>
+<body class="builder-active">
+
+<canvas id="mainCanvas"></canvas>
+
+<div class="tabs-container">
+    <button id="tabBuilder" class="tab-btn active">Builder</button>
+    <button id="tabExplorer" class="tab-btn">Explorer</button>
+    <button id="tabHunter" class="tab-btn">Hunter</button>
+</div>
+
+<div id="builderUI" class="ui-container">
+    <div id="info" class="ui-panel">
+        <div class="panel-header"><h4>Controls</h4><button class="panel-toggle-btn" data-icon="controls"></button></div>
+        <div class="panel-content">
+          <div id="targetContainer"><label for="target" style="margin:0;">Target:</label><input id="target" type="text" value="100"><button id="autoFactorBtn" class="action-btn">Auto-Factor</button><button id="clearAllBtn" class="action-btn">Clear All</button><button id="shareBtn" class="action-btn">Share</button><button id="newChallengeBtn" class="action-btn" style="display: none;">New Challenge</button></div>
+          <div><strong id="composite">Composite: 1</strong></div>
+          <div id="numberInfo"></div>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+            <div class="checkbox-container"><input type="checkbox" id="colorCodeToggle"><label for="colorCodeToggle" style="margin:0;">Color-code primes</label></div>
+            <div class="checkbox-container"><input type="checkbox" id="challengeModeToggle"><label for="challengeModeToggle" style="margin:0;">Challenge Mode</label></div>
+            <div class="checkbox-container"><input type="checkbox" id="arrangeFactorsToggle"><label for="arrangeFactorsToggle" style="margin:0;">Arrange Factors</label></div>
+          </div>
+           <div class="share-url-container"><label for="shareBaseUrlInput" style="margin:0; font-size: 12px;">Share/Load URL:</label><input type="text" id="shareBaseUrlInput" placeholder="Paste full link and press Enter"></div>
+          <div class="small">Pan, pinch/wheel zoom, drag blocks, tap to rotate.</div>
+        </div>
+    </div>
+    <div id="patternTester" class="ui-panel collapsed">
+        <div class="panel-header"><h4>Pattern Explorer</h4><button class="panel-toggle-btn" data-icon="pattern"></button></div>
+        <div class="panel-content">
+            <div class="pattern-input-row"><label for="patternInput" style="margin:0;">f(n) =</label><input type="text" id="patternInput" value="n^2 ± (n-1)"><label for="nStart">from n =</label><input type="number" id="nStart" value="2" style="width: 40px;"><label for="nEnd">to</label><input type="number" id="nEnd" value="20" style="width: 40px;"><button id="testPatternBtn" class="action-btn">Run</button></div>
+            <div id="patternResults"></div>
+        </div>
+    </div>
+    <div id="primePanelContainer" class="ui-panel">
+        <div class="panel-header"><h4>Prime Blocks</h4><button class="panel-toggle-btn" data-icon="blocks"></button></div>
+        <div class="panel-content">
+          <div id="primeSelectorContainer"><label for="primeSelectorInput" style="margin:0;">Primes around:</label><input type="text" id="primeSelectorInput" value="13" style="width: 60px;"><button id="getPrimesBtn" class="action-btn">Go</button></div>
+          <div id="panelRow"></div>
+        </div>
+    </div>
+    <div id="trashCan"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></div>
+    <div id="shareModal" style="display:none;"><p>Share URL</p><input type="text" id="shareUrlInput" readonly><button id="closeShareModalBtn" class="action-btn">Close</button></div>
+</div>
+
+<div id="explorerUI" class="ui-container hidden">
+    <div id="explorerInfoPanel">
+     <div class="info-group"><label for="valueInput">Total Blocks:</label><input type="text" id="valueInput" class="info-input" value="1007" inputmode="text"></div>
+     <div class="info-group"><label><input type="checkbox" id="primeToggle" checked> Prime check (≤ 1e12)</label></div>
+     <div id="status"></div><hr>
+     <span id="labelTotalBlocks">Total Blocks:</span> <span id="totalBlocksDisplay"></span><br>
+     Width (A): <span id="width"></span><span id="widthPrime" class="badge gray-text"></span><br>
+     Height (B): <span id="height"></span><span id="heightPrime" class="badge gray-text"></span><br>
+     <span id="labelBlocksRemaining">Blocks Remaining:</span> <span id="blocks"></span><br>
+     <span id="labelModRemainder" style="display:none;">Mod Remainder:</span> <span id="modRemainder" style="display:none;"></span><br>
+     Diagonal Slope: <span id="slope"></span><br>
+     Diagonal Angle: <span id="angle"></span>°<br>
+     Center Point: <span id="centerPoint"></span>
+    </div>
+</div>
+
+<div id="hunterUI" class="ui-container hidden">
+    <div id="hunterContainer">
+        <div class="hunter-card">
+            <h2>Number Theory Factor Finder</h2>
+            <h3>Number to Factor (a^b + c)</h3>
+            <div class="grid">
+              <div class="input-group"><label for="baseInput">Base (a)</label><input type="text" id="baseInput" value="10"></div>
+              <div class="input-group"><label for="exponentInput">Exponent (b)</label><input type="text" id="exponentInput" value="1000000000"></div>
+              <div class="input-group"><label for="addendInput">Addend (c)</label><input type="text" id="addendInput" value="19"></div>
+            </div>
+            <h3>Single Divisor Verification</h3>
+            <div class="row">
+              <div class="input-group"><label for="divisorInput">Divisor to verify</label><input type="text" id="divisorInput" value="5104699"></div>
+              <div class="button-group"><button id="verifyButton">Verify</button><button id="quickCheckButton">Quick Check Example</button></div>
+            </div>
+            <h3>Search Prime Factors in Range</h3>
+            <div class="grid">
+              <div class="input-group"><label for="minLimitInput">Min Limit</label><input type="text" id="minLimitInput" value="4e6"></div>
+              <div class="input-group"><label for="maxLimitInput">Max Limit</label><input type="text" id="maxLimitInput" value="4e6+200000"></div>
+              <div class="input-group"><label for="chunkSizeInput">Chunk Size</label><input type="text" id="chunkSizeInput" value="200000"></div>
+            </div>
+            <details>
+                <summary>Advanced Prime Filtering</summary>
+                <p>Optionally, search only for primes of the form <code>p = k*m + n</code>.</p>
+                <div class="grid">
+                    <div class="input-group"><label for="kMultiple">Multiple (m)</label><input type="text" id="kMultiple"></div>
+                    <div class="input-group"><label for="kAddend">Addend (n)</label><input type="text" id="kAddend"></div>
+                    <div class="button-group" style="align-items: flex-start;"><button id="suggestFilterButton" style="margin-top: 1.75rem;">Suggest Filter</button></div>
+                </div>
+            </details>
+            <h3>Pre-computation Checks</h3>
+            <div class="input-group" style="flex-direction: row; align-items: center; gap: 0.5rem;"><input type="checkbox" id="algebraicCheck" checked><label for="algebraicCheck" style="margin-bottom: 0;">Check algebraic factors</label></div>
+            <h3>Controls</h3>
+            <div class="button-group"><button id="checkWorkerButton">Scan Range</button><button id="autoRunButton">Auto-Run Chunks</button><input type="checkbox" id="autoRepeatCheck"><label for="autoRepeatCheck" style="margin-bottom: 0;">Auto Repeat Range</label><button id="stopButton" disabled>Stop</button></div>
+            <div id="progressBarContainer"><div id="progressBar">0%</div></div>
+            <div id="results">Status: Idle</div>
+            <h3>Main Log</h3><pre id="logOutput">Log: </pre>
+            <div class="h3-container"><h3>Found Factors</h3><button id="copyFactorsButton" class="copy-button">Copy</button></div>
+            <pre id="factorsOutput"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+/* --- GLOBAL AND SHARED STATE --- */
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+let currentMode = 'builder';
+let offsetX = 0, offsetY = 0, scale = 1;
+let pointerMap = new Map();
+const GRID_SIZE = 36;
+
+/* --- CANVAS & RESIZE SETUP --- */
+function resizeCanvas(){
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(window.innerWidth * dpr);
+  canvas.height = Math.round(window.innerHeight * dpr);
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* --- MODE SWITCHING LOGIC --- */
+const tabBuilder = document.getElementById('tabBuilder');
+const tabExplorer = document.getElementById('tabExplorer');
+const tabHunter = document.getElementById('tabHunter');
+const builderUI = document.getElementById('builderUI');
+const explorerUI = document.getElementById('explorerUI');
+const hunterUI = document.getElementById('hunterUI');
+
+function setMode(mode) {
+    if (mode === currentMode) return;
+
+    if (currentMode === 'hunter') {
+        hunter.stopScan(true);
+    }
+
+    currentMode = mode;
+    const allTabs = [tabBuilder, tabExplorer, tabHunter];
+    const allUIs = [builderUI, explorerUI, hunterUI];
+    allTabs.forEach(t => t.classList.remove('active'));
+    allUIs.forEach(u => u.classList.add('hidden'));
+    document.body.classList.remove('hunter-active', 'builder-active', 'explorer-active');
+
+
+    if (mode === 'builder') {
+        tabBuilder.classList.add('active');
+        builderUI.classList.remove('hidden');
+        document.body.classList.add('builder-active');
+        canvas.style.backgroundColor = 'var(--builder-bg)';
+        document.body.style.background = '';
+        builder.updateComposite();
+    } else if (mode === 'explorer') {
+        tabExplorer.classList.add('active');
+        explorerUI.classList.remove('hidden');
+        document.body.classList.add('explorer-active');
+        explorer.performCalculation();
+    } else if (mode === 'hunter') {
+        tabHunter.classList.add('active');
+        hunterUI.classList.remove('hidden');
+        document.body.classList.add('hunter-active');
+        document.body.style.background = 'var(--bg-color)';
+    }
+}
+tabBuilder.addEventListener('click', () => setMode('builder'));
+tabExplorer.addEventListener('click', () => setMode('explorer'));
+tabHunter.addEventListener('click', () => setMode('hunter'));
+
+
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+/* ---      PRIME BUILDER (MODE 1)       --- */
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+const builder = (() => {
+    let placedBlocks = [];
+    let draggingFromPanel = null;
+    let movingBlockState = null;
+    let lastTapCandidate = null;
+    const panelRow = document.getElementById('panelRow');
+    const compositeEl = document.getElementById('composite');
+    const numberInfoEl = document.getElementById('numberInfo');
+    const targetInput = document.getElementById('target');
+    const autoFactorBtn = document.getElementById('autoFactorBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const newChallengeBtn = document.getElementById('newChallengeBtn');
+    const primeSelectorInput = document.getElementById('primeSelectorInput');
+    const getPrimesBtn = document.getElementById('getPrimesBtn');
+    const trashCan = document.getElementById('trashCan');
+    const colorCodeToggle = document.getElementById('colorCodeToggle');
+    const challengeModeToggle = document.getElementById('challengeModeToggle');
+    const arrangeFactorsToggle = document.getElementById('arrangeFactorsToggle');
+    const shareModal = document.getElementById('shareModal');
+    const shareUrlInput = document.getElementById('shareUrlInput');
+    const closeShareModalBtn = document.getElementById('closeShareModalBtn');
+    const shareBaseUrlInput = document.getElementById('shareBaseUrlInput');
+    const patternInput = document.getElementById('patternInput');
+    const nStartInput = document.getElementById('nStart');
+    const nEndInput = document.getElementById('nEnd');
+    const testPatternBtn = document.getElementById('testPatternBtn');
+    const patternResultsEl = document.getElementById('patternResults');
+    const PREDEFINED_COLORS = {'1':{bg:'#dbe4f0',border:'#b2bdd1'},'2':{bg:'#ff8787',border:'#e06a6a'},'3':{bg:'#74c0fc',border:'#5d9ad9'},'5':{bg:'#ffd43b',border:'#c8a62d'},'7':{bg:'#da77f2',border:'#b561cc'},'11':{bg:'#69db7c',border:'#52a960'},'13':{bg:'#ff922b',border:'#c87121'},'17':{bg:'#20c997',border:'#19a179'},'19':{bg:'#91a7ff',border:'#7486cc'}};
+    function getColorForPrime(prime){const pStr=prime.toString();if(PREDEFINED_COLORS[pStr])return PREDEFINED_COLORS[pStr];const hue=(Number(prime.mod(360).valueOf())*37)%360;return{bg:`hsl(${hue}, 70%, 70%)`,border:`hsl(${hue}, 60%, 50%)`};}
+    function makeRowShape(prime,anchorX,anchorY){const n=Number(prime.valueOf());const cells=[];for(let i=0;i<n;i++)cells.push({x:anchorX+i,y:anchorY});return{prime:bigInt(prime),orientation:'h',anchor:{x:anchorX,y:anchorY},cells};}
+    function rebuildCellsForBlock(block){const n=block.cells.length;const ax=block.anchor.x,ay=block.anchor.y;const arr=[];if(block.orientation==='h'){for(let i=0;i<n;i++)arr.push({x:ax+i,y:ay});}else{for(let i=0;i<n;i++)arr.push({x:ax,y:ay+i});}block.cells=arr;}
+    function rotateBlock(block){block.orientation=(block.orientation==='h')?'v':'h';rebuildCellsForBlock(block);}
+    function isPrime(n){n=bigInt(n);if(n.leq(1))return false;if(n.leq(3))return true;if(n.isEven()||n.mod(3).isZero())return false;let i=bigInt(5);while(i.multiply(i).leq(n)){if(n.mod(i).isZero()||n.mod(i.add(2)).isZero())return false;i=i.add(6);}return true;}
+    function getPrimeFactors(num){let n=bigInt(num);const factors=[];if(n.leq(1))return factors;while(n.isEven()){factors.push(bigInt(2));n=n.divide(2);}for(let i=bigInt(3);i.multiply(i).leq(n);i=i.add(2)){while(n.mod(i).isZero()){factors.push(i);n=n.divide(i);}}if(n.gt(1)){factors.push(n);}return factors;}
+    function renderPrimePanel(target){let targetNum;try{targetNum=bigInt(String(target).trim());if(targetNum.lt(2))targetNum=bigInt(2);}catch(e){targetNum=bigInt(13);}const primesToShow=new Set();const NUM_PRIMES_BEFORE=2,NUM_PRIMES_AFTER=4;if(isPrime(targetNum)){primesToShow.add(targetNum.toString());}let current=targetNum.prev();let foundBefore=0;while(foundBefore<NUM_PRIMES_BEFORE&&current.greater(1)){if(isPrime(current)){primesToShow.add(current.toString());foundBefore++;}current=current.prev();}current=targetNum.next();let foundAfter=0;const searchLimit=current.add(500);while(foundAfter<NUM_PRIMES_AFTER&&current.lt(searchLimit)){if(isPrime(current)){primesToShow.add(current.toString());foundAfter++;}current=current.next();}const finalPrimes=Array.from(new Set(["1","2",...primesToShow])).map(s=>bigInt(s)).sort((a,b)=>a.compareTo(b));panelRow.innerHTML='';const useColors=colorCodeToggle.checked;finalPrimes.forEach(p=>{const el=document.createElement('div');el.className='prime-block';el.textContent=String(p);el.dataset.prime=String(p);if(useColors){const colors=getColorForPrime(p);el.style.backgroundColor=colors.bg;el.style.borderColor=colors.border;}else{el.style.backgroundColor='';el.style.borderColor='';}panelRow.appendChild(el);el.addEventListener('pointerdown',(ev)=>{ev.preventDefault();if(arrangeFactorsToggle.checked)return;draggingFromPanel={pointerId:ev.pointerId,prime:bigInt(String(p)),clientX:ev.clientX,clientY:ev.clientY,gridX:0,gridY:0,overCanvas:false};window.addEventListener('pointermove',panelPointerMove);window.addEventListener('pointerup',panelPointerUp);});});}
+    function isOverTrash(clientX,clientY){const rect=trashCan.getBoundingClientRect();return(clientX>=rect.left&&clientX<=rect.right&&clientY>=rect.top&&clientY<=rect.bottom);}
+    function panelPointerMove(e){if(!draggingFromPanel||e.pointerId!==draggingFromPanel.pointerId)return;draggingFromPanel.clientX=e.clientX;draggingFromPanel.clientY=e.clientY;const rect=canvas.getBoundingClientRect();draggingFromPanel.overCanvas=(e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom);if(draggingFromPanel.overCanvas){const{gx,gy}=shared.clientToGrid(e.clientX,e.clientY);draggingFromPanel.gridX=Math.round(gx);draggingFromPanel.gridY=Math.round(gy);}trashCan.classList.toggle('over-trash',isOverTrash(e.clientX,e.clientY));e.preventDefault();}
+    function panelPointerUp(e){if(!draggingFromPanel||e.pointerId!==draggingFromPanel.pointerId)return;if(draggingFromPanel.overCanvas&&!isOverTrash(e.clientX,e.clientY)){placedBlocks.push(makeRowShape(draggingFromPanel.prime,draggingFromPanel.gridX,draggingFromPanel.gridY));updateComposite();}trashCan.classList.remove('over-trash');draggingFromPanel=null;window.removeEventListener('pointermove',panelPointerMove);window.removeEventListener('pointerup',panelPointerUp);}
+    function getNumberProperties(factors){if(factors.length===0)return{totalFactors:0,uniqueFactors:0,classifications:[]};const counts=new Map();for(const p of factors){const pStr=p.toString();counts.set(pStr,(counts.get(pStr)||0)+1);}const classifications=[];const exponents=Array.from(counts.values());if(exponents.every(e=>e%2===0))classifications.push('Perfect Square');if(exponents.every(e=>e%3===0))classifications.push('Perfect Cube');return{totalFactors:factors.length,uniqueFactors:counts.size,classifications};}
+    function getDivisors(n){const divisors=[];for(let i=1;i*i<=n;i++){if(n%i===0){divisors.push(i);if(i*i!==n)divisors.push(n/i);}}return divisors;}
+    function arrangeFactors(){if(!arrangeFactorsToggle.checked||placedBlocks.length===0)return;let totalCells=0;placedBlocks.forEach(b=>totalCells+=b.cells.length);const divisors=getDivisors(totalCells);let bestFit={w:totalCells,h:1,diff:totalCells-1};divisors.forEach(d=>{const other=totalCells/d;if(Math.abs(d-other)<bestFit.diff)bestFit={w:Math.max(d,other),h:Math.min(d,other),diff:Math.abs(d-other)};});const{w,h}=bestFit;const grid=Array(h).fill().map(()=>Array(w).fill(false));placedBlocks.sort((a,b)=>b.prime.compareTo(a.prime));for(const block of placedBlocks){let placed=false;for(let r=0;r<h;r++){for(let c=0;c<w;c++){if(grid[r][c])continue;block.orientation='h';rebuildCellsForBlock(block);let canPlaceH=(c+block.cells.length<=w);if(canPlaceH){for(let i=0;i<block.cells.length;i++)if(grid[r][c+i]){canPlaceH=false;break;}}if(canPlaceH){block.anchor.x=c;block.anchor.y=r;rebuildCellsForBlock(block);for(let i=0;i<block.cells.length;i++)grid[r][c+i]=true;placed=true;break;}block.orientation='v';rebuildCellsForBlock(block);let canPlaceV=(r+block.cells.length<=h);if(canPlaceV){for(let i=0;i<block.cells.length;i++)if(grid[r+i][c]){canPlaceV=false;break;}}if(canPlaceV){block.anchor.x=c;block.anchor.y=r;rebuildCellsForBlock(block);for(let i=0;i<block.cells.length;i++)grid[r+i][c]=true;placed=true;break;}}if(placed)break;}if(!placed){block.anchor.x=0;block.anchor.y=0;rebuildCellsForBlock(block);}}}
+    function updateComposite(){if(arrangeFactorsToggle.checked)arrangeFactors();let prod=bigInt(1),sum=bigInt(0);const primeFactors=[];placedBlocks.forEach(b=>{prod=prod.multiply(b.prime);sum=sum.add(b.prime);primeFactors.push(b.prime);});compositeEl.innerHTML=`Composite: ${prod.toString()} <span style="font-weight: normal; color: #555;">[Sum: ${sum.toString()}]</span>`;const properties=getNumberProperties(primeFactors);let infoHtml=`<div><span class="info-prop">Total Factors:</span> ${properties.totalFactors} | <span class="info-prop">Unique:</span> ${properties.uniqueFactors}</div>`;if(properties.classifications.length>0)infoHtml+=`<div><span class="info-prop">Classification:</span> ${properties.classifications.join(', ')}</div>`;numberInfoEl.innerHTML=infoHtml;const target=bigInt(String(targetInput.value.trim()||"0"));document.body.style.background=(!target.isZero()&&prod.equals(target))?'#043':'';}
+    function serializeState(){return placedBlocks.map(b=>`${b.prime.toString()},${b.anchor.x},${b.anchor.y},${b.orientation}`).join(';');}
+    function deserializeAndLoadState(stateString){if(typeof stateString!=='string'||!stateString)return false;try{const newBlocks=[];stateString.split(';').forEach(blockStr=>{if(!blockStr)return;const parts=blockStr.split(',');if(parts.length!==4)return;const newBlock=makeRowShape(bigInt(parts[0]),parseInt(parts[1],10),parseInt(parts[2],10));if(parts[3]==='v')rotateBlock(newBlock);newBlocks.push(newBlock);});placedBlocks=newBlocks;}catch(e){console.error("Failed to parse state string:",e);return false;}updateComposite();return true;}
+    function loadStateFromURL(){if(window.location.hash){try{deserializeAndLoadState(atob(window.location.hash.substring(1)));}catch(e){console.error("Failed to load state from URL hash:",e);window.location.hash='';}}}
+    targetInput.addEventListener('input',updateComposite);
+    autoFactorBtn.addEventListener('click',()=>{if(challengeModeToggle.checked)return;try{const targetNum=bigInt(String(targetInput.value.trim()));if(targetNum.lt(2)){placedBlocks=[];updateComposite();return;};const factors=getPrimeFactors(targetNum);placedBlocks=factors.map(f=>makeRowShape(f,0,0));updateComposite();}catch(e){console.error("Invalid number for auto-factoring:",e);}});
+    clearAllBtn.addEventListener('click',()=>{placedBlocks=[];updateComposite();if(!challengeModeToggle.checked)window.location.hash='';});
+    shareBtn.addEventListener('click',()=>{let baseUrl=shareBaseUrlInput.value.trim().split('#')[0]||window.location.href.split('#')[0];const finalUrl=baseUrl+'#'+btoa(serializeState());shareUrlInput.value=finalUrl;shareModal.style.display='block';shareUrlInput.select();try{document.execCommand('copy');shareBtn.textContent='Copied!';setTimeout(()=>{shareBtn.textContent='Share';},2000);}catch(err){console.error('Could not copy text: ',err);}});
+    closeShareModalBtn.addEventListener('click',()=>{shareModal.style.display='none';});
+    shareBaseUrlInput.addEventListener('keyup',(ev)=>{if(ev.key==='Enter'){const parts=shareBaseUrlInput.value.split('#');if(parts.length>1&&parts[1]){try{const success=deserializeAndLoadState(atob(parts[1]));if(success){window.location.hash=parts[1];shareBaseUrlInput.value='';shareBaseUrlInput.classList.remove('error');}else{shareBaseUrlInput.classList.add('error');setTimeout(()=>shareBaseUrlInput.classList.remove('error'),1000);}}catch(e){shareBaseUrlInput.classList.add('error');setTimeout(()=>shareBaseUrlInput.classList.remove('error'),1000);}}}});
+    const generateNewPrimes=()=>renderPrimePanel(primeSelectorInput.value);
+    getPrimesBtn.addEventListener('click',generateNewPrimes);
+    primeSelectorInput.addEventListener('keyup',(ev)=>{if(ev.key==='Enter')generateNewPrimes();});
+    colorCodeToggle.addEventListener('change',()=>renderPrimePanel(primeSelectorInput.value));
+    function startNewChallenge(){const primes=[2,3,5,7,11,13,2,3,5];let challengeNumber=primes[Math.floor(Math.random()*primes.length)]*primes[Math.floor(Math.random()*primes.length)];if(Math.random()>0.6)challengeNumber*=primes[Math.floor(Math.random()*primes.length)];targetInput.value=challengeNumber;placedBlocks=[];updateComposite();}
+    newChallengeBtn.addEventListener('click',startNewChallenge);
+    challengeModeToggle.addEventListener('change',(ev)=>{const isEnabled=ev.target.checked;targetInput.readOnly=isEnabled;autoFactorBtn.disabled=isEnabled;newChallengeBtn.style.display=isEnabled?'inline-block':'none';if(isEnabled)startNewChallenge();else{targetInput.value='100';placedBlocks=[];updateComposite();}});
+    arrangeFactorsToggle.addEventListener('change',updateComposite);
+    function safeCalculate(expression,n){const jsExpression=expression.replace(/[^0-9n\+\-\*\/\^\(\)\s]/g,'').replace(/\^/g,'**');try{return bigInt(new Function('n','return '+jsExpression)(bigInt(n)));}catch(e){console.error("Pattern evaluation error:",e);return null;}}
+    testPatternBtn.addEventListener('click',()=>{patternResultsEl.innerHTML='';const formula=patternInput.value;const nStart=parseInt(nStartInput.value,10),nEnd=parseInt(nEndInput.value,10);if(isNaN(nStart)||isNaN(nEnd)||nStart>nEnd){patternResultsEl.textContent='Invalid range.';return;}const formulas=formula.includes('±')?[formula.replace('±','+'),formula.replace('±','-')]:[formula];for(let i=nStart;i<=nEnd;i++){formulas.forEach((f,idx)=>{const result=safeCalculate(f,i);if(result!==null&&result.gt(0)){const isP=isPrime(result);const line=document.createElement('div');line.className='result-line';let formulaPart=`f(${i})`+(formulas.length>1?(idx===0?` (+) = ${result}`:` (-) = ${result}`):` = ${result}`);const formulaSpan=document.createElement('span');formulaSpan.textContent=formulaPart;const statusSpan=document.createElement('span');const statusText=document.createElement('span');statusText.className=isP?'result-prime':'result-composite';statusText.textContent=isP?'Prime':'Composite';statusSpan.appendChild(statusText);if(isP&&result.lt(100)){const addButton=document.createElement('button');addButton.innerHTML=`+`;addButton.className='action-btn add-to-grid-btn';addButton.title='Add this prime to the grid';addButton.onclick=(e)=>{e.stopPropagation();if(arrangeFactorsToggle.checked)placedBlocks.push(makeRowShape(result,0,0));else{const center=shared.clientToGrid(canvas.clientWidth/2,canvas.clientHeight/2);placedBlocks.push(makeRowShape(result,center.gx,center.gy));}updateComposite();};statusSpan.appendChild(addButton);}line.appendChild(formulaSpan);line.appendChild(statusSpan);patternResultsEl.appendChild(line);}});}});
+    const ICONS={controls:`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,pattern:`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.02 5.02a8 8 0 0 0-9.04 9.04"></path><path d="M18.98 18.98a8 8 0 0 0-9.04-9.04"></path><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>`,blocks:`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,minimize:`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`};
+    document.querySelectorAll('.panel-toggle-btn').forEach(btn=>{const panel=btn.closest('.ui-panel');const iconType=btn.dataset.icon;btn.innerHTML=panel.classList.contains('collapsed')?ICONS[iconType]:ICONS.minimize;btn.addEventListener('click',()=>{const isCollapsed=panel.classList.toggle('collapsed');btn.innerHTML=isCollapsed?ICONS[iconType]:ICONS.minimize;});});
+
+    return {
+        init: () => { loadStateFromURL(); renderPrimePanel(primeSelectorInput.value); if (placedBlocks.length === 0) updateComposite(); window.addEventListener('resize', updateComposite); },
+        updateComposite,
+        draw: () => { const cssW = canvas.clientWidth, cssH = canvas.clientHeight; const startCol = Math.floor((-offsetX) / (GRID_SIZE * scale)) - 2; const endCol = Math.ceil((cssW - offsetX) / (GRID_SIZE * scale)) + 2; const startRow = Math.floor((-offsetY) / (GRID_SIZE * scale)) - 2; const endRow = Math.ceil((cssH - offsetY) / (GRID_SIZE * scale)) + 2; ctx.lineWidth = 1 / scale; ctx.strokeStyle = '#123233'; for(let c = startCol; c <= endCol; c++){ const x = c * GRID_SIZE; ctx.beginPath(); ctx.moveTo(x + 0.5/scale, startRow*GRID_SIZE); ctx.lineTo(x + 0.5/scale, endRow*GRID_SIZE); ctx.stroke(); } for(let r = startRow; r <= endRow; r++){ const y = r * GRID_SIZE; ctx.beginPath(); ctx.moveTo(startCol*GRID_SIZE, y + 0.5/scale); ctx.lineTo(endCol*GRID_SIZE, y + 0.5/scale); ctx.stroke(); } const useColors = colorCodeToggle.checked; for(const block of placedBlocks){ if (useColors) { const colors = getColorForPrime(block.prime); ctx.fillStyle = colors.bg; ctx.strokeStyle = colors.border; } else { ctx.fillStyle = 'rgba(0,255,102,1)'; ctx.strokeStyle = 'rgba(0,34,12,1)'; } for(const cell of block.cells){ const x = cell.x * GRID_SIZE, y = cell.y * GRID_SIZE; ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE); ctx.strokeRect(x, y, GRID_SIZE, GRID_SIZE); } const mid = Math.floor(block.cells.length/2), mc = block.cells[mid]; ctx.fillStyle = '#000'; ctx.font = `${Math.max(12, GRID_SIZE*0.38)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (block.orientation === 'h') ctx.fillText(block.prime.toString(), (mc.x + 0.5) * GRID_SIZE, (mc.y + 0.5) * GRID_SIZE); else { ctx.save(); ctx.translate((mc.x + 0.5) * GRID_SIZE, (mc.y + 0.5) * GRID_SIZE); ctx.rotate(-Math.PI / 2); ctx.fillText(block.prime.toString(), 0, 0); ctx.restore(); } } if (movingBlockState) { const block = movingBlockState.block; if (useColors) { const colors = getColorForPrime(block.prime); ctx.fillStyle = colors.bg; ctx.strokeStyle = colors.border; } else { ctx.fillStyle = 'rgba(0,255,102,1)'; ctx.strokeStyle = 'rgba(0,34,12,1)'; } ctx.globalAlpha = 0.75; for(const cell of block.cells){ const x = cell.x * GRID_SIZE, y = cell.y * GRID_SIZE; ctx.fillRect(x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2); ctx.strokeRect(x + 1, y + 1, GRID_SIZE - 2, GRID_SIZE - 2); } const mid = Math.floor(block.cells.length/2), mc = block.cells[mid]; ctx.fillStyle = '#000'; ctx.fillText(block.prime.toString(), (mc.x + 0.5) * GRID_SIZE, (mc.y + 0.5) * GRID_SIZE); ctx.globalAlpha = 1.0; } if(draggingFromPanel && draggingFromPanel.overCanvas){ const n = Number(draggingFromPanel.prime.valueOf()), ax = draggingFromPanel.gridX, ay = draggingFromPanel.gridY; ctx.globalAlpha = isOverTrash(draggingFromPanel.clientX, draggingFromPanel.clientY) ? 0.2 : 0.65; if (useColors) { const colors = getColorForPrime(draggingFromPanel.prime); ctx.fillStyle = colors.bg; ctx.strokeStyle = colors.border; } else { ctx.fillStyle = 'rgba(0,200,120,0.95)'; ctx.strokeStyle = 'rgba(0,36,12,0.95)'; } for(let i=0;i<n;i++){ const cx = (ax + i) * GRID_SIZE, cy = ay * GRID_SIZE; ctx.fillRect(cx + 1, cy + 1, GRID_SIZE - 2, GRID_SIZE - 2); ctx.strokeRect(cx + 1, cy + 1, GRID_SIZE - 2, GRID_SIZE - 2); } ctx.globalAlpha = 1; ctx.fillStyle = '#000'; ctx.font = `${Math.max(12,GRID_SIZE*0.36)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const midCell = { x: ax + Math.floor(n/2), y: ay }; ctx.fillText(draggingFromPanel.prime.toString(), (midCell.x + 0.5) * GRID_SIZE, (midCell.y + 0.5) * GRID_SIZE); } },
+        pointerDown: (ev) => { if(draggingFromPanel && ev.pointerId === draggingFromPanel.pointerId) return; const { gx, gy } = shared.clientToGrid(ev.clientX, ev.clientY); for(let i = placedBlocks.length - 1; i >= 0; i--){ const block = placedBlocks[i]; if(block.cells.some(c => c.x === gx && c.y === gy)){ if (arrangeFactorsToggle.checked) lastTapCandidate = { pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY, time: Date.now(), block: block }; else { movingBlockState = { pointerId: ev.pointerId, block: block, originalIndex: i, offsetCellX: gx - block.anchor.x, offsetCellY: gy - block.anchor.y }; placedBlocks.splice(i, 1); lastTapCandidate = { pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY, time: Date.now() }; } try{ canvas.setPointerCapture(ev.pointerId); }catch(e){} return; } } lastTapCandidate = { pointerId: ev.pointerId, clientX: ev.clientX, clientY: ev.clientY, time: Date.now() }; try{ canvas.setPointerCapture(ev.pointerId); }catch(e){} },
+        pointerMove: (ev) => { if(draggingFromPanel && ev.pointerId === draggingFromPanel.pointerId) return true; if(movingBlockState && ev.pointerId === movingBlockState.pointerId){ const { gx, gy } = shared.clientToGrid(ev.clientX, ev.clientY); movingBlockState.block.anchor.x = gx - movingBlockState.offsetCellX; movingBlockState.block.anchor.y = gy - movingBlockState.offsetCellY; rebuildCellsForBlock(movingBlockState.block); updateComposite(); trashCan.classList.toggle('over-trash', isOverTrash(ev.clientX, ev.clientY)); return true; } return false; },
+        pointerUp: (ev) => { if(movingBlockState && lastTapCandidate && movingBlockState.pointerId === ev.pointerId && lastTapCandidate.pointerId === ev.pointerId){ const wasMoving = movingBlockState; movingBlockState = null; const dt = Date.now() - lastTapCandidate.time; const isTap = dt < 350 && (Math.abs(ev.clientX - lastTapCandidate.clientX) <= 8 && Math.abs(ev.clientY - lastTapCandidate.clientY) <= 8); if (isTap && !arrangeFactorsToggle.checked) { placedBlocks.push(wasMoving.block); rotateBlock(wasMoving.block); } else if (!isOverTrash(ev.clientX, ev.clientY)) { if (!arrangeFactorsToggle.checked) { wasMoving.block.anchor.x = Math.round(wasMoving.block.anchor.x); wasMoving.block.anchor.y = Math.round(wasMoving.block.anchor.y); rebuildCellsForBlock(wasMoving.block); } placedBlocks.push(wasMoving.block); } trashCan.classList.remove('over-trash'); updateComposite(); lastTapCandidate = null; return; } if(lastTapCandidate && lastTapCandidate.pointerId === ev.pointerId && arrangeFactorsToggle.checked){ const isTap = (Date.now() - lastTapCandidate.time) < 350 && (Math.abs(ev.clientX - lastTapCandidate.clientX) <= 8 && Math.abs(ev.clientY - lastTapCandidate.clientY) <= 8); if(isTap && lastTapCandidate.block) { rotateBlock(lastTapCandidate.block); updateComposite(); } } lastTapCandidate = null; }
+    };
+})();
+
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+/* ---     PRIME EXPLORER (MODE 2)       --- */
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+const explorer = (() => {
+    let rect={x:2,y:2,w:0,h:0};let handles=[];let activeHandle=null;let isPanning=false;let fireworks=[];let isSuccessState=false;let totalBlocks=bigInt(1007),originalInput=bigInt(1007);let totalBase=null,totalExponent=null,totalMultiplication=null,totalAddition=null;let exactWidth=bigInt(0),exactHeight=bigInt(0);let isBigNumberMode=false;const logarithmicThreshold=75;const valueInput=document.getElementById('valueInput');const statusDiv=document.getElementById('status');const totalBlocksDisplay=document.getElementById('totalBlocksDisplay');const infoWidth=document.getElementById('width');const infoHeight=document.getElementById('height');const infoBlocks=document.getElementById('blocks');const infoModRemainder=document.getElementById('modRemainder');const labelTotalBlocks=document.getElementById('labelTotalBlocks');const labelBlocksRemaining=document.getElementById('labelBlocksRemaining');const labelModRemainder=document.getElementById('labelModRemainder');const infoSlope=document.getElementById('slope');const infoAngle=document.getElementById('angle');const infoCenterPoint=document.getElementById('centerPoint');const widthPrimeEl=document.getElementById('widthPrime');const heightPrimeEl=document.getElementById('heightPrime');const primeToggleEl=document.getElementById('primeToggle');let synth=null,reverb=null;async function initializeAudio(){try{await Tone.start();synth=new Tone.PolySynth(Tone.Synth,{oscillator:{type:"sine"},envelope:{attack:0.05,decay:0.2,sustain:0.1,release:0.5}}).toDestination();reverb=new Tone.Reverb(2).toDestination();synth.connect(reverb);}catch(e){console.error("Audio initialization failed:",e);}}
+    function playSynthChord(){if(!synth)return;const now=Tone.now();const chord=["C4","E4","G4"];synth.triggerAttackRelease(chord,"8n",now);synth.triggerAttackRelease(chord,"8n",now+0.2);synth.triggerAttackRelease(chord,"8n",now+0.4);}
+    const FIREWORK_COUNT=300,FIREWORK_LIFETIME=240,FIREWORK_MAX_VELOCITY_FACTOR=0.02;function createFireworks(){fireworks=[];const maxVel=Math.max(canvas.width,canvas.height)*FIREWORK_MAX_VELOCITY_FACTOR;for(let i=0;i<FIREWORK_COUNT;i++)fireworks.push({x:canvas.width/2,y:canvas.height/2,vx:(Math.random()-0.5)*maxVel,vy:(Math.random()-0.5)*maxVel,radius:5,color:`hsl(${Math.random()*360}, 100%, 50%)`,alpha:1,life:FIREWORK_LIFETIME});}
+    function drawFireworks(){for(let i=fireworks.length-1;i>=0;i--){let p=fireworks[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.alpha-=1/FIREWORK_LIFETIME;p.life--;if(p.life<=0){fireworks.splice(i,1);continue;}ctx.fillStyle=p.color;ctx.globalAlpha=p.alpha;ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;}
+    function customSqrt(n){if(n.isNegative())return bigInt(-1);if(n.leq(1))return n;let x=n.divide(2),y=n.divide(x);while(x.greater(y)){x=x.add(y).divide(2);y=n.divide(x);}return x.times(x).greater(n)?x.minus(1):x;}
+    function dist(x1,y1,x2,y2){return Math.hypot(x2-x1,y2-y1);}
+    const PRIME_CHECK_LIMIT=bigInt("1000000000000");const SMALL_PRIMES=[2,3,5,7,11,13,17,19,23,29,31];const MR_BASES=[2,3,5,7,11];const primeCache=new Map();function millerRabin(n){if(n.lesser(2))return false;if(n.equals(2))return true;if(n.isEven())return false;let d=n.minus(1),s=0;while(d.isEven()){d=d.divide(2);s++;}for(const a of MR_BASES){const A=bigInt(a);if(A.greaterOrEquals(n))continue;let x=A.modPow(d,n);if(x.equals(1)||x.equals(n.minus(1)))continue;let cont=false;for(let r=1;r<s;r++){x=x.multiply(x).mod(n);if(x.equals(n.minus(1))){cont=true;break;}}if(!cont)return false;}return true;}
+    function primeStatus(n){const key=n.toString();if(primeCache.has(key))return primeCache.get(key);if(n.lesser(2)){primeCache.set(key,"composite");return"composite";}if(n.greater(PRIME_CHECK_LIMIT)){primeCache.set(key,"too-large");return"too-large";}for(const p of SMALL_PRIMES){const bp=bigInt(p);if(n.equals(bp)){primeCache.set(key,"prime");return"prime";}if(n.mod(bp).isZero()){primeCache.set(key,"composite");return"composite";}}const res=millerRabin(n)?"prime":"composite";primeCache.set(key,res);return res;}
+    function setPrimeBadge(el,status){if(!el)return;if(status==="prime"){el.textContent="Prime";el.className="badge green-text";}else if(status==="composite"){el.textContent="Composite";el.className="badge red-text";}else{el.textContent="Too large";el.className="badge gray-text";}}
+    let lastWidthStr="",lastHeightStr="";function updateInfo(){const blocksUsed=exactWidth.times(exactHeight);let isWidthDivisible=false,isHeightDivisible=false;if(!isBigNumberMode){isWidthDivisible=exactWidth.greater(0)&&originalInput.mod(exactWidth).isZero();isHeightDivisible=exactHeight.greater(0)&&originalInput.mod(exactHeight).isZero();}else if(totalBase!==null){if(exactWidth.greater(0)){let rem=totalMultiplication.mod(exactWidth).multiply(totalBase.modPow(totalExponent,exactWidth)).plus(totalAddition).mod(exactWidth);if(rem.isNegative())rem=rem.add(exactWidth);isWidthDivisible=rem.isZero();}if(exactHeight.greater(0)){let rem=totalMultiplication.mod(exactHeight).multiply(totalBase.modPow(totalExponent,exactHeight)).plus(totalAddition).mod(exactHeight);if(rem.isNegative())rem=rem.add(exactHeight);isHeightDivisible=rem.isZero();}}infoWidth.className=isWidthDivisible?"green-text":"red-text";infoHeight.className=isHeightDivisible?"green-text":"red-text";if(isBigNumberMode){labelTotalBlocks.style.display='inline';labelBlocksRemaining.style.display='none';labelModRemainder.style.display='inline';infoBlocks.style.display='none';infoModRemainder.style.display='inline';let baseStr=totalBase.toString(),multStr=totalMultiplication.toString();let addStr=totalAddition.isNegative()?" - 1":totalAddition.isZero()?"":" + "+totalAddition.toString();totalBlocksDisplay.innerText=(multStr==="1")?`${baseStr}^${shared.formatNumberWithCommas(totalExponent)}${addStr}`:`${multStr}*${baseStr}^${shared.formatNumberWithCommas(totalExponent)}${addStr}`;if(blocksUsed.isZero())infoModRemainder.innerText="N/A";else{let totalRemainder=totalMultiplication.mod(blocksUsed).multiply(totalBase.modPow(totalExponent,blocksUsed)).plus(totalAddition).mod(blocksUsed);if(totalRemainder.isNegative())totalRemainder=totalRemainder.add(blocksUsed);infoModRemainder.innerText=shared.formatNumberWithCommas(totalRemainder);infoModRemainder.className=totalRemainder.isZero()?"green-text":"red-text";}}else{labelTotalBlocks.style.display='inline';labelBlocksRemaining.style.display='inline';labelModRemainder.style.display='none';infoBlocks.style.display='inline';infoModRemainder.style.display='none';totalBlocksDisplay.innerText=shared.formatNumberWithCommas(totalBlocks);const blocksRemaining=totalBlocks.minus(blocksUsed);infoBlocks.innerText=shared.formatNumberWithCommas(blocksRemaining);infoBlocks.className=blocksRemaining.isZero()?"green-text":"red-text";}infoWidth.innerText=shared.formatNumberWithCommas(exactWidth);infoHeight.innerText=shared.formatNumberWithCommas(exactHeight);infoSlope.innerText=(rect.h/rect.w).toFixed(2);infoAngle.innerText=(Math.atan2(rect.h,rect.w)*180/Math.PI).toFixed(1);infoCenterPoint.innerText=`(${(rect.x+rect.w/2).toFixed(2)}, ${(rect.y+rect.h/2).toFixed(2)})`;if(primeToggleEl.checked){const wStr=exactWidth.toString(),hStr=exactHeight.toString();if(wStr!==lastWidthStr){lastWidthStr=wStr;setPrimeBadge(widthPrimeEl,primeStatus(exactWidth));}if(hStr!==lastHeightStr){lastHeightStr=hStr;setPrimeBadge(heightPrimeEl,primeStatus(exactHeight));}}else{setPrimeBadge(widthPrimeEl,"too-large");setPrimeBadge(heightPrimeEl,"too-large");}}
+    function updateHandles(){handles=[{x:rect.x,y:rect.y,name:"tl"},{x:rect.x+rect.w,y:rect.y,name:"tr"},{x:rect.x,y:rect.y+rect.h,name:"bl"},{x:rect.x+rect.w,y:rect.y+rect.h,name:"br"}];}
+    function parseInput(inputString){const sanitized=inputString.replace(/\s/g,'');const prothPattern=/^(\d+)\*2\^(\d+)\+1$/,mersennePattern=/^2\^(\d+)-1$/,powerPattern=/^(\d+)\^(.+?)(?:\+(\d+))?$/;let match;if((match=sanitized.match(prothPattern))){const n=bigInt(match[2]);if(n.geq(logarithmicThreshold))return{type:'bigNumber',base:bigInt(2),exponent:n,multiplication:bigInt(match[1]),addition:bigInt(1)};return{type:'number',total:bigInt(match[1]).multiply(bigInt(2).pow(n)).plus(1)};}if((match=sanitized.match(mersennePattern))){const exp=bigInt(match[1]);if(exp.geq(logarithmicThreshold))return{type:'bigNumber',base:bigInt(2),exponent:exp,multiplication:bigInt(1),addition:bigInt(-1)};return{type:'number',total:bigInt(2).pow(exp).minus(1)};}if((match=sanitized.match(powerPattern))){const exp=bigInt(match[2]);if(exp.geq(logarithmicThreshold))return{type:'bigNumber',base:bigInt(match[1]),exponent:exp,multiplication:bigInt(1),addition:match[3]?bigInt(match[3]):bigInt(0)};return{type:'number',total:bigInt(match[1]).pow(exp).plus(match[3]?bigInt(match[3]):bigInt(0))};}return{type:'number',total:bigInt(sanitized)};}
+    function performCalculation(){statusDiv.innerText="Calculating...";try{const result=parseInput(valueInput.value);isBigNumberMode=(result.type==='bigNumber');if(isBigNumberMode){originalInput=bigInt(0);totalBase=result.base;totalExponent=result.exponent;totalMultiplication=result.multiplication;totalAddition=result.addition;totalBlocks=null;exactWidth=totalExponent;exactHeight=totalExponent;}else{originalInput=result.total;totalBase=null;totalExponent=null;totalMultiplication=null;totalAddition=null;totalBlocks=result.total;if(totalBlocks.isNegative()){statusDiv.innerText="Error: Input must be non-negative.";return;}const side=customSqrt(totalBlocks);exactWidth=side;exactHeight=side;}rect.w=exactWidth.valueOf();rect.h=exactHeight.valueOf();const padding=1.2;const requiredScaleX=canvas.width/(rect.w*GRID_SIZE*padding);const requiredScaleY=canvas.height/(rect.h*GRID_SIZE*padding);scale=Math.min(requiredScaleX,requiredScaleY);offsetX=(canvas.width/2)-((rect.x+rect.w/2)*GRID_SIZE*scale);offsetY=(canvas.height/2)-((rect.y+rect.h/2)*GRID_SIZE*scale);updateHandles();statusDiv.innerText="Calculation complete.";}catch(error){statusDiv.innerText="Error: Invalid input format.";}}
+    valueInput.addEventListener('keyup',(ev)=>{if(ev.key==='Enter')performCalculation();});
+
+    return {
+        init: () => { initializeAudio(); performCalculation(); },
+        performCalculation,
+        draw: () => { let isWidthDivisible=false, isHeightDivisible=false; if (!isBigNumberMode) { isWidthDivisible=exactWidth.greater(0) && originalInput.mod(exactWidth).isZero(); isHeightDivisible=exactHeight.greater(0) && originalInput.mod(exactHeight).isZero(); } else if (totalBase !== null) { if (exactWidth.greater(0)) { let rem=totalMultiplication.mod(exactWidth).multiply(totalBase.modPow(totalExponent, exactWidth)).plus(totalAddition).mod(exactWidth); if (rem.isNegative()) rem = rem.add(exactWidth); isWidthDivisible=rem.isZero(); } if (exactHeight.greater(0)) { let rem=totalMultiplication.mod(exactHeight).multiply(totalBase.modPow(totalExponent, exactHeight)).plus(totalAddition).mod(exactHeight); if (rem.isNegative()) rem=rem.add(exactHeight); isHeightDivisible=rem.isZero(); } } const blocksMatch=isBigNumberMode ? (infoModRemainder.className==='green-text' && !infoModRemainder.innerText.includes('N/A')) : exactWidth.times(exactHeight).equals(originalInput); const bothFactors=isWidthDivisible && isHeightDivisible && blocksMatch; const oneFactor = isWidthDivisible ^ isHeightDivisible; if (bothFactors) { canvas.style.backgroundColor="lime"; if (!isSuccessState) { createFireworks(); playSynthChord(); isSuccessState=true; } } else if (oneFactor) { canvas.style.backgroundColor="yellow"; isSuccessState=false; } else { canvas.style.backgroundColor="#fff"; isSuccessState=false; } drawFireworks(); const minX=-offsetX/scale/GRID_SIZE, maxX=(canvas.width-offsetX)/scale/GRID_SIZE; const minY=-offsetY/scale/GRID_SIZE, maxY=(canvas.height-offsetY)/scale/GRID_SIZE; const isLogarithmic=(isBigNumberMode && totalExponent.geq(logarithmicThreshold)); ctx.strokeStyle="#ddd"; ctx.lineWidth=1/scale; const xScale=isLogarithmic ? d3.scaleLog().domain([Math.max(1, minX), maxX]).range([Math.max(1, minX), maxX]) : d3.scaleLinear().domain([minX, maxX]).range([minX, maxX]); const yScale=isLogarithmic ? d3.scaleLog().domain([Math.max(1, minY), maxY]).range([Math.max(1, minY), maxY]) : d3.scaleLinear().domain([minY, maxY]).range([minY, maxY]); xScale.ticks().forEach(tick => { ctx.beginPath(); ctx.moveTo(tick * GRID_SIZE, minY * GRID_SIZE); ctx.lineTo(tick * GRID_SIZE, maxY * GRID_SIZE); ctx.stroke(); }); yScale.ticks().forEach(tick => { ctx.beginPath(); ctx.moveTo(minX * GRID_SIZE, tick * GRID_SIZE); ctx.lineTo(maxX * GRID_SIZE, tick * GRID_SIZE); ctx.stroke(); }); ctx.strokeStyle="blue"; ctx.lineWidth=2/scale; ctx.strokeRect(rect.x*GRID_SIZE,rect.y*GRID_SIZE,rect.w*GRID_SIZE,rect.h*GRID_SIZE); ctx.strokeStyle="red"; ctx.beginPath(); ctx.moveTo(rect.x*GRID_SIZE,rect.y*GRID_SIZE); ctx.lineTo((rect.x+rect.w)*GRID_SIZE,(rect.y+rect.h)*GRID_SIZE); ctx.stroke(); ctx.strokeStyle="green"; ctx.beginPath(); ctx.moveTo((rect.x+rect.w)*GRID_SIZE,rect.y*GRID_SIZE); ctx.lineTo(rect.x*GRID_SIZE,(rect.y+rect.h)*GRID_SIZE); ctx.stroke(); if (!isBigNumberMode && totalBlocks.greater(0)) { const side=customSqrt(totalBlocks); ctx.strokeStyle="yellow"; ctx.lineWidth=2/scale; ctx.setLineDash([10/scale,10/scale]); ctx.strokeRect(rect.x*GRID_SIZE,rect.y*GRID_SIZE,side.valueOf()*GRID_SIZE,side.valueOf()*GRID_SIZE); ctx.setLineDash([]); } let handleSize=Math.max(10,10/scale); for(let h of handles){ ctx.fillStyle=(activeHandle && activeHandle.name===h.name) ? "blue":"orange"; ctx.fillRect(h.x*GRID_SIZE-handleSize/2,h.y*GRID_SIZE-handleSize/2,handleSize,handleSize); } updateInfo(); },
+        pointerDown: (ev) => { let mx=(ev.clientX -offsetX)/scale, my=(ev.clientY-offsetY)/scale; for (let h of handles) { if (dist(mx,my,h.x*GRID_SIZE,h.y*GRID_SIZE) < Math.max(20, 20/scale)) { activeHandle=h; return; } } isPanning=true; },
+        pointerMove: (ev) => { if (activeHandle) { let mx=(ev.clientX-offsetX)/scale/GRID_SIZE; let my=(ev.clientY-offsetY)/scale/GRID_SIZE; if (activeHandle.name==="tl") { rect.w=rect.w+rect.x-mx; rect.h=rect.h+rect.y-my; rect.x=mx; rect.y=my; } else if (activeHandle.name==="tr") { rect.w=mx-rect.x; rect.h=rect.h+rect.y-my; rect.y=my; } else if (activeHandle.name==="bl") { rect.w=rect.w+rect.x-mx; rect.x=mx; rect.h=my-rect.y; } else if (activeHandle.name==="br") { rect.w=mx-rect.x; rect.h=my-rect.y; const panThresholdX=canvas.clientWidth*0.10, panThresholdY=canvas.clientHeight*0.10, panSpeed=1.5; if (ev.clientX < panThresholdX) offsetX += (panThresholdX-ev.clientX)*panSpeed; if (ev.clientX > canvas.clientWidth - panThresholdX) offsetX -= (ev.clientX-(canvas.clientWidth-panThresholdX))*panSpeed; if (ev.clientY > canvas.clientHeight - panThresholdY) offsetY -= (ev.clientY-(canvas.clientHeight-panThresholdY))*panSpeed; } rect.w=Math.max(1, rect.w); rect.h=Math.max(1, rect.h); exactWidth=bigInt(Math.round(rect.w)); exactHeight=bigInt(Math.round(rect.h)); updateHandles(); return true; } return false; },
+        pointerUp: (ev) => { if (activeHandle) { rect.w=Math.round(rect.w); rect.h=Math.round(rect.h); exactWidth=bigInt(rect.w); exactHeight=bigInt(rect.h); updateHandles(); } activeHandle=null; isPanning=false; }
+    };
+})();
+
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+/* ---      FACTOR HUNTER (MODE 3)       --- */
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+const hunter = (() => {
+    const baseInput=document.getElementById('baseInput');const exponentInput=document.getElementById('exponentInput');const addendInput=document.getElementById('addendInput');const divisorInput=document.getElementById('divisorInput');const minLimitInput=document.getElementById('minLimitInput');const maxLimitInput=document.getElementById('maxLimitInput');const chunkSizeInput=document.getElementById('chunkSizeInput');const kMultipleInput=document.getElementById('kMultiple');const kAddendInput=document.getElementById('kAddend');const algebraicCheck=document.getElementById('algebraicCheck');const suggestFilterButton=document.getElementById('suggestFilterButton');const verifyButton=document.getElementById('verifyButton');const quickCheckButton=document.getElementById('quickCheckButton');const checkWorkerButton=document.getElementById('checkWorkerButton');const autoRunButton=document.getElementById('autoRunButton');const stopButton=document.getElementById('stopButton');const autoRepeatCheck=document.getElementById('autoRepeatCheck');const progressBar=document.getElementById('progressBar');const resultsDiv=document.getElementById('results');const logOutput=document.getElementById('logOutput');const factorsOutput=document.getElementById('factorsOutput');const copyFactorsButton=document.getElementById('copyFactorsButton');
+    let workerPool=[];const numWorkers=navigator.hardwareConcurrency||4;let activeWorkers=0;let isScanning=false;let foundFactors=new Set();let currentMin=0n;let workerProgress=new Array(numWorkers).fill(0);let workerChunks=new Array(numWorkers).fill(null);let totalScanned=0n;let totalRange=0n;
+    const SIEVE_THRESHOLD=1000000000000n;const MAX_CHUNK_FOR_SIEVE=10000000n;const TRIAL_DIVISION_LIMIT=1000;
+    function parseBigInt(str){if(!str)return 0n;str=str.replace(/\s/g,'');if(str.includes('+')){const terms=str.split('+');return terms.reduce((sum,term)=>sum+parseBigInt(term),0n);}if(str.includes('e')||str.includes('E')){const parts=str.toLowerCase().split('e');return BigInt(parts[0])*10n**BigInt(parts[1]);}return BigInt(str);}
+    function log(msg){logOutput.textContent+=msg+'\n';logOutput.scrollTop=logOutput.scrollHeight;}
+    function logFactor(factor){if(!foundFactors.has(factor.toString())){foundFactors.add(factor.toString());factorsOutput.textContent=Array.from(foundFactors).join('\n');}}
+    function setStatus(t){resultsDiv.textContent='Status: '+t;}
+    function setProgress(){if(totalRange<=0n){progressBar.style.width='0%';progressBar.textContent='0.00%';return;}const progressPercent=Math.min(100,Number(totalScanned*10000n/totalRange)/100);progressBar.style.width=progressPercent+'%';progressBar.textContent=progressPercent.toFixed(2)+'%';}
+    function powMod(base,exp,mod){let result=1n;base%=mod;while(exp>0n){if((exp&1n)===1n)result=(result*base)%mod;exp>>=1n;base=(base*base)%mod;}return result;}
+    function powModWithProgress(base,exp,mod,onProgress){let result=1n;base%=mod;const totalBits=exp.toString(2).length;let processedBits=0;while(exp>0n){if((exp&1n)===1n)result=(result*base)%mod;exp>>=1n;base=(base*base)%mod;processedBits++;if(onProgress&&processedBits%8===0)onProgress(processedBits/totalBits*100);}if(onProgress)onProgress(100);return result;}
+    function verify(){try{setStatus('Verifying divisor...');progressBar.style.width='0%';progressBar.textContent='0.00%';log('--- Single divisor verification ---');const a=parseBigInt(baseInput.value);const b=parseBigInt(exponentInput.value);const c=parseBigInt(addendInput.value);const d=parseBigInt(divisorInput.value);if(d<=0n)throw new Error('Divisor must be positive.');const remPow=powModWithProgress(a,b,d,p=>{progressBar.style.width=p*0.95+'%';progressBar.textContent=(p*0.95).toFixed(2)+'%';});const finalRem=(remPow+(c%d)+d)%d;log(`a^b mod d = ${remPow}`);log(`(a^b + c) mod d = ${finalRem}`);if(finalRem===0n){setStatus(`Divides exactly ✔`);log(`Result: 0 → ${d} divides a^b + c`);logFactor(d);}else{setStatus(`Not a factor ✖`);log(`Result: ${finalRem} → not divisible by ${d}`);}progressBar.style.width='100%';progressBar.textContent='100.00%';}catch(e){setStatus('Error');log('Error: '+e.message);}}
+    verifyButton.addEventListener('click',verify);
+    quickCheckButton.addEventListener('click',()=>{baseInput.value="10";exponentInput.value="1000000000";addendInput.value="19";divisorInput.value="5104699";verify();});
+    const workerCode=`function powMod(base, exp, mod) { let result = 1n; base %= mod; while (exp > 0n) { if ((exp & 1n) === 1n) result = (result * base) % mod; exp >>= 1n; base = (base * base) % mod; } return result; }
+    function legendreSymbol(a, p) { const ls = powMod(a, (p - 1n) >> 1n, p); if (ls === p - 1n) return -1; return Number(ls); }
+    function millerRabinTest(n, k = 5) { if (n <= 1n) return false; if (n <= 3n) return true; if ((n & 1n) === 0n) return false; let d = n - 1n; let r = 0n; while ((d & 1n) === 0n) { d >>= 1n; r++; } const witnesses = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n]; for (const a of witnesses) { if (a >= n) break; let x = powMod(a, d, n); if (x === 1n || x === n - 1n) continue; let composite = true; for (let j = 1n; j < r; j++) { x = powMod(x, 2n, n); if (x === n - 1n) { composite = false; break; } } if (composite) return false; } return true; }
+    function generateSmallPrimes(limit) { const isPrime = new Array(limit + 1).fill(true); isPrime[0] = isPrime[1] = false; for (let i = 2; i * i <= limit; i++) { if (isPrime[i]) { for (let j = i * i; j <= limit; j += i) isPrime[j] = false; } } return isPrime.reduce((p, v, i) => { if(v) p.push(BigInt(i)); return p; }, []); }
+    self.onmessage = e => { let { a, b, c, min, max, workerIndex, k_m, k_n } = e.data; a = BigInt(a); b = BigInt(b); c = BigInt(c); min = BigInt(min); max = BigInt(max); k_m = BigInt(k_m); k_n = BigInt(k_n); let primes = []; const useSieve = max < ${SIEVE_THRESHOLD}n && (max - min) < ${MAX_CHUNK_FOR_SIEVE}n; const bIsEven = (b & 1n) === 0n; const negC = -c;
+    if (useSieve) { const sqrtMax = BigInt(Math.ceil(Math.sqrt(Number(max < 1n << 53n ? max : 1n << 53n)))); const smallPrimes = generateSmallPrimes(Number(sqrtMax)); const rangeSize = Number(max - min + 1n); const isPrimeInRange = new Array(rangeSize).fill(true); if (min <= 1n) { if (min === 0n) { isPrimeInRange[0] = false; isPrimeInRange[1] = false; } else { isPrimeInRange[0] = false; } } for (const p of smallPrimes) { if (p * p > max) break; let start = (min / p) * p; if (start < min) start += p; if (start === p) start += p; for (let multiple = start; multiple <= max; multiple += p) { isPrimeInRange[Number(multiple - min)] = false; } } for (let i = 0; i < rangeSize; i++) { if (isPrimeInRange[i]) { primes.push(min + BigInt(i)); } } }
+    else { let current = min; const rangeInChunk = max - min; let lastProgress = -1; if ((current & 1n) === 0n) current++; const wheel = [2n, 4n, 2n, 4n, 6n, 2n, 6n, 4n, 2n, 4n, 6n, 6n, 2n, 6n, 4n, 2n, 6n, 4n, 6n, 8n, 4n, 2n, 4n, 2n, 4n, 8n, 6n, 4n, 6n, 2n, 4n, 6n, 2n, 6n, 6n, 4n, 2n, 4n, 6n, 2n, 6n, 4n, 2n, 4n, 2n, 10n, 2n, 10n]; let wheelIndex = 0; while(current <= max){ if (millerRabinTest(current)) primes.push(current); if (rangeInChunk > 0n) { const iterations = current - min; const progress = Number(iterations * 100n / rangeInChunk); if (progress > lastProgress) { self.postMessage({ type: 'progress', progress, workerIndex }); lastProgress = progress; } } current += wheel[wheelIndex]; wheelIndex = (wheelIndex + 1) % wheel.length; } }
+    let finalPrimes = primes; if (k_m > 0n) finalPrimes = finalPrimes.filter(p => (p - k_n) % k_m === 0n); if (bIsEven) finalPrimes = finalPrimes.filter(p => p === 2n || legendreSymbol(negC, p) !== -1); const numPrimes = finalPrimes.length; let lastProgress = useSieve ? -1 : 100;
+    for (let i = 0; i < numPrimes; i++) { const p = finalPrimes[i]; const rem = (powMod(a, b, p) + c) % p; if (rem === 0n) { self.postMessage({ type: 'factorFound', factor: p.toString() }); } if (useSieve) { const progress = Math.floor(((i + 1) / numPrimes) * 100) || 0; if (progress > lastProgress) { self.postMessage({ type: 'progress', progress, workerIndex }); lastProgress = progress; } } }
+    self.postMessage({ type: 'done', min: min.toString(), max: max.toString(), workerIndex }); };`;
+    function nthRoot(n, k) { if (n < 0n || k < 1n) return null; if (k === 1n) return n; let low = 1n; let high = n; while (low <= high) { const mid = (low + high) >> 1n; if (mid === 0n) { low = 1n; continue; } let power; try { power = mid ** k; } catch (e) { power = -1n; } if (power === n) { return mid; } else if (power > 0n && power < n) { low = mid + 1n; } else { high = mid - 1n; } } return null; }
+    async function checkAlgebraicFactors() { log('--- Checking for simple algebraic factors ---'); setStatus('Checking for algebraic factors...'); const a = parseBigInt(baseInput.value); const b = parseBigInt(exponentInput.value); const c = parseBigInt(addendInput.value); if (c > 0n && (b & 1n) === 1n) { const d = nthRoot(c, b); if (d !== null) { const factor = a + d; log(`Form a^b + d^b with odd b found (d=${d}). Factor: ${factor}`); logFactor(factor); } } if (c < 0n) { const c_abs = -c; const d = nthRoot(c_abs, b); if (d !== null) { const factor1 = a - d; log(`Form a^b - d^b found (d=${d}). Factor: ${factor1}`); logFactor(factor1); if ((b & 1n) === 0n) { const factor2 = a + d; log(`Exponent b is even. Additional factor: ${factor2}`); logFactor(factor2); } } } log('--- Algebraic check finished ---'); }
+    async function trialDivision() { log('--- Starting pre-computation: trial division ---'); setStatus(`Checking small primes up to ${TRIAL_DIVISION_LIMIT}...`); const limit = TRIAL_DIVISION_LIMIT; const isPrime = new Array(limit + 1).fill(true); isPrime[0] = isPrime[1] = false; for (let i = 2; i * i <= limit; i++) { if (isPrime[i]) { for (let j = i * i; j <= limit; j += i) isPrime[j] = false; } } const smallPrimes = []; for (let i = 2; i <= limit; i++) if (isPrime[i]) smallPrimes.push(BigInt(i)); const a = parseBigInt(baseInput.value); const b = parseBigInt(exponentInput.value); const c = parseBigInt(addendInput.value); for (const p of smallPrimes) { const rem = (powMod(a, b, p) + c) % p; if (rem === 0n) { log(`Small prime factor found: ${p}`); logFactor(p); } } log('--- Trial division finished ---'); }
+    function createWorker(workerIndex) { const worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' }))); worker.onmessage = handleWorkerMessage; worker.onerror = e => { setStatus('Worker error'); log(`Worker ${workerIndex} error: ${e.message}`); stopScan(true); }; workerPool[workerIndex] = worker; return worker; }
+    function handleWorkerMessage(e) { if (e.data.type === 'factorFound') { const factor = e.data.factor; setStatus(`Factor found: ${factor}`); log(`Factor found: ${factor}`); logFactor(factor); } else if (e.data.type === 'progress') { const workerIndex = e.data.workerIndex; const newProgress = e.data.progress; const lastProgress = workerProgress[workerIndex]; const chunkInfo = workerChunks[workerIndex]; if (chunkInfo && newProgress > lastProgress) { const progressDelta = BigInt(newProgress - lastProgress); const numbersScannedInDelta = (chunkInfo.size * progressDelta) / 100n; totalScanned += numbersScannedInDelta; workerProgress[workerIndex] = newProgress; setProgress(); } } else if (e.data.type === 'done') { const workerIndex = e.data.workerIndex; const lastProgress = workerProgress[workerIndex]; const chunkInfo = workerChunks[workerIndex]; if (chunkInfo && lastProgress < 100) { const progressDelta = BigInt(100 - lastProgress); const numbersScannedInDelta = (chunkInfo.size * progressDelta) / 100n; totalScanned += numbersScannedInDelta; } workerChunks[workerIndex] = null; setProgress(); assignNextChunk(e.data.workerIndex); } }
+    function assignNextChunk(workerIndex) { if (!isScanning || currentMin > parseBigInt(maxLimitInput.value)) { activeWorkers--; if (activeWorkers === 0) { setStatus('Scan complete or stopped.'); log('Scan complete or stopped.'); stopScan(); } return; } let chunkSize = parseBigInt(chunkSizeInput.value); if (parseBigInt(maxLimitInput.value) > SIEVE_THRESHOLD) { if (chunkSize > 100000000n) { chunkSize = 100000000n; } } else if (chunkSize > MAX_CHUNK_FOR_SIEVE) { chunkSize = MAX_CHUNK_FOR_SIEVE; } const chunkMin = currentMin; let chunkMax = currentMin + chunkSize - 1n; if (chunkMax > parseBigInt(maxLimitInput.value)) chunkMax = parseBigInt(maxLimitInput.value); workerProgress[workerIndex] = 0; workerChunks[workerIndex] = { size: chunkMax - chunkMin + 1n }; workerPool[workerIndex].postMessage({ a: baseInput.value, b: exponentInput.value, c: addendInput.value, min: chunkMin.toString(), max: chunkMax.toString(), workerIndex, k_m: kMultipleInput.value, k_n: kAddendInput.value }); currentMin = chunkMax + 1n; }
+    function updateRangeForRepeat() { const minVal = parseBigInt(minLimitInput.value); const maxVal = parseBigInt(maxLimitInput.value); const rangeSize = maxVal - minVal; const newMin = maxVal + 1n; const newMax = newMin + rangeSize; minLimitInput.value = newMin.toString(); maxLimitInput.value = newMax.toString(); log(`--- Auto Repeat: Updated range to [${newMin}, ${newMax}] ---`); }
+    async function startParallelScan(singleChunk = false, isAutoRepeat = false) { if (!isAutoRepeat) { stopScan(true); logOutput.textContent = 'Log:\n'; factorsOutput.textContent = ''; foundFactors.clear(); } else { log('\n--- Starting new auto-repeat scan ---'); } isScanning = true; checkWorkerButton.disabled = true; autoRunButton.disabled = true; stopButton.disabled = false; const b = parseBigInt(exponentInput.value); if ((b & 1n) === 0n) { log('Exponent is even. Activating Quadratic Reciprocity filter.'); } const k_m = parseBigInt(kMultipleInput.value); if (k_m > 0n) { log(`Advanced filter enabled: Searching for primes of the form k*${k_m} + ${parseBigInt(kAddendInput.value)}`); } if (algebraicCheck.checked) { await new Promise(resolve => setTimeout(resolve, 10)); await checkAlgebraicFactors(); } if (!isScanning) return; await new Promise(resolve => setTimeout(resolve, 10)); await trialDivision(); if (!isScanning) return; let minVal = parseBigInt(minLimitInput.value); if (minVal < 2n) minVal = 2n; if (minVal <= TRIAL_DIVISION_LIMIT) { log(`Adjusting scan start. Workers will begin scanning from ${TRIAL_DIVISION_LIMIT + 1}.`); minVal = BigInt(TRIAL_DIVISION_LIMIT + 1); } const maxVal = parseBigInt(maxLimitInput.value); totalScanned = 0n; totalRange = maxVal > minVal ? maxVal - minVal + 1n : 0n; workerChunks.fill(null); workerProgress.fill(0); setProgress(); currentMin = minVal; for (let i = 0; i < numWorkers; i++) { createWorker(i); } activeWorkers = numWorkers; setStatus(`Scanning with ${numWorkers} workers...`); for (let i = 0; i < numWorkers; i++) { if (singleChunk && i > 0) continue; assignNextChunk(i); } }
+    function stopScan(userInitiated = false) { if (!isScanning && !userInitiated) return; isScanning = false; workerPool.forEach(w => w.terminate()); workerPool = []; activeWorkers = 0; stopButton.disabled = true; checkWorkerButton.disabled = false; autoRunButton.disabled = false; if (resultsDiv.textContent.startsWith('Status: Scanning') || resultsDiv.textContent.startsWith('Status: Checking')) { setStatus('Stopped'); log('Scan stopped.'); } if (!userInitiated && autoRepeatCheck.checked && isFinite(Number(parseBigInt(maxLimitInput.value)))) { setStatus('Preparing next range...'); log('Auto Repeat: Preparing next range...'); updateRangeForRepeat(); setTimeout(() => startParallelScan(false, true), 100); } else { factorsOutput.textContent = Array.from(foundFactors).join('\n'); } }
+    checkWorkerButton.addEventListener('click', () => startParallelScan(true, false)); autoRunButton.addEventListener('click', () => startParallelScan(false, false)); stopButton.addEventListener('click', () => stopScan(true));
+    suggestFilterButton.addEventListener('click', () => { const b = parseBigInt(exponentInput.value); const c = parseBigInt(addendInput.value); if (c === 1n) { log('Detected form a^b + 1. Suggesting filter p = 2*b*k + 1.'); kMultipleInput.value = (2n * b).toString(); kAddendInput.value = '1'; return; } if (c === -1n) { log('Detected form a^b - 1. Suggesting filter p = b*k + 1.'); kMultipleInput.value = b.toString(); kAddendInput.value = '1'; return; } log('No simple algebraic pattern detected for filter suggestion.'); });
+    copyFactorsButton.addEventListener('click', () => { const textToCopy = Array.from(foundFactors).join('\n'); const textArea = document.createElement('textarea'); textArea.value = textToCopy; document.body.appendChild(textArea); textArea.select(); try { document.execCommand('copy'); log('Factors copied to clipboard!'); } catch (err) { log('Failed to copy factors.'); } document.body.removeChild(textArea); });
+
+    return {
+        init: () => { log('Factor Hunter Initialized. Now with advanced prime generation wheel.'); },
+        stopScan
+    };
+})();
+
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+/* ---        SHARED EVENT HANDLERS        --- */
+/* ---=---=---=---=---=---=---=---=---=---=--- */
+const shared = (() => {
+    let lastPan = null; let pinchPrev = null;
+    function clientToGrid(clientX, clientY){ const rect = canvas.getBoundingClientRect(); const cssX = clientX - rect.left - offsetX; const cssY = clientY - rect.top - offsetY; const gx = Math.floor(cssX / (GRID_SIZE * scale)); const gy = Math.floor(cssY / (GRID_SIZE * scale)); return { gx, gy, cssX, cssY }; }
+    function formatNumberWithCommas(bigIntNumber) { if (!bigIntNumber) return ""; return bigIntNumber.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+    canvas.addEventListener('pointerdown', (ev) => { if (currentMode === 'hunter') return; pointerMap.set(ev.pointerId, { clientX: ev.clientX, clientY: ev.clientY }); if (currentMode === 'builder') builder.pointerDown(ev); else explorer.pointerDown(ev); try{ canvas.setPointerCapture(ev.pointerId); }catch(e){} });
+    canvas.addEventListener('pointermove', (ev) => { if (currentMode === 'hunter' || !pointerMap.has(ev.pointerId)) return; pointerMap.set(ev.pointerId, { clientX: ev.clientX, clientY: ev.clientY }); if (pointerMap.size >= 2) { const pts = Array.from(pointerMap.values()); const newDist = Math.hypot(pts[0].clientX - pts[1].clientX, pts[0].clientY - pts[1].clientY); if (!pinchPrev) { pinchPrev = { dist: newDist, midX: (pts[0].clientX + pts[1].clientX)/2, midY: (pts[0].clientY + pts[1].clientY)/2 }; return; } const factor = newDist / pinchPrev.dist; if (!isFinite(factor) || factor <= 0) return; const midX = (pts[0].clientX + pts[1].clientX)/2, midY = (pts[0].clientY + pts[1].clientY)/2; const rect = canvas.getBoundingClientRect(); offsetX = (midX - rect.left) - ( ((midX - rect.left) - offsetX) * factor ); offsetY = (midY - rect.top) - ( ((midY - rect.top) - offsetY) * factor ); scale *= factor; pinchPrev.dist = newDist; lastPan = null; return; } if (pointerMap.size === 1) { let handledByMode = false; if (currentMode === 'builder') { handledByMode = builder.pointerMove(ev); } else { handledByMode = explorer.pointerMove(ev); } if (!handledByMode) { const p = pointerMap.values().next().value; if (!lastPan) { lastPan = { x: p.clientX, y: p.clientY }; } else { offsetX += p.clientX - lastPan.x; offsetY += p.clientY - lastPan.y; lastPan = { x: p.clientX, y: p.clientY }; } } } });
+    canvas.addEventListener('pointerup', (ev) => { if (currentMode === 'hunter') return; pointerMap.delete(ev.pointerId); try { canvas.releasePointerCapture(ev.pointerId); } catch(e) {} if (currentMode === 'builder') builder.pointerUp(ev); else explorer.pointerUp(ev); if (pointerMap.size < 2) pinchPrev = null; if (pointerMap.size < 1) lastPan = null; });
+    canvas.addEventListener('wheel', (ev) => { if (currentMode === 'hunter') return; ev.preventDefault(); const factor = 1 + (ev.deltaY < 0 ? 1 : -1) * 0.1; const rect = canvas.getBoundingClientRect(); offsetX = (ev.clientX-rect.left) - (((ev.clientX-rect.left) - offsetX) * factor); offsetY = (ev.clientY-rect.top) - (((ev.clientY-rect.top) - offsetY) * factor); scale *= factor; });
+    return { clientToGrid, formatNumberWithCommas };
+})();
+
+/* --- MAIN DRAW LOOP --- */
+function drawLoop(){
+  if (currentMode !== 'hunter') {
+      ctx.clearRect(0,0,canvas.clientWidth, canvas.clientHeight);
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+      if (currentMode === 'builder') builder.draw();
+      else if (currentMode === 'explorer') explorer.draw();
+      ctx.restore();
+  }
+  requestAnimationFrame(drawLoop);
+}
+
+/* --- INITIALIZATION --- */
+builder.init();
+explorer.init();
+hunter.init();
+setMode('builder');
+requestAnimationFrame(drawLoop);
+</script>
+</body>
+</html>

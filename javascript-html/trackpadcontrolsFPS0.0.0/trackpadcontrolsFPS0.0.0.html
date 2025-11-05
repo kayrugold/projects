@@ -1,0 +1,142 @@
+Conversation opened. 1 unread message.
+
+Skip to content
+Using Gmail with screen readers
+
+1 of 32,951
+Trackpadcontrols
+Inbox
+
+Andy Davis <kayrugold@gmail.com>
+Attachments
+4:38 AM (0 minutes ago)
+to me
+
+Tpc
+ One attachment
+  •  Scanned by Gmail
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Logarithmic Prime Terrain - Controls Test (v10 - Snappy Camera)</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+
+    // ======== 1. SENSITIVITY SETTINGS (Final Tune) ========
+    const SENSITIVITY = {
+        MOVE: 0.005,            // Snappy move speed
+        LOOK: 0.001,            // ADJUSTED: Significantly increased for a "snappier" camera
+        STRAFE_LEFT_MOD: 1.2,   // Tuned for new base move speed
+        MOVE_BACKWARD_MOD: 1.1  // Tuned for new base move speed
+    };
+
+    // ======== 2. SCENE SETUP (Unchanged) ========
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.y = 1.6; 
+    const yawObject = new THREE.Object3D();
+    yawObject.position.set(0, 0, 5);
+    yawObject.add(camera);
+    scene.add(yawObject);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(5, 10, 7.5);
+    scene.add(directionalLight);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x6B8E23 }));
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+    for (let i = 0; i < 20; i++) {
+        const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff }));
+        cube.position.set((Math.random() - 0.5) * 50, 0.5, (Math.random() - 0.5) * 50);
+        scene.add(cube);
+    }
+
+    // ======== 3. ROBUST TOUCH CONTROLS (Unchanged) ========
+    const activeTouches = new Map();
+    window.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        for (const touch of e.changedTouches) {
+            activeTouches.set(touch.identifier, {
+                startX: touch.clientX, startY: touch.clientY,
+                currentX: touch.clientX, currentY: touch.clientY
+            });
+        }
+    });
+    window.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        for (const touch of e.changedTouches) {
+            const activeTouch = activeTouches.get(touch.identifier);
+            if (activeTouch) {
+                activeTouch.currentX = touch.clientX;
+                activeTouch.currentY = touch.clientY;
+            }
+        }
+    });
+    const onTouchEnd = (e) => {
+        e.preventDefault();
+        for (const touch of e.changedTouches) {
+            activeTouches.delete(touch.identifier);
+        }
+    };
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
+
+    // ======== 4. ANIMATION LOOP (Unchanged) ========
+    function animate() {
+        requestAnimationFrame(animate);
+        const screenWidth = window.innerWidth;
+        for (const touch of activeTouches.values()) {
+            const deltaX = touch.currentX - touch.startX;
+            const deltaY = touch.currentY - touch.startY;
+
+            if (touch.startX < screenWidth / 2) {
+                let forwardMultiplier = (deltaY > 0) ? SENSITIVITY.MOVE_BACKWARD_MOD : 1.0;
+                let strafeMultiplier = (deltaX < 0) ? SENSITIVITY.STRAFE_LEFT_MOD : 1.0;
+                const forwardSpeed = deltaY * SENSITIVITY.MOVE * forwardMultiplier;
+                const strafeSpeed = deltaX * SENSITIVITY.MOVE * strafeMultiplier;
+                yawObject.translateZ(forwardSpeed);
+                yawObject.translateX(strafeSpeed);
+            } else {
+                yawObject.rotation.y -= deltaX * SENSITIVITY.LOOK;
+                camera.rotation.x -= deltaY * SENSITIVITY.LOOK;
+                camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+            }
+        }
+        renderer.render(scene, camera);
+    }
+    
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+
+</body>
+</html>
+trackpadcontrolsfps.html
+Displaying trackpadcontrolsfps.html.
