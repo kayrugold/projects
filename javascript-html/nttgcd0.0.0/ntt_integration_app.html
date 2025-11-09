@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NTT-Accelerated GCD Calculator (Expression Parsing)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+  .card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); padding: 1.5rem; }
+  textarea { min-height: 75px; font-family: monospace; }
+  .btn-primary { background-color: #059669; color: white; }
+  .btn-primary:hover:not(:disabled) { background-color: #047857; }
+  button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+  #logOutput { min-height: 150px; max-height: 300px; overflow-y: auto; background-color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; font-family: monospace; white-space: pre-wrap; font-size: 0.875rem; }
+</style>
+</head>
+<body class="p-4 flex flex-col items-center">
+
+<div class="max-w-xl w-full card my-8">
+  <h2 class="text-2xl font-bold text-center text-green-700 mb-6">NTT-Accelerated GCD Calculator (Expression Parsing)</h2>
+
+  <p class="mb-4 text-sm text-gray-600 border-l-4 border-green-500 pl-3">
+    **Input can be flexible:** Use expressions like $10^{100}+7$ (or $10e100+7$), $2^{30}-1$, or paste large raw numbers.
+  </p>
+
+  <!-- Input Group -->
+  <div class="grid grid-cols-1 gap-4 mb-4">
+    <div class="input-group flex flex-col">
+      <label for="expressionA" class="font-semibold text-gray-700">Number A Expression</label>
+      <textarea id="expressionA" class="w-full border rounded p-2 focus:ring-green-500 focus:border-green-500" placeholder="e.g., 10^104+123456789"></textarea>
+    </div>
+    <div class="input-group flex flex-col">
+      <label for="expressionB" class="font-semibold text-gray-700">Number B Expression</label>
+      <textarea id="expressionB" class="w-full border rounded p-2 focus:ring-green-500 focus:border-green-500" placeholder="e.g., 10^103+987654321"></textarea>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="flex flex-wrap gap-3 justify-center mb-6">
+    <button id="startNTTButton" class="btn-primary flex-grow px-6 py-3 rounded-xl font-semibold transition duration-150">Start NTT-Accelerated GCD</button>
+    <button id="stopButton" class="bg-red-500 text-white flex-grow px-6 py-3 rounded-xl font-semibold transition duration-150" disabled>Stop</button>
+  </div>
+
+  <!-- Progress and Status -->
+  <div id="progressBarContainer" class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+    <div id="progressBar" class="bg-green-500 h-3 text-xs flex items-center justify-center text-white transition-all duration-300" style="width: 0%"></div>
+  </div>
+  <div id="results" class="text-center font-bold text-lg text-gray-700 mb-4">Status: Ready.</div>
+
+  <!-- Log Output -->
+  <div class="mt-4">
+    <h3 class="text-xl font-semibold text-gray-800 mb-2 border-b pb-1">Calculation Log</h3>
+    <pre id="logOutput" class="text-gray-900"></pre>
+  </div>
+</div>
+
+<script>
+// The contents of ntt_worker.js are stored in this string constant.
+const NTT_WORKER_SCRIPT = `
+// --- NTT-Accelerated Arithmetic Worker (NTT-GCD) ---
+// This worker uses Number Theoretic Transform (NTT) for O(N log N) multiplication
+// to accelerate the Euclidean Algorithm's costly division/modulus step.
+
+// --- Worker Constants ---
+const BASE = 10000; // Base 10^4 (for chunking)
+const CHUNK_SIZE = 4;
+// Parameters for NTT: Modulus Q and Primitive Root G
+const Q = 469762049; // Q = 3 * 2^28 + 1 (A good prime for 2^24 length)
+const G = 3;         // Primitive root mod Q
+
+// --- Utility Functions ---
+
+function isZero(c) {
+    return c.length === 1 && c[0] === 0;
+}
+
+function trim(c) {
+    if (!Array.isArray(c) || c.length === 0) return [0];
+    let i = 0;
+    while (i < c.length - 1 && c[i] === 0) i++;
+    if (i === c.length) return [0];
+    return c.slice(i);
+}
+
+function cmp(a, b) {
+    a = trim(a); b = trim(b);
+    if (a.length !== b.length) return a.length > b.length ? 1 : -1;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1;
+    }
+    return 0;
+}
+
+function add(a, b) {
+    let a_rev = a.slice().reverse();
+    let b_rev = b.slice().reverse();
+    let n = Math.max(a_rev.length, b_rev.length), carry = 0, out = [];
+    for (let i = 0; i < n; i++) {
+        let s = (a_rev[i] || 0) + (b_rev[i] || 0) + carry;
+        out.push(s % BASE);
+        carry = Math.floor(s / BASE);
+    }
+    if (carry) out.push(carry);
+    return trim(out.reverse());
+}
+
+function sub(a, b) { // a - b, assumes a >= b
+    let a_rev = a.slice().reverse();
+    let b_rev = b.slice().reverse();
+    let n = a_rev.length, borrow = 0, out = [];
+    for (let i = 0; i < n; i++) {
+        let v = (a_rev[i] || 0) - (b_rev[i] || 0) - borrow;
+        if (v < 0) { v += BASE; borrow = 1; } else { borrow = 0; }
+        out.push(v);
+    }
+    return trim(out.reverse());
+}
+
+function mulSmall(a, s) {
+    if (s === 0 || isZero(a)) return [0];
+    let a_rev = a.slice().reverse(), carry = 0, out = [];
+    for (const d of a_rev) {
+        let p = d * s + carry;
+        out.push(p % BASE);
+        carry = Math.floor(p / BASE);
+    }
+    while (carry > 0) {
+        out.push(carry % BASE);
+        carry = Math.floor(carry / BASE);
+    }
+    return trim(out.reverse());
+}
+
+function chunksToString(chunks) {
+    if (!chunks || isZero(chunks)) return "0";
+    let trimmed = trim(chunks);
+    if (trimmed.length === 0) return "0";
+    let s = trimmed[0].toString();
+    for (let i = 1; i < trimmed.length; i++) {
+        s += trimmed[i].toString().padStart(CHUNK_SIZE, '0');
+    }
+    return s;
+}
+
+function stringToChunks(s) {
+    if (typeof s !== 'string' || s.length === 0) return [0];
+    s = s.trim().replace(/^0+/, '');
+    if (s === '') return [0];
+
+    const padLength = (CHUNK_SIZE - (s.length % CHUNK_SIZE)) % CHUNK_SIZE;
+    s = '0'.repeat(padLength) + s;
+    const chunks = [];
+    for (let i = 0; i < s.length; i += CHUNK_SIZE) {
+        const chunkStr = s.substring(i, i + CHUNK_SIZE);
+        chunks.push(parseInt(chunkStr, 10));
+    }
+    return trim(chunks);
+}
+
+// --- Modular Arithmetic Helpers ---
+
+function power(base, exp) {
+    let res = 1;
+    base %= Q;
+    while (exp > 0) {
+        if (exp % 2 === 1) res = (res * base) % Q;
+        base = (base * base) % Q;
+        exp = Math.floor(exp / 2);
+    }
+    return res;
+}
+
+function modInverse(n) {
+    return power(n, Q - 2);
+}
+
+// --- Core NTT Implementation ---
+
+function ntt(a, inverse, n) {
+    for (let i = 1, j = 0; i < n; i++) {
+        let bit = n >> 1;
+        for (; j & bit; bit >>= 1) {
+            j ^= bit;
+        }
+        j ^= bit;
+        if (i < j) [a[i], a[j]] = [a[j], a[i]];
+    }
+
+    for (let len = 2; len <= n; len <<= 1) {
+        let wlen = power(G, (Q - 1) / len);
+        if (inverse) wlen = modInverse(wlen);
+
+        for (let i = 0; i < n; i += len) {
+            let w = 1;
+            for (let j = 0; j < len / 2; j++) {
+                let u = a[i + j];
+                let v = (a[i + j + len / 2] * w) % Q;
+
+                a[i + j] = (u + v) % Q;
+                a[i + j + len / 2] = (u - v + Q) % Q;
+                w = (w * wlen) % Q;
+            }
+        }
+    }
+
+    if (inverse) {
+        let n_inv = modInverse(n);
+        for (let i = 0; i < n; i++) {
+            a[i] = (a[i] * n_inv) % Q;
+        }
+    }
+}
+
+function mul(a, b) {
+    if (isZero(a) || isZero(b)) return [0];
+
+    let len = a.length + b.length - 1;
+    let n = 1;
+    while (n < len) n <<= 1;
+
+    let fa = new Array(n).fill(0);
+    let fb = new Array(n).fill(0);
+    for (let i = 0; i < a.length; i++) fa[i] = a[i];
+    for (let i = 0; i < b.length; i++) fb[i] = b[i];
+
+    ntt(fa, false, n);
+    ntt(fb, false, n);
+
+    for (let i = 0; i < n; i++) {
+        fa[i] = (fa[i] * fb[i]) % Q;
+    }
+
+    ntt(fa, true, n);
+
+    let result = [];
+    let carry = 0;
+    for (let i = 0; i < len; i++) {
+        // Use BigInt for accurate carry propagation
+        let chunk_val = BigInt(fa[i]) + BigInt(carry);
+        result.push(Number(chunk_val % BigInt(BASE)));
+        carry = Number(chunk_val / BigInt(BASE));
+    }
+
+    while (carry > 0) {
+        result.push(Number(carry % BigInt(BASE)));
+        carry = Number(carry / BigInt(BASE));
+    }
+
+    return trim(result.reverse());
+}
+
+// --- NTT-Accelerated Long Division ---
+
+function divMod(A, B) {
+    A = trim(A); B = trim(B);
+    if (isZero(B)) throw new Error("Division by zero.");
+    if (isZero(A) || cmp(A, B) < 0) return { quotient: [0], remainder: A };
+
+    const dividendLength = A.length;
+    const divisorLength = B.length;
+    let quotient = [];
+    let remainder = []; // Remainder starts empty
+
+    // Estimate the quotient chunk
+    const B_top = B[0];
+
+    for (let i = 0; i < dividendLength; i++) {
+        // Append the next chunk from A to the remainder
+        remainder.push(A[i]);
+        remainder = trim(remainder);
+
+        // --- CRITICAL CHECK FOR ZERO REMAINDER ---
+        if (isZero(remainder)) {
+            quotient.push(0);
+            continue;
+        }
+
+        if (cmp(remainder, B) < 0) {
+            quotient.push(0);
+            continue;
+        }
+
+        // Calculation of q (same estimation logic)
+        let R_top = BigInt(remainder[0]);
+        if (remainder.length > divisorLength) {
+            R_top = R_top * BigInt(BASE) + BigInt(remainder[1]);
+        }
+
+        let qEstimate = R_top / BigInt(B_top);
+        let q = Number(qEstimate);
+
+        // Refinement loop
+        while (q > 0) {
+            // T = q * B (Uses the fast NTT Mul)
+            // Note: mulSmall is O(N) but sufficient here since q is a single chunk.
+            const T = mulSmall(B, q);
+
+            if (cmp(T, remainder) <= 0) {
+                remainder = sub(remainder, T);
+                break;
+            }
+            q--;
+        }
+
+        quotient.push(q);
+
+        if(i % 500 === 0 && i > 0) {
+             self.postMessage({ type: 'progress', value: (i / dividendLength) * 50 });
+        }
+    }
+
+    return { quotient: trim(quotient), remainder: trim(remainder) };
+}
+
+// --- Main Euclidean GCD Algorithm ---
+
+function chunkedGCD_Euclidean(A, B) {
+    let a = trim(A.slice());
+    let b = trim(B.slice());
+
+    if (isZero(a)) return { gcd: b, steps: 0 };
+    if (isZero(b)) return { gcd: a, steps: 0 };
+
+    let steps = 0;
+
+    while (!isZero(b)) {
+        // Calculate: R = A mod B using the fast divMod
+        const { remainder: r } = divMod(a, b);
+
+        // A = B, B = R
+        a = b;
+        b = r;
+
+        steps++;
+
+        self.postMessage({ type: 'progress', value: 50 + (1 - (a.length + b.length) / (A.length + B.length)) * 50 });
+
+        if (steps > 10000) {
+             self.postMessage({ type: 'error', message: "Exceeded max iterations (10,000). Terminating calculation." });
+             return { gcd: [0], steps: steps };
+        }
+
+        self.postMessage({ type: 'log', message: \`[NTT GCD Step \${steps}] New divisor has \${chunksToString(b).length} digits.\` });
+    }
+
+    self.postMessage({ type: 'result', gcd: chunksToString(a), steps: steps });
+    return { gcd: a, steps: steps };
+}
+
+// --- Worker Entry Point ---
+self.onmessage = function(e) {
+    const { n1_str, n2_str } = e.data;
+
+    let N1_chunks, N2_chunks;
+
+    try {
+         N1_chunks = stringToChunks(n1_str);
+         N2_chunks = stringToChunks(n2_str);
+
+         if (isZero(N1_chunks) || isZero(N2_chunks)) {
+             // Determine which number was non-zero to return as GCD
+             const gcd_result = isZero(N1_chunks) ? chunksToString(N2_chunks) : chunksToString(N1_chunks);
+
+             self.postMessage({
+                 type: 'result',
+                 gcd: gcd_result,
+                 steps: 0,
+                 message: "One number was zero. GCD is the other number."
+             });
+             return;
+         }
+
+         self.postMessage({ type: 'log', message: 'Starting NTT-Accelerated Euclidean GCD for ' + chunksToString(N1_chunks).length + ' and ' + chunksToString(N2_chunks).length + ' digit numbers.' });
+
+         chunkedGCD_Euclidean(N1_chunks, N2_chunks);
+
+    } catch (err) {
+        self.postMessage({ type: 'error', message: 'NTT GCD Failed: ' + err.message });
+        return;
+    }
+};
+`;
+
+// --- UI Element References ---
+const expressionAInput = document.getElementById('expressionA');
+const expressionBInput = document.getElementById('expressionB');
+const startNTTButton = document.getElementById('startNTTButton');
+const stopButton = document.getElementById('stopButton');
+const progressBar = document.getElementById('progressBar');
+const resultsDiv = document.getElementById('results');
+const logOutput = document.getElementById('logOutput');
+
+// --- Global State ---
+let nttWorker = null;
+let isCalculating = false;
+
+// --- Utility Functions ---
+function log(msg) {
+  logOutput.textContent += msg + '\n';
+  logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function setStatus(t) { resultsDiv.textContent = 'Status: ' + t; }
+
+function setProgress(p) {
+  const percent = Math.min(100, Math.max(0, p)).toFixed(2);
+  progressBar.style.width = percent + '%';
+  progressBar.textContent = percent + '%';
+}
+
+function enableControls(enable) {
+    isCalculating = !enable;
+    startNTTButton.disabled = !enable;
+    stopButton.disabled = enable;
+}
+
+function stopCalculation() {
+    if (nttWorker) {
+        nttWorker.terminate();
+        nttWorker = null;
+        log('--- Calculation Stopped ---');
+    }
+    enableControls(true);
+    if (resultsDiv.textContent.includes('...')) {
+         setStatus('Stopped by user.');
+    }
+}
+
+/**
+ * Parses expressions like '10^104 + 123' or raw numbers into a BigInt string.
+ * Supports: a**b, a*b, a+b, a-b, and scientific notation (1e7).
+ * @param {string} exp - The input expression or number string.
+ * @returns {string} The computed BigInt value as a string.
+ */
+function parseExpression(exp) {
+    if (!exp) return "0";
+
+    // 1. Replace all variations of power with JS exponentiation
+    let processedExp = exp.replace(/\*\*|E|\^/gi, (match) => {
+        if (match.toLowerCase() === 'e') return '*10**'; // Convert scientific to exponentiation
+        return '**';
+    });
+
+    // 2. Wrap the expression in BigInt() and evaluate
+    try {
+        // Evaluate the string expression using BigInt arithmetic
+        // NOTE: Using eval for quick expression parsing of BigInts.
+        const result = eval(`BigInt(${processedExp})`);
+        return result.toString();
+    } catch (e) {
+        log(`Expression Parsing Error: Cannot evaluate expression "${exp}". Error: ${e.message}`);
+        throw new Error("Invalid number expression format.");
+    }
+}
+
+
+// --- Main NTT GCD Orchestration ---
+async function startNTTGCD() {
+    if (isCalculating) return;
+
+    logOutput.textContent = '';
+    enableControls(false);
+
+    try {
+        const n1_raw = expressionAInput.value.trim();
+        const n2_raw = expressionBInput.value.trim();
+
+        if (!n1_raw || !n2_raw) {
+            throw new Error("Please provide expressions for both Number A and Number B.");
+        }
+
+        setStatus('Parsing expressions...');
+        const n1_str = parseExpression(n1_raw);
+        const n2_str = parseExpression(n2_raw);
+
+        log(`Parsed A: ${n1_str.substring(0, 50)}... (${n1_str.length} digits)`);
+        log(`Parsed B: ${n2_str.substring(0, 50)}... (${n2_str.length} digits)`);
+
+        if (n1_str === "0" || n2_str === "0") {
+             // Handle zero case right away
+             const gcd_result = n1_str !== "0" ? n1_str : n2_str;
+             log(`\n--- RESULT ---`);
+             log(`One input was zero. GCD is: ${gcd_result}`);
+             setStatus(`GCD Found: ${gcd_result}`);
+             stopCalculation();
+             return;
+        }
+
+        setStatus('Initializing NTT Worker...');
+        setProgress(0);
+        const startTime = performance.now();
+
+        // Instantiate the worker from the embedded script string (Blob URL pattern)
+        const blob = new Blob([NTT_WORKER_SCRIPT], { type: 'text/javascript' });
+        nttWorker = new Worker(URL.createObjectURL(blob));
+
+        nttWorker.onmessage = (e) => {
+            const data = e.data;
+            if (data.type === 'progress') {
+                setProgress(data.value);
+            } else if (data.type === 'log') {
+                log(data.message);
+            } else if (data.type === 'result') {
+                const endTime = performance.now();
+                const elapsed = (endTime - startTime).toFixed(2);
+                log(`\n--- RESULT ---`);
+                log(`GCD Found: ${data.gcd}`);
+                log(`Steps: ${data.steps}`);
+                log(`Time: ${elapsed} ms`);
+                setStatus(`GCD Found in ${elapsed} ms`);
+                stopCalculation();
+            } else if (data.type === 'error') {
+                log(`\n--- ERROR ---`);
+                log(`Worker Error: ${data.message}`);
+                setStatus('Error Occurred');
+                stopCalculation();
+            }
+        };
+
+        nttWorker.onerror = (e) => {
+            log(`\n--- CRITICAL ERROR ---`);
+            log(`Worker failed to start: ${e.message || "An unknown error occurred."}`);
+            setStatus('Critical Error');
+            stopCalculation();
+        };
+
+        // Send the final stringified numbers to the worker
+        nttWorker.postMessage({ n1_str, n2_str });
+        setStatus('Calculating...');
+    } catch (e) {
+        log(`\n--- FAILURE ---`);
+        log(e.message);
+        setStatus('Input Error');
+        enableControls(true);
+    }
+}
+
+// --- Event Listeners ---
+window.onload = () => {
+    startNTTButton.addEventListener('click', startNTTGCD);
+    stopButton.addEventListener('click', stopCalculation);
+
+    log('NTT GCD Demo Loaded. Enter large numbers or expressions like 10^104+123456789.');
+
+    // Set example inputs
+    expressionAInput.value = '10**104+123456789';
+    expressionBInput.value = '10**103+987654321';
+};
+</script>
+</body>
+</html>
