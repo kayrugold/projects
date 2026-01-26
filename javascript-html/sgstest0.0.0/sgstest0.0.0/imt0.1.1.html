@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Infinite Multiplication Table v0.1.1 (Sci-Log)</title>
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --grid-bg: #2c2c2c;
+            --text-color: #e5e7eb;
+            --placeholder-text: #6b7280;
+            --header-bg: #111;
+            --header-text: #fff;
+            --header-prime: #f72585;
+            --header-blue: #4361ee;
+            --highlight-blue: rgba(67, 97, 238, 0.5);
+            --grid-line: #333;
+            --controls-bg: rgba(20, 20, 20, 0.8);
+            --log-text-color: #9ca3af;
+        }
+        html, body {
+            margin: 0; padding: 0; overflow: hidden;
+            width: 100%; height: 100%;
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: system-ui, sans-serif;
+            user-select: none; touch-action: none;
+        }
+        canvas {
+            display: block; background-color: var(--grid-bg);
+            touch-action: none; position: fixed; top: 0; left: 0;
+        }
+        #controls {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: var(--controls-bg); backdrop-filter: blur(5px);
+            border-top: 1px solid var(--grid-line); z-index: 10;
+            transition: all 0.3s ease-in-out; overflow: hidden;
+        }
+        #controlsHandle {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px; cursor: pointer; font-weight: bold;
+        }
+        #zoomInfo { font-size: 0.9em; color: #aaa; }
+        #controlsContent {
+            padding: 10px; display: flex; flex-wrap: wrap;
+            gap: 10px; align-items: center; border-top: 1px solid #444;
+        }
+        #controls.collapsed #controlsContent { display: none; }
+        #controls label { font-weight: bold; font-size: 1.1em; }
+        #controls input {
+            background: #333; color: var(--text-color);
+            border: 1px solid #555; border-radius: 5px;
+            padding: 8px; font-size: 1em; width: 100px;
+        }
+        #controls button {
+            background: var(--header-blue); color: white;
+            border: none; border-radius: 5px;
+            padding: 8px 12px; font-weight: bold;
+            cursor: pointer; font-size: 1em;
+        }
+        #controls button:hover { background: #3a52cc; }
+    </style>
+</head>
+<body>
+
+    <canvas id="gridCanvas"></canvas>
+
+    <div id="controls" class="collapsed">
+        <div id="controlsHandle">
+            <span>Controls</span>
+            <span id="zoomInfo">Zoom: 1.00x</span>
+        </div>
+        <div id="controlsContent">
+            <label for="xInput">X:</label>
+            <input type="text" id="xInput" value="1" inputmode="text">
+            <label for="yInput">Y:</label>
+            <input type="text" id="yInput" value="1" inputmode="text">
+            <button id="goButton">Go</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Web Worker Code (as a string) ---
+        const workerCode = `
+            self.importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+
+            function powMod(base, exp, mod) {
+                if (mod === null) {
+                    return base.pow(exp);
+                }
+                let result = self.bigInt.one;
+                base = base.mod(mod);
+                while (exp.greater(0)) {
+                    if (exp.isOdd()) result = result.multiply(base).mod(mod);
+                    exp = exp.shiftRight(1);
+                    base = base.square().mod(mod);
+                }
+                return result;
+            }
+
+            // --- **NEW**: Helper to get [A, B, C] components ---
+            // A = coefficient, B = exponent, C = addend
+            function getComponents(obj) {
+                if (obj.val) {
+                    // It's a simple value. Treat as { a: val, b: 0, c: 0 }
+                    // But for coeff * 10^exp, it's easier to just get value
+                    const val_bi = self.bigInt(obj.val);
+                    return [val_bi, self.bigInt.zero, self.bigInt.zero]; // [A, B, C]
+                } else {
+                    // It's a^b+c. 'a' is coeff, 'b' is exp, 'c' is addend
+                    return [self.bigInt(obj.a), self.bigInt(obj.b), self.bigInt(obj.c)];
+                }
+            }
+            
+            function getMagnitude(obj) {
+                if (obj.val) {
+                    return obj.val.length;
+                } else {
+                    // Approx: log10(A*10^B+C) ≈ log10(A*10^B) = B + log10(A)
+                    return parseInt(obj.b, 10) + obj.a.length - 1;
+                }
+            }
+
+            // --- Primality Test ---
+            function getBigInt(obj) {
+                if (obj.b && self.bigInt(obj.b).greater(500)) {
+                    throw new Error("Exponent too large for direct calculation");
+                }
+                const [a, b, c] = getComponents(obj);
+                if (b.isZero()) return a; // From obj.val
+                return powMod(self.bigInt(10), b, null).multiply(a).add(c);
+            }
+            
+            function millerRabinTest(n, k = 10) {
+                if (n.equals(2) || n.equals(3)) return true;
+                if (n.lesser(2) || n.isEven()) return false;
+                if (n.toString().length > 200) k = 2; 
+                let d = n.subtract(1);
+                let s = 0;
+                while (d.isEven()) {
+                    d = d.shiftRight(1);
+                    s++;
+                }
+                for (let i = 0; i < k; i++) {
+                    const a = self.bigInt.randBetween(2, n.subtract(2));
+                    let x = powMod(a, d, n);
+                    if (x.equals(1) || x.equals(n.subtract(1))) continue;
+                    let composite = true;
+                    for (let j = 1; j < s; j++) {
+                        x = x.square().mod(n);
+                        if (x.equals(1)) break;
+                        if (x.equals(n.subtract(1))) {
+                            composite = false;
+                            break;
+                        }
+                    }
+                    if (composite) return false;
+                }
+                return true;
+            }
+
+            // --- Task Processors ---
+            function getProductString(x_obj, y_obj) {
+                const xMag = getMagnitude(x_obj);
+                const yMag = getMagnitude(y_obj);
+                let approxDigits = xMag + yMag - 1;
+
+                // --- **NEW**: Sci-Log Mode ---
+                if (approxDigits >= 21) {
+                    const [Ax, Bx, Cx] = getComponents(x_obj);
+                    const [Ay, By, Cy] = getComponents(y_obj);
+                    
+                    const New_A = Ax.multiply(Ay);
+                    const New_B = Bx.add(By);
+                    
+                    // Failsafe for giant coefficients
+                    if (New_A.toString().length > 10) {
+                        return { text: \`~\${New_A.toExponential(2)} x 10^\${New_B.toString()}\`, color: 'log' };
+                    }
+                    
+                    return { text: \`~\${New_A.toString()} x 10^\${New_B.toString()}\`, color: 'log' };
+                }
+                
+                // --- Mode 1 & 2: Direct calculation ---
+                const x = getBigInt(x_obj);
+                const y = getBigInt(y_obj);
+                const product = x.multiply(y);
+
+                if (approxDigits >= 9) {
+                    return { text: product.toExponential(2), color: 'normal' };
+                } else {
+                    return { text: product.toString(), color: 'normal' };
+                }
+            }
+
+            function getPrimality(n_obj) {
+                if (n_obj.b && self.bigInt(n_obj.b).greater(200)) {
+                    return { isPrime: false };
+                }
+                const n = getBigInt(n_obj);
+                return { isPrime: millerRabinTest(n) };
+            }
+
+            self.onmessage = (e) => {
+                const tasks = e.data;
+                const results = [];
+                for (const task of tasks) {
+                    try {
+                        let data = {};
+                        if (task.type === 'getProduct') {
+                            data = getProductString(task.x_obj, task.y_obj);
+                        } else if (task.type === 'getPrimality') {
+                            data = getPrimality(task.n_obj);
+                        }
+                        results.push({ id: task.id, status: 'success', data: data });
+                    } catch (err) {
+                        if (task.type === 'getProduct') {
+                            const xMag = getMagnitude(task.x_obj);
+                            const yMag = getMagnitude(task.y_obj);
+                            const approxDigits = self.bigInt(xMag).add(yMag).subtract(1);
+                            results.push({ id: task.id, status: 'success', data: { text: \`~1 x 10^\${approxDigits.toString()}\`, color: 'log' } });
+                        } else {
+                            results.push({ id: task.id, status: 'success', data: { isPrime: false } });
+                        }
+                    }
+                }
+                self.postMessage(results);
+            };
+        `;
+
+        // --- Globals ---
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+        const xInput = document.getElementById('xInput');
+        const yInput = document.getElementById('yInput');
+        const goButton = document.getElementById('goButton');
+        const controlsPanel = document.getElementById('controls');
+        const controlsHandle = document.getElementById('controlsHandle');
+        const zoomInfo = document.getElementById('zoomInfo');
+
+        let scale = 1.0, offsetX = 0.0, offsetY = 0.0, cellSize = 80;
+        let gridOriginCol = { val: "1" };
+        let gridOriginRow = { val: "1" };
+        let highlightedCell = { x: { val: "1" }, y: { val: "1" } };
+        let isPanning = false, lastPan = { x: 0, y: 0 }, lastTouchDist = 0;
+        const colors = {};
+
+        // --- Worker & Cache System ---
+        const cellCache = new Map();
+        
+        class WorkerManager {
+            constructor(numWorkers) {
+                this.requestQueue = new Map();
+                this.workerIdle = new Array(numWorkers).fill(true);
+                this.workers = [];
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                const workerUrl = URL.createObjectURL(blob);
+                for (let i = 0; i < numWorkers; i++) {
+                    const worker = new Worker(workerUrl);
+                    worker.onmessage = (e) => this.handleWorkerResult(e, i);
+                    this.workers.push(worker);
+                }
+            }
+            queueRequest(task) {
+                if (!cellCache.has(task.id)) {
+                    this.requestQueue.set(task.id, task);
+                }
+            }
+            processQueue() {
+                if (this.requestQueue.size === 0) return;
+                const idleWorkerIndex = this.workerIdle.indexOf(true);
+                if (idleWorkerIndex === -1) return;
+                const tasks = Array.from(this.requestQueue.values());
+                const batchSize = Math.ceil(tasks.length / this.workerIdle.filter(Boolean).length);
+                const batch = tasks.slice(0, batchSize);
+                for(const task of batch) { this.requestQueue.delete(task.id); }
+                if (batch.length > 0) {
+                    this.workers[idleWorkerIndex].postMessage(batch);
+                    this.workerIdle[idleWorkerIndex] = false;
+                }
+            }
+            handleWorkerResult(e, workerIndex) {
+                this.workerIdle[workerIndex] = true;
+                const results = e.data;
+                let needsRedraw = false;
+                for (const result of results) {
+                    if (result.status === 'success') {
+                        cellCache.set(result.id, result.data);
+                        needsRedraw = true;
+                    } else {
+                        cellCache.set(result.id, { text: 'ERR' });
+                    }
+                }
+                if (needsRedraw) {
+                    requestAnimationFrame(draw);
+                }
+                if (this.requestQueue.size > 0) {
+                    this.processQueue();
+                }
+            }
+        }
+        const workerManager = new WorkerManager(navigator.hardwareConcurrency || 2);
+        
+        // --- Main Thread utility functions ---
+        
+        // --- **NEW**: Updated parser ---
+        function parseCoordinate(input) {
+            const str = input.replace(/\s/g, '');
+            // 10^100+25
+            let match = str.match(/^(\d+)\^(\d+)\+(\d+)$/);
+            if (match) {
+                if (match[1] === "10") { // 10^B+C
+                     return { a: "1", b: match[2], c: match[3] };
+                } else {
+                    // e.g. 2^100+1. This is just a value.
+                    // This is too slow for the main thread.
+                    // For now, treat as invalid.
+                    throw new Error("Base-power format only supported for base 10.");
+                }
+            }
+            // 5e30+7
+            match = str.match(/^(\d*\.?\d*)e(\d+)\+(\d+)$/);
+            if (match) {
+                const coeff = match[1] === '' ? '1' : match[1];
+                return { a: coeff, b: match[2], c: match[3] };
+            }
+            // 1e30 or 5e30
+            match = str.match(/^(\d*\.?\d*)e(\d+)$/);
+            if (match) {
+                const coeff = match[1] === '' ? '1' : match[1];
+                return { a: coeff, b: match[2], c: "0" };
+            }
+            // 12345
+            if (str.match(/^\d+$/)) return { val: str };
+            throw new Error("Invalid number format");
+        }
+
+        function incrementCoord(coord_obj, i) {
+            if (i === 0) return coord_obj;
+            // Only increment simple values or the 'c' component
+            if (coord_obj.val) {
+                return { val: bigInt(coord_obj.val).add(i).toString() };
+            } else {
+                return { 
+                    a: coord_obj.a, 
+                    b: coord_obj.b, 
+                    c: bigInt(coord_obj.c).add(i).toString() 
+                };
+            }
+        }
+
+        function getCoordID(obj) {
+            if (obj.val) return obj.val;
+            // Use 'A' (coeff) 'B' (exp) 'C' (addend)
+            return `${obj.a}e${obj.b}+${obj.c}`;
+        }
+        
+        function areCoordsEqual(obj1, obj2) {
+            if (obj1.val) return obj1.val === obj2.val;
+            if (obj2.val) return false;
+            return obj1.a === obj2.a && obj1.b === obj2.b && obj1.c === obj2.c;
+        }
+
+        function getColors() {
+            const rootStyle = getComputedStyle(document.documentElement);
+            colors.gridBg = rootStyle.getPropertyValue('--grid-bg').trim();
+            colors.textColor = rootStyle.getPropertyValue('--text-color').trim();
+            colors.placeholderText = rootStyle.getPropertyValue('--placeholder-text').trim();
+            colors.headerBg = rootStyle.getPropertyValue('--header-bg').trim();
+            colors.headerText = rootStyle.getPropertyValue('--header-text').trim();
+            colors.headerPrime = rootStyle.getPropertyValue('--header-prime').trim();
+            colors.headerBlue = rootStyle.getPropertyValue('--header-blue').trim();
+            colors.highlightBlue = rootStyle.getPropertyValue('--highlight-blue').trim();
+            colors.gridLine = rootStyle.getPropertyValue('--grid-line').trim();
+            colors.logText = rootStyle.getPropertyValue('--log-text-color').trim();
+        }
+
+        function getPrimality(n_obj) {
+            const id = `p:${getCoordID(n_obj)}`;
+            const cached = cellCache.get(id);
+            if (cached) return cached.isPrime;
+
+            if (n_obj.val && n_obj.val.length > 1 && (n_obj.val.endsWith('0') || n_obj.val.endsWith('2') || n_obj.val.endsWith('4') || n_obj.val.endsWith('5') || n_obj.val.endsWith('6') || n_obj.val.endsWith('8'))) {
+                cellCache.set(id, { isPrime: false });
+                return false;
+            }
+
+            workerManager.queueRequest({ id: id, type: 'getPrimality', n_obj: n_obj });
+            return undefined;
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const currentCellSize = cellSize;
+            const scaledCellSize = currentCellSize * scale;
+            if (scaledCellSize < 2) return;
+
+            const view = {
+                x1: -offsetX / scale, y1: -offsetY / scale,
+                x2: (canvas.width - offsetX) / scale, y2: (canvas.height - offsetY) / scale
+            };
+            const dataView = {
+                x1: view.x1 - currentCellSize, y1: view.y1 - currentCellSize,
+                x2: view.x2 - currentCellSize, y2: view.y2 - currentCellSize
+            };
+            const minCol = Math.floor(dataView.x1 / currentCellSize);
+            const maxCol = Math.ceil(dataView.x2 / currentCellSize);
+            const minRow = Math.floor(dataView.y1 / currentCellSize);
+            const maxRow = Math.ceil(dataView.y2 / currentCellSize);
+            
+            const prefetchAmount = 5;
+
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+            const baseFontSize = 16;
+            ctx.font = `${baseFontSize / scale}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let r = minRow - prefetchAmount; r <= maxRow + prefetchAmount; r++) {
+                const cellY_obj = incrementCoord(gridOriginRow, r);
+                // Simple validation for row
+                if (cellY_obj.val && bigInt(cellY_obj.val).lesser(1)) continue;
+                
+                const drawY = currentCellSize + r * currentCellSize;
+                const y_id = getCoordID(cellY_obj);
+
+                for (let c = minCol - prefetchAmount; c <= maxCol + prefetchAmount; c++) {
+                    const cellX_obj = incrementCoord(gridOriginCol, c);
+                    // Simple validation for col
+                    if (cellX_obj.val && bigInt(cellX_obj.val).lesser(1)) continue;
+                    
+                    const drawX = currentCellSize + c * currentCellSize;
+                    const x_id = getCoordID(cellX_obj);
+                    
+                    const cellId = `c:${x_id},${y_id}`;
+                    const cachedProduct = cellCache.get(cellId);
+                    
+                    if (!cachedProduct) {
+                        workerManager.queueRequest({ id: cellId, type: 'getProduct', x_obj: cellX_obj, y_obj: cellY_obj });
+                    }
+                    
+                    if (r >= minRow && r <= maxRow && c >= minCol && c <= maxCol) {
+                        ctx.fillStyle = colors.gridBg;
+                        ctx.fillRect(drawX, drawY, currentCellSize, currentCellSize);
+                        if (areCoordsEqual(cellX_obj, highlightedCell.x) && areCoordsEqual(cellY_obj, highlightedCell.y)) {
+                            ctx.fillStyle = colors.highlightBlue;
+                            ctx.fillRect(drawX, drawY, currentCellSize, currentCellSize);
+                        }
+                        ctx.strokeStyle = colors.gridLine;
+                        ctx.strokeRect(drawX, drawY, currentCellSize, currentCellSize);
+
+                        let productString = "...";
+                        let productFont = `${(baseFontSize * 0.9) / scale}px Arial`;
+                        ctx.fillStyle = colors.placeholderText;
+                        
+                        if (cachedProduct) {
+                            productString = cachedProduct.text;
+                            if (cachedProduct.color === 'log') {
+                                ctx.fillStyle = colors.logText;
+                                productFont = `${(baseFontSize * 0.8) / scale}px Arial`; // Log text even smaller
+                            } else {
+                                ctx.fillStyle = colors.textColor;
+                            }
+                            if (cachedProduct.text.length < 9) {
+                                 productFont = `${baseFontSize / scale}px Arial`;
+                            }
+                        }
+                        
+                        ctx.font = productFont;
+                        ctx.fillText(productString, drawX + currentCellSize / 2, drawY + currentCellSize / 2);
+                    }
+                }
+            }
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = colors.headerBg;
+            ctx.fillRect(0, 0, canvas.width, scaledCellSize);
+            ctx.fillRect(0, 0, scaledCellSize, canvas.height);
+            const headerFontSize = Math.min(20, scaledCellSize * 0.3);
+            ctx.font = `bold ${headerFontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            for (let r = minRow - prefetchAmount; r <= maxRow + prefetchAmount; r++) {
+                const cellY_obj = incrementCoord(gridOriginRow, r);
+                if (cellY_obj.val && bigInt(cellY_obj.val).lesser(1)) continue;
+                const y_id = getCoordID(cellY_obj);
+                const isPrime = getPrimality(cellY_obj);
+                const worldY = currentCellSize + r * currentCellSize;
+                const drawY = worldY * scale + offsetY;
+                if (drawY > canvas.height || drawY + scaledCellSize < scaledCellSize) continue;
+                ctx.fillStyle = (isPrime === true) ? colors.headerPrime : colors.headerBlue;
+                ctx.fillRect(0, drawY, scaledCellSize, scaledCellSize);
+                ctx.fillStyle = colors.headerText;
+                ctx.strokeStyle = colors.gridLine;
+                ctx.strokeRect(0, drawY, scaledCellSize, scaledCellSize);
+                ctx.fillText(y_id, scaledCellSize / 2, drawY + scaledCellSize / 2);
+            }
+
+            for (let c = minCol - prefetchAmount; c <= maxCol + prefetchAmount; c++) {
+                const cellX_obj = incrementCoord(gridOriginCol, c);
+                if (cellX_obj.val && bigInt(cellX_obj.val).lesser(1)) continue;
+                const x_id = getCoordID(cellX_obj);
+                const isPrime = getPrimality(cellX_obj);
+                const worldX = currentCellSize + c * currentCellSize;
+                const drawX = worldX * scale + offsetX;
+                if (drawX > canvas.width || drawX + scaledCellSize < scaledCellSize) continue;
+                ctx.fillStyle = (isPrime === true) ? colors.headerPrime : colors.headerBlue;
+                ctx.fillRect(drawX, 0, scaledCellSize, scaledCellSize);
+                ctx.fillStyle = colors.headerText;
+                ctx.strokeStyle = colors.gridLine;
+                ctx.strokeRect(drawX, 0, scaledCellSize, scaledCellSize);
+                ctx.fillText(x_id, drawX + scaledCellSize / 2, scaledCellSize / 2);
+            }
+
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, scaledCellSize, scaledCellSize);
+            ctx.strokeStyle = colors.gridLine;
+            ctx.strokeRect(0, 0, scaledCellSize, scaledCellSize);
+            ctx.fillStyle = colors.headerText;
+            ctx.fillText("X * Y", scaledCellSize/2, scaledCellSize/2);
+            ctx.restore();
+        }
+
+        function centerOnCell(targetX_obj, targetY_obj) {
+            gridOriginCol = targetX_obj;
+            gridOriginRow = targetY_obj;
+            highlightedCell = { x: targetX_obj, y: targetY_obj };
+            const worldX = cellSize + (cellSize / 2);
+            const worldY = cellSize + (cellSize / 2);
+            const screenX = canvas.width / 2;
+            const screenY = canvas.height / 2;
+            offsetX = screenX - worldX * scale;
+            offsetY = screenY - worldY * scale;
+            cellCache.clear();
+            draw();
+            workerManager.requestQueue.clear();
+            workerManager.processQueue();
+        }
+
+        goButton.addEventListener('click', () => {
+            try {
+                const x_obj = parseCoordinate(xInput.value);
+                const y_obj = parseCoordinate(yInput.value);
+                if (x_obj.val && bigInt(x_obj.val).lesser(1)) throw new Error();
+                if (y_obj.val && bigInt(y_obj.val).lesser(1)) throw new Error();
+                centerOnCell(x_obj, y_obj);
+            } catch (e) {
+                console.error(e);
+                alert("Invalid format. Use '123', '1e9', '5e30+7' or '10^100+25'.");
+            }
+        });
+
+        controlsHandle.addEventListener('click', () => {
+            controlsPanel.classList.toggle('collapsed');
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            isPanning = true;
+            lastPan = { x: e.clientX, y: e.clientY };
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            const deltaX = e.clientX - lastPan.x;
+            const deltaY = e.clientY - lastPan.y;
+            offsetX += deltaX;
+            offsetY += deltaY;
+            lastPan = { x: e.clientX, y: e.clientY };
+            requestAnimationFrame(draw);
+        });
+        canvas.addEventListener('mouseup', () => {
+            if(isPanning) {
+                isPanning = false;
+                workerManager.processQueue();
+            }
+        });
+        canvas.addEventListener('mouseleave', () => { isPanning = false; });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const factor = e.deltaY > 0 ? 0.9 : 1.1;
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+            offsetX = mouseX - (mouseX - offsetX) * factor;
+            offsetY = mouseY - (mouseY - offsetY) * factor;
+            scale *= factor;
+            scale = Math.max(0.1, Math.min(scale, 20));
+            zoomInfo.textContent = `Zoom: ${scale.toFixed(2)}x`;
+            requestAnimationFrame(draw);
+             clearTimeout(canvas.wheelTimer);
+             canvas.wheelTimer = setTimeout(() => {
+                 workerManager.processQueue();
+             }, 150);
+        }, { passive: false });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (controlsPanel.contains(e.target)) return;
+            if (e.touches.length === 1) {
+                isPanning = true;
+                lastPan = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else if (e.touches.length === 2) {
+                isPanning = false;
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastTouchDist = Math.hypot(dx, dy);
+            }
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1 && isPanning) {
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                const deltaX = touchX - lastPan.x;
+                const deltaY = touchY - lastPan.y;
+                offsetX += deltaX;
+                offsetY += deltaY;
+                lastPan = { x: touchX, y: touchY };
+                requestAnimationFrame(draw);
+            } else if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const newDist = Math.hypot(dx, dy);
+                const factor = newDist / lastTouchDist;
+                const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                offsetX = midX - (midX - offsetX) * factor;
+                offsetY = midY - (midY - offsetY) * factor;
+                scale *= factor;
+                scale = Math.max(0.1, Math.min(scale, 20));
+                zoomInfo.textContent = `Zoom: ${scale.toFixed(2)}x`;
+                lastTouchDist = newDist;
+                requestAnimationFrame(draw);
+            }
+        }, { passive: false });
+        canvas.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) isPanning = false;
+            if (e.touches.length < 1) lastTouchDist = 0;
+            workerManager.processQueue();
+        });
+        
+        getColors();
+        resizeCanvas();
+        centerOnCell({val: "1"}, {val: "1"});
+        setTimeout(() => {
+            workerManager.processQueue();
+        }, 100);
+    </script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mersenne Mission Control</title>
+    <style>
+        /* Pro Dashboard Styling */
+        body { font-family: 'Segoe UI', Roboto, monospace; background: #0b1120; color: #e2e8f0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .dashboard { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 25px; width: 100%; max-width: 700px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        
+        /* Header Grid */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 15px; }
+        h2 { margin: 0; color: #38bdf8; font-size: 1.5rem; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Spinner */
+        .spinner { width: 24px; height: 24px; border: 3px solid #334155; border-top: 3px solid #38bdf8; border-radius: 50%; animation: spin 1s linear infinite; opacity: 0; transition: opacity 0.3s; }
+        .spinner.active { opacity: 1; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Input Area */
+        .control-panel { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { background: #0f172a; border: 1px solid #475569; color: white; padding: 10px; border-radius: 6px; flex: 1; font-family: monospace; font-size: 1.1rem; }
+        
+        /* Telemetry Grid */
+        .telemetry { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .stat-box { background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+        .stat-label { display: block; color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .stat-value { font-size: 1.25rem; font-weight: bold; color: #f8fafc; font-family: monospace; }
+        .stat-value.green { color: #4ade80; }
+        .stat-value.blue { color: #38bdf8; }
+
+        /* Progress Bar */
+        .progress-track { background: #334155; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 25px; position: relative; }
+        .progress-fill { background: linear-gradient(90deg, #3b82f6, #06b6d4); height: 100%; width: 0%; transition: width 0.2s linear; }
+        
+        /* Log */
+        .log-window { background: #000; border: 1px solid #334155; border-radius: 6px; height: 150px; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 0.85rem; color: #4ade80; margin-bottom: 15px; white-space: pre-wrap; }
+
+        /* Buttons */
+        .btn-group { display: flex; gap: 10px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; text-transform: uppercase; font-size: 0.9rem; }
+        .btn-start { background: #10b981; color: #022c22; }
+        .btn-start:hover:not(:disabled) { background: #059669; }
+        .btn-stop { background: #ef4444; color: white; }
+        .btn-stop:hover:not(:disabled) { background: #dc2626; }
+        .btn-save { background: #3b82f6; color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Hidden file input */
+        .file-upload { position: relative; overflow: hidden; display: inline-block; background: #8b5cf6; color: white; border-radius: 6px; padding: 12px; font-weight: bold; text-align: center; cursor: pointer; flex: 1; text-transform: uppercase; font-size: 0.9rem; }
+        .file-upload input[type=file] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="header">
+        <h2>Mersenne Control</h2>
+        <div id="activitySpinner" class="spinner"></div>
+    </div>
+
+    <div class="control-panel">
+        <input type="number" id="exponent" value="11213" placeholder="Enter Exponent p (e.g. 11213)">
+    </div>
+
+    <div class="telemetry">
+        <div class="stat-box">
+            <span class="stat-label">Progress</span>
+            <div id="statPercent" class="stat-value blue">0.00%</div>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">Speed</span>
+            <div id="statSpeed" class="stat-value green">0 it/s</div>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">Current Step</span>
+            <div id="statStep" class="stat-value">0</div>
+        </div>
+        <div class="stat-box">
+            <span class="stat-label">Est. Remaining</span>
+            <div id="statETA" class="stat-value">--:--:--</div>
+        </div>
+    </div>
+
+    <div class="progress-track">
+        <div id="progressBar" class="progress-fill"></div>
+    </div>
+
+    <div id="sysLog" class="log-window">System Ready.</div>
+
+    <div class="btn-group">
+        <button id="startBtn" class="btn-start">Start Calculation</button>
+        <button id="stopBtn" class="btn-stop" disabled>Abort</button>
+    </div>
+    <div class="btn-group" style="margin-top: 10px;">
+        <button id="saveBtn" class="btn-save" disabled>💾 Save State</button>
+        <label class="file-upload">
+            📂 Load State
+            <input type="file" id="loadInput">
+        </label>
+    </div>
+</div>
+
+<script>
+// --- WORKER LOGIC (High Performance + Telemetry) ---
+const workerCode = `
+    self.onmessage = async function(e) {
+        const d = e.data;
+        
+        // --- COMMAND: SNAPSHOT ---
+        if (d.cmd === 'snapshot') {
+            self.doSnapshot = true;
+            return;
+        }
+
+        // --- COMMAND: START / RESUME ---
+        if (d.cmd === 'start' || d.cmd === 'resume') {
+            const p = BigInt(d.p);
+            const Mp = (1n << p) - 1n;
+            let s = d.s ? BigInt(d.s) : 4n;
+            let i = d.i ? Number(d.i) : 0;
+            const total = Number(p) - 2;
+            
+            self.doSnapshot = false;
+            self.isRunning = true;
+            
+            let startTime = performance.now();
+            let lastReportTime = startTime;
+            let lastReportStep = i;
+
+            self.postMessage({ type: 'log', msg: d.cmd === 'start' ? "Initializing native engine..." : "Resuming from checkpoint..." });
+
+            // Mersenne Modulo: (x & Mp) + (x >> p)
+            function mersenneMod(x) {
+                while (x > Mp) x = (x & Mp) + (x >> p);
+                return x === Mp ? 0n : x;
+            }
+
+            // Chunked execution to allow Message Loop to breathe (essential for Save button)
+            function runChunk() {
+                if (!self.isRunning) return;
+
+                const chunkSize = 2000; // Run 2000 iterations before checking inbox
+                const end = Math.min(i + chunkSize, total);
+
+                // The HOT LOOP
+                for (; i < end; i++) {
+                    s = (s * s) - 2n;
+                    s = mersenneMod(s);
+                }
+
+                // Telemetry & Reporting
+                const now = performance.now();
+                if (now - lastReportTime > 500) { // Update UI every 500ms
+                    const deltaT = (now - lastReportTime) / 1000; // Seconds
+                    const deltaS = i - lastReportStep;
+                    const ips = deltaS / deltaT; // Iterations per second
+                    
+                    const remainingSteps = total - i;
+                    const etaSeconds = ips > 0 ? remainingSteps / ips : 0;
+
+                    self.postMessage({ 
+                        type: 'telemetry', 
+                        pct: (i/total)*100, 
+                        step: i, 
+                        total: total,
+                        ips: Math.floor(ips),
+                        eta: etaSeconds
+                    });
+
+                    lastReportTime = now;
+                    lastReportStep = i;
+                }
+
+                // Handle Snapshot Request
+                if (self.doSnapshot) {
+                    self.postMessage({ type: 'snapshot_data', s: s.toString(), i: i, p: p.toString() });
+                    self.doSnapshot = false;
+                    self.isRunning = false;
+                    self.postMessage({ type: 'log', msg: "Paused for Save." });
+                    return;
+                }
+
+                // Loop Continuation
+                if (i < total) {
+                    setTimeout(runChunk, 0); // Yield to event loop
+                } else {
+                    // FINISHED
+                    self.postMessage({ 
+                        type: 'done', 
+                        res: s === 0n, 
+                        residue: s.toString(), 
+                        totalTime: ((now - startTime)/1000).toFixed(1)
+                    });
+                }
+            }
+            
+            runChunk();
+        }
+    };
+`;
+
+// --- MAIN THREAD LOGIC ---
+let worker = null;
+const sysLog = document.getElementById('sysLog');
+const spinner = document.getElementById('activitySpinner');
+
+// UI Elements
+const els = {
+    percent: document.getElementById('statPercent'),
+    speed: document.getElementById('statSpeed'),
+    step: document.getElementById('statStep'),
+    eta: document.getElementById('statETA'),
+    bar: document.getElementById('progressBar'),
+    start: document.getElementById('startBtn'),
+    stop: document.getElementById('stopBtn'),
+    save: document.getElementById('saveBtn'),
+    exp: document.getElementById('exponent')
+};
+
+function log(msg) {
+    sysLog.textContent += msg + "\n";
+    sysLog.scrollTop = sysLog.scrollHeight;
+}
+
+function formatTime(seconds) {
+    if (!isFinite(seconds)) return "--:--:--";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
+// Start Button
+els.start.onclick = () => {
+    const p = els.exp.value;
+    if (!p || p < 3) { log("Error: Invalid Exponent"); return; }
+    initWorker(p, 'start');
+};
+
+// Stop Button
+els.stop.onclick = () => {
+    if (worker) worker.terminate();
+    resetUI("Aborted by user.");
+};
+
+// Save Button
+els.save.onclick = () => {
+    if (worker) {
+        log("Snapshot requested...");
+        worker.postMessage({ cmd: 'snapshot' });
+    }
+};
+
+// Load Input
+document.getElementById('loadInput').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        try {
+            const data = JSON.parse(evt.target.result);
+            els.exp.value = data.p;
+            log(`Checkpoint Loaded: M${data.p} @ Step ${data.i}`);
+            initWorker(data.p, 'resume', data.s, data.i);
+        } catch(err) {
+            log("Error: Corrupt save file.");
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+};
+
+function initWorker(p, cmd, s=null, i=null) {
+    if (worker) worker.terminate();
+    
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    // UI State: Running
+    els.start.disabled = true;
+    els.stop.disabled = false;
+    els.save.disabled = false;
+    spinner.classList.add('active');
+    
+    worker.postMessage({ cmd, p, s, i });
+    
+    worker.onmessage = e => {
+        const d = e.data;
+        
+        if (d.type === 'telemetry') {
+            els.percent.textContent = d.pct.toFixed(3) + "%";
+            els.speed.textContent = d.ips.toLocaleString() + " it/s";
+            els.step.textContent = d.step.toLocaleString() + " / " + d.total.toLocaleString();
+            els.eta.textContent = formatTime(d.eta);
+            els.bar.style.width = d.pct + "%";
+        } 
+        else if (d.type === 'log') {
+            log(d.msg);
+        }
+        else if (d.type === 'snapshot_data') {
+            const json = JSON.stringify(d);
+            const b = new Blob([json], {type: 'application/json'});
+            const url = URL.createObjectURL(b);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mersenne_p${d.p}_step${d.i}.json`;
+            a.click();
+            log("State saved to downloads.");
+            // Pause UI
+            spinner.classList.remove('active');
+        }
+        else if (d.type === 'done') {
+            resetUI();
+            log("---------------------------");
+            log("COMPUTATION COMPLETE");
+            log(`Total Time: ${d.totalTime}s`);
+            if (d.res) {
+                log("RESULT: PRIME! 🟢");
+                sysLog.style.color = "#4ade80";
+            } else {
+                log("RESULT: COMPOSITE 🔴");
+                log(`Residue: ${d.residue.substring(0,30)}...`);
+                sysLog.style.color = "#f87171";
+            }
+        }
+    };
+}
+
+function resetUI(msg) {
+    els.start.disabled = false;
+    els.stop.disabled = true;
+    els.save.disabled = true;
+    spinner.classList.remove('active');
+    if (msg) log(msg);
+}
+
+</script>
+</body>
+</html>

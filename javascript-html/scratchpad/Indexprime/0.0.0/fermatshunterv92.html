@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hunter v9: The Factor Mesh</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --bg: #050505;
+        --panel: #0a0a0a;
+        --grid: #1f2937;
+        --warp: #3b82f6; /* Blue for A-Jumps */
+        --weft: #ec4899; /* Pink for B-Jumps */
+        --hit: #10b981;  /* Green for Intersection */
+        --text: #e5e7eb;
+    }
+    
+    body { background-color: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    
+    .dashboard { width: 100%; max-width: 950px; display: grid; gap: 20px; }
+    
+    .card { background: var(--panel); border: 1px solid #222; padding: 20px; box-shadow: 0 0 50px rgba(59, 130, 246, 0.05); border-radius: 8px; }
+    .card-header { display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding-bottom: 10px; margin-bottom: 15px; }
+    .card-title { font-weight: 900; color: var(--warp); letter-spacing: 2px; text-transform: uppercase; }
+    
+    /* INPUTS */
+    .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    label { font-size: 0.6rem; color: #6b7280; display: block; margin-bottom: 4px; text-transform: uppercase; }
+    input { width: 100%; background: #000; border: 1px solid #333; color: var(--warp); padding: 12px; font-family: monospace; text-align: center; font-size: 1.1rem; outline: none; transition: border 0.3s; border-radius: 4px; }
+    input:focus { border-color: var(--warp); box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); }
+
+    /* MESH VISUALIZER */
+    .mesh-viz { 
+        height: 180px; background: #020202; border: 1px solid #222; 
+        position: relative; overflow: hidden; margin-top: 20px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.8; }
+    
+    .mesh-overlay { position: absolute; font-size: 0.7rem; color: #444; bottom: 5px; right: 10px; }
+
+    /* CORE GRID */
+    .core-grid { 
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); 
+        gap: 8px; margin-top: 15px; 
+    }
+    .core-item {
+        background: #080808; border: 1px solid #222; padding: 8px; border-radius: 4px;
+        font-size: 0.65rem; color: #6b7280; display: flex; flex-direction: column; gap: 4px;
+    }
+    .core-bar-bg { height: 3px; background: #1f2937; width: 100%; border-radius: 2px; overflow: hidden; }
+    .core-bar-fill { height: 100%; background: var(--warp); width: 0%; transition: width 0.2s; }
+    .core-active .core-bar-fill { background: var(--hit); box-shadow: 0 0 10px var(--hit); }
+
+    /* TROPHY CASE */
+    .trophy-case { 
+        margin-top: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; 
+        max-height: 250px; overflow-y: auto; padding: 5px; 
+    }
+    .trophy { 
+        background: #080808; border: 1px solid var(--hit); padding: 10px; 
+        font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;
+        animation: slideIn 0.3s ease-out; border-radius: 4px; color: var(--hit);
+    }
+    .mesh-coord { color: #6b7280; font-size: 0.65rem; }
+    @keyframes slideIn { 0% { transform: translateY(10px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+    .stats { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-top: 15px; }
+    .stat-val { color: #fff; font-weight: bold; }
+
+    .btn { width: 100%; padding: 16px; font-weight: 900; letter-spacing: 2px; background: #111; color: var(--warp); border: 1px solid var(--warp); cursor: pointer; transition: all 0.2s; margin-top: 20px; border-radius: 4px; }
+    .btn:hover { background: var(--warp); color: #000; box-shadow: 0 0 30px var(--warp); }
+    .btn.stop { border-color: var(--weft); color: var(--weft); }
+    .btn.stop:hover { background: var(--weft); color: #fff; }
+
+    .log-box { height: 100px; overflow-y: auto; font-size: 0.7rem; color: #555; margin-top: 15px; border-top: 1px solid #222; padding-top: 10px; }
+    .log-sys { color: var(--warp); }
+    .log-hit { color: var(--hit); font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">HUNTER v9</span>
+            <span style="font-size:0.7rem; color:#6b7280">THE FACTOR MESH</span>
+        </div>
+        
+        <div class="input-grid">
+            <div><label>Base</label><input id="inpBase" value="10"></div>
+            <div><label>Exponent</label><input id="inpExp" value="1000000000"></div>
+            <div><label>Add (+C)</label><input id="inpAdd" value="19"></div>
+        </div>
+
+        <div class="mesh-viz">
+            <canvas id="meshCanvas"></canvas>
+            <div class="mesh-overlay">Visualizing Warp (2A) & Weft (2B)</div>
+        </div>
+
+        <div id="coreContainer" class="core-grid"></div>
+
+        <div class="stats">
+            <span>Mesh Intersection Checks: <span id="checkCount" class="stat-val">0</span></span>
+            <span>Mesh Velocity: <span id="speedVal" class="stat-val">0</span> /s</span>
+        </div>
+
+        <button id="btnRun" class="btn" onclick="toggleEngine()">DEPLOY MESH</button>
+
+        <div id="trophyCase" class="trophy-case"></div>
+        <div id="logBox" class="log-box">System Ready. Pattern A*B + 2A Loaded.</div>
+    </div>
+</div>
+
+<script>
+// --- WORKER: THE MESH SCANNER ---
+const workerBlob = new Blob([`
+    self.onmessage = function(e) {
+        const { cmd, baseStr, expStr, addStr, coreId, totalCores, startA } = e.data;
+        
+        if (cmd === 'start') {
+            const base = BigInt(baseStr);
+            const exp = BigInt(expStr);
+            const add = BigInt(addStr);
+            
+            // --- SYMBOLIC MODULAR EXPONENTIATION ---
+            // Used to check if Target N aligns with Family A
+            // i.e., Does (Base^Exp + Add) % A == 0?
+            function checkAlignment(m) {
+                const mBI = BigInt(m);
+                let r = 1n;
+                let b = base % mBI;
+                let e = exp;
+                
+                // Optimized Loop
+                while (e > 0n) {
+                    if ((e & 1n) === 1n) r = (r * b) % mBI;
+                    b = (b * b) % mBI;
+                    e >>= 1n;
+                }
+                
+                return (r + add) % mBI === 0n;
+            }
+
+            // --- MESH STRATEGY ---
+            // We check Family A (the Warp). 
+            // If N aligns with A, then N is on the line A*B + 2A.
+            // Start A is determined by Core ID for parallel processing.
+            
+            let A = startA;
+            if (A % 2 === 0) A++; // Ensure odd start
+            
+            // Stride: Each core jumps by 2 * TotalCores to keep checking unique Odd A's
+            const stride = totalCores * 2;
+            
+            // Reporting
+            let count = 0;
+            let lastUpdate = Date.now();
+            let batchProgress = 0;
+            const batchSize = 10000;
+
+            while(true) {
+                // The Check: Does N intersect Family A?
+                if (checkAlignment(A)) {
+                    postMessage({ type: 'hit', family: A });
+                }
+
+                A += stride;
+                count++;
+                batchProgress++;
+
+                if (count % 2000 === 0) {
+                    const now = Date.now();
+                    if (now - lastUpdate > 200) {
+                        let pct = (batchProgress / batchSize) * 100;
+                        if(pct > 100) { pct = 100; batchProgress = 0; }
+                        
+                        postMessage({ type: 'prog', count: count, currentA: A, pct: pct });
+                        lastUpdate = now;
+                    }
+                }
+            }
+        }
+    }
+`], { type: 'application/javascript' });
+
+// --- MAIN THREAD ---
+let workers = [];
+let isRunning = false;
+let totalChecks = 0;
+let lastTotal = 0;
+let lastTime = 0;
+const threadCount = navigator.hardwareConcurrency || 4;
+
+const el = (id) => document.getElementById(id);
+const log = (msg, type='sys') => {
+    const d = document.createElement('div');
+    d.textContent = `> ${msg}`;
+    d.className = `log-${type}`;
+    el('logBox').prepend(d);
+}
+
+// --- VISUALIZER ---
+const canvas = el('meshCanvas');
+const ctx = canvas.getContext('2d');
+let animFrame;
+let lines = [];
+
+function resizeCanvas() {
+    canvas.width = canvas.parentElement.offsetWidth;
+    canvas.height = canvas.parentElement.offsetHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+function drawMesh() {
+    if (!isRunning) return;
+    
+    // Fade effect
+    ctx.fillStyle = 'rgba(2, 2, 2, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add new lines randomly to simulate scanning
+    if (Math.random() > 0.5) {
+        lines.push({
+            x: Math.random() * canvas.width,
+            y: 0,
+            color: Math.random() > 0.5 ? '#3b82f6' : '#ec4899', // Warp vs Weft colors
+            speed: Math.random() * 5 + 2
+        });
+    }
+
+    // Draw lines
+    ctx.lineWidth = 1;
+    for (let i = lines.length - 1; i >= 0; i--) {
+        const l = lines[i];
+        ctx.beginPath();
+        ctx.strokeStyle = l.color;
+        
+        // Draw vertical beam
+        ctx.moveTo(l.x, l.y);
+        ctx.lineTo(l.x, l.y + 20);
+        ctx.stroke();
+        
+        l.y += l.speed;
+        
+        if (l.y > canvas.height) lines.splice(i, 1);
+    }
+    
+    // Draw grid intersection points (The "Knots")
+    if (Math.random() > 0.8) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        ctx.fillStyle = '#10b981';
+        ctx.fillRect(x, y, 2, 2);
+    }
+
+    animFrame = requestAnimationFrame(drawMesh);
+}
+
+// --- CORE LOGIC ---
+function initCores() {
+    const container = el('coreContainer');
+    container.innerHTML = '';
+    for(let i=0; i<threadCount; i++) {
+        const div = document.createElement('div');
+        div.className = 'core-item';
+        div.innerHTML = `
+            <div class="flex justify-between">
+                <span>FAMILY A-${i+1}</span>
+                <span id="corePct-${i}" style="color:#fff">0%</span>
+            </div>
+            <div class="core-bar-bg">
+                <div id="coreBar-${i}" class="core-bar-fill"></div>
+            </div>
+            <div id="coreVal-${i}" style="font-size:0.6rem; color:#444">Init...</div>
+        `;
+        container.appendChild(div);
+    }
+    log(`Mesh Initialized. ${threadCount} Cores Detected.`, 'sys');
+}
+initCores();
+
+function toggleEngine() {
+    if(isRunning) return stopEngine();
+    
+    el('trophyCase').innerHTML = '';
+    el('checkCount').innerText = '0';
+    el('speedVal').innerText = '0';
+    el('btnRun').innerText = "ABORT MESH SCAN";
+    el('btnRun').classList.add('stop');
+    
+    const base = el('inpBase').value;
+    const exp = el('inpExp').value;
+    const add = el('inpAdd').value;
+    
+    isRunning = true;
+    lastTotal = 0;
+    lastTime = Date.now();
+    
+    log(`Target N: ${base}^${exp} + ${add}`, 'sys');
+    log(`Weaving pattern: A*B + 2A...`, 'sys');
+    
+    const workerUrl = URL.createObjectURL(workerBlob);
+    
+    // Start Workers with Staggered Start A
+    // Core 0 starts at 3, Core 1 starts at 5, etc.
+    for(let i=0; i<threadCount; i++) {
+        const startA = 3 + (i * 2);
+        
+        const w = new Worker(workerUrl);
+        w.onmessage = function(e) { handleWorker(e, i); };
+        w.postMessage({ 
+            cmd: 'start', 
+            baseStr: base, 
+            expStr: exp, 
+            addStr: add, 
+            coreId: i, 
+            totalCores: threadCount,
+            startA: startA 
+        });
+        workers.push(w);
+    }
+    
+    drawMesh();
+}
+
+function handleWorker(e, id) {
+    const d = e.data;
+    
+    if(d.type === 'prog') {
+        el(`coreBar-${id}`).style.width = `${d.pct}%`;
+        el(`corePct-${id}`).innerText = `${Math.floor(d.pct)}%`;
+        el(`coreVal-${id}`).innerText = `A: ${d.currentA.toLocaleString()}`;
+        
+        totalChecks += 2000; // Est based on report freq
+        
+        const now = Date.now();
+        const diff = now - lastTime;
+        if(diff > 500) {
+            const speed = (totalChecks - lastTotal) / (diff/1000);
+            el('checkCount').innerText = totalChecks.toLocaleString();
+            el('speedVal').innerText = Math.round(speed).toLocaleString();
+            lastTotal = totalChecks;
+            lastTime = now;
+        }
+    }
+    
+    if(d.type === 'hit') {
+        const p = d.family;
+        log(`INTERSECTION FOUND: ${p}`, 'hit');
+        el(`coreBar-${id}`).parentElement.parentElement.classList.add('core-active');
+        addTrophy(p);
+    }
+}
+
+function addTrophy(p) {
+    // Dedup
+    const existing = Array.from(el('trophyCase').children).map(c => c.innerText);
+    if(existing.some(t => t.includes(p.toString()))) return;
+
+    const div = document.createElement('div');
+    div.className = 'trophy';
+    div.innerHTML = `
+        <div>
+            <div style="color:#fff; font-weight:bold; font-size:1.1rem">${p}</div>
+            <div class="mesh-coord">Family A (Warp)</div>
+        </div>
+        <div style="text-align:right">
+            <span style="color:#fff">HIT</span>
+        </div>
+    `;
+    el('trophyCase').prepend(div);
+}
+
+function stopEngine() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    isRunning = false;
+    cancelAnimationFrame(animFrame);
+    
+    for(let i=0; i<threadCount; i++) {
+        el(`coreBar-${i}`).style.width = '0%';
+        el(`corePct-${i}`).innerText = '0%';
+        el(`coreBar-${i}`).parentElement.parentElement.classList.remove('core-active');
+    }
+    
+    el('btnRun').innerText = "DEPLOY MESH";
+    el('btnRun').classList.remove('stop');
+    log("Mesh Deactivated.", 'sys');
+}
+</script>
+</body>
+</html>

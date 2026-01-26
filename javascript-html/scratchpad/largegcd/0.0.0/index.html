@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Large Number Chunked Binary GCD (External Worker)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root {
+  --bg-color: #f3f4f6;
+  --text-color: #1f2937;
+  --card-bg: #fff;
+  --card-text: #374151;
+  --input-bg: #f9fafb;
+  --input-border: #d1d5db;
+  --button-bg: #059669; /* Emerald Green */
+  --button-hover: #047857;
+  --header-color: #10b981; /* Green-500 */
+}
+body { 
+    font-family: 'Inter', system-ui, sans-serif; 
+    background: var(--bg-color); 
+    color: var(--text-color); 
+    display:flex; 
+    justify-content:center; 
+    align-items:flex-start;
+    min-height:100vh; 
+    flex-direction:column; 
+    padding: 1.5rem 1rem;
+}
+.container { 
+    max-width: 900px; 
+    width: 100%; 
+    background: var(--card-bg); 
+    border-radius: .75rem; 
+    box-shadow: 0 10px 25px rgba(0,0,0,.15); 
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+h2 { 
+    text-align:center; 
+    color: var(--button-bg); 
+    margin-bottom: 1.5rem; 
+    font-size:1.8rem; 
+    font-weight:700; 
+}
+h3 { 
+    margin-top:1.5rem; 
+    margin-bottom:.75rem; 
+    color:var(--button-bg); 
+    border-bottom:2px solid var(--header-color); 
+    padding-bottom:.25rem; 
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.grid { 
+    display:grid; 
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+    gap: 1rem; 
+}
+.input-group { display:flex; flex-direction:column; }
+label { margin-bottom:.25rem; font-weight:600; font-size: 0.875rem; color: var(--card-text); }
+input[type="text"] { 
+    padding:.75rem; 
+    border:1px solid var(--input-border); 
+    border-radius:.5rem; 
+    background:var(--input-bg); 
+    color:var(--card-text); 
+    font-size:1rem; 
+    transition: border-color 0.2s;
+}
+input:focus { outline:none; border-color:var(--button-bg); box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2); }
+.button-group { display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1.5rem; }
+button { 
+    padding:.75rem 1.25rem; 
+    border:none; 
+    border-radius:.5rem; 
+    background:var(--button-bg); 
+    color:#fff; 
+    font-weight:600; 
+    cursor:pointer; 
+    font-size: 1rem;
+    transition: background-color 0.2s, transform 0.1s;
+}
+button:hover:not(:disabled){ 
+    background: var(--button-hover); 
+    transform: translateY(-1px);
+}
+button:disabled { 
+    background:#a7f3d0; /* Green-200 */
+    color: #065f46; /* Green-800 */
+    cursor:not-allowed; 
+    transform: none;
+}
+#progressBarContainer { width:100%; background:#e0e0e0; border-radius:.25rem; margin-top:1rem; overflow:hidden; }
+#progressBar { height:25px; width:0%; background:var(--button-bg); text-align:center; line-height:25px; color:white; font-weight:bold; transition: width .2s ease; }
+#results { margin-top:1.5rem; font-weight:700; color:var(--button-bg); font-size:1.2rem; text-align: center; background: #ecfdf5; padding: 1rem; border-radius: .5rem;}
+#logOutput { 
+    width:100%; 
+    height:200px; 
+    overflow-y:auto; 
+    border:1px solid var(--input-border); 
+    background:var(--input-bg); 
+    padding:1rem; 
+    font-family: monospace; 
+    white-space:pre-wrap; 
+    margin-top:.5rem; 
+    border-radius:.5rem;
+    font-size: 0.85rem;
+}
+.number-group { border: 1px solid #d1fae5; padding: 1rem; border-radius: .5rem; margin-bottom: 1rem;}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Optimized Chunked GCD Calculator</h2>
+<p class="text-sm text-center text-gray-500 mb-4">Calculates GCD(N, M) for numbers in the form $a^b+c$ using the efficient Binary GCD Algorithm in a dedicated Web Worker.</p>
+
+<div class="number-group">
+    <h3>Number 1 (N = a¹ᵇ¹ + c¹)</h3>
+    <div class="grid">
+        <div class="input-group">
+            <label for="baseInput1">Base (a₁)</label>
+            <input type="text" id="baseInput1" value="10">
+        </div>
+        <div class="input-group">
+            <label for="exponentInput1">Exponent (b₁)</label>
+            <input type="text" id="exponentInput1" value="100000">
+        </div>
+        <div class="input-group">
+            <label for="addendInput1">Addend (c₁)</label>
+            <input type="text" id="addendInput1" value="19">
+        </div>
+    </div>
+</div>
+
+<div class="number-group">
+    <h3>Number 2 (M = a²ᵇ² + c²)</h3>
+    <div class="grid">
+        <div class="input-group">
+            <label for="baseInput2">Base (a₂)</label>
+            <input type="text" id="baseInput2" value="10">
+        </div>
+        <div class="input-group">
+            <label for="exponentInput2">Exponent (b₂)</label>
+            <input type="text" id="exponentInput2" value="99999">
+        </div>
+        <div class="input-group">
+            <label for="addendInput2">Addend (c₂)</label>
+            <input type="text" id="addendInput2" value="13">
+        </div>
+    </div>
+</div>
+
+<div class="button-group">
+  <button id="gcdButton">Start Chunked GCD</button>
+  <button id="stopButton" disabled>Stop</button>
+</div>
+
+<div id="progressBarContainer" class="hidden">
+  <div id="progressBar">0%</div>
+</div>
+<div id="results">Status: Idle</div>
+
+<h3>Log</h3>
+<pre id="logOutput">Log: Ready to calculate GCD.</pre>
+</div>
+
+<!-- Load the external JavaScript file -->
+<script src="main.js"></script>
+</body>
+</html>
+

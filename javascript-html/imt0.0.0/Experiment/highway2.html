@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GNOMON GPS: HUNTER-KILLER</title>
+    <style>
+        body { 
+            background-color: #000; 
+            color: #0f0; 
+            font-family: 'Courier New', monospace; 
+            margin: 0; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh;
+            touch-action: none;
+        }
+
+        /* HUD */
+        #hud {
+            background: #0b110b;
+            border-bottom: 2px solid #0f0;
+            padding: 5px 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .hud-group { text-align: center; }
+        .hud-label { color: #005500; font-size: 0.6rem; text-transform: uppercase; }
+        .hud-val { font-size: 1rem; font-weight: bold; color: #fff; }
+
+        /* VIEWPORT */
+        #viewport {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, #000 0%, #051a05 100%);
+        }
+
+        /* ROW STYLING */
+        .row {
+            display: flex;
+            align-items: center;
+            height: 40px;
+            border-bottom: 1px solid #002200;
+            position: absolute;
+            width: 100%;
+            left: 0;
+            font-size: 0.9rem;
+        }
+
+        /* COLUMNS (Optimized for Mobile) */
+        .col-tape { width: 30%; color: #f0f; text-align: right; padding-right: 8px; border-right: 1px solid #333; overflow: hidden; white-space: nowrap; font-size: 0.8rem; }
+        .col-anchor { width: 25%; color: #0ff; text-align: center; font-weight: bold; border-right: 1px solid #333; }
+        .col-cargo { width: 45%; display: flex; gap: 8px; padding-left: 8px; color: #888; overflow: hidden; }
+        .cargo-cell { min-width: 40px; }
+
+        /* HIGHLIGHTS */
+        .target-row { background: rgba(0, 255, 0, 0.15); }
+        .target-cell { 
+            color: #0f0 !important; 
+            font-weight: bold; 
+            border: 2px solid #0f0; 
+            border-radius: 4px;
+            padding: 0 4px;
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 10px #0f0;
+        }
+
+        /* CONTROLS */
+        #controls {
+            background: #1e1e1e;
+            padding: 10px 15px;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            height: 70px;
+            flex-shrink: 0;
+        }
+
+        /* GPS BUTTON (Big Green Button) */
+        .btn-gps {
+            background: #003300;
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            box-shadow: 0 0 5px #0f0;
+        }
+        .btn-gps:active { background: #0f0; color: #000; }
+
+        /* SLIDER */
+        input[type=range] { flex-grow: 1; height: 30px; -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; background: #333; border-radius: 4px; }
+        input[type=range]::-webkit-slider-thumb { height: 26px; width: 26px; border-radius: 50%; background: #0f0; -webkit-appearance: none; margin-top: -9px; }
+
+        /* SEARCH MODAL */
+        #searchOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #searchInput {
+            background: #000; border: 2px solid #0f0; color: #0f0;
+            font-family: inherit; font-size: 1.5rem; padding: 10px;
+            width: 80%; text-align: center; border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .search-info { color: #0f0; margin-bottom: 10px; font-size: 0.8rem; text-transform: uppercase; }
+
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="hud-group">
+            <div class="hud-label">ROW (k)</div>
+            <div id="hud-k" class="hud-val">0</div>
+        </div>
+        <div class="hud-group" style="flex-grow:1;">
+            <div id="status" style="color:#0ff; font-size:0.8rem;">MANUAL</div>
+        </div>
+        <div class="hud-group">
+            <div class="hud-label">SPEED</div>
+            <div id="hud-vel" class="hud-val" style="color:#f0f;">0</div>
+        </div>
+    </div>
+
+    <div id="viewport"></div>
+
+    <div id="controls">
+        <button class="btn-gps" onclick="openSearch()">GPS</button>
+        <div style="flex-grow:1; display:flex; flex-direction:column; text-align:center;">
+            <span style="color:#666; font-size:0.6rem;">THROTTLE</span>
+            <input type="range" id="throttle" min="-50" max="50" value="0" step="1">
+        </div>
+        <button class="btn-gps" style="border-color:#f00; color:#f00; box-shadow:none;" onclick="stop()">STOP</button>
+    </div>
+
+    <div id="searchOverlay">
+        <div class="search-info">ENTER VALUE (N) OR TAPE ID</div>
+        <input type="number" id="searchInput" placeholder="Enter Coordinates...">
+        <div style="display:flex; gap:10px;">
+            <button class="btn-gps" onclick="runGPS()">ENGAGE</button>
+            <button class="btn-gps" style="border-color:#666; color:#888; box-shadow:none;" onclick="closeSearch()">CANCEL</button>
+        </div>
+    </div>
+
+    <script>
+        // CONFIG
+        const ROW_HEIGHT = 41; 
+        const BUFFER_SIZE = 30; 
+        
+        // STATE
+        let state = {
+            topK: 0n,
+            speed: 0,
+            lastTime: 0,
+            isDragging: false,
+            lastY: 0,
+            target: { active: false, k: -1n, col: -1 } // GPS Target
+        };
+
+        // DOM
+        const viewport = document.getElementById('viewport');
+        const hudK = document.getElementById('hud-k');
+        const hudVel = document.getElementById('hud-vel');
+        const statusEl = document.getElementById('status');
+        const throttleEl = document.getElementById('throttle');
+        const searchInput = document.getElementById('searchInput');
+
+        // --- ENGINE ---
+        function generateRowData(k) {
+            let Tn = (k * (k + 1n)) >> 1n;
+            let A = (k << 1n) | 1n;
+            let step = A << 1n;
+            let spine = (Tn << 3n) | 1n;
+
+            let cargo = [];
+            for(let b=1n; b<=3n; b++) { 
+                cargo.push(spine - (b * step));
+            }
+            return { k, Tn, A, spine, cargo };
+        }
+
+        // --- RENDERER ---
+        let rowElements = [];
+
+        function initGrid() {
+            viewport.innerHTML = '';
+            rowElements = [];
+            for (let i = 0; i < BUFFER_SIZE; i++) {
+                let r = document.createElement('div');
+                r.className = 'row';
+                r.style.transform = `translateY(${i * ROW_HEIGHT}px)`;
+                
+                let cTape = document.createElement('div'); cTape.className = 'col-tape';
+                let cAnchor = document.createElement('div'); cAnchor.className = 'col-anchor';
+                let cCargo = document.createElement('div'); cCargo.className = 'col-cargo';
+                
+                r.append(cTape, cAnchor, cCargo);
+                viewport.appendChild(r);
+                rowElements.push({ el: r, tape: cTape, anchor: cAnchor, cargo: cCargo });
+            }
+            render();
+        }
+
+        function render() {
+            hudK.innerText = state.topK.toString();
+            
+            for (let i = 0; i < BUFFER_SIZE; i++) {
+                let currentK = state.topK + BigInt(i);
+                if (currentK < 0n) currentK = 0n;
+
+                let data = generateRowData(currentK);
+                let rowObj = rowElements[i];
+
+                // TARGET HIGHLIGHTING
+                let isTargetRow = (state.target.active && currentK === state.target.k);
+                if (isTargetRow) rowObj.el.classList.add('target-row');
+                else rowObj.el.classList.remove('target-row');
+
+                // TAPE
+                rowObj.tape.innerText = data.Tn.toString();
+                if (isTargetRow && state.target.col === -1) rowObj.tape.classList.add('target-cell');
+                else rowObj.tape.classList.remove('target-cell');
+
+                // ANCHOR
+                rowObj.anchor.innerText = data.A.toString();
+
+                // CARGO
+                let spineHtml = `<span class="cargo-cell ${isTargetRow && state.target.col === 0 ? 'target-cell' : ''}" style="color:#fff;">${data.spine}</span>`;
+                
+                let gapHtml = '';
+                data.cargo.forEach((val, idx) => {
+                    let colIdx = idx + 1;
+                    let isTarget = (isTargetRow && state.target.col === colIdx);
+                    gapHtml += `<span class="cargo-cell ${isTarget ? 'target-cell' : ''}">${val}</span>`;
+                });
+
+                rowObj.cargo.innerHTML = spineHtml + gapHtml;
+            }
+        }
+
+        // --- GPS LOGIC (The Hunter) ---
+        function runGPS() {
+            let val = searchInput.value;
+            if(!val) return;
+            
+            try {
+                let N = BigInt(val);
+                let found = false;
+                
+                // 1. SCAN VISIBLE LANES (b=0 to 3)
+                // We check if N + b^2 is a perfect square
+                for(let b=0n; b<=3n; b++) {
+                    let discriminant = N + (b * b);
+                    let root = sqrtBigInt(discriminant);
+                    
+                    if (root * root === discriminant) {
+                        // Found a square! A = root + b
+                        let A = root + b;
+                        
+                        // A must be odd for this grid
+                        if (A % 2n === 1n) {
+                            let k = (A - 1n) / 2n;
+                            
+                            // Engage Autopilot
+                            engageTarget(k, Number(b), "VALUE MATCH");
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                // 2. FALLBACK: TAPE ID LOOKUP
+                if (!found) {
+                    // Assume user typed a Tape ID
+                    // k approx sqrt(2 * N)
+                    let kApprox = sqrtBigInt(N << 1n);
+                    engageTarget(kApprox, -1, "TAPE ID LOC");
+                }
+
+                closeSearch();
+
+            } catch(e) {
+                alert("Invalid Number");
+            }
+        }
+
+        function engageTarget(k, col, type) {
+            state.target.active = true;
+            state.target.k = k;
+            state.target.col = col;
+            
+            // Jump slightly above the target so it's in the middle of screen
+            let viewOffset = BigInt(Math.floor(BUFFER_SIZE / 3));
+            state.topK = k - viewOffset;
+            if(state.topK < 0n) state.topK = 0n;
+
+            statusEl.innerText = `GPS: ${type}`;
+            statusEl.style.color = "#0f0";
+            
+            stop(); // Stop scrolling
+            render();
+        }
+
+        function sqrtBigInt(n) {
+            if (n < 2n) return n;
+            let x = n;
+            let y = (x + 1n) >> 1n;
+            while (y < x) { x = y; y = (x + n / x) >> 1n; }
+            return x;
+        }
+
+        // --- UI HANDLING ---
+        function openSearch() {
+            document.getElementById('searchOverlay').style.display = 'flex';
+            searchInput.focus();
+        }
+        function closeSearch() {
+            document.getElementById('searchOverlay').style.display = 'none';
+        }
+
+        // --- CONTROLS ---
+        throttleEl.addEventListener('input', (e) => {
+            state.speed = parseInt(e.target.value);
+            if(state.speed !== 0) {
+                state.target.active = false; // Disable highlighting if moving
+                statusEl.innerText = state.speed > 0 ? "FWD >>>" : "<<< REV";
+                statusEl.style.color = "#0f0";
+                requestAnimationFrame(gameLoop);
+            }
+        });
+
+        // Touch logic (Swipe)
+        viewport.addEventListener('touchstart', (e) => {
+            state.isDragging = true;
+            state.lastY = e.touches[0].clientY;
+            throttleEl.value = 0; state.speed = 0;
+        }, {passive: false});
+
+        viewport.addEventListener('touchmove', (e) => {
+            if (!state.isDragging) return;
+            e.preventDefault();
+            let y = e.touches[0].clientY;
+            let delta = state.lastY - y;
+            if (Math.abs(delta) > ROW_HEIGHT / 2) {
+                state.topK += BigInt(Math.floor(delta / (ROW_HEIGHT/2)));
+                if (state.topK < 0n) state.topK = 0n;
+                state.lastY = y;
+                render();
+            }
+        }, {passive: false});
+
+        viewport.addEventListener('touchend', () => { state.isDragging = false; });
+
+        function stop() {
+            throttleEl.value = 0;
+            state.speed = 0;
+            statusEl.innerText = "MANUAL";
+            statusEl.style.color = "#0ff";
+        }
+
+        // GAME LOOP
+        function gameLoop(timestamp) {
+            if (state.speed === 0) return;
+            
+            // Frame skip logic
+            if (Math.abs(state.speed) > 10) {
+                 state.topK += BigInt(Math.floor(state.speed / 5));
+            } else if (timestamp - state.lastTime > (500 / Math.abs(state.speed))) {
+                state.topK += BigInt(Math.sign(state.speed));
+                state.lastTime = timestamp;
+            }
+
+            if (state.topK < 0n) state.topK = 0n;
+            render();
+            hudVel.innerText = state.speed;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // INIT
+        initGrid();
+
+    </script>
+</body>
+</html>

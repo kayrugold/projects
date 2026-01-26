@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v5.3</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --pink: #f472b6; --green: #34d399;
+        --input-bg: rgba(0,0,0,0.3);
+        --mod-highlight: #3b82f6; 
+        --dim-color: rgba(30, 41, 59, 0.4);
+    }
+    * { box-sizing: border-box; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; 
+        margin: 0; 
+        display: flex; 
+        flex-direction: column; 
+        overflow: hidden; 
+        overscroll-behavior: none; 
+    }
+
+    /* --- TOP BAR --- */
+    .top-section {
+        background: var(--panel);
+        border-bottom: 2px solid var(--cyan);
+        padding: 4px 8px;
+        flex-shrink: 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        z-index: 200;
+    }
+    
+    .controls { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    .control-toggles-left, .control-toggles-right {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+    
+    /* Toggle Buttons */
+    .toggle-btn { 
+        background: #334155; color: #94a3b8; padding: 0 8px; height: 32px; 
+        display: grid; place-items: center; border-radius: 4px; border:none; 
+        cursor: pointer; font-weight:bold; font-size:0.65rem;
+        transition: all 0.2s;
+        text-transform: uppercase;
+    }
+    .toggle-btn.active { background: var(--cyan); color: #000; box-shadow: 0 0 5px var(--cyan); }
+    #btnGnomon.active { background: var(--pink); color: #000; box-shadow: 0 0 5px var(--pink); }
+    
+    .toggle-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Input Row */
+    .cargo-input-row { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+    
+    #inpFind { 
+        background: #1e293b; border: 1px solid #334155; color: #fff; 
+        padding: 8px; width: 100%; font-family: 'Courier New', monospace; 
+        font-weight: 800; font-size: 1.1rem; outline: none; text-align: center;
+        border-radius: 4px; flex: 1;
+    }
+    
+    #btnFind {
+        background: var(--cyan); color: #000; border: none; border-radius: 4px;
+        font-weight: bold; cursor: pointer; padding: 0 12px; height: 40px;
+        font-size: 0.8rem; white-space: nowrap;
+    }
+    #btnFind:active { transform: translateY(1px); }
+
+    /* --- CANVAS --- */
+    .layout { flex: 1; position: relative; overflow: hidden; background: #000; min-height: 0; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* --- DECODER PANEL --- */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--pink); 
+        display: flex; flex-direction: column; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8); z-index: 150;
+        flex-shrink: 0; 
+    }
+    .panel-sec { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 2px; }
+    
+    .big-math { background: #0b1120; }
+    .bm-val { 
+        font-size: 1.2rem; font-weight: 900; color: #fff; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; 
+        cursor: pointer; border-bottom: 1px dotted #334155;
+    }
+    .bm-sub { font-size: 0.8rem; color: var(--pink); font-weight: bold; margin-top: 2px; cursor: pointer; }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; padding: 8px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 3px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; margin-bottom: 1px; }
+    .info-input { width: 100%; background: var(--input-bg); border: 1px solid #334155; color: #fff; font-family: inherit; font-weight: bold; font-size: 0.8rem; text-align: center; padding: 2px; border-radius: 4px; outline: none; }
+    .inp-k { color: var(--green); } .inp-b { color: var(--pink); } .inp-a { color: #3b82f6; } .inp-g { color: #fbbf24; }
+
+    /* --- TECH PANEL --- */
+    .tech-panel { background: #020617; border-top: 1px solid var(--border); padding: 0; z-index: 150; flex-shrink: 0; }
+    .tech-header { padding: 6px 10px; background: #0f172a; color: var(--cyan); font-size: 0.75rem; font-weight: bold; display: flex; justify-content: space-between; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .tech-content { padding: 8px; display: none; }
+    .tech-content.open { display: block; }
+
+    /* --- TOAST --- */
+    #toast {
+        position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.95); border: 1px solid var(--cyan);
+        color: var(--cyan); padding: 10px 20px; border-radius: 30px;
+        font-size: 0.9rem; font-weight: bold; z-index: 1200;
+        opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+    }
+    #toast.show { opacity: 1; }
+
+    /* Modals */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(2, 6, 23, 0.95); z-index: 1100;
+        display: none; justify-content: center; align-items: center;
+        padding: 20px; backdrop-filter: blur(5px);
+    }
+    .modal-card {
+        background: #0f172a; border: 1px solid var(--cyan);
+        width: 100%; max-width: 600px; max-height: 85vh;
+        border-radius: 12px; display: flex; flex-direction: column;
+        box-shadow: 0 0 50px rgba(0,0,0,0.8); color: #cbd5e1;
+    }
+    .modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-weight: bold; color: var(--cyan); font-size: 1.1rem; }
+    .modal-close { color: #fff; cursor: pointer; font-size: 1.5rem; line-height: 1; }
+    .modal-body { padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; word-wrap: break-word; }
+</style>
+</head>
+<body>
+
+<div id="toast">SCANNING...</div>
+
+<div class="top-section">
+    <div class="controls">
+        <div class="control-toggles-left">
+            <button class="toggle-btn" id="btnHelp" title="Field Guide">?</button>
+            <input id="inpZoom" type="range" min="20" max="150" value="64" style="width: 50px;">
+        </div>
+        
+        <div class="control-toggles-right">
+            <button class="toggle-btn active" id="btnTrivials">TRIVIALS</button>
+            <button class="toggle-btn" id="btnGnomon">GNOMON</button>
+            <button class="toggle-btn active" id="btnMirror" title="Toggle Mirror">◥</button>
+            <button class="toggle-btn" id="btnLayout" title="Switch Layout">SPINE</button>
+        </div>
+    </div>
+    
+    <div class="cargo-input-row">
+        <button id="btnFind">FIND ID</button>
+        <input id="inpFind" type="text" placeholder="Cargo (N) or Tape ID">
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="panel-sec big-math">
+        <div>
+            <div class="sec-lbl">SMART ID (a.b)</div>
+            <div id="dispComp" class="bm-val" title="Tap to Expand">--</div>
+            <div id="dispSq" class="bm-sub">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">CARGO (N)</div>
+            <div id="dispVal" class="bm-val" title="Tap to Expand">--</div>
+            <div id="dispFactors" class="bm-sub" style="color:var(--cyan)">--</div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-lbl">GNOMON</div>
+            <input id="inpGnomon" type="text" class="info-input inp-g" readonly title="2a - 1">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl" id="lblCol">GAP (b)</div>
+            <input id="inpCol" type="text" class="info-input inp-b" onchange="updateFromInput('col')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">ANCHOR (a)</div>
+            <input id="inpA" type="text" class="info-input inp-a" onchange="updateFromInput('a')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">ROW (k)</div>
+            <input id="inpK" type="text" class="info-input inp-k" onchange="updateFromInput('k')">
+        </div>
+    </div>
+</div>
+
+<div class="tech-panel">
+    <div class="tech-header" id="techHeader">
+        <span id="scanStatus">SYSTEM IDLE</span>
+        <span>▼</span>
+    </div>
+    <div class="tech-content" id="techContent">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <select id="coreSelect" style="background:#1e293b; border:1px solid #334155; color:#e2e8f0; padding:6px;"></select>
+            <button id="btnInvertMods" class="toggle-btn" style="width:100%">INVERT MODS</button>
+        </div>
+        <div id="coreProgressContainer" style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px;"></div>
+        
+        <div style="margin-top:10px; padding:8px; border:1px solid #1e293b; background:#0b1120; border-radius:4px;">
+            <h4 style="color:#3b82f6; font-size:0.75rem; margin:0 0 5px 0;">MODULAR FILTERS</h4>
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <input id="inpModulus" type="number" placeholder="Modulus" style="flex:1; padding:4px; font-size:0.8rem; background:#1e293b; border:1px solid #334155; color:#fff;">
+                <button id="btnAddFilter" style="background:#3b82f6; border:none; color:#000; font-weight:bold; padding:4px 8px;">ADD</button>
+            </div>
+            <div id="activeFilters" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="helpModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header"><span class="modal-title">Manual</span><span class="modal-close" id="closeHelp">×</span></div>
+        <div class="modal-body">
+            <h3>New Features (v5.3)</h3>
+            <p><strong>FIND ID:</strong> Enter a Cargo (N) to scan, or a Tape ID to jump instantly.</p>
+            <p><strong>Layouts:</strong> Toggle SPINE for triangle view, click again for DIAG (square) view. Mirror only works in Diag.</p>
+            <p><strong>Gnomon Mode:</strong> Visualizes row structure. Now works in both Trivial and Non-Trivial modes.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- GLOBALS ---
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+let cellS = 64; 
+const HDR_S = 30; 
+let viewAnchor = { r: 0n, c: 0n };
+let scrollX = 0, scrollY = 0;
+let highlight = { r: 0n, c: 0n };
+let hideMirror = true; 
+let layoutMode = 'spine'; 
+let cellCache = new Map();
+let currentFullData = null; 
+let activeModuli = []; 
+let isInvertMod = false;
+
+// TOGGLES
+let showTrivials = true;
+let showGnomon = false;
+
+// --- WORKER ---
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const getTapeID = (row, gap) => { 
+        return (row * (row + 1n)) / 2n + gap; 
+    }
+    const checkModulus = (N, moduli) => {
+        if (!moduli || moduli.length === 0) return false;
+        try {
+            const N_big = BigInt(N);
+            for(let i=0; i<moduli.length; i++) {
+                const M_big = BigInt(moduli[i]);
+                if (N_big % M_big === 0n) return true;
+            }
+        } catch(e) { }
+        return false;
+    }
+
+    const process = (r_in, c_in, mode) => {
+        const r = BigInt(r_in);
+        const c = BigInt(c_in);
+        let P2, P1, k, a, b, isSq;
+        
+        if (mode === 'spine') {
+            k = r; b = c;
+            P2 = (k * 2n) + 1n;
+            P1 = P2 - (b * 2n);
+            a = P2 - b; 
+            isSq = (c === 0n);
+        } else {
+            // DIAG MODE
+            let k_raw = r; let j_raw = c;
+            // Symmetric check for mirror
+            if (k_raw >= j_raw) { P2 = (k_raw * 2n) + 1n; P1 = (j_raw * 2n) + 1n; k = k_raw; } 
+            else { P2 = (j_raw * 2n) + 1n; P1 = (k_raw * 2n) + 1n; k = j_raw; }
+            b = (P2 - P1) / 2n;
+            a = (P2 + P1) / 2n;
+            isSq = (r === c);
+        }
+        
+        if (P1 <= 0n) return null;
+        
+        const val = P2 * P1;
+        const valStr = val.toString();
+        const isModMatch = checkModulus(val, msg.moduli);
+        let displayVal = valStr;
+        if (valStr.length > 8) displayVal = ".." + valStr.slice(-6);
+        
+        return {
+            r: r_in, c: c_in,
+            k: k.toString(), a: a.toString(), b: b.toString(),
+            tapeID: getTapeID(k, b).toString(), 
+            g: ((a * 2n) - 1n).toString(),
+            val: displayVal, fullVal: valStr, 
+            isSq: isSq, P2: P2.toString(), P1: P1.toString(),
+            isMod: isModMatch
+        };
+    };
+
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.r, it.c, msg.mode)).filter(x => x);
+        self.postMessage({ type: 'batch', payload: res });
+    } else if (msg.cmd === 'cell') {
+        const res = process(msg.r, msg.c, msg.mode);
+        self.postMessage({ type: 'cell', payload: res });
+    }
+});
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+
+worker.onmessage = (ev) => {
+    const msg = ev.data;
+    if (msg.type === 'batch') {
+        msg.payload.forEach(p => cellCache.set(`${p.r}|${p.c}`, p));
+        draw();
+    } else if (msg.type === 'cell') {
+        const p = msg.payload;
+        cellCache.set(`${p.r}|${p.c}`, p);
+        if(highlight.r.toString() === p.r && highlight.c.toString() === p.c) updateDecoder(p);
+        draw();
+    }
+};
+
+// --- CORE UTILS ---
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function requestBatch() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    const cols = Math.ceil(w / cellS);
+    const rows = Math.ceil(h / cellS);
+    const items = [];
+    const buffer = 4;
+    for(let r = -buffer; r < rows + buffer; r++) {
+        for (let c = -buffer; c < cols + buffer; c++) {
+            const gridR = viewAnchor.r + BigInt(r);
+            const gridC = viewAnchor.c + BigInt(c);
+            if(gridR<0n || gridC<0n) continue;
+            // Mirror Logic: Only applies in Diag mode
+            if(layoutMode==='diag' && hideMirror && gridC > gridR) continue;
+            
+            // Spine Logic: Triangle constraint
+            if(layoutMode==='spine' && gridC > gridR) continue;
+
+            if(!cellCache.has(`${gridR}|${gridC}`) || (activeModuli.length > 0 && cellCache.get(`${gridR}|${gridC}`).isMod === undefined)) {
+                 items.push({r: gridR.toString(), c: gridC.toString()});
+            }
+        }
+    }
+    if(items.length) worker.postMessage({cmd:'batch', items, mode: layoutMode, moduli: activeModuli});
+}
+
+function pan(dx, dy) {
+    scrollX += dx; scrollY += dy;
+    requestBatch(); draw();
+}
+
+function jumpTo(r, c) {
+    viewAnchor = { r: BigInt(r), c: BigInt(c) };
+    scrollX = 0; scrollY = 0;
+    highlight = { r: BigInt(r), c: BigInt(c) };
+    cellCache.clear();
+    worker.postMessage({cmd:'cell', r: highlight.r.toString(), c: highlight.c.toString(), mode: layoutMode, moduli: activeModuli});
+    requestBatch();
+    draw();
+}
+
+// --- SCANNING ---
+function sqrtBigInt(n) {
+    if (n < 2n) return n;
+    let x = n, y = (x + 1n) / 2n;
+    while (y < x) { x = y; y = (x + n / x) / 2n; }
+    return x;
+}
+
+function handleSearch() {
+    const input = document.getElementById('inpFind').value.trim();
+    if(!input) return;
+    let val;
+    try { val = BigInt(input); } catch(e) { showToast("Invalid"); return; }
+    
+    // ID Jump Logic: L = k(k+1)/2 + b => Approx k = sqrt(2L)
+    const k_approx = (sqrtBigInt(8n * val + 1n) - 1n) / 2n;
+    const tri = (k_approx * (k_approx + 1n)) / 2n;
+    const b_gap = val - tri;
+    
+    showToast("SCANNING...");
+    
+    if (val < 1000000n) {
+        jumpTo(k_approx, b_gap);
+        showToast(`JUMPED TO ID ${val}`);
+        return;
+    }
+    startParallelScan(input);
+}
+
+function startParallelScan(N_str) {
+    const btn = document.getElementById('btnFind');
+    const prevText = btn.innerText;
+    btn.disabled = true; btn.innerText = '...';
+    let N;
+    try { N = BigInt(N_str); } catch(e) { btn.disabled=false; return; }
+    
+    if (N < 10000000000n) {
+        let anchor = sqrtBigInt(N) + 1n;
+        let residue = (anchor * anchor) - N;
+        for(let i=0; i<5000; i++){
+            let gap = sqrtBigInt(residue);
+            if(gap*gap === residue && (anchor - gap) !== 1n){
+                jumpTo((anchor + gap - 1n)/2n, gap);
+                showToast(`FOUND VIA SEARCH`);
+                btn.disabled=false; btn.innerText=prevText;
+                return;
+            }
+            residue += (anchor * 2n) + 1n;
+            anchor++;
+        }
+    }
+    btn.disabled=false; btn.innerText=prevText;
+    showToast("Use ID for instant jump");
+}
+
+// --- DRAWING ENGINE ---
+function draw() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+
+    while (scrollX > 0) { scrollX -= cellS; viewAnchor.c -= 1n; }
+    while (scrollX <= -cellS) { scrollX += cellS; viewAnchor.c += 1n; }
+    while (scrollY > 0) { scrollY -= cellS; viewAnchor.r -= 1n; }
+    while (scrollY <= -cellS) { scrollY += cellS; viewAnchor.r += 1n; }
+
+    const colsToDraw = Math.ceil(w / cellS) + 1;
+    const rowsToDraw = Math.ceil(h / cellS) + 1;
+    const fsBase = Math.floor(cellS * 0.22);
+    const fsSmall = Math.max(6, Math.floor(cellS * 0.15));
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.save();
+    ctx.translate(HDR_S + scrollX, HDR_S + scrollY); 
+
+    for (let r = -1; r < rowsToDraw + 1; r++) { 
+        for (let c = -1; c < colsToDraw + 1; c++) {
+            const gridR = viewAnchor.r + BigInt(r);
+            const gridC = viewAnchor.c + BigInt(c);
+            if (gridR < 0n || gridC < 0n) continue;
+            
+            // Logic for Layouts
+            if (layoutMode === 'diag' && hideMirror && gridC > gridR) continue;
+            if (layoutMode === 'spine' && gridC > gridR) continue;
+
+            const x = c * cellS;
+            const y = r * cellS;
+            if (x < -cellS || x > w || y < -cellS || y > h) continue;
+
+            const key = `${gridR}|${gridC}`;
+            const cell = cellCache.get(key);
+            const isSel = (gridR === highlight.r && gridC === highlight.c);
+            const isMod = cell ? cell.isMod : false;
+
+            // TRIVIALS CHECK
+            if (cell && cell.P1 === "1" && !showTrivials) continue;
+
+            let bg = '#111827';
+            let txt = '#64748b';
+            
+            // GNOMON MODE COLORING
+            if (showGnomon && cell) {
+                if (cell.isSq) {
+                    bg = 'rgba(0, 240, 255, 0.15)'; 
+                } else {
+                    const hue = (Number(gridR % 100n) * 40) % 360;
+                    bg = `hsla(${hue}, 60%, 25%, 0.4)`;
+                }
+            } else {
+                if (cell && cell.isSq) { bg = 'rgba(59, 130, 246, 0.1)'; txt = '#fff'; }
+                if (isMod) bg = isInvertMod ? 'rgba(30, 41, 59, 0.4)' : 'rgba(59, 130, 246, 0.2)';
+            }
+            
+            ctx.fillStyle = bg; ctx.fillRect(x, y, cellS-1, cellS-1);
+
+            if (cell && cell.isSq) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1; ctx.strokeRect(x+2, y+2, cellS-5, cellS-5); }
+            if (!isSel && isMod && !isInvertMod) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.strokeRect(x+1, y+1, cellS-3, cellS-3); }
+            if (isSel) {
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+                ctx.strokeRect(x+1, y+1, cellS-3, cellS-3);
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.25)';
+                ctx.fillRect(x+1, y+1, cellS-3, cellS-3);
+                txt = '#fff';
+            }
+            
+            if (cell) {
+                ctx.fillStyle = (showGnomon) ? 'rgba(255,255,255,0.7)' : '#334155';
+                ctx.font = '9px monospace';
+                ctx.textAlign = 'left';
+                ctx.fillText(cell.tapeID, x + 4, y + 10);
+                
+                ctx.textAlign = 'center';
+                let label = cell.a.length > 8 ? ".." : cell.a + "." + cell.b;
+                let fs = fsBase;
+                ctx.font = `bold ${fs}px monospace`;
+                ctx.fillStyle = (isInvertMod && isMod) ? '#666' : (cell.isSq ? '#22d3ee' : (isSel ? '#fff' : txt));
+                if(showGnomon) ctx.fillStyle = '#fff';
+                ctx.fillText(label, x + cellS/2, y + cellS/2 - 2);
+                
+                ctx.font = `${fsSmall}px monospace`;
+                ctx.fillStyle = (isInvertMod && isMod) ? '#555' : (isSel ? '#fff' : '#444');
+                if(showGnomon) ctx.fillStyle = '#ccc';
+                ctx.fillText(cell.val, x + cellS/2, y + cellS/2 + fsSmall + 2);
+            }
+        }
+    }
+    ctx.restore();
+    
+    // Headers
+    ctx.font = 'bold 10px monospace';
+    ctx.save(); ctx.translate(HDR_S + scrollX, 0);
+    for(let c=-1; c<colsToDraw+1; c++) {
+        const val = viewAnchor.c + BigInt(c);
+        if(val<0n) continue;
+        const x = c * cellS;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(x, 0, cellS-1, HDR_S);
+        ctx.fillStyle = (layoutMode==='spine') ? '#f472b6' : '#22d3ee'; 
+        ctx.fillText(val.toString(), x+cellS/2, HDR_S/2);
+    }
+    ctx.restore();
+    ctx.save(); ctx.translate(0, HDR_S + scrollY);
+    for(let r=-1; r<rowsToDraw+1; r++) {
+        const val = viewAnchor.r + BigInt(r);
+        if(val<0n) continue;
+        const y = r * cellS;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(0, y, HDR_S, cellS-1);
+        ctx.fillStyle = '#34d399'; 
+        ctx.fillText(val.toString(), HDR_S/2, y+cellS/2);
+    }
+    ctx.restore();
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,HDR_S,HDR_S);
+    ctx.fillStyle = '#fff'; ctx.fillText(layoutMode==='spine'?'k\\b':'k\\j', HDR_S/2, HDR_S/2);
+}
+
+// --- CONTROLS ---
+const btnTrivials = document.getElementById('btnTrivials');
+const btnGnomon = document.getElementById('btnGnomon');
+const btnLayout = document.getElementById('btnLayout');
+const btnMirror = document.getElementById('btnMirror');
+
+btnTrivials.onclick = () => {
+    showTrivials = !showTrivials;
+    btnTrivials.classList.toggle('active');
+    draw();
+};
+
+btnGnomon.onclick = () => {
+    showGnomon = !showGnomon;
+    btnGnomon.classList.toggle('active');
+    draw();
+};
+
+btnLayout.onclick = () => {
+    layoutMode = (layoutMode === 'spine') ? 'diag' : 'spine';
+    btnLayout.innerText = (layoutMode === 'spine') ? 'SPINE' : 'DIAG';
+    // Mirror Logic: Only valid in DIAG mode
+    btnMirror.disabled = (layoutMode === 'spine');
+    btnMirror.style.opacity = (layoutMode === 'spine') ? '0.5' : '1';
+    
+    viewAnchor = { r: 0n, c: 0n };
+    scrollX = 0; scrollY = 0;
+    cellCache.clear();
+    requestBatch();
+    draw();
+};
+
+btnMirror.onclick = () => {
+    if(layoutMode === 'spine') return;
+    hideMirror = !hideMirror;
+    btnMirror.classList.toggle('active');
+    cellCache.clear();
+    requestBatch();
+    draw();
+};
+
+// --- TOUCH/PAN/ZOOM ---
+const inpZoom = document.getElementById('inpZoom');
+inpZoom.oninput = (e) => { cellS = parseInt(e.target.value); requestBatch(); draw(); };
+
+function tapSelect(clickX, clickY) {
+    const rect = wrap.getBoundingClientRect();
+    const relX = clickX - rect.left - HDR_S - scrollX;
+    const relY = clickY - rect.top - HDR_S - scrollY;
+    const cIdx = Math.floor(relX / cellS);
+    const rIdx = Math.floor(relY / cellS);
+    const targetR = viewAnchor.r + BigInt(rIdx);
+    const targetC = viewAnchor.c + BigInt(cIdx);
+    if (targetR < 0n || targetC < 0n) return;
+    highlight = { r: targetR, c: targetC };
+    const key = `${targetR}|${targetC}`;
+    let p = cellCache.get(key);
+    if(p) updateDecoder(p);
+    else worker.postMessage({cmd:'cell', r: targetR.toString(), c: targetC.toString(), mode: layoutMode, moduli: activeModuli});
+    draw();
+}
+
+function updateDecoder(p) {
+    if(!p) return;
+    currentFullData = p;
+    let aShort = p.a.length > 10 ? p.a.slice(0,6)+"..." : p.a;
+    let bShort = p.b.length > 10 ? p.b.slice(0,6)+"..." : p.b;
+    let valShort = p.fullVal.length > 12 ? p.fullVal.slice(0,6)+"..."+p.fullVal.slice(-4) : p.fullVal;
+    document.getElementById('dispComp').innerText = `${aShort}.${bShort}`;
+    document.getElementById('dispSq').innerText = `Tape ID: ${p.tapeID}`;
+    document.getElementById('dispVal').innerText = valShort;
+    document.getElementById('dispFactors').innerText = `${p.P2} × ${p.P1}`;
+    setInputValue('inpK', p.k); setInputValue('inpCol', p.c); 
+    setInputValue('inpA', p.a); setInputValue('inpGnomon', p.g);
+}
+function setInputValue(id, val) { const el = document.getElementById(id); if(document.activeElement !== el) el.value = val; }
+
+let dragging = false, lastX=0, lastY=0, startX=0, startY=0;
+let pinchStartDist=0, pinchStartCellS=64;
+function getDist(t1, t2) { return Math.hypot(t1.clientX-t2.clientX, t1.clientY-t2.clientY); }
+
+wrap.addEventListener('touchstart', e => {
+    if(e.touches.length === 2) {
+        dragging = false; pinchStartDist = getDist(e.touches[0], e.touches[1]); pinchStartCellS = cellS;
+    } else if (e.touches.length === 1) {
+        dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; startX = lastX; startY = lastY;
+    }
+}, {passive:false});
+wrap.addEventListener('touchmove', e => {
+    if(e.touches.length === 2) {
+        e.preventDefault(); const dist = getDist(e.touches[0], e.touches[1]); const scale = dist / pinchStartDist;
+        let newS = Math.round(pinchStartCellS * scale); if(newS < 20) newS = 20; if(newS > 150) newS = 150;
+        cellS = newS; inpZoom.value = newS; requestBatch(); draw();
+    } else if (dragging && e.touches.length === 1) {
+        e.preventDefault(); const dx = e.touches[0].clientX - lastX; const dy = e.touches[0].clientY - lastY;
+        pan(dx, dy); lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    }
+}, {passive:false});
+wrap.addEventListener('touchend', e => {
+    dragging = false;
+    if(e.changedTouches.length > 0 && e.touches.length === 0) {
+        const t = e.changedTouches[0]; const dist = Math.hypot(t.clientX - startX, t.clientY - startY);
+        if(dist < 10) tapSelect(t.clientX, t.clientY);
+    }
+});
+wrap.addEventListener('mousedown', e => { dragging=true; lastX=e.clientX; lastY=e.clientY; startX=e.clientX; startY=e.clientY; });
+wrap.addEventListener('mousemove', e => { if(dragging) { pan(e.clientX-lastX, e.clientY-lastY); lastX=e.clientX; lastY=e.clientY; } });
+wrap.addEventListener('mouseup', e => { dragging=false; if(Math.hypot(e.clientX-startX, e.clientY-startY)<5) tapSelect(e.clientX, e.clientY); });
+
+// Init
+function resize() {
+    DPR = window.devicePixelRatio || 1;
+    canvas.width = wrap.clientWidth * DPR;
+    canvas.height = wrap.clientHeight * DPR;
+    requestBatch(); draw();
+}
+window.onresize = resize;
+window.onload = () => {
+    resize();
+    jumpTo(0n, 0n);
+    document.getElementById('btnFind').onclick = handleSearch;
+    document.getElementById('btnHelp').onclick = () => document.getElementById('helpModal').style.display='flex';
+    document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').style.display='none';
+    document.getElementById('techHeader').onclick = () => {
+        const c = document.getElementById('techContent'); c.classList.toggle('open'); resize();
+    }
+    // Set Initial State
+    btnTrivials.classList.add('active');
+    btnGnomon.classList.remove('active');
+    btnMirror.disabled = true; // Disabled in spine mode
+    btnMirror.style.opacity = '0.5';
+};
+</script>
+</body>
+</html>

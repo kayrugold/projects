@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gnomon Correlator v5</title>
+<style>
+    :root {
+        --bg: #020617;
+        --panel: #0f172a;
+        --border: #1e293b;
+        --cyan: #22d3ee;
+        --wall: #d97706;      /* Amber-600 */
+        --gnomon: #f472b6;    /* Pink */
+        --text: #e2e8f0;
+        --sq-glow: #3b82f6;   /* Blue */
+    }
+    
+    * { box-sizing: border-box; }
+
+    body { 
+        background: var(--bg); color: var(--text); 
+        font-family: 'Courier New', monospace; 
+        height: 100vh; margin: 0; display: flex; flex-direction: column; 
+    }
+
+    /* CONTROLS */
+    .controls { 
+        padding: 10px 15px; background: #0f172a; border-bottom: 1px solid var(--border); 
+        display: flex; gap: 10px; align-items: center; justify-content: space-between;
+        flex-shrink: 0; z-index: 100;
+    }
+    .brand { font-weight: 900; color: #fff; font-size: 0.9rem; letter-spacing: 1px; }
+    
+    .input-group { display: flex; gap: 5px; }
+    input { 
+        background: #1e293b; border: 1px solid #334155; 
+        color: white; padding: 6px; width: 60px; text-align: center; 
+        border-radius: 4px; font-weight: bold; font-family: monospace;
+    }
+    button { 
+        background: var(--cyan); border: none; padding: 6px 12px; 
+        border-radius: 4px; font-weight: bold; cursor: pointer; color: #000; font-size: 0.8rem;
+    }
+
+    /* LAYOUT */
+    .layout { 
+        display: flex; flex-direction: column; 
+        flex: 1; overflow: hidden; 
+    }
+    @media (min-width: 768px) { .layout { flex-direction: row; } }
+
+    /* GRID AREA */
+    .table-wrapper { 
+        flex: 1; overflow: auto; position: relative; 
+        background: #000;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .grid { 
+        display: grid; gap: 2px; padding: 2px; padding-bottom: 120px;
+    }
+
+    /* CELL STYLES */
+    .cell {
+        background: #111827; height: 55px; min-width: 55px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        cursor: pointer; position: relative; user-select: none;
+        border: 1px solid #1f2937;
+    }
+    
+    /* Headers */
+    .cell.header { 
+        background: #0f172a; color: var(--cyan); font-weight: bold; 
+        position: sticky; z-index: 20; border-color: var(--border);
+    }
+    .cell.header-top { top: 0; z-index: 30; border-bottom: 2px solid var(--border); }
+    .cell.header-left { left: 0; z-index: 29; border-right: 2px solid var(--border); }
+    .cell.corner { top: 0; left: 0; z-index: 40; border: 1px solid var(--cyan); color: white; }
+
+    /* --- SPECIAL TYPES --- */
+    
+    /* Mod 3 Walls (Dimmed Contrast) */
+    .cell.is-wall {
+        background: #1a1005; /* Very dark amber */
+        color: #78350f;
+        border-color: #451a03;
+    }
+
+    /* Perfect Squares (Glowing Blue) */
+    .cell.is-sq {
+        background: rgba(59, 130, 246, 0.15) !important;
+        box-shadow: 0 0 15px var(--sq-glow), inset 0 0 5px var(--sq-glow);
+        border: 2px solid #60a5fa !important;
+        z-index: 5;
+    }
+
+    /* Tiny Gnomon Index Badge */
+    .g-badge {
+        position: absolute; top: 1px; right: 2px;
+        font-size: 0.55rem; color: #fff; opacity: 0.9;
+        background: #000; padding: 0 3px; border-radius: 2px;
+        border: 1px solid #333;
+    }
+
+    /* Active State */
+    .cell.active { 
+        background: white !important; color: black !important; 
+        transform: scale(1.15); z-index: 50; 
+        box-shadow: 0 0 25px white; border: 2px solid var(--cyan) !important;
+    }
+    .cell.active .val { color: black; }
+    .cell.active .eq { color: #333; }
+    .cell.active .g-badge { color: black; background: transparent; border-color: #000; font-weight: bold; }
+
+    .val { font-size: 0.9rem; font-weight: bold; }
+    .eq { font-size: 0.55rem; opacity: 0.6; margin-top: 1px; }
+
+    /* DECODER PANEL */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--cyan); 
+        display: flex; flex-direction: column; flex-shrink: 0; 
+        height: 45vh; overflow-y: auto;
+        box-shadow: 0 -10px 50px rgba(0,0,0,0.8);
+        z-index: 60;
+    }
+    @media (min-width: 768px) {
+        .decoder { width: 380px; height: auto; border-top: none; border-left: 3px solid var(--cyan); }
+    }
+
+    .panel-section { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-title { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+
+    /* MATH DISPLAY */
+    .big-math { background: #0b1120; }
+    .bm-val { font-size: 2rem; font-weight: 900; color: #fff; line-height: 1; }
+    .bm-eq { font-size: 0.9rem; color: var(--cyan); font-weight: bold; }
+    .type-tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+
+    /* SUNDARAM GRID */
+    .sun-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; width: 100%; margin-top: 5px;}
+    .sun-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 5px; border-radius: 4px; text-align: center; }
+    .sun-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; }
+    .sun-data { font-size: 1.1rem; font-weight: bold; color: #fff; }
+
+    /* GNOMON VIZ */
+    .canvas-container { 
+        flex: 1; min-height: 180px; position: relative;
+        background: radial-gradient(circle, #1e293b 0%, #020617 80%);
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden;
+    }
+    canvas { max-width: 90%; max-height: 90%; }
+    .g-overlay {
+        position: absolute; bottom: 5px; width: 100%; text-align: center;
+        font-size: 0.75rem; color: #fff; text-shadow: 0 2px 4px #000; pointer-events: none;
+    }
+</style>
+</head>
+<body>
+
+<div class="controls">
+    <span class="brand">GNOMON CORRELATOR</span>
+    <div class="input-group">
+        <input id="inpMax" type="number" value="25" min="1" step="2">
+        <button onclick="render()">LOAD</button>
+    </div>
+</div>
+
+<div class="layout">
+    <div class="table-wrapper">
+        <div id="grid" class="grid"></div>
+    </div>
+
+    <div class="decoder">
+        
+        <div class="panel-section big-math">
+            <div>
+                <div class="sec-title">VALUE</div>
+                <div id="dispVal" class="bm-val">--</div>
+            </div>
+            <div style="text-align:right">
+                <div class="sec-title">FACTORS</div>
+                <div id="dispEq" class="bm-eq">--</div>
+                <div id="dispType" class="type-tag" style="margin-top:5px; display:inline-block;">--</div>
+            </div>
+        </div>
+
+        <div class="panel-section" style="display:block">
+            <div class="sec-title">SUNDARAM INDEXING (k = i + j + 2ij)</div>
+            <div class="sun-grid">
+                <div class="sun-item">
+                    <div class="sun-lbl">ROW (i)</div>
+                    <div id="dispI" class="sun-data">-</div>
+                </div>
+                <div class="sun-item">
+                    <div class="sun-lbl">COL (j)</div>
+                    <div id="dispJ" class="sun-data">-</div>
+                </div>
+                <div class="sun-item" style="border-color:var(--cyan); background:rgba(34,211,238,0.1);">
+                    <div class="sun-lbl" style="color:var(--cyan)">INDEX (k)</div>
+                    <div id="dispK" class="sun-data" style="color:var(--cyan)">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="viz"></canvas>
+            <div class="g-overlay">
+                Outer: <span id="dispOuter" style="color:#38bdf8">--</span>² 
+                - Inner: <span id="dispInner" style="color:#f472b6">--</span>²
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const grid = document.getElementById('grid');
+    const canvas = document.getElementById('viz');
+    const ctx = canvas.getContext('2d');
+
+    function render() {
+        let max = parseInt(document.getElementById('inpMax').value);
+        if (max < 1) max = 1;
+        if (max % 2 === 0) max++; // Force odd
+
+        // Start at 1
+        const factors = [];
+        for(let n=1; n<=max; n+=2) factors.push(n);
+        const size = factors.length;
+
+        // Grid CSS
+        grid.style.gridTemplateColumns = `50px repeat(${size}, 60px)`;
+        grid.innerHTML = '';
+
+        // 1. CORNER
+        grid.appendChild(createCell('cell corner header', '×'));
+
+        // 2. TOP HEADERS
+        factors.forEach(f => {
+            grid.appendChild(createCell('cell header header-top', f));
+        });
+
+        // 3. ROWS
+        let firstCell = null;
+
+        factors.forEach(rowF => {
+            // Side Header
+            grid.appendChild(createCell('cell header header-left', rowF));
+
+            factors.forEach(colF => {
+                let val = rowF * colF;
+                let cell = createCell('cell', '');
+                
+                // LOGIC
+                const isSq = (rowF === colF);
+                const isWall = (val % 3 === 0);
+                const type = (val % 4 === 1) ? 1 : 2;
+                
+                // Gnomon Index Badge (2n - 1)
+                const gIndex = (2 * rowF) - 1;
+
+                // STYLING
+                if (isSq) cell.classList.add('is-sq');
+                if (isWall) cell.classList.add('is-wall');
+                
+                cell.innerHTML = `
+                    <span class="val">${val}</span>
+                    <span class="eq">${rowF}×${colF}</span>
+                    ${isSq ? `<div class="g-badge">${gIndex}</div>` : ''}
+                `;
+
+                // DATA
+                const i = (rowF - 1) / 2;
+                const j = (colF - 1) / 2;
+                const k = i + j + (2*i*j);
+                const outer = (rowF + colF) / 2;
+                const inner = Math.abs(rowF - colF) / 2;
+
+                cell.onclick = () => {
+                    document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
+                    cell.classList.add('active');
+                    updatePanel(val, rowF, colF, i, j, k, outer, inner, type);
+                };
+
+                if(!firstCell) firstCell = { el: cell }; // Save first
+                grid.appendChild(cell);
+            });
+        });
+
+        // Auto-select first
+        if(firstCell) firstCell.el.click();
+    }
+
+    function createCell(cls, content) {
+        const d = document.createElement('div');
+        d.className = cls;
+        d.innerText = content;
+        return d;
+    }
+
+    function updatePanel(val, r, c, i, j, k, outer, inner, type) {
+        document.getElementById('dispVal').innerText = val;
+        document.getElementById('dispEq').innerText = `${r} × ${c}`;
+        
+        // Type Badge
+        const tBadge = document.getElementById('dispType');
+        tBadge.innerText = `TYPE ${type} (4k+${type===1?1:3})`;
+        tBadge.style.backgroundColor = type === 1 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(249, 115, 22, 0.2)';
+        tBadge.style.color = type === 1 ? '#22c55e' : '#f97316';
+        
+        document.getElementById('dispI').innerText = i;
+        document.getElementById('dispJ').innerText = j;
+        document.getElementById('dispK').innerText = k;
+        document.getElementById('dispOuter').innerText = outer;
+        document.getElementById('dispInner').innerText = inner;
+
+        drawGnomon(outer, inner);
+    }
+
+    function drawGnomon(outer, inner) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        const rect = canvas.parentNode.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height) || 300;
+        const dpr = window.devicePixelRatio || 1;
+        
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, size, size);
+
+        let padding = 30;
+        let avail = size - (padding * 2);
+        let unit = avail / outer; 
+        let cx = size / 2, cy = size / 2;
+
+        // 1. Outer Square
+        const oSize = outer * unit;
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.1)'; 
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        
+        ctx.beginPath();
+        ctx.rect(cx - oSize/2, cy - oSize/2, oSize, oSize);
+        ctx.fill();
+        ctx.stroke();
+
+        // 2. Inner Hole
+        const iSize = inner * unit;
+        ctx.fillStyle = '#0f172a'; // Hole
+        ctx.strokeStyle = '#f472b6'; // Pink border
+        ctx.lineWidth = 2;
+
+        if (inner > 0) {
+            ctx.beginPath();
+            ctx.rect(cx - iSize/2, cy - iSize/2, iSize, iSize);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Cross hatch
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(244, 114, 182, 0.3)';
+            ctx.moveTo(cx - iSize/2, cy - iSize/2); ctx.lineTo(cx + iSize/2, cy + iSize/2);
+            ctx.moveTo(cx + iSize/2, cy - iSize/2); ctx.lineTo(cx - iSize/2, cy + iSize/2);
+            ctx.stroke();
+        }
+    }
+
+    render();
+</script>
+</body>
+</html>

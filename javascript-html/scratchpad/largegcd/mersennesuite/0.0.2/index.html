@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mersenne Deterministic Suite</title>
+<script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+<style>
+[Immersive content redacted for brevity.]
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>Karatsuba Deterministic Number Theory Suite</h2>
+
+    <h3>Mersenne Input ($\mathbf{M_p = 2^p - 1}$)</h3>
+    <div class="input-group">
+        <label for="exponentInput">Mersenne Exponent ($\mathbf{p}$)</label>
+        <input type="text" id="exponentInput" value="127">
+    </div>
+    <div id="mpDigits" style="font-size: 0.9rem; margin-bottom: 1rem;">$M_p$ has 39 digits.</div>
+
+    <hr>
+
+    <h3>Lucas-Lehmer Primality Test</h3>
+    <div class="button-group">
+        <button id="runLltButton">Run LLT ($\mathbf{p}$ steps)</button>
+    </div>
+    <div id="lltResult" class="result-output" style="margin-top: 1.5rem;">Result: N/A</div>
+
+    <hr>
+
+    <h3>Extended Euclidean Algorithm ($\mathbf{ax + by = GCD(a, b)}$)</h3>
+    <div class="input-group">
+        <label for="numberAInput">Number A (or $\mathbf{M_p}$)</label>
+        <input type="text" id="numberAInput" value="$M_p$">
+    </div>
+    <div class="input-group">
+        <label for="numberBInput">Number B (or $\mathbf{M}$)</label>
+        <input type="text" id="numberBInput" value="61">
+    </div>
+    <div class="button-group">
+        <button id="calculateEeaButton">Calculate EEA</button>
+    </div>
+    <div id="eeaResult" class="result-output" style="margin-top: 1.5rem;">Result: N/A</div>
+
+    <hr>
+
+    <h3>Karatsuba Modular Exponentiation ($\mathbf{base^{exp} \pmod{mod}}$)</h3>
+    <div class="input-group">
+        <label for="baseInput">Base</label>
+        <input type="text" id="baseInput" value="2">
+    </div>
+    <div class="input-group">
+        <label for="expInput">Exponent</label>
+        <input type="text" id="expInput" value="127">
+    </div>
+    <div class="input-group">
+        <label for="modulusInput">Modulus (or $\mathbf{M_p}$)</label>
+        <input type="text" id="modulusInput" value="61">
+    </div>
+    <div class="button-group">
+        <button id="runModPowButton">Calculate $\mathbf{Pow}$</button>
+    </div>
+    <div id="modPowResult" class="result-output" style="margin-top: 1.5rem;">Result: N/A</div>
+
+
+    <div id="progressBarContainer"><div id="progressBar">0%</div></div>
+    <div id="results">Status: Ready.</div>
+    
+    <h3>Process Log</h3>
+    <pre id="logOutput">Log: Worker initialized. Ready for deterministic checks.</pre>
+</div>
+
+<script>
+// --- GLOBAL STATE ---
+let lltWorker = null;
+let eeaWorker = null;
+let modPowWorker = null;
+let isCalculating = false;
+
+const exponentInput = document.getElementById('exponentInput');
+const numberAInput = document.getElementById('numberAInput');
+const numberBInput = document.getElementById('numberBInput');
+const runLltButton = document.getElementById('runLltButton');
+const calculateEeaButton = document.getElementById('calculateEeaButton');
+const runModPowButton = document.getElementById('runModPowButton');
+
+// New Mod Pow Inputs
+const baseInput = document.getElementById('baseInput');
+const expInput = document.getElementById('expInput');
+const modulusInput = document.getElementById('modulusInput');
+
+const progressBar = document.getElementById('progressBar');
+const resultsDiv = document.getElementById('results');
+const logOutput = document.getElementById('logOutput');
+const lltResultDiv = document.getElementById('lltResult');
+const eeaResultDiv = document.getElementById('eeaResult');
+const modPowResultDiv = document.getElementById('modPowResult');
+const mpDigitsDiv = document.getElementById('mpDigits');
+
+// --- UTILITY FUNCTIONS ---
+function parseBigInt(str) {
+    if (!str) return 0n;
+    str = String(str).replace(/,/g, '').replace(/\s/g, '');
+    try {
+        // Handle $Mp$ placeholder: replace with calculated value
+        if (str.toLowerCase() === '$m_p$') {
+            const p = parseBigInt(exponentInput.value);
+            return 2n ** p - 1n;
+        }
+        return BigInt(str);
+    } catch (e) {
+        return 0n;
+    }
+}
+function log(msg) { logOutput.textContent += msg + '\n'; logOutput.scrollTop = logOutput.scrollHeight; }
+function setStatus(t) { resultsDiv.textContent = 'Status: ' + t; }
+function setProgress(p) {
+    const percent = Math.min(100, Math.max(0, p)).toFixed(2);
+    progressBar.style.width = percent + '%';
+    progressBar.textContent = percent + '%';
+}
+function stopWorkers() {
+    if (lltWorker) { lltWorker.terminate(); lltWorker = null; }
+    if (eeaWorker) { eeaWorker.terminate(); eeaWorker = null; }
+    if (modPowWorker) { modPowWorker.terminate(); modPowWorker = null; }
+    isCalculating = false;
+    runLltButton.disabled = false;
+    calculateEeaButton.disabled = false;
+    runModPowButton.disabled = false;
+    setStatus('Stopped.');
+    log('Worker terminated by user or finished.');
+}
+function updateMpDigits() {
+    const p = parseBigInt(exponentInput.value);
+    if (p < 2n) {
+        mpDigitsDiv.textContent = "p must be prime > 1.";
+    } else {
+        const digits = (Number(p) * Math.log10(2)) + 1;
+        mpDigitsDiv.textContent = `$M_p$ has ${Math.floor(digits)} digits.`;
+    }
+}
+
+// --- LLT LOGIC ---
+function startLlt() {
+    stopWorkers();
+    const pStr = exponentInput.value.trim();
+    const p = parseBigInt(pStr);
+
+    if (p <= 2n) { setStatus('Error: p must be > 2'); return; }
+    if (p > 32000n) { setStatus('Error: p > 32000 is too large for current system limits.'); return; }
+
+    lltResultDiv.textContent = 'Result: Testing...';
+    logOutput.textContent = 'Log:\n';
+    log(`--- Starting Lucas-Lehmer Test for M_${p} ---`);
+    log(`Mersenne number M_p has ${Math.floor(Number(p) * Math.log10(2))} digits. Sequence length: ${p - 2n} steps.`);
+
+    isCalculating = true;
+    runLltButton.disabled = true;
+    calculateEeaButton.disabled = true;
+    runModPowButton.disabled = true;
+    setStatus('Calculating...');
+    setProgress(0);
+
+    lltWorker = new Worker('ll_test_worker.js'); 
+
+    lltWorker.onmessage = (e) => {
+        const data = e.data;
+        if (data.type === 'progress') {
+            setStatus(`LLT progress: ${data.progress.toFixed(2)}%`);
+            setProgress(data.progress);
+        } else if (data.type === 'result') {
+            if (data.isPrime) {
+                log(`M${pStr} is PRIME! Final S = 0.`);
+                lltResultDiv.innerHTML = `Result: $\mathbf{M_{${pStr}}}$ is **PRIME!** (Final S $\mathbf{=}$ 0)`;
+            } else {
+                log(`M${pStr} is COMPOSITE. (Final S $\\neq$ 0)`);
+                lltResultDiv.innerHTML = `Result: $\mathbf{M_{${pStr}}}$ is **COMPOSITE** (Final S $\mathbf{\\neq}$ 0)`;
+            }
+            setStatus('LLT check complete.');
+            stopWorkers();
+        } else if (data.type === 'error') {
+            log(`Critical Error: ${data.message}`);
+            setStatus('Critical Error: Check log for details.');
+            stopWorkers();
+        }
+    };
+    lltWorker.onerror = (e) => { log(`Worker Error: ${e.message}`); setStatus('Worker Error'); stopWorkers(); };
+
+    lltWorker.postMessage({ p: pStr });
+}
+
+// --- EEA LOGIC ---
+function startEea() {
+    stopWorkers();
+    const aStr = numberAInput.value.trim();
+    const bStr = numberBInput.value.trim();
+
+    const aBig = parseBigInt(aStr);
+    const bBig = parseBigInt(bStr);
+
+    if (aBig === 0n || bBig === 0n) { setStatus('Error: Numbers A and B must be non-zero.'); return; }
+
+    const labelA = aStr;
+    const labelB = bStr;
+
+    eeaResultDiv.textContent = 'Result: Testing...';
+    logOutput.textContent = 'Log:\n';
+    log(`--- Starting Extended Euclidean Algorithm ---`);
+    log(`Finding x, y for: ${labelA} (x) + ${labelB} (y) = GCD`);
+
+    isCalculating = true;
+    runLltButton.disabled = true;
+    calculateEeaButton.disabled = true;
+    runModPowButton.disabled = true;
+    setStatus('Calculating EEA...');
+    setProgress(0);
+
+    eeaWorker = new Worker('eea_worker.js');
+
+    eeaWorker.onmessage = (e) => {
+        const data = e.data;
+        if (data.type === 'log') {
+            log(data.message);
+        } else if (data.type === 'progress') {
+             setProgress(data.progress);
+        } else if (data.type === 'result') {
+            const g = data.g;
+            const x = data.x;
+            const y = data.y;
+
+            eeaResultDiv.innerHTML = `
+                GCD($\\mathbf{${labelA}}$, $\\mathbf{${labelB}}$) = $\\mathbf{${g}}$<br>
+                Bézout's Identity: $\\mathbf{${labelA}}$($x$) + $\\mathbf{${labelB}}$($y$) = $\\mathbf{${g}}$<br>
+                $\mathbf{x} = ${x}$<br>
+                $\mathbf{y} = ${y}$
+            `;
+            log(`EEA complete. GCD=${g}. Steps: ${data.steps}.`);
+            if (g === '1') {
+                log(`Modular Inverse Found: x = ${x} is the inverse of ${labelA} mod ${labelB}`);
+            }
+            setStatus('EEA calculation complete.');
+            stopWorkers();
+        } else if (data.type === 'error') {
+            log(`Critical Error: ${data.message}`);
+            setStatus('Critical Error: Check log for details.');
+            stopWorkers();
+        }
+    };
+    eeaWorker.onerror = (e) => { log(`Worker Error: ${e.message}`); setStatus('Worker Error'); stopWorkers(); };
+
+    eeaWorker.postMessage({ a: aBig.toString(), b: bBig.toString(), labelA: labelA, labelB: labelB });
+}
+
+// --- MOD POW LOGIC ---
+function startModPow() {
+    stopWorkers();
+    const baseStr = baseInput.value.trim();
+    const expStr = expInput.value.trim();
+    const modStr = modulusInput.value.trim();
+
+    const baseBig = parseBigInt(baseStr);
+    const expBig = parseBigInt(expStr);
+    const modBig = parseBigInt(modStr);
+
+    if (modBig <= 1n) { setStatus('Error: Modulus must be > 1.'); return; }
+    if (expBig < 0n) { setStatus('Error: Exponent must be non-negative.'); return; }
+
+    modPowResultDiv.textContent = 'Result: Calculating...';
+    logOutput.textContent = 'Log:\n';
+    log(`--- Starting Modular Exponentiation (Karatsuba Pow) ---`);
+    log(`Calculating ${baseStr}^${expStr} mod ${modStr}...`);
+
+    isCalculating = true;
+    runLltButton.disabled = true;
+    calculateEeaButton.disabled = true;
+    runModPowButton.disabled = true;
+    setStatus('Calculating Modular Pow...');
+    setProgress(0);
+
+    modPowWorker = new Worker('mod_pow_worker.js');
+
+    modPowWorker.onmessage = (e) => {
+        const data = e.data;
+        if (data.type === 'progress') {
+            setStatus(`Modular Pow progress: ${data.progress.toFixed(2)}%`);
+            setProgress(data.progress);
+        } else if (data.type === 'result') {
+            const result = data.result;
+            modPowResultDiv.innerHTML = `
+                $\\mathbf{${baseStr}^{${expStr}} \\pmod{${modStr}}}$ = $\\mathbf{${result}}$
+            `;
+            log(`Modular Pow complete. Result: ${result}`);
+            setStatus('Modular Pow calculation complete.');
+            stopWorkers();
+        } else if (data.type === 'error') {
+            log(`Critical Error: ${data.message}`);
+            setStatus('Critical Error: Check log for details.');
+            stopWorkers();
+        }
+    };
+    modPowWorker.onerror = (e) => { log(`Worker Error: ${e.message}`); setStatus('Worker Error'); stopWorkers(); };
+
+    modPowWorker.postMessage({ 
+        base: baseBig.toString(), 
+        exp: expBig.toString(), 
+        mod: modBig.toString() 
+    });
+}
+
+// --- INITIALIZATION ---
+window.onload = function() {
+    runLltButton.addEventListener('click', startLlt);
+    calculateEeaButton.addEventListener('click', startEea);
+    runModPowButton.addEventListener('click', startModPow);
+    
+    exponentInput.addEventListener('input', updateMpDigits);
+    
+    updateMpDigits();
+    
+    logOutput.textContent = 'Log: Worker initialized. Ready for deterministic checks.\n';
+};
+</script>
+</body>
+</html>

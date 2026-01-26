@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v8.9 (Stable Base + DR)</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --pink: #f472b6; --green: #34d399;
+        --input-bg: rgba(0,0,0,0.3);
+        --mod-highlight: #3b82f6; 
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden; 
+    }
+
+    /* --- TOP BAR (STABLE 0.0.5) --- */
+    .top-section {
+        background: var(--panel); border-bottom: 2px solid var(--cyan);
+        padding: 4px 8px; flex-shrink: 0; z-index: 200;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    
+    .controls { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .control-toggles-left, .control-toggles-right { display: flex; gap: 4px; align-items: center; }
+    
+    .toggle-btn { 
+        background: #334155; color: #94a3b8; padding: 0 8px; height: 32px; 
+        display: grid; place-items: center; border-radius: 4px; border:none; 
+        cursor: pointer; font-weight:bold; font-size:0.65rem; transition: all 0.2s; text-transform: uppercase;
+    }
+    .toggle-btn.active { background: var(--cyan); color: #000; box-shadow: 0 0 5px var(--cyan); }
+    #btnGnomon.active { background: var(--pink); color: #000; box-shadow: 0 0 5px var(--pink); }
+    #btnToggleDR.active { background: var(--pink) !important; color: #000 !important; box-shadow: 0 0 5px var(--pink); }
+
+    .cargo-input-row { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+    #inpFind { 
+        background: #1e293b; border: 1px solid #334155; color: #fff; 
+        padding: 8px; width: 100%; font-family: 'Courier New', monospace; 
+        font-weight: 800; font-size: 1.1rem; outline: none; text-align: center; border-radius: 4px; flex: 1;
+    }
+    #btnFind {
+        background: var(--cyan); color: #000; border: none; border-radius: 4px;
+        font-weight: bold; cursor: pointer; padding: 0 12px; height: 40px; font-size: 0.8rem; white-space: nowrap;
+        min-width: 80px;
+    }
+
+    /* --- DR PANEL (INTEGRATED) --- */
+    .dr-panel {
+        background: #0b1120; border: 1px solid var(--pink); border-radius: 4px;
+        margin-top: 4px; padding: 6px; display: none; width: 100%;
+    }
+    .dr-panel.active { display: block; animation: slideDown 0.3s ease-out; }
+    @keyframes slideDown { from{opacity:0; transform:translateY(-5px);} to{opacity:1; transform:translateY(0);} }
+    .dr-controls { display: flex; gap: 6px; margin-bottom: 6px; }
+    #inpTarget { background: rgba(244, 114, 182, 0.1); border: 1px solid var(--pink); color: #fff; padding: 10px; font-weight: bold; font-size: 1rem; text-align: center; flex: 1; outline: none; }
+    #btnTriangulate { background: var(--pink); color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; padding: 0 10px; height: 40px; }
+    .hud-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 4px; }
+    .hud-cell { background: rgba(255,255,255,0.05); padding: 4px; text-align: center; border: 1px solid #334155; border-radius: 2px; }
+    .hud-res { grid-column: span 3; background: #1e293b; padding: 10px; text-align: center; font-weight: bold; color: var(--green); cursor: pointer; border: 1px dashed var(--green); margin-top: 4px; font-size: 0.85rem; }
+
+    /* --- CANVAS & DECODER --- */
+    .layout { flex: 1; position: relative; overflow: hidden; background: #000; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--pink); 
+        display: flex; flex-direction: column; flex-shrink: 0; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8); z-index: 150;
+    }
+    .panel-sec { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 2px; }
+    
+    .big-math { background: #0b1120; }
+    .bm-val { font-size: 1.2rem; font-weight: 900; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .bm-sub { font-size: 0.8rem; color: var(--pink); font-weight: bold; margin-top: 2px; display: inline-block;}
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; padding: 8px; }
+    .info-grid.collapsed { display: none; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 3px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; margin-bottom: 1px; }
+    .info-input { width: 100%; background: var(--input-bg); border: 1px solid #334155; color: #fff; font-family: inherit; font-weight: bold; font-size: 0.8rem; text-align: center; padding: 2px; border-radius: 4px; outline: none; }
+    .inp-k { color: var(--green); } .inp-b { color: var(--pink); } .inp-a { color: #3b82f6; } .inp-g { color: #fbbf24; }
+
+    /* --- TECH PANEL --- */
+    .tech-panel { background: #020617; border-top: 1px solid var(--border); padding: 0; z-index: 150; flex-shrink: 0; }
+    .tech-header { padding: 6px 10px; background: #0f172a; color: var(--cyan); font-size: 0.75rem; font-weight: bold; display: flex; justify-content: space-between; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .tech-content { padding: 8px; display: none; }
+    .tech-content.open { display: block; }
+    .filter-tag { background: var(--mod-highlight); color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; margin-right: 5px; margin-bottom: 3px; }
+    .filter-tag span { margin-left: 4px; font-weight: 900; }
+
+    #toast {
+        position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.95); border: 1px solid var(--cyan);
+        color: var(--cyan); padding: 10px 20px; border-radius: 30px;
+        font-size: 0.9rem; font-weight: bold; z-index: 1200;
+        opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    #toast.show { opacity: 1; }
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(2, 6, 23, 0.95); z-index: 1100; display: none; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(5px); }
+    .modal-card { background: #0f172a; border: 1px solid var(--cyan); width: 100%; max-width: 600px; max-height: 85vh; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); color: #cbd5e1; }
+    .modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-weight: bold; color: var(--cyan); font-size: 1.1rem; }
+    .modal-close { color: #fff; cursor: pointer; font-size: 1.5rem; line-height: 1; }
+    .modal-body { padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; }
+    .full-val-box { background:#0b1120; padding:10px; border-radius:6px; margin-bottom:10px; border:1px solid #334155; font-family:monospace; font-size:0.8rem; word-break: break-all; color:#fff;}
+</style>
+</head>
+<body>
+
+<div id="toast">SCANNING...</div>
+
+<div class="top-section">
+    <div class="controls">
+        <div class="control-toggles-left">
+            <button class="toggle-btn" id="btnHelp" title="Field Guide">?</button>
+            <button class="toggle-btn" id="btnToggleDR" title="Dead Reckoning" style="color:var(--pink)">DR</button>
+            <input id="inpZoom" type="range" min="20" max="150" value="64" style="width: 50px;">
+        </div>
+        <div class="control-toggles-right">
+            <button class="toggle-btn active" id="btnTrivials">TRIVIALS</button>
+            <button class="toggle-btn" id="btnGnomon">GNOMON</button>
+            <button class="toggle-btn active" id="btnMirror" title="Toggle Mirror">◥</button>
+            <button class="toggle-btn" id="btnLayout" title="Switch Layout">SPINE</button>
+        </div>
+    </div>
+    <div class="cargo-input-row">
+        <button id="btnFind">FIND ID</button>
+        <input id="inpFind" type="text" placeholder="Enter Tape ID">
+    </div>
+
+    <div class="dr-panel" id="drPanel">
+        <div class="dr-controls">
+            <input id="inpTarget" type="text" placeholder="Target N (Cargo)">
+            <button id="btnTriangulate">TRIANGULATE</button>
+        </div>
+        <div class="hud-grid" id="drHud" style="display:none">
+            <div class="hud-cell">MOD 9<br><span id="valMod9" style="color:var(--cyan)">--</span></div>
+            <div class="hud-cell">MOD 5<br><span id="valMod5" style="color:var(--pink)">--</span></div>
+            <div class="hud-cell">MOD 7<br><span id="valMod7" style="color:var(--green)">--</span></div>
+            <div class="hud-res" id="drResult" onclick="executeJump()">WAITING FOR SIGNAL...</div>
+        </div>
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="panel-sec big-math" id="decoderHeader">
+        <div>
+            <div class="sec-lbl">SMART ID (a.b)</div>
+            <div id="dispComp" class="bm-val">--</div>
+            <div id="dispSq" class="bm-sub">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">CARGO (N)</div>
+            <div id="dispVal" class="bm-val">--</div>
+            <div id="dispFactors" class="bm-sub" style="color:var(--cyan)">--</div>
+        </div>
+    </div>
+
+    <div class="info-grid" id="decoderBody">
+        <div class="info-item"><div class="info-lbl">GNOMON INDEX</div><input id="inpGnomon" class="info-input inp-g" readonly></div>
+        <div class="info-item"><div class="info-lbl">GAP (b)</div><input id="inpCol" class="info-input inp-b" onchange="updateFromInput('col')"></div>
+        <div class="info-item"><div class="info-lbl">ANCHOR (a)</div><input id="inpA" class="info-input inp-a" onchange="updateFromInput('a')"></div>
+        <div class="info-item"><div class="info-lbl">ROW (k)</div><input id="inpK" class="info-input inp-k" onchange="updateFromInput('k')"></div>
+    </div>
+</div>
+
+<div class="tech-panel">
+    <div class="tech-header" id="techHeader"><span>SYSTEM SCANNER</span><span>▼</span></div>
+    <div class="tech-content" id="techContent">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <select id="coreSelect" style="background:#1e293b; border:1px solid #334155; color:#e2e8f0; padding:6px;"></select>
+            <button id="btnInvertMods" class="toggle-btn" style="width:100%">INVERT MODS</button>
+        </div>
+        <div id="activeFilters" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;"></div>
+        <div style="margin-top:10px; padding:8px; border:1px solid #1e293b; background:#0b1120;">
+            <div style="display:flex; gap:5px;">
+                <input id="inpModulus" type="number" placeholder="Modulus" style="flex:1; padding:4px; font-size:0.8rem; background:#1e293b; border:1px solid #334155; color:#fff;">
+                <button id="btnAddFilter" style="background:#3b82f6; border:none; color:#000; font-weight:bold; padding:4px 8px;">ADD</button>
+            </div>
+            <div id="activeFiltersContainer" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="fullValModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header"><span class="modal-title">Manifest Data</span><span class="modal-close" id="closeFull">×</span></div>
+        <div class="modal-body">
+            <div class="sec-lbl">CARGO (N)</div><div class="full-val-box" id="fullN"></div>
+            <div class="sec-lbl">FACTORS</div><div class="full-val-box" id="fullFactors"></div>
+            <div class="sec-lbl">SMART ID</div><div class="full-val-box" id="fullSmart"></div>
+            <div class="sec-lbl">TAPE ID</div><div class="full-val-box" id="fullTape"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- FULL STABLE 0.0.5 ENGINE ---
+const canvas = document.getElementById('gridCanvas'), ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1, cellS = 64, HDR_S = 30; 
+let viewAnchor = { r: 0n, c: 0n }, scrollX = 0, scrollY = 0, highlight = { r: 0n, c: 0n };
+let hideMirror = true, layoutMode = 'spine', cellCache = new Map();
+let currentFullData = null, activeModuli = [], isInvertMod = false, showTrivials = true, showGnomon = false, pendingJump = null;
+
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const process = (r_in, c_in, mode, moduli) => {
+        const r = BigInt(r_in); const c = BigInt(c_in);
+        let P2, P1, k, a, b, isSq;
+        if (mode === 'spine') { k = r; b = c; P2 = (k * 2n) + 1n; P1 = P2 - (b * 2n); a = P2 - b; isSq = (c === 0n); }
+        else { 
+            let kr=r, jr=c; if(kr>=jr){ P2=(kr*2n)+1n; P1=(jr*2n)+1n; k=kr; } else { P2=(jr*2n)+1n; P1=(kr*2n)+1n; k=jr; }
+            b=(P2-P1)/2n; a=(P2+P1)/2n; isSq=(r===c);
+        }
+        if (P1 <= 0n) return null;
+        const val = P2 * P1;
+        let isMod = false; if(moduli) { for(let m of moduli) { if(val % BigInt(m) === 0n) { isMod = true; break; } } }
+        let dVal = val.toString(); if (dVal.length > 8) dVal = ".." + dVal.slice(-6);
+        return { r: r_in, c: c_in, k: k.toString(), a: a.toString(), b: b.toString(), tapeID: ((k*(k+1n))/2n + b).toString(), g: (k + 1n).toString(), val: dVal, fullVal: val.toString(), isSq, P2: P2.toString(), P1: P1.toString(), isMod };
+    };
+    if (msg.cmd === 'batch') self.postMessage({ type: 'batch', payload: msg.items.map(it => process(it.r, it.c, msg.mode, msg.moduli)).filter(x => x) });
+    else if (msg.cmd === 'cell') self.postMessage({ type: 'cell', payload: process(msg.r, msg.c, msg.mode, msg.moduli) });
+});`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+worker.onmessage = (ev) => { if (ev.data.type === 'batch') { ev.data.payload.forEach(p => cellCache.set(`${p.r}|${p.c}`, p)); draw(); } else if (ev.data.type === 'cell') { let p = ev.data.payload; cellCache.set(`${p.r}|${p.c}`, p); if(highlight.r.toString()===p.r && highlight.c.toString()===p.c) updateDecoder(p); draw(); } };
+
+function requestBatch() {
+    const w = canvas.width/DPR, h = canvas.height/DPR, items = [];
+    for(let r = -2; r <= Math.ceil(h/cellS)+2; r++) {
+        for (let c = -2; c <= Math.ceil(w/cellS)+2; c++) {
+            const gr = viewAnchor.r + BigInt(r), gc = viewAnchor.c + BigInt(c);
+            if(gr<0n || gc<0n || (layoutMode==='spine' && gc>gr)) continue;
+            if(!cellCache.has(`${gr}|${gc}`)) items.push({r: gr.toString(), c: gc.toString()});
+        }
+    }
+    worker.postMessage({cmd:'batch', items, mode: layoutMode, moduli: activeModuli});
+}
+
+function draw() {
+    const w = canvas.width/DPR, h = canvas.height/DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    while (scrollX > 0) { scrollX -= cellS; viewAnchor.c -= 1n; }
+    while (scrollX <= -cellS) { scrollX += cellS; viewAnchor.c += 1n; }
+    while (scrollY > 0) { scrollY -= cellS; viewAnchor.r -= 1n; }
+    while (scrollY <= -cellS) { scrollY += cellS; viewAnchor.r += 1n; }
+    
+    ctx.save(); ctx.translate(HDR_S + scrollX, HDR_S + scrollY); 
+    for (let r = -1; r <= Math.ceil(h/cellS)+1; r++) { 
+        for (let c = -1; c <= Math.ceil(w/cellS)+1; c++) {
+            const gr = viewAnchor.r + BigInt(r), gc = viewAnchor.c + BigInt(c);
+            if(gr < 0n || gc < 0n || (layoutMode==='spine' && gc > gr)) continue;
+            if(layoutMode==='diag' && hideMirror && gc > gr) continue;
+            
+            const x = c * cellS, y = r * cellS, key = `${gr}|${gc}`, cell = cellCache.get(key);
+            if (cell && cell.P1 === "1" && !showTrivials) continue;
+            
+            const isSel = (gr === highlight.r && gc === highlight.c);
+            ctx.fillStyle = (cell && cell.isSq) ? 'rgba(59, 130, 246, 0.1)' : '#111827';
+            if (cell && cell.isMod) ctx.fillStyle = isInvertMod ? 'rgba(30, 41, 59, 0.4)' : 'rgba(59, 130, 246, 0.2)';
+            if (showGnomon && cell && !cell.isMod && !cell.isSq) ctx.fillStyle = `hsla(${(Number(gr%100n)*40)}, 60%, 25%, 0.4)`;
+            ctx.fillRect(x, y, cellS-1, cellS-1);
+
+            if (cell && cell.isMod && !isInvertMod) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.strokeRect(x+1, y+1, cellS-3, cellS-3); }
+            if (isSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(x+1, y+1, cellS-3, cellS-3); }
+            
+            if (cell) {
+                ctx.fillStyle = '#334155'; ctx.font = '8px monospace'; ctx.textAlign='left'; ctx.fillText(cell.tapeID, x+4, y+10);
+                ctx.textAlign='center'; ctx.fillStyle = isSel ? '#fff' : (cell.isSq ? '#22d3ee' : '#64748b');
+                ctx.font = `bold ${Math.floor(cellS*0.22)}px monospace`; ctx.fillText(`${cell.a}.${cell.b}`, x+cellS/2, y+cellS/2-2);
+                ctx.fillStyle = isSel ? '#fff' : '#444'; ctx.font = `${Math.floor(cellS*0.15)}px monospace`; ctx.fillText(cell.val, x+cellS/2, y+cellS/2+12);
+            }
+        }
+    }
+    ctx.restore();
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(HDR_S, 0, w, HDR_S); ctx.fillRect(0, HDR_S, HDR_S, h);
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, HDR_S, HDR_S);
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='bold 10px monospace';
+    ctx.save(); ctx.translate(HDR_S + scrollX, 0);
+    for(let c=-1; c<=Math.ceil(w/cellS)+1; c++) {
+        const v = viewAnchor.c + BigInt(c); if(v<0n) continue;
+        ctx.fillStyle = (layoutMode==='spine'?'#f472b6':'#22d3ee'); ctx.fillText(v.toString().length > 5 ? ".."+v.toString().slice(-4) : v.toString(), c*cellS+cellS/2, HDR_S/2);
+    }
+    ctx.restore();
+    ctx.save(); ctx.translate(0, HDR_S + scrollY);
+    for(let r=-1; r<=Math.ceil(h/cellS)+1; r++) {
+        const v = viewAnchor.r + BigInt(r); if(v<0n) continue;
+        ctx.fillStyle = '#34d399'; ctx.fillText(v.toString().length > 5 ? ".."+v.toString().slice(-4) : v.toString(), HDR_S/2, r*cellS+cellS/2);
+    }
+    ctx.restore();
+    ctx.fillStyle='#fff'; ctx.fillText(layoutMode==='spine'?'k\\b':'k\\j', HDR_S/2, HDR_S/2);
+}
+
+// --- TOUCH ---
+let drag = false, lx, ly, sx, sy, pDist = 0;
+wrap.addEventListener('touchstart', e => {
+    if(e.touches.length === 2) { pDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); }
+    else { drag = true; lx = e.touches[0].clientX; ly = e.touches[0].clientY; sx = lx; sy = ly; }
+}, {passive: false});
+wrap.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if(e.touches.length === 2) {
+        let nDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+        let ratio = nDist / pDist; let newS = Math.round(cellS * ratio);
+        if(newS > 20 && newS < 150) {
+            const rect = canvas.getBoundingClientRect();
+            const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left - HDR_S - scrollX;
+            const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top - HDR_S - scrollY;
+            scrollX = (scrollX + cx) - (cx * ratio); scrollY = (scrollY + cy) - (cy * ratio);
+            cellS = newS; pDist = nDist; requestBatch();
+        }
+    } else if(drag) { scrollX += e.touches[0].clientX-lx; scrollY += e.touches[0].clientY-ly; lx=e.touches[0].clientX; ly=e.touches[0].clientY; requestBatch(); draw(); }
+}, {passive: false});
+wrap.addEventListener('touchend', e => {
+    drag = false; if(e.touches.length===0 && Math.hypot(e.changedTouches[0].clientX-sx, e.changedTouches[0].clientY-sy)<10) {
+        const rect = wrap.getBoundingClientRect();
+        const rx = e.changedTouches[0].clientX-rect.left-HDR_S-scrollX, ry = e.changedTouches[0].clientY-rect.top-HDR_S-scrollY;
+        highlight = { r: viewAnchor.r + BigInt(Math.floor(ry/cellS)), c: viewAnchor.c + BigInt(Math.floor(rx/cellS)) };
+        worker.postMessage({cmd:'cell', r: highlight.r.toString(), c: highlight.c.toString(), mode: layoutMode, moduli: activeModuli});
+    }
+});
+
+// --- LOGIC ---
+document.getElementById('decoderHeader').onclick = () => document.getElementById('decoderBody').classList.toggle('collapsed');
+document.getElementById('btnToggleDR').onclick = () => { document.getElementById('drPanel').classList.toggle('active'); document.getElementById('btnToggleDR').classList.toggle('active'); };
+document.getElementById('btnTriangulate').onclick = () => {
+    let N = BigInt(document.getElementById('inpTarget').value || 0); if(!N) return;
+    document.getElementById('drHud').style.display='grid';
+    let found = false; for(let g of [9n,7n,5n,3n]) { for(let i=g; i<100000n; i+=g) { let p2=2n*i-1n; if(N%p2===0n) { let p1=N/p2; if(p1>p2)[p2,p1]=[p1,p2]; pendingJump={r:(p2-1n)/2n, c:(p2-p1)/2n}; found=true; break; } } if(found) break; }
+    document.getElementById('drResult').innerText = found ? `LOCKED: ROW ${pendingJump.r}` : "NO LOCK FOUND";
+};
+function executeJump() { if(pendingJump) { layoutMode='spine'; jumpTo(pendingJump.r, pendingJump.c); } }
+function jumpTo(r,c) { 
+    viewAnchor = { r: BigInt(r)-BigInt(Math.floor((canvas.height/DPR/cellS)/2)), c: BigInt(c)-BigInt(Math.floor((canvas.width/DPR/cellS)/2)) };
+    if(viewAnchor.r<0n)viewAnchor.r=0n; if(viewAnchor.c<0n)viewAnchor.c=0n; scrollX=0; scrollY=0; highlight={r:BigInt(r), c:BigInt(c)}; requestBatch(); draw();
+}
+function updateDecoder(p) {
+    currentFullData = p;
+    document.getElementById('dispComp').innerText=`${p.a}.${p.b}`; document.getElementById('dispVal').innerText=p.val; document.getElementById('dispSq').innerText=`ID: ${p.tapeID}`;
+    document.getElementById('inpGnomon').value=p.g; document.getElementById('inpK').value=p.k; document.getElementById('inpA').value=p.a; document.getElementById('inpCol').value=p.b;
+}
+
+document.getElementById('btnTrivials').onclick = (e) => { showTrivials=!showTrivials; e.target.classList.toggle('active'); draw(); };
+document.getElementById('btnGnomon').onclick = (e) => { showGnomon=!showGnomon; e.target.classList.toggle('active'); draw(); };
+document.getElementById('btnLayout').onclick = (e) => { layoutMode=(layoutMode==='spine'?'diag':'spine'); e.target.innerText=layoutMode.toUpperCase(); cellCache.clear(); requestBatch(); };
+document.getElementById('btnMirror').onclick = (e) => { hideMirror=!hideMirror; e.target.classList.toggle('active'); draw(); };
+document.getElementById('techHeader').onclick = () => document.getElementById('techContent').classList.toggle('open');
+document.getElementById('btnAddFilter').onclick = () => { const m=parseInt(document.getElementById('inpModulus').value); if(m>1) activeModuli.push(m); requestBatch(); document.getElementById('activeFiltersContainer').innerHTML=activeModuli.map(x=>`<span class="filter-tag">${x}</span>`).join(''); };
+
+function resize() { DPR=window.devicePixelRatio||1; canvas.width=wrap.clientWidth*DPR; canvas.height=wrap.clientHeight*DPR; requestBatch(); draw(); }
+window.onresize=resize; window.onload=()=>resize();
+</script>
+</body>
+</html>

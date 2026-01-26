@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sundaram Logic Gate</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --accent-i: #f472b6; /* Pink */
+            --accent-j: #38bdf8; /* Blue */
+            --accent-k: #fbbf24; /* Amber */
+            --border: #334155;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { margin: 0 0 20px 0; font-size: 1.2rem; text-transform: uppercase; border-bottom: 2px solid var(--border); padding-bottom: 10px; width: 100%; max-width: 600px; text-align: center; }
+
+        .machine-container {
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* INPUT SECTION */
+        .input-deck {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .var-badge {
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid currentColor;
+        }
+        
+        .val-display { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
+        
+        input[type="range"] {
+            width: 100%;
+            accent-color: white;
+            cursor: pointer;
+        }
+
+        .odd-translation {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            background: rgba(0,0,0,0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        /* EQUATION SECTION */
+        .equation-deck {
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            font-family: monospace;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .step {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #333;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+        .step.active { opacity: 1; }
+        .step:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        .eq-label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; margin-bottom: 4px; display: block; }
+        .eq-math { font-size: 1.1rem; letter-spacing: 1px; }
+
+        /* RESULT SECTION */
+        .result-deck {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .big-k { font-size: 3rem; font-weight: 800; color: var(--accent-k); line-height: 1; margin: 10px 0; }
+        
+        /* Highlight Classes */
+        .c-i { color: var(--accent-i); }
+        .c-j { color: var(--accent-j); }
+        .c-k { color: var(--accent-k); }
+        .c-w { color: white; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Sundaram Logic Gate</h1>
+
+    <div class="machine-container">
+
+        <!-- 1. INPUTS -->
+        <div class="input-deck">
+            <!-- Variable i -->
+            <div class="slider-group">
+                <div class="var-badge c-i">i</div>
+                <div class="val-display c-i" id="disp-i">1</div>
+                <input type="range" id="slider-i" min="1" max="10" value="1">
+                <div class="odd-translation">
+                    Represents Odd #<br>
+                    <span class="c-w" id="odd-i">3</span>
+                </div>
+            </div>
+
+            <!-- Variable j -->
+            <div class="slider-group">
+                <div class="var-badge c-j">j</div>
+                <div class="val-display c-j" id="disp-j">2</div>
+                <input type="range" id="slider-j" min="1" max="10" value="2">
+                <div class="odd-translation">
+                    Represents Odd #<br>
+                    <span class="c-w" id="odd-j">5</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. THE ALGEBRA FLOW -->
+        <div class="equation-deck">
+            
+            <!-- Step 1: Multiplication -->
+            <div class="step active">
+                <span class="eq-label">1. Multiply the Odd Numbers</span>
+                <div class="eq-math">
+                    (<span class="c-i" id="math-odd-i">3</span>) × (<span class="c-j" id="math-odd-j">5</span>) = <span class="c-w" id="math-prod">15</span>
+                </div>
+            </div>
+
+            <!-- Step 2: Gnomon Equivalence -->
+            <div class="step active">
+                <span class="eq-label">2. This Product is our Gnomon Value</span>
+                <div class="eq-math">
+                    Gnomon = <span class="c-w" id="math-gnomon">15</span>
+                </div>
+                <div class="eq-math" style="font-size:0.9rem; margin-top:4px; color:#94a3b8;">
+                    (Formula: 2k + 1)
+                </div>
+            </div>
+
+            <!-- Step 3: Solve for k -->
+            <div class="step active">
+                <span class="eq-label">3. Solve: 2k + 1 = Product</span>
+                <div class="eq-math">
+                    2<span class="c-k">k</span> + 1 = <span class="c-w" id="math-prod-2">15</span>
+                </div>
+                <div class="eq-math" style="margin-top:4px;">
+                    2<span class="c-k">k</span> = <span class="c-w" id="math-minus-1">14</span>
+                </div>
+                <div class="eq-math" style="margin-top:4px;">
+                    <span class="c-k">k</span> = <span class="c-k" id="math-final-k">7</span>
+                </div>
+            </div>
+
+            <!-- Step 4: The Sundaram Shortcut -->
+            <div class="step active" style="border-top: 1px solid #333; margin-top:15px; padding-top:15px; background: rgba(251, 191, 36, 0.1); padding: 10px; border-radius: 4px;">
+                <span class="eq-label" style="color:var(--accent-k);">4. The "Weird" Formula Check</span>
+                <div class="eq-math" style="font-size:0.9rem;">
+                    k = i + j + 2ij
+                </div>
+                <div class="eq-math">
+                    <span class="c-k" id="check-k">7</span> = <span class="c-i" id="check-i">1</span> + <span class="c-j" id="check-j">2</span> + 2(<span class="c-i" id="check-i2">1</span>)(<span class="c-j" id="check-j2">2</span>)
+                </div>
+                <div class="eq-math">
+                    <span class="c-k">7</span> = 3 + 4
+                </div>
+                <div style="float:right; color: var(--stable); font-weight:bold;">MATCHES</div>
+            </div>
+
+        </div>
+
+        <!-- 3. VISUAL CONFIRMATION -->
+        <div class="result-deck">
+            <span class="eq-label">Resulting Arm Length (k)</span>
+            <div class="big-k" id="res-k">7</div>
+            <div style="font-size:0.9rem; color:#94a3b8;">
+                Gnomon Index <span class="c-w" id="res-n">8</span> is unstable because its arm length is <span class="c-k">7</span>.
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const sI = document.getElementById('slider-i');
+        const sJ = document.getElementById('slider-j');
+
+        function update() {
+            const i = parseInt(sI.value);
+            const j = parseInt(sJ.value);
+
+            // Calculate "Real" Odd Numbers
+            const oddI = 2 * i + 1;
+            const oddJ = 2 * j + 1;
+            const product = oddI * oddJ; // This is the Gnomon Value
+
+            // Calculate k using standard algebra
+            const k = (product - 1) / 2;
+            const n = k + 1;
+
+            // --- UPDATE DOM ---
+            
+            // Inputs
+            document.getElementById('disp-i').innerText = i;
+            document.getElementById('disp-j').innerText = j;
+            document.getElementById('odd-i').innerText = oddI;
+            document.getElementById('odd-j').innerText = oddJ;
+
+            // Step 1
+            document.getElementById('math-odd-i').innerText = oddI;
+            document.getElementById('math-odd-j').innerText = oddJ;
+            document.getElementById('math-prod').innerText = product;
+
+            // Step 2
+            document.getElementById('math-gnomon').innerText = product;
+
+            // Step 3
+            document.getElementById('math-prod-2').innerText = product;
+            document.getElementById('math-minus-1').innerText = product - 1;
+            document.getElementById('math-final-k').innerText = k;
+
+            // Step 4 (Check)
+            document.getElementById('check-k').innerText = k;
+            document.getElementById('check-i').innerText = i;
+            document.getElementById('check-j').innerText = j;
+            document.getElementById('check-i2').innerText = i;
+            document.getElementById('check-j2').innerText = j;
+
+            // Result
+            document.getElementById('res-k').innerText = k;
+            document.getElementById('res-n').innerText = n;
+        }
+
+        sI.addEventListener('input', update);
+        sJ.addEventListener('input', update);
+
+        update();
+
+    </script>
+</body>
+</html>
+

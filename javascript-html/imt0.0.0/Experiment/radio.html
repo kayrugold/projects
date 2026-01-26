@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gnomon V10: Wide-Band</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+    body { 
+        background: #050505; color: #888; 
+        font-family: 'Share Tech Mono', monospace; 
+        margin: 0; padding: 10px; min-height: 100vh;
+        overflow-y: hidden; user-select: none;
+        display: flex; flex-direction: column; align-items: center;
+    }
+
+    .radio-case {
+        background: linear-gradient(180deg, #1a1a1a, #0d0d0d);
+        border: 2px solid #333; border-radius: 12px;
+        box-shadow: 0 10px 40px #000;
+        width: 100%; max-width: 450px;
+        padding: 12px; position: relative;
+    }
+
+    /* TOP BAR */
+    .top-bar {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 12px; border-bottom: 1px solid #222; padding-bottom: 8px;
+    }
+    .pwr-btn {
+        background: #200; color: #f44; border: 1px solid #500;
+        padding: 6px 12px; font-weight: bold; cursor: pointer;
+        font-size: 0.8rem; letter-spacing: 1px; border-radius: 4px;
+    }
+    .pwr-on { background: #0f0; color: #000; border-color: #0f0; box-shadow: 0 0 10px #0f0; }
+    
+    .target-input { 
+        background: none; border: none; border-bottom: 1px solid #333;
+        color: #0f0; font-family: 'Orbitron'; font-size: 1.4rem; 
+        text-align: right; width: 110px; 
+    }
+
+    /* MAIN SCREEN */
+    .screen {
+        background: #000; border: 2px solid #333; border-radius: 6px;
+        padding: 12px; margin-bottom: 12px; position: relative;
+    }
+    
+    .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .lbl { font-size: 0.75rem; color: #666; letter-spacing: 1px; }
+    .val { font-family: 'Orbitron'; font-size: 1.5rem; color: #0a0; }
+    .val-y { color: #ff0; text-shadow: 0 0 8px #ff0; }
+    
+    /* SCROLLABLE DNA ROW */
+    .dna-scroll-container {
+        width: 100%; overflow-x: auto; white-space: nowrap;
+        margin-top: 10px; border-top: 1px solid #111; padding-top: 8px;
+        /* Hide Scrollbar for Chrome/Safari/Opera */
+        -webkit-overflow-scrolling: touch;
+    }
+    .dna-scroll-container::-webkit-scrollbar { display: none; }
+    
+    .dna-row { 
+        font-size: 0.9rem; color: #666; display: inline-block;
+        padding-bottom: 5px; /* Space for touch scroll */
+    }
+    .dna-hl { color: #fff; font-weight: bold; }
+    .dna-forced { color: #ff0; text-decoration: underline; }
+    .dna-hit { background: #0f0; color: #000; padding: 0 4px; border-radius: 2px; font-weight: 900; }
+
+    /* MATRIX */
+    .matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .cell { 
+        background: #0a0a0a; border: 1px solid #222; padding: 8px; border-radius: 4px;
+        display: flex; justify-content: space-between; align-items: center; 
+        overflow: hidden; /* Prevent spill */
+    }
+    .cell-lbl { font-size: 0.7rem; color: #555; flex-shrink: 0; margin-right: 5px; }
+    .cell-val { 
+        font-family: 'Orbitron'; font-size: 1.2rem; color: #080; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .hit-green { color: #0f0 !important; text-shadow: 0 0 10px #0f0; font-weight: bold; }
+    .hit-yellow { color: #ff0 !important; text-shadow: 0 0 5px #ff0; }
+
+    /* CONTROLS */
+    .control-deck { 
+        background: #111; padding: 15px; border-radius: 8px; 
+        display: flex; justify-content: space-around; gap: 15px;
+    }
+    .knob-group { display: flex; flex-direction: column; align-items: center; width: 45%; }
+    .knob-ui { position: relative; width: 80px; height: 80px; margin: 8px 0; }
+    .knob {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: radial-gradient(#333, #000); border: 2px solid #444;
+        transform: rotate(0deg); transition: transform 0.1s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    }
+    .knob::after {
+        content:''; position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+        width: 6px; height: 6px; background: #fff; border-radius: 50%; box-shadow: 0 0 5px #fff;
+    }
+    
+    .fine-tune {
+        display: flex; gap: 8px; width: 100%; justify-content: center;
+    }
+    .ft-btn {
+        background: #222; border: 1px solid #444; color: #888;
+        width: 36px; height: 36px; border-radius: 6px; font-weight: bold; font-size: 1.2rem;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        touch-action: manipulation;
+    }
+    .ft-btn:active { background: #0f0; color: #000; border-color: #0f0; }
+
+    .shift-deck {
+        margin-top: 15px; display: flex; justify-content: center; width: 100%;
+    }
+    .mode-btn {
+        background: #001a33; color: #4da6ff; border: 1px solid #004080;
+        padding: 12px; font-family: 'Share Tech Mono'; font-size: 0.9rem;
+        cursor: pointer; width: 100%; border-radius: 6px;
+        text-transform: uppercase; letter-spacing: 1px;
+    }
+    .mode-btn:active { background: #004080; color: white; }
+</style>
+</head>
+<body>
+
+<div class="radio-case">
+    <div class="top-bar">
+        <button id="pwrBtn" class="pwr-btn" onclick="togglePower()">POWER</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span class="lbl">TARGET</span>
+            <input type="number" id="inpN" class="target-input" value="1007" oninput="fullReset()">
+        </div>
+    </div>
+
+    <div class="screen">
+        <div class="row">
+            <span class="lbl">ANCHOR [A]</span>
+            <span id="valA" class="val">31</span>
+        </div>
+        <div class="row">
+            <span class="lbl">REMAINDER</span>
+            <span id="valR" class="val-y">46</span>
+        </div>
+        
+        <div class="dna-scroll-container">
+            <div id="dnaLine" class="dna-row">Loading DNA...</div>
+        </div>
+
+        <div class="matrix">
+            <div class="cell"><span class="cell-lbl">A+B</span><span id="mAB" class="cell-val">--</span></div>
+            <div class="cell"><span class="cell-lbl">A+C</span><span id="mAC" class="cell-val">--</span></div>
+            <div class="cell"><span class="cell-lbl">B+C</span><span id="mBC" class="cell-val">--</span></div>
+            <div class="cell"><span class="cell-lbl">B (RAW)</span><span id="mB" class="cell-val">--</span></div>
+        </div>
+    </div>
+
+    <div class="control-deck">
+        <div class="knob-group">
+            <span class="lbl">ANCHOR</span>
+            <div class="knob-ui" id="zoneA"><div class="knob" id="knobA"></div></div>
+            <div class="fine-tune">
+                <button class="ft-btn" onclick="adjA(-1)">-</button>
+                <button class="ft-btn" onclick="adjA(1)">+</button>
+            </div>
+        </div>
+
+        <div class="knob-group">
+            <span class="lbl">FORCE DNA</span>
+            <div class="knob-ui" id="zoneD"><div class="knob" id="knobD"></div></div>
+            <div class="fine-tune">
+                <button class="ft-btn" onclick="adjD(-1)">-</button>
+                <button class="ft-btn" onclick="adjD(1)">+</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="shift-deck">
+        <button class="mode-btn" onclick="toggleShift()">SHIFT VARS: <span id="shiftVal">0</span></button>
+    </div>
+    
+    <div style="text-align:center; font-size:0.6rem; color:#444; margin-top:8px;">V10 WIDE-BAND // SQUELCH ENABLED</div>
+</div>
+
+<script>
+    // --- STATE ---
+    let anchor = 31;
+    let forceVal = -1; // -1 = Greedy
+    let shiftOffset = 0; 
+    let isPwr = false;
+
+    // --- AUDIO ---
+    let ctx, osc, noise, mGain, nGain, oGain;
+
+    function initAudio() {
+        if(ctx) return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        ctx = new AC();
+        mGain = ctx.createGain(); mGain.gain.value = 0; mGain.connect(ctx.destination);
+        
+        // Static
+        const bSize = ctx.sampleRate * 2;
+        const buf = ctx.createBuffer(1, bSize, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for(let i=0; i<bSize; i++) data[i] = Math.random()*2-1;
+        noise = ctx.createBufferSource(); noise.buffer = buf; noise.loop = true;
+        nGain = ctx.createGain(); nGain.gain.value = 0.05;
+        noise.connect(nGain); nGain.connect(mGain); noise.start();
+
+        // Scream
+        osc = ctx.createOscillator(); osc.type = 'sawtooth'; osc.frequency.value = 100;
+        oGain = ctx.createGain(); oGain.gain.value = 0;
+        osc.connect(oGain); oGain.connect(mGain); osc.start();
+    }
+
+    function togglePower() {
+        isPwr = !isPwr;
+        const btn = document.getElementById('pwrBtn');
+        if(isPwr) {
+            btn.classList.add('pwr-on');
+            initAudio();
+            if(ctx.state === 'suspended') ctx.resume();
+            mGain.gain.setTargetAtTime(1, ctx.currentTime, 0.1);
+            run();
+        } else {
+            btn.classList.remove('pwr-on');
+            mGain.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+        }
+    }
+
+    function updateSound(hitStr, tension) {
+        if(!isPwr) return;
+        let vol = hitStr > 0 ? 0.01 : 0.06;
+        nGain.gain.setTargetAtTime(vol, ctx.currentTime, 0.1);
+
+        let pitch = 100 + (tension * 500);
+        if(hitStr === 2) pitch = 880; 
+        let sVol = hitStr > 0 ? 0.3 : 0;
+        
+        osc.frequency.setTargetAtTime(pitch, ctx.currentTime, 0.1);
+        oGain.gain.setTargetAtTime(sVol, ctx.currentTime, 0.1);
+    }
+
+    // --- LOGIC ---
+
+    function fullReset() {
+        const N = parseInt(document.getElementById('inpN').value)||1;
+        anchor = Math.floor(Math.sqrt(N));
+        forceVal = -1;
+        shiftOffset = 0;
+        run();
+    }
+
+    function adjA(d) {
+        anchor += d;
+        if(anchor < 1) anchor = 1;
+        forceVal = -1; 
+        run();
+    }
+
+    function adjD(d) {
+        const N = parseInt(document.getElementById('inpN').value)||1;
+        const R = Math.abs(N - (anchor*anchor));
+        const maxRoot = Math.floor(Math.sqrt(R));
+        
+        if(forceVal === -1) forceVal = maxRoot;
+        forceVal += d; 
+        
+        if(forceVal > maxRoot) forceVal = maxRoot;
+        if(forceVal < 0) forceVal = 0;
+        run();
+    }
+    
+    function toggleShift() {
+        shiftOffset = (shiftOffset + 1) % 3;
+        document.getElementById('shiftVal').innerText = shiftOffset === 2 ? "-1 (GHOST)" : shiftOffset;
+        run();
+    }
+
+    // Touch Knobs
+    function bindKnob(el, cb) {
+        let y=0;
+        const handle = (dy) => { if(Math.abs(dy)>5) { cb(dy>0?-1:1); y+=dy; } }; 
+        el.addEventListener('mousedown', e=>{y=e.clientY; 
+            const m=(ev)=>{handle(ev.clientY-y);y=ev.clientY;};
+            document.addEventListener('mousemove',m);
+            document.addEventListener('mouseup',()=>document.removeEventListener('mousemove',m));
+        });
+        el.addEventListener('touchstart', e=>{y=e.touches[0].clientY;
+            const t=(ev)=>{handle(ev.touches[0].clientY-y);y=ev.touches[0].clientY;};
+            el.addEventListener('touchmove',t);
+        });
+    }
+    bindKnob(document.getElementById('zoneA'), adjA);
+    bindKnob(document.getElementById('zoneD'), adjD);
+
+    function isFactor(v, N) {
+        if(v<=1 || v>=N) return false;
+        return N % v === 0;
+    }
+
+    function getDNA(R, force) {
+        let val = Math.abs(R);
+        let roots = [];
+        let max = Math.floor(Math.sqrt(val));
+        let start = (force !== -1 && force <= max) ? force : max;
+        
+        roots.push(start);
+        val -= (start*start);
+        
+        for(let i=0; i<5; i++) {
+            let r = Math.floor(Math.sqrt(val));
+            if(r===0 && val===0) break;
+            roots.push(r);
+            val -= (r*r);
+        }
+        while(roots.length < 6) roots.push(0);
+        return roots;
+    }
+
+    function run() {
+        const N = parseInt(document.getElementById('inpN').value)||1;
+        const R = N - (anchor*anchor);
+        
+        document.getElementById('valA').innerText = anchor;
+        document.getElementById('valR').innerText = R;
+        document.getElementById('knobA').style.transform = `rotate(${anchor*10}deg)`;
+        document.getElementById('knobD').style.transform = `rotate(${forceVal*30}deg)`;
+
+        let dna = getDNA(R, forceVal);
+        let workingVars = [];
+        if(shiftOffset === 0) workingVars = dna;
+        if(shiftOffset === 1) workingVars = dna.slice(1);
+        if(shiftOffset === 2) workingVars = [0, ...dna];
+
+        let [B, C, D, E] = workingVars;
+
+        let html = "";
+        let hitLvl = 0;
+        
+        dna.forEach((d, i) => {
+            let cls = "";
+            let sq = d*d;
+            if(i===0 && forceVal !== -1) cls="dna-forced";
+            if(isFactor(d, N)) { cls="dna-hit"; hitLvl=2; }
+            html += `<span class="${cls}" style="margin-right:10px;">${d}²(${sq})</span>`;
+        });
+        document.getElementById('dnaLine').innerHTML = html;
+
+        const m = [
+            {id:'mAB', v: anchor+B},
+            {id:'mAC', v: anchor+C},
+            {id:'mBC', v: B+C},
+            {id:'mB',  v: B} 
+        ];
+
+        m.forEach(item => {
+            const el = document.getElementById(item.id);
+            el.innerText = item.v;
+            el.className = "cell-val";
+            
+            if(item.v > 0) {
+                if(isFactor(item.v, N)) {
+                    el.classList.add('hit-green');
+                    hitLvl = 2;
+                } else {
+                    let diff = Math.abs((item.v*item.v)-N);
+                    let root = Math.sqrt(diff);
+                    if(Number.isInteger(root) && root > 0) {
+                        el.classList.add('hit-yellow');
+                        if(hitLvl<1) hitLvl=1;
+                    }
+                }
+            }
+        });
+
+        let tension = Math.min(Math.abs(R)/100, 1);
+        updateSound(hitLvl, tension);
+    }
+
+    fullReset();
+
+</script>
+</body>
+</html>

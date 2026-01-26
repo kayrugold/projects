@@ -1,0 +1,125 @@
+Below is a clean, text-only summary.
+
+
+---
+
+SUMMARY: TRIANGULAR TAPE, GNOMON GRID, AND DNA INTERACTION
+
+This work studies a triangular enumeration of cells where each cell simultaneously encodes position (address) and value (cargo). The system is not symbolic; it is fully enumerated starting from 1.
+
+1. TAPE ID AND TRIANGULAR ENUMERATION
+
+
+
+The TapeID is a pure counting mechanism.
+
+Cells are enumerated in a triangular grid:
+
+Row 0: 1
+Row 1: 2 3 4
+Row 2: 5 6 7 8 9
+Row 3: 10 11 12 13 14 15 16
+...
+
+Row lengths are odd numbers: 1, 3, 5, 7, ...
+
+TapeID is not derived algebraically. It is simply the sequential count of cells in this triangle, starting at 1.
+
+Triangle number T(k) (with k as 0-based row index) and TapeID are related by:
+
+2 * T(k) = TapeID - 1
+
+Thus TapeID and Triangle ID are two views of the same accumulator. TapeID is not a label; it is part of the geometry.
+
+2. CELL COORDINATES AND CARGO GENERATION
+
+
+
+Each cell has coordinates (k, b), where: k = row index b = gap (horizontal offset from the left edge)
+
+From these coordinates we define: a = anchor = 2*(k+1) - 1  (odd root for the row)
+
+Cargo value N is generated as: N = a * (a - 2b)
+
+Thus:
+
+TapeID comes from counting the cell
+
+Cargo comes from the same cell's coordinates They are coupled but distinct projections of the same structure.
+
+
+3. SMART ID AND ROW TERMINATION
+
+
+
+The Smart ID is written as a.b (anchor.gap).
+
+At the far right of each row, b reaches its maximum value, which causes: a - 2b = 1
+
+This collapses the rectangle to: N = a * 1 = a
+
+These terminal cells are not special cases; they are structurally required by the geometry. They represent the identity element for that row.
+
+Example: a = 35, b = 17 N = 35 * (35 - 34) = 35 Factors: 1 x 35
+
+4. DNA (GREEDY SQUARE DECOMPOSITION)
+
+
+
+DNA is the only component not enumerated.
+
+DNA is computed from Cargo N by repeatedly subtracting the largest square less than or equal to the remainder, stopping when the remainder is less than 4.
+
+DNA measures how Cargo collapses relative to square shells. It does not come from counting. It is a measurement invariant, not an address.
+
+TapeID and Triangle ID describe where the cell is. DNA describes what the cell contains.
+
+5. RELATION TO SQUARES AND GNOMONS
+
+
+
+Odd squares grow by adding gnomons. Differences between consecutive odd squares are multiples of 8.
+
+This produces a repeating arithmetic cycle involving:
+
+adding small constants (+2)
+
+adding gnomon areas (+4k, +8k)
+
+collapsing back to odd roots
+
+
+This cycle is invariant across the grid and does not depend on N. It depends only on odd progression and triangular growth.
+
+6. INFORMATION BOUNDARY
+
+
+
+The system provides:
+
+exact enumeration of cells
+
+exact reconstruction of Cargo
+
+exact factor pairs when composite
+
+exact distance-from-square information
+
+a separate square-collapse invariant (DNA)
+
+
+What it cannot provide is a direct decision of factorability without testing whether (a^2 - N)/4 is a square.
+
+This is not a flaw; it is the natural boundary between geometric structure and arithmetic decision.
+
+7. CONCLUSION
+
+
+
+The grid is a complete coordinate model for odd integers. TapeID and Triangle ID are counting geometry. Cargo and factors are generated from the same coordinates. DNA is a secondary invariant measuring square descent.
+
+The model is internally consistent, fully enumerated, and reaches the theoretical limit of what geometry alone can extract without an external arithmetic oracle.
+
+
+---
+

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NTT-Accelerated GCD Calculator (Expression Parsing)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+  .card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); padding: 1.5rem; }
+  textarea { min-height: 75px; font-family: monospace; }
+  .btn-primary { background-color: #059669; }
+  .btn-primary:hover:not(:disabled) { background-color: #047857; }
+  button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+  #logOutput { min-height: 150px; max-height: 300px; overflow-y: auto; background-color: #e2e8f0; padding: 1rem; border-radius: 0.5rem; font-family: monospace; white-space: pre-wrap; font-size: 0.875rem; }
+</style>
+</head>
+<body class="p-4 flex flex-col items-center">
+
+<div class="max-w-xl w-full card my-8">
+  <h2 class="text-2xl font-bold text-center text-green-700 mb-6">NTT-Accelerated GCD Calculator (Expression Parsing)</h2>
+
+  <p class="mb-4 text-sm text-gray-600 border-l-4 border-green-500 pl-3">
+    **Input can be flexible:** Use expressions like $\mathbf{10^{100}+7}$ (or $\mathbf{10e100+7}$), $\mathbf{2^{30}-1}$, or paste large raw numbers.
+  </p>
+
+  <!-- Input Group -->
+  <div class="grid grid-cols-1 gap-4 mb-4">
+    <div class="input-group flex flex-col">
+      <label for="expressionA">Number A Expression</label>
+      <textarea id="expressionA" class="w-full border rounded p-2" placeholder="e.g., 10^104+123456789"></textarea>
+    </div>
+    <div class="input-group flex flex-col">
+      <label for="expressionB">Number B Expression</label>
+      <textarea id="expressionB" class="w-full border rounded p-2" placeholder="e.g., 10^103+987654321"></textarea>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="flex flex-wrap gap-3 justify-center mb-6">
+    <button id="startNTTButton" class="btn-primary flex-grow px-6 py-3 rounded-xl font-semibold">Start NTT-Accelerated GCD</button>
+    <button id="stopButton" class="bg-gray-500 text-white flex-grow px-6 py-3 rounded-xl font-semibold" disabled>Stop</button>
+  </div>
+
+  <!-- Progress and Status -->
+  <div id="progressBarContainer" class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+    <div id="progressBar" class="bg-green-500 h-3 text-xs flex items-center justify-center text-white transition-all duration-300" style="width: 0%"></div>
+  </div>
+  <div id="results" class="text-center font-bold text-lg text-gray-700 mb-4">Status: Ready.</div>
+
+  <!-- Log Output -->
+  <div class="mt-4">
+    <h3 class="text-xl font-semibold text-gray-800 mb-2 border-b pb-1">Calculation Log</h3>
+    <pre id="logOutput" class="text-gray-900"></pre>
+  </div>
+</div>
+
+<script>
+// --- UI Element References ---
+const expressionAInput = document.getElementById('expressionA');
+const expressionBInput = document.getElementById('expressionB');
+const startNTTButton = document.getElementById('startNTTButton');
+const stopButton = document.getElementById('stopButton');
+const progressBar = document.getElementById('progressBar');
+const resultsDiv = document.getElementById('results');
+const logOutput = document.getElementById('logOutput');
+
+// --- Global State ---
+let nttWorker = null;
+let isCalculating = false;
+
+// --- Utility Functions ---
+function log(msg) {
+  logOutput.textContent += msg + '\n';
+  logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function setStatus(t) { resultsDiv.textContent = 'Status: ' + t; }
+
+function setProgress(p) {
+  const percent = Math.min(100, Math.max(0, p)).toFixed(2);
+  progressBar.style.width = percent + '%';
+  progressBar.textContent = percent + '%';
+}
+
+function enableControls(enable) {
+    isCalculating = !enable;
+    startNTTButton.disabled = !enable;
+    stopButton.disabled = enable;
+}
+
+function stopCalculation() {
+    if (nttWorker) {
+        nttWorker.terminate();
+        nttWorker = null;
+        log('--- Calculation Stopped ---');
+    }
+    enableControls(true);
+    if (resultsDiv.textContent.includes('...')) {
+         setStatus('Stopped by user.');
+    }
+}
+
+/**
+ * Parses expressions like '10^104 + 123' or raw numbers into a BigInt string.
+ * Supports: a^b, a*b, a+b, a-b, and scientific notation (1e7).
+ * @param {string} exp - The input expression or number string.
+ * @returns {string} The computed BigInt value as a string.
+ */
+function parseExpression(exp) {
+    if (!exp) return "0";
+    
+    // 1. Replace all variations of power with JS exponentiation
+    let processedExp = exp.replace(/\*\*|E|\^/gi, (match) => {
+        if (match.toLowerCase() === 'e') return '*10**'; // Convert scientific to exponentiation
+        return '**';
+    });
+
+    // 2. Wrap the expression in BigInt() and evaluate
+    try {
+        // Evaluate the string expression using BigInt arithmetic
+        const result = eval(`BigInt(${processedExp})`);
+        return result.toString();
+    } catch (e) {
+        log(`Expression Parsing Error: Cannot evaluate expression "${exp}". Error: ${e.message}`);
+        throw new Error("Invalid number expression format.");
+    }
+}
+
+
+// --- Main NTT GCD Orchestration ---
+async function startNTTGCD() {
+    if (isCalculating) return;
+
+    logOutput.textContent = '';
+    enableControls(false);
+
+    try {
+        const n1_raw = expressionAInput.value.trim();
+        const n2_raw = expressionBInput.value.trim();
+
+        if (!n1_raw || !n2_raw) {
+            throw new Error("Please provide expressions for both Number A and Number B.");
+        }
+
+        setStatus('Parsing expressions...');
+        const n1_str = parseExpression(n1_raw);
+        const n2_str = parseExpression(n2_raw);
+        
+        log(`Parsed A: ${n1_str.substring(0, 50)}... (${n1_str.length} digits)`);
+        log(`Parsed B: ${n2_str.substring(0, 50)}... (${n2_str.length} digits)`);
+
+        if (n1_str === "0" || n2_str === "0") {
+             throw new Error("One of the expressions evaluated to zero.");
+        }
+
+        setStatus('Initializing NTT Worker...');
+        setProgress(0);
+        const startTime = performance.now();
+
+        // Instantiate the worker from the separate file
+        // NOTE: In a real environment, 'ntt_worker.js' would need to be accessible.
+        nttWorker = new Worker('ntt_worker.js'); 
+
+        nttWorker.onmessage = (e) => {
+            const data = e.data;
+            if (data.type === 'progress') {
+                setProgress(data.value);
+            } else if (data.type === 'log') {
+                log(data.message);
+            } else if (data.type === 'result') {
+                const endTime = performance.now();
+                const elapsed = (endTime - startTime).toFixed(2);
+                log(`\n--- RESULT ---`);
+                log(`GCD Found: ${data.gcd}`);
+                log(`Steps: ${data.steps}`);
+                log(`Time: ${elapsed} ms`);
+                setStatus(`GCD Found in ${elapsed} ms`);
+                stopCalculation();
+            } else if (data.type === 'error') {
+                log(`\n--- ERROR ---`);
+                log(`Worker Error: ${data.message}`);
+                setStatus('Error Occurred');
+                stopCalculation();
+            }
+        };
+
+        nttWorker.onerror = (e) => {
+            log(`\n--- CRITICAL ERROR ---`);
+            log(`Worker failed to start: ${e.message}`);
+            setStatus('Critical Error');
+            stopCalculation();
+        };
+
+        // Send the final stringified numbers to the worker
+        nttWorker.postMessage({ n1_str, n2_str });
+    } catch (e) {
+        log(`\n--- FAILURE ---`);
+        log(e.message);
+        setStatus('Input Error');
+        enableControls(true);
+    }
+}
+
+// --- Event Listeners ---
+window.onload = () => {
+    startNTTButton.addEventListener('click', startNTTGCD);
+    stopButton.addEventListener('click', stopCalculation);
+
+    log('NTT GCD Demo Loaded. Input expressions like 10^104+123456789 for testing.');
+    
+    // Set example inputs that caused the error, now using expressions
+    expressionAInput.value = '10^104+123456789'; 
+    expressionBInput.value = '10^103+987654321';
+};
+</script>
+</body>
+</html>
+

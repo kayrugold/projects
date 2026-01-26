@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Giga-Grid Explorer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #0d1117; color: #c9d1d9; font-family: 'Courier New', monospace; user-select: none; }
+    
+    /* The Grid */
+    .grid-container {
+      display: grid;
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 1px;
+      padding: 1px;
+    }
+
+    .cell {
+      height: 60px;
+      background-color: #21262d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8em;
+      cursor: pointer;
+      transition: all 0.1s;
+      position: relative;
+    }
+
+    .cell:hover { background-color: #30363d; z-index: 10; outline: 2px solid #58a6ff; }
+    
+    /* States */
+    .cell.composite { background-color: #3d1c1c; color: #ff7b72; } /* Red tint */
+    .cell.survivor { background-color: #132e21; color: #7ee787; } /* Green tint */
+    .cell.focus { outline: 2px solid #e3b341; z-index: 20; } /* Yellow focus */
+
+    .offset-label { font-weight: bold; font-size: 1.2em; }
+    .factor-label { font-size: 0.7em; color: #8b949e; margin-top: 2px; }
+
+    /* Control Panel */
+    .controls { background: #161b22; padding: 15px; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 50; }
+    .input-group { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    
+    input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 5px 10px; border-radius: 4px; font-family: inherit; }
+    .tiny-input { width: 60px; }
+    .med-input { width: 120px; }
+    
+    button { 
+      padding: 6px 12px; border-radius: 4px; border: 1px solid rgba(240,246,252,0.1); 
+      font-weight: bold; cursor: pointer; transition: 0.2s;
+    }
+    .btn-blue { background: #238636; color: white; border: none; }
+    .btn-blue:hover { background: #2ea043; }
+    
+    .btn-red { background: #da3633; color: white; border: none; }
+    
+    #terminal { 
+      position: fixed; bottom: 0; left: 0; right: 0; 
+      height: 150px; background: #0d1117; border-top: 2px solid #30363d; 
+      padding: 10px; overflow-y: auto; font-size: 0.8em; color: #8b949e;
+    }
+    .log-hit { color: #ff7b72; }
+    .log-sys { color: #58a6ff; }
+  </style>
+</head>
+<body>
+
+<div class="controls">
+  <div class="input-group">
+    <label>Base</label> <input id="inpBase" class="tiny-input" value="10">
+    <label>^ Exp</label> <input id="inpExp" class="med-input" value="1000000000">
+    <label>+ Start Offset</label> <input id="inpOffset" class="tiny-input" value="0">
+    <button class="btn-blue" onclick="drawGrid()">Draw Grid</button>
+  </div>
+  
+  <div class="input-group" style="border-top: 1px dashed #30363d; padding-top: 10px;">
+    <label style="color:#e3b341">Sniper Scope:</label>
+    <input id="inpFactor" class="med-input" placeholder="Try 5104699">
+    <button class="btn-red" onclick="fireSingleShot()">Check Specific Factor</button>
+    <button class="btn-blue" style="background:#1f6feb" onclick="autoScan()">Auto-Scan (Small)</button>
+  </div>
+  <div id="status" style="font-size: 0.8em; color: #8b949e;">Ready.</div>
+</div>
+
+<div id="grid" class="grid-container"></div>
+<div id="terminal"></div>
+
+<script>
+  // --- MATHEMATICS ENGINE (BigInt Modular Arithmetic) ---
+  
+  // Calculates (base^exp) % mod
+  function powMod(base, exp, mod) {
+    let res = 1n;
+    base = base % mod;
+    if (base === 0n) return 0n;
+    while (exp > 0n) {
+      if (exp % 2n === 1n) res = (res * base) % mod;
+      exp = exp / 2n;
+      base = (base * base) % mod;
+    }
+    return res;
+  }
+
+  // --- GRID STATE ---
+  let gBase, gExp, gStartOffset;
+  let gridSize = 100; // Number of cells
+  let cellData = []; // Stores status of each offset
+
+  function log(msg, type="") {
+    const term = document.getElementById('terminal');
+    const line = document.createElement('div');
+    line.textContent = `> ${msg}`;
+    if(type) line.classList.add(type);
+    term.prepend(line);
+  }
+
+  function drawGrid() {
+    try {
+      gBase = BigInt(document.getElementById('inpBase').value);
+      gExp = BigInt(document.getElementById('inpExp').value);
+      gStartOffset = BigInt(document.getElementById('inpOffset').value);
+    } catch(e) { alert("Invalid Inputs"); return; }
+
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    cellData = [];
+
+    // Create 100 cells starting from offset
+    for(let i=0; i<gridSize; i++) {
+      const currentOffset = gStartOffset + BigInt(i);
+      
+      const cell = document.createElement('div');
+      cell.className = 'cell survivor'; // Assume survivor until proven otherwise
+      cell.id = `cell-${i}`;
+      
+      cell.innerHTML = `
+        <span class="offset-label">+${currentOffset.toString()}</span>
+        <span class="factor-label">?</span>
+      `;
+      
+      // Click to Focus
+      cell.onclick = () => {
+        document.querySelectorAll('.focus').forEach(c => c.classList.remove('focus'));
+        cell.classList.add('focus');
+        log(`Selected: Base^Exp + ${currentOffset}`);
+      };
+
+      grid.appendChild(cell);
+      cellData.push({ offset: currentOffset, factor: null });
+    }
+    
+    log(`Grid Initialized. Anchor: ${gBase}^${gExp}. Range: +${gStartOffset} to +${gStartOffset + BigInt(gridSize)}`, 'log-sys');
+  }
+
+  // --- THE SNIPER LOGIC ---
+
+  // Check a SINGLE specific factor against the WHOLE grid
+  function checkFactorAgainstGrid(p) {
+    const prime = BigInt(p);
+    let hitCount = 0;
+
+    // 1. Calculate the Anchor Remainder: (Base^Exp) % p
+    // This is the heavy lifting, done ONCE for the whole grid.
+    const anchorMod = powMod(gBase, gExp, prime);
+
+    // 2. Sweep the Grid
+    for(let i=0; i<gridSize; i++) {
+      if (cellData[i].factor !== null) continue; // Already killed
+
+      const cellOffset = cellData[i].offset;
+      
+      // The Check: (Anchor + Offset) % p == 0 ?
+      if ( (anchorMod + cellOffset) % prime === 0n ) {
+        // HIT!
+        markCellAsComposite(i, prime);
+        hitCount++;
+      }
+    }
+    return hitCount;
+  }
+
+  function markCellAsComposite(index, factor) {
+    cellData[index].factor = factor;
+    const cell = document.getElementById(`cell-${index}`);
+    cell.className = 'cell composite';
+    cell.querySelector('.factor-label').textContent = `div by ${factor}`;
+    // Animation effect
+    cell.style.transform = 'scale(0.9)';
+    setTimeout(() => cell.style.transform = 'scale(1)', 200);
+  }
+
+  // --- USER ACTIONS ---
+
+  function fireSingleShot() {
+    const input = document.getElementById('inpFactor').value;
+    if(!input) return;
+    try {
+      const p = BigInt(input);
+      log(`Firing Sniper Round: ${p}...`, 'log-sys');
+      const hits = checkFactorAgainstGrid(p);
+      if(hits > 0) log(`TARGET DESTROYED. ${hits} cells hit by ${p}.`, 'log-hit');
+      else log(`Miss. No cells divisible by ${p}.`);
+    } catch(e) { log("Invalid Factor"); }
+  }
+
+  async function autoScan() {
+    // Quick scan of small primes (up to 10,000) to clear the noise
+    log("Deploying Rapid Fire Sieve (Primes < 10,000)...", 'log-sys');
+    
+    // Generator for small primes
+    const limit = 10000;
+    const sieve = new Uint8Array(limit+1).fill(1);
+    for(let i=2; i*i<=limit; i++) {
+      if(sieve[i]) for(let j=i*i; j<=limit; j+=i) sieve[j]=0;
+    }
+    
+    let count = 0;
+    for(let p=2; p<=limit; p++) {
+      if(sieve[p]) {
+        checkFactorAgainstGrid(p);
+        count++;
+        if(count % 500 === 0) await new Promise(r => setTimeout(r, 0)); // Breathe
+      }
+    }
+    log("Rapid Fire Complete.", 'log-sys');
+  }
+
+  // Initialize
+  drawGrid();
+
+</script>
+</body>
+</html>

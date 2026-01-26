@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gnomon Workbench</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --accent-green: #4ade80; /* Matches your green square */
+            --accent-yellow: #facc15; /* Matches your inner square */
+            --accent-blue: #3b82f6;   /* Matches your diamond lines */
+            --border: #333;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- HEADER & TABS --- */
+        header {
+            background-color: #000;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        h1 { margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+
+        .view-tabs {
+            display: flex;
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 2px;
+        }
+        
+        .tab {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        
+        .tab.active { background: #444; color: #fff; }
+
+        /* --- CANVAS AREA --- */
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 95%;
+            max-height: 95%;
+        }
+
+        /* --- OVERLAYS --- */
+        .overlay-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .toggle-btn {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .toggle-btn.active { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+        /* --- BOTTOM PANEL --- */
+        .bottom-panel {
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 15px;
+            flex-shrink: 0;
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .index-badge {
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--accent-green);
+        }
+
+        input[type="range"] {
+            flex: 1;
+            margin: 0 15px;
+            height: 4px;
+            background: #444;
+            border-radius: 2px;
+            appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+
+        /* --- MATH DASHBOARD (Matches User Screenshot) --- */
+        .math-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-card {
+            background: #121212;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .stat-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .stat-val {
+            font-size: 1.2rem;
+            font-weight: 700;
+            font-family: monospace;
+            color: #fff;
+        }
+
+        .stat-card.highlight {
+            border-color: rgba(74, 222, 128, 0.3);
+            background: rgba(74, 222, 128, 0.05);
+        }
+        .stat-card.highlight .stat-val { color: var(--accent-green); }
+
+        .stat-card.blue {
+             border-color: rgba(59, 130, 246, 0.3);
+             background: rgba(59, 130, 246, 0.05);
+        }
+        
+        .full-width { grid-column: span 2; }
+        
+        .formula {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-left: 8px;
+            font-weight: normal;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="top-bar">
+            <h1>Gnomon Workbench</h1>
+            <div class="index-badge">N = <span id="idx-display">7</span></div>
+        </div>
+        <div class="view-tabs">
+            <button class="tab active" onclick="setMode('nested')">Nested</button>
+            <button class="tab" onclick="setMode('staircase')">Staircase</button>
+            <button class="tab" onclick="setMode('histogram')">Histogram</button>
+        </div>
+    </header>
+
+    <div class="canvas-area">
+        <canvas id="mainCanvas"></canvas>
+        
+        <div class="overlay-controls">
+            <!-- Diamond Toggle (User Sketch Feature) -->
+            <button id="btn-diamond" class="toggle-btn" onclick="toggleDiamond()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
+            </button>
+            <!-- Grid Toggle -->
+            <button id="btn-grid" class="toggle-btn active" onclick="toggleGrid()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="bottom-panel">
+        <div class="slider-row">
+            <span style="font-size:0.8rem; color:var(--text-muted)">1</span>
+            <input type="range" id="slider" min="1" max="25" value="7">
+            <span style="font-size:0.8rem; color:var(--text-muted)">25</span>
+        </div>
+
+        <div class="math-grid">
+            <!-- Basic Gnomon Math -->
+            <div class="stat-card">
+                <div class="stat-label">Gnomon Value <span class="formula">(2n - 1)</span></div>
+                <div class="stat-val" id="val-gnomon">13</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Square <span class="formula">(n²)</span></div>
+                <div class="stat-val" id="val-square">49</div>
+            </div>
+
+            <!-- The "8x" Jump Logic from User Notes -->
+            <div class="stat-card full-width blue">
+                <div class="stat-label">Odd Square Jump <span class="formula">(From Prev Odd n)</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                    <div class="stat-val" style="color: var(--accent-blue);" id="val-jump">24</div>
+                    <div style="font-family:monospace; font-size:0.8rem; color:var(--accent-blue);">
+                        8 × <span id="val-k">3</span>
+                    </div>
+                </div>
+                <div style="font-size: 0.65rem; color: #666; margin-top:4px;">
+                    Difference between n² and (n-2)² is always 8k
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('slider');
+        
+        // State
+        let state = {
+            n: 7,
+            mode: 'nested', // 'nested', 'staircase', 'histogram'
+            showDiamond: false,
+            showGrid: true
+        };
+
+        // --- MATH CALCULATIONS ---
+        function updateMath() {
+            const n = state.n;
+            const gnomon = 2 * n - 1;
+            const square = n * n;
+            
+            document.getElementById('idx-display').innerText = n;
+            document.getElementById('val-gnomon').innerText = gnomon;
+            document.getElementById('val-square').innerText = square;
+
+            // "Jump Logic" (The 8k rule)
+            // Calculate difference between current square and the square 2 steps back
+            // This is valid for parity jumps (Odd to Odd, Even to Even)
+            if (n > 2) {
+                const prevParitySquare = (n - 2) * (n - 2);
+                const jump = square - prevParitySquare; 
+                // jump = n^2 - (n-2)^2 = n^2 - (n^2 - 4n + 4) = 4n - 4 = 4(n-1)
+                
+                // If we treat n as the k-th odd number: n = 2k+1 -> 4((2k+1)-1) = 4(2k) = 8k
+                // The user note "24 (8 x 3)" was for Index 7.
+                // Index 7 is the 4th odd number, but let's stick to the algebra:
+                // Jump = 4 * (n - 1). 
+                // Is it divisible by 8? Only if n is odd.
+                
+                document.getElementById('val-jump').innerText = jump;
+                
+                if (n % 2 !== 0) {
+                    // Odd Number logic
+                    const k = (n - 1) / 2;
+                    document.getElementById('val-k').innerHTML = `${k}`;
+                    document.querySelector('.stat-card.blue .stat-label').innerText = "ODD SQUARE JUMP (8k)";
+                } else {
+                    // Even number logic (Jump is 4 * odd)
+                    // e.g., 4->16. Prev 2->4. Diff=12. 12 is not 8k.
+                    document.getElementById('val-k').innerHTML = "?";
+                    document.querySelector('.stat-card.blue .stat-label').innerText = "PARITY JUMP (4n-4)";
+                }
+            } else {
+                document.getElementById('val-jump').innerText = "-";
+                document.getElementById('val-k').innerText = "-";
+            }
+        }
+
+        // --- RENDERING ---
+        function resize() {
+            const size = Math.min(window.innerWidth, window.innerHeight * 0.6);
+            const dpr = window.devicePixelRatio || 2;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+            ctx.scale(dpr, dpr);
+            render();
+        }
+
+        function render() {
+            const size = parseFloat(canvas.style.width);
+            const maxVisible = 25; // Max grid size
+            const cellSize = size / maxVisible;
+            
+            ctx.clearRect(0, 0, size, size);
+
+            // 1. NESTED MODE (The Green Square Sketch)
+            if (state.mode === 'nested') {
+                const center = maxVisible / 2;
+                // We want to center the square of size state.n
+                const startOffset = (maxVisible - state.n) / 2;
+                
+                for (let i = 0; i < state.n; i++) {
+                    // i is the layer index (0 is center, n-1 is outer)
+                    // But standard gnomon logic adds to the outside.
+                    // Let's draw from center out.
+                    const layerSize = (i + 1); // 1, 2, 3...
+                    const layerOffset = (maxVisible - layerSize) / 2;
+                    
+                    // Colors based on Sketch:
+                    // Inner squares: Yellow/Lime. Outer ring: Green.
+                    const isOuter = (i === state.n - 1);
+                    
+                    if (isOuter) {
+                         ctx.fillStyle = '#15803d'; // Dark Green (User Sketch)
+                    } else {
+                         // Alternate light greens/yellows
+                         const intensity = 0.8 - (i * 0.05);
+                         ctx.fillStyle = `rgba(250, 204, 21, ${intensity})`; // Yellow fading
+                    }
+                    
+                    // Fill standard centered square
+                    ctx.fillRect(
+                        layerOffset * cellSize, 
+                        layerOffset * cellSize, 
+                        layerSize * cellSize, 
+                        layerSize * cellSize
+                    );
+
+                    // Stroke
+                    if (state.showGrid) {
+                        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(
+                             layerOffset * cellSize, 
+                            layerOffset * cellSize, 
+                            layerSize * cellSize, 
+                            layerSize * cellSize
+                        );
+                    }
+                }
+                
+                // Diamond Overlay (From Sketch)
+                if (state.showDiamond) {
+                    const outerOffset = (maxVisible - state.n) / 2;
+                    const dim = state.n * cellSize;
+                    const x = outerOffset * cellSize;
+                    const y = outerOffset * cellSize;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x + dim/2, y); // Top Mid
+                    ctx.lineTo(x + dim, y + dim/2); // Right Mid
+                    ctx.lineTo(x + dim/2, y + dim); // Bot Mid
+                    ctx.lineTo(x, y + dim/2); // Left Mid
+                    ctx.closePath();
+                    ctx.strokeStyle = '#3b82f6'; // Blue
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            }
+
+            // 2. STAIRCASE MODE (The Grid Sketchpad)
+            else if (state.mode === 'staircase') {
+                const pad = 20;
+                // We draw columns. 
+                // Col 1 height 1. Col 2 height 3. Col 3 height 5.
+                // This builds a "Triangular" gnomon stack.
+                
+                for (let i = 0; i < state.n; i++) {
+                    const height = (2 * (i + 1)) - 1; // 1, 3, 5...
+                    
+                    // Style: Black/White high contrast or sketch style
+                    ctx.fillStyle = '#e0e0e0';
+                    
+                    for (let h = 0; h < height; h++) {
+                        // Invert Y to grow UP
+                        const x = (i + 2) * cellSize; 
+                        const y = size - ((h + 2) * cellSize);
+                        
+                        // Highlight the "Newest" column
+                        if (i === state.n - 1) ctx.fillStyle = '#4ade80'; // Green
+                        else ctx.fillStyle = '#555';
+
+                        ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+                    }
+                    
+                    // Label
+                    if (state.showGrid) {
+                        ctx.fillStyle = '#888';
+                        ctx.font = '10px monospace';
+                        ctx.fillText(height, (i+2)*cellSize, size - 5);
+                    }
+                }
+            }
+
+            // 3. HISTOGRAM MODE (The Bar Chart Sketch)
+            else if (state.mode === 'histogram') {
+                const pad = 20;
+                // Horizontal Bars
+                
+                for (let i = 0; i < state.n; i++) {
+                    const val = (2 * (i + 1)) - 1;
+                    
+                    // Rainbow colors from sketch
+                    const hue = (i * 25) % 360;
+                    ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+                    
+                    const barHeight = cellSize * 1.5;
+                    const barWidth = val * (cellSize * 0.8);
+                    
+                    const y = pad + (i * barHeight * 1.1);
+                    const x = pad;
+                    
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                    
+                    // Text
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(val, x + barWidth - 5, y + barHeight/2 + 4);
+                }
+            }
+        }
+
+        // --- INTERACTION ---
+        function setMode(m) {
+            state.mode = m;
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+            // Find button with text matching mode roughly or by index
+            // Simple hack for this single file:
+            const idx = m === 'nested' ? 0 : m === 'staircase' ? 1 : 2;
+            document.querySelectorAll('.tab')[idx].classList.add('active');
+            
+            // Toggle Diamond button visibility (only makes sense in Nested)
+            document.getElementById('btn-diamond').style.display = (m === 'nested') ? 'flex' : 'none';
+            
+            render();
+        }
+
+        function toggleDiamond() {
+            state.showDiamond = !state.showDiamond;
+            document.getElementById('btn-diamond').classList.toggle('active');
+            render();
+        }
+        
+        function toggleGrid() {
+            state.showGrid = !state.showGrid;
+            document.getElementById('btn-grid').classList.toggle('active');
+            render();
+        }
+
+        slider.addEventListener('input', (e) => {
+            state.n = parseInt(e.target.value);
+            updateMath();
+            render();
+        });
+
+        window.addEventListener('resize', resize);
+        
+        // Init
+        resize();
+        updateMath();
+
+    </script>
+</body>
+</html>
+

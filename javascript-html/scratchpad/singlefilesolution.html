@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gnomon & Sundaram Scanner</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --text-main: #c9d1d9;
+            --accent: #58a6ff;
+            --border: #30363d;
+            --prime-color: #2ea043;
+            --comp-color: #da3633;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', monospace;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h2 { margin-top: 0; color: var(--accent); }
+
+        .controls {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        input {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 1.1em;
+        }
+
+        button {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        /* The Grid Layout */
+        #results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card.prime { border-left: 5px solid var(--prime-color); }
+        .card.composite { border-left: 5px solid var(--comp-color); }
+
+        .card-header {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .tag {
+            font-size: 0.5em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            vertical-align: middle;
+        }
+        .tag.p { background: rgba(46, 160, 67, 0.2); color: var(--prime-color); }
+        .tag.c { background: rgba(218, 54, 51, 0.2); color: var(--comp-color); }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            color: #8b949e;
+        }
+        .stat-val { color: var(--text-main); font-family: monospace; }
+        
+        .jump-box {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(88, 166, 255, 0.1);
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <label>Start Odd Number:</label>
+        <input type="number" id="startNum" value="45" step="2">
+        <label>Count:</label>
+        <input type="number" id="count" value="12">
+        <button onclick="startWorker()">Scan Sequence</button>
+        <span id="status" style="margin-left:auto; font-size: 0.8em; color: #8b949e;">Idle</span>
+    </div>
+
+    <div id="results-grid"></div>
+
+    <script id="worker-code" type="javascript/worker">
+        self.onmessage = function(e) {
+            const { start, count } = e.data;
+            const results = [];
+            
+            // Ensure we start on an odd number
+            let current = (start % 2 === 0) ? start + 1 : start;
+
+            for (let i = 0; i < count; i++) {
+                
+                // 1. Calculate Sundaram Index k
+                // Formula: N = 2k + 1  =>  k = (N - 1) / 2
+                const k = (current - 1) / 2;
+
+                // 2. Check Primality via Sundaram Logic (k = i + j + 2ij)
+                // We verify if k can be solved for integers i, j where 1 <= i <= j
+                let isComposite = false;
+                let factors = null; // Store i and j if found
+
+                // Limit: Since i <= j, and k = i + j + 2ij > 2i^2, then i < sqrt(k/2)
+                const limit = Math.floor(Math.sqrt(k / 2));
+                
+                for (let row = 1; row <= limit + 1; row++) {
+                    // Solve for j: 
+                    // k = i + j(1 + 2i)
+                    // k - i = j(1 + 2i)
+                    // j = (k - i) / (1 + 2i)
+                    
+                    const numerator = k - row;
+                    const denominator = 1 + (2 * row);
+                    
+                    if (numerator % denominator === 0) {
+                        const col = numerator / denominator; // This is j
+                        isComposite = true;
+                        // Calculate real factors: Factor = 2*row + 1
+                        const f1 = (2 * row) + 1;
+                        const f2 = (2 * col) + 1;
+                        factors = `${f1} × ${f2}`;
+                        break; // Found it, stop looking
+                    }
+                }
+
+                // 3. Calculate Gnomonic Jump (Difference of Squares)
+                // Jump = CurrentSquare - PreviousOddSquare
+                // Current Square = current^2
+                // Previous Odd = (current - 2)^2
+                const sqCurrent = BigInt(current) * BigInt(current);
+                const prevOdd = BigInt(current - 2);
+                const sqPrev = prevOdd * prevOdd;
+                const jump = sqCurrent - sqPrev;
+
+                results.push({
+                    number: current,
+                    k_index: k,
+                    type: isComposite ? 'Composite' : 'Prime',
+                    factors: factors,
+                    square: sqCurrent.toString(),
+                    jump: jump.toString()
+                });
+
+                current += 2;
+            }
+
+            self.postMessage(results);
+        };
+    </script>
+
+    <script>
+        let worker;
+
+        function startWorker() {
+            const startNum = parseInt(document.getElementById('startNum').value);
+            const count = parseInt(document.getElementById('count').value);
+            const grid = document.getElementById('results-grid');
+            const status = document.getElementById('status');
+
+            grid.innerHTML = '';
+            status.textContent = "Processing...";
+
+            // 1. Create the Blob from the script tag above
+            const blob = new Blob([
+                document.getElementById('worker-code').textContent
+            ], { type: "text/javascript" });
+
+            // 2. Create Worker from Blob URL
+            if (worker) worker.terminate(); // Kill old worker if exists
+            worker = new Worker(window.URL.createObjectURL(blob));
+
+            // 3. Send Data to Worker
+            worker.postMessage({ start: startNum, count: count });
+
+            // 4. Handle Response
+            worker.onmessage = function(e) {
+                const data = e.data;
+                renderResults(data);
+                status.textContent = `Scanned ${data.length} items.`;
+            };
+        }
+
+        function renderResults(data) {
+            const grid = document.getElementById('results-grid');
+            
+            data.forEach(item => {
+                const isPrime = item.type === 'Prime';
+                const card = document.createElement('div');
+                card.className = `card ${isPrime ? 'prime' : 'composite'}`;
+                
+                const factorHTML = isPrime 
+                    ? `<span style="color:#8b949e">No i,j solution</span>` 
+                    : `<span style="color:var(--comp-color)">${item.factors}</span>`;
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        ${item.number}
+                        <span class="tag ${isPrime ? 'p' : 'c'}">${item.type}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Sundaram Index (k):</span>
+                        <span class="stat-val">${item.k_index}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Factors:</span>
+                        <span class="stat-val">${factorHTML}</span>
+                    </div>
+                    <div class="jump-box">
+                        <div class="stat-row">
+                            <span>Square (N²):</span>
+                            <span class="stat-val">${item.square}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Jump (8n):</span>
+                            <span class="stat-val">${item.jump}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>

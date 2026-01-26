@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter: Dual View</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px 10px;
+            /* CRITICAL FIX: Allow vertical scrolling for the whole page */
+            overflow-y: auto; 
+            min-height: 100vh;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            background: #121212;
+            padding: 10px;
+            z-index: 100;
+            border-bottom: 1px solid #333;
+            width: 100%;
+            justify-content: center;
+        }
+
+        h1 { margin: 0; color: #00e676; font-size: 1.2rem; }
+
+        input {
+            padding: 8px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+            width: 70px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background: #00e676;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* SECTION CONTAINERS */
+        .section-title {
+            width: 100%;
+            max-width: 800px;
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 20px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .scroll-wrapper {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto; /* Horizontal scroll for charts */
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            -webkit-overflow-scrolling: touch; 
+            min-height: 200px;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .legend {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-controls">
+        <h1>Factor Hunter</h1>
+        <input type="number" id="maxNum" value="30" inputmode="numeric">
+        <button onclick="startCalculation()">HUNT</button>
+    </div>
+
+    <div class="section-title">1. Linear Geometry (Wide Primes)</div>
+    <div class="legend">
+        <span style="color:#00e676">▬</span> Prime &nbsp; 
+        <span style="color:#4caf50">▮</span> Composite &nbsp; 
+        <span style="color:#81c784">■</span> Square
+    </div>
+    <div class="scroll-wrapper">
+        <canvas id="rectCanvas"></canvas>
+    </div>
+
+    <div class="section-title">2. Triangle Stacking</div>
+    <div class="scroll-wrapper">
+        <canvas id="triCanvas"></canvas>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. WORKER
+        // ==========================================
+        const workerScript = `
+            self.onmessage = function(e) {
+                const max = e.data.max;
+                const results = [];
+
+                for (let n = 1; n <= max; n++) {
+                    
+                    // --- Shape Logic ---
+                    let width = 1;
+                    const start = Math.floor(Math.sqrt(n));
+                    
+                    // Find closest factor pair to square root
+                    for (let i = start; i >= 1; i--) {
+                        if (n % i === 0) {
+                            width = i;
+                            break;
+                        }
+                    }
+                    let height = n / width;
+                    
+                    const isSquare = (width === height && width > 1);
+                    const isPrime = (width === 1 && n > 1);
+                    const isOne = (n === 1);
+
+                    // --- "Factor Hunter" Rules ---
+                    if (isPrime) {
+                        width = n; // Primes are Wide
+                        height = 1;
+                    } else if (!isSquare && !isOne) {
+                        // Composites are Tall
+                        if (width > height) { let t = width; width = height; height = t; }
+                    }
+
+                    results.push({
+                        n: n,
+                        w: width,
+                        h: height,
+                        isPrime: isPrime,
+                        isSquare: isSquare,
+                        isOne: isOne
+                    });
+                }
+                self.postMessage(results);
+            };
+        `;
+
+        const blob = new Blob([workerScript], { type: "application/javascript" });
+        const worker = new Worker(URL.createObjectURL(blob));
+
+        // ==========================================
+        // 2. MAIN THREAD
+        // ==========================================
+        const rectCanvas = document.getElementById('rectCanvas');
+        const triCanvas = document.getElementById('triCanvas');
+        const rCtx = rectCanvas.getContext('2d');
+        const tCtx = triCanvas.getContext('2d');
+
+        // Config
+        const blockSize = 10; 
+        const blockGap = 2;   
+        
+        worker.onmessage = function(e) {
+            const data = e.data;
+            drawRectChart(data);
+            drawTriangleChart(data);
+        };
+
+        function startCalculation() {
+            const max = parseInt(document.getElementById('maxNum').value) || 30;
+            document.getElementById('maxNum').blur(); 
+            worker.postMessage({ max: max });
+        }
+
+        function resizeAndScale(canvas, ctx, w, h) {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+        }
+
+        // --- DRAW 1: WIDE PRIMES / TALL COMPOSITES ---
+        function drawRectChart(data) {
+            const colGap = 20; 
+            const topMargin = 40;
+            
+            // 1. Calculate Layout
+            let currentX = 20;
+            let maxPxHeight = 0;
+
+            const layout = data.map(item => {
+                const pxWidth = (item.w * blockSize) + ((item.w - 1) * blockGap);
+                const pxHeight = (item.h * blockSize) + ((item.h - 1) * blockGap);
+                
+                const x = currentX;
+                currentX += pxWidth + colGap;
+                maxPxHeight = Math.max(maxPxHeight, pxHeight);
+                
+                return { ...item, x, pxWidth, pxHeight };
+            });
+
+            const totalWidth = currentX;
+            const totalHeight = maxPxHeight + topMargin + 40; // Add padding
+
+            resizeAndScale(rectCanvas, rCtx, totalWidth, totalHeight);
+            
+            rCtx.clearRect(0, 0, totalWidth, totalHeight);
+
+            // Baseline
+            rCtx.beginPath();
+            rCtx.moveTo(0, topMargin);
+            rCtx.lineTo(totalWidth, topMargin);
+            rCtx.strokeStyle = '#444';
+            rCtx.stroke();
+
+            layout.forEach(item => {
+                // Color
+                if (item.isPrime) rCtx.fillStyle = '#00e676';
+                else if (item.isSquare) rCtx.fillStyle = '#81c784';
+                else if (item.isOne) rCtx.fillStyle = '#555';
+                else rCtx.fillStyle = '#2e7d32';
+
+                // Blocks
+                for (let r = 0; r < item.h; r++) {
+                    for (let c = 0; c < item.w; c++) {
+                        const bx = item.x + c * (blockSize + blockGap);
+                        const by = topMargin + 5 + r * (blockSize + blockGap);
+                        rCtx.fillRect(bx, by, blockSize, blockSize);
+                    }
+                }
+
+                // Label
+                rCtx.fillStyle = '#ccc';
+                rCtx.font = '10px monospace';
+                rCtx.textAlign = 'center';
+                rCtx.fillText(item.n, item.x + (item.pxWidth / 2), topMargin - 15);
+                
+                // Axis Dot
+                rCtx.beginPath();
+                rCtx.arc(item.x + (item.pxWidth / 2), topMargin, 2, 0, Math.PI*2);
+                rCtx.fillStyle = item.isPrime ? '#00e676' : '#555';
+                rCtx.fill();
+            });
+        }
+
+        // --- DRAW 2: TRIANGLE STACKING ---
+        function drawTriangleChart(data) {
+            // Container width determines packing
+            const containerW = window.innerWidth - 40; // Approx visible width
+            
+            // Simple Triangle Calculation
+            const rows = Math.ceil(Math.sqrt(2 * data.length)) + 2;
+            const itemRadius = 14; // Bigger balls
+            const itemSize = itemRadius * 2;
+            const gap = 4;
+            
+            const totalHeight = (rows * (itemSize + gap)) + 60;
+            
+            // We need canvas wide enough for the bottom row
+            const maxRowWidth = (rows * (itemSize + gap)) + 100;
+            const canvasW = Math.max(containerW, maxRowWidth);
+
+            resizeAndScale(triCanvas, tCtx, canvasW, totalHeight);
+            tCtx.clearRect(0, 0, canvasW, totalHeight);
+            
+            tCtx.font = '12px monospace';
+            tCtx.textAlign = 'center';
+            tCtx.textBaseline = 'middle';
+            
+            let currentIdx = 0;
+            let row = 1;
+            const startY = 40;
+
+            while (currentIdx < data.length) {
+                const itemsInRow = row;
+                const rowWidth = itemsInRow * (itemSize + gap) - gap;
+                const startX = (canvasW - rowWidth) / 2; // Center aligns the triangle
+                
+                for (let i = 0; i < itemsInRow; i++) {
+                    if (currentIdx >= data.length) break;
+                    
+                    const item = data[currentIdx];
+                    const cx = startX + i * (itemSize + gap) + itemRadius;
+                    const cy = startY + (row - 1) * (itemSize + gap) + itemRadius;
+                    
+                    // Circle
+                    tCtx.beginPath();
+                    tCtx.arc(cx, cy, itemRadius, 0, Math.PI*2);
+                    
+                    if (item.isPrime) {
+                        tCtx.fillStyle = '#00e676';
+                        tCtx.strokeStyle = '#00e676';
+                        tCtx.lineWidth = 1;
+                    } else if (item.isSquare) {
+                         tCtx.fillStyle = 'rgba(129, 199, 132, 0.2)'; // Faint square green
+                         tCtx.strokeStyle = '#81c784';
+                         tCtx.lineWidth = 2;
+                    } else {
+                        tCtx.fillStyle = 'transparent';
+                        tCtx.strokeStyle = '#2e7d32';
+                        tCtx.lineWidth = 2;
+                    }
+                    
+                    tCtx.fill();
+                    tCtx.stroke();
+                    
+                    // Text
+                    tCtx.fillStyle = item.isPrime ? '#000' : '#888';
+                    tCtx.fillText(item.n, cx, cy);
+                    
+                    currentIdx++;
+                }
+                row++;
+            }
+        }
+
+        // Init
+        startCalculation();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3-Engine Projection Visualizer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 20px; }
+    
+    /* INPUT AREA */
+    .controls { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+    input { background: #1e293b; border: 1px solid #475569; color: white; padding: 8px; border-radius: 4px; width: 100px; }
+    button { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #2563eb; }
+
+    /* LAYOUT */
+    .main-container { display: flex; gap: 20px; height: calc(100vh - 100px); }
+    
+    /* LEFT: CHAINS */
+    .chains-panel { 
+        flex: 2; background: #020617; border: 1px solid #334155; border-radius: 8px; 
+        padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+    }
+    .chain-row { display: flex; align-items: center; padding: 4px 0; border-bottom: 1px dashed #1e293b; }
+    .chain-row:hover { background: #1e293b; }
+    
+    .node { 
+        background: #334155; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; 
+        cursor: default; transition: all 0.2s; min-width: 100px; text-align: center;
+        border: 1px solid #475569;
+    }
+    .node.root { background: #4f46e5; border-color: #818cf8; color: white; font-weight: bold; }
+    .node.gen { background: #0f172a; color: #94a3b8; }
+    .node:hover { transform: scale(1.1); z-index: 10; border-color: #fbbf24; color: #fbbf24; }
+
+    .arrow { color: #64748b; margin: 0 5px; font-size: 0.8rem; }
+
+    /* RIGHT: NUMBER LINE */
+    .number-line-panel {
+        flex: 1; background: #020617; border: 1px solid #334155; border-radius: 8px;
+        padding: 15px; overflow-y: auto;
+    }
+    .grid-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .num-cell { 
+        padding: 5px; text-align: center; border-radius: 3px; font-size: 0.8rem; 
+        border: 1px solid transparent; opacity: 0.5;
+    }
+    .num-cell.prime { background: #064e3b; color: #34d399; opacity: 1; border-color: #059669; font-weight: bold; }
+    .num-cell.comp { background: #450a0a; color: #fca5a5; opacity: 1; border-color: #7f1d1d; }
+    .num-cell.hit { animation: flash 0.5s; }
+
+    @keyframes flash {
+        0% { background: #fbbf24; color: black; }
+        100% { }
+    }
+
+    /* TOOLTIP */
+    .math-tooltip {
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+        background: #fbbf24; color: #000; padding: 10px 20px; border-radius: 20px;
+        font-weight: bold; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        z-index: 100; font-size: 1.2rem; pointer-events: none;
+    }
+</style>
+</head>
+<body>
+
+<h2 class="text-xl font-bold text-blue-400 mb-2">The "A+2" Projection Engine</h2>
+<div class="controls">
+    <label>Max Number:</label>
+    <input type="number" id="inpLimit" value="200">
+    <button onclick="runProjection()">GENERATE</button>
+</div>
+
+<div class="main-container">
+    <div class="chains-panel" id="chainsBox">
+        <div class="text-slate-500 italic p-4">Click Generate to see the engine run...</div>
+    </div>
+    
+    <div class="number-line-panel">
+        <h3 class="text-sm font-bold text-slate-400 mb-2 sticky top-0 bg-[#020617] p-2 border-b border-slate-800">THE SIEVE RESULT</h3>
+        <div class="grid-container" id="gridBox"></div>
+    </div>
+</div>
+
+<div id="tooltip" class="math-tooltip"></div>
+
+<script>
+function runProjection() {
+    const limit = parseInt(document.getElementById('inpLimit').value);
+    const chainsBox = document.getElementById('chainsBox');
+    const gridBox = document.getElementById('gridBox');
+    
+    chainsBox.innerHTML = '';
+    gridBox.innerHTML = '';
+    
+    // 1. Setup Number Line (Odd numbers only)
+    const numberStatus = new Array(limit + 1).fill('PRIME'); // Assume Prime
+    
+    // 2. RUN THE ENGINE (3-Family Roots)
+    // Formula: Start at 3x3, 3x5, 3x7...
+    
+    for (let m = 3; ; m += 2) {
+        let A = 3;
+        let B = m;
+        let val = A * B;
+        
+        if (val > limit) break;
+        
+        // Create the Chain Row UI
+        const row = document.createElement('div');
+        row.className = 'chain-row';
+        
+        // --- 1. THE ROOT (3-Line) ---
+        addNode(row, A, B, val, true);
+        markComposite(val, numberStatus);
+        
+        // --- 2. THE PROJECTION LOOP (A+2, B+2) ---
+        while (true) {
+            let prevA = A;
+            let prevB = B;
+            
+            // THE INCREMENT LOGIC
+            A += 2;
+            B += 2;
+            val = A * B;
+            
+            if (val > limit) break;
+            
+            addArrow(row, prevA, prevB, A, B);
+            addNode(row, A, B, val, false);
+            markComposite(val, numberStatus);
+        }
+        
+        chainsBox.appendChild(row);
+    }
+    
+    // 3. Render the Grid Result
+    for (let i = 1; i <= limit; i += 2) {
+        if (i === 1) continue; 
+        const cell = document.createElement('div');
+        const status = numberStatus[i];
+        
+        cell.className = `num-cell ${status === 'PRIME' ? 'prime' : 'comp'}`;
+        cell.innerText = i;
+        cell.id = `num-${i}`;
+        gridBox.appendChild(cell);
+    }
+}
+
+function addNode(container, A, B, val, isRoot) {
+    const div = document.createElement('div');
+    div.className = `node ${isRoot ? 'root' : 'gen'}`;
+    div.innerHTML = `${A} &times; ${B} = <span class="text-white">${val}</span>`;
+    
+    // Hover Interaction
+    div.onmouseenter = () => {
+        highlightGrid(val);
+        showTooltip(A, B, val, isRoot);
+    };
+    div.onmouseleave = () => {
+        unhighlightGrid(val);
+        hideTooltip();
+    };
+    
+    container.appendChild(div);
+}
+
+function addArrow(container, pA, pB, nA, nB) {
+    const span = document.createElement('span');
+    span.className = 'arrow';
+    span.innerHTML = '&#8594;'; // Arrow symbol
+    container.appendChild(span);
+}
+
+function markComposite(val, arr) {
+    if (val < arr.length) arr[val] = 'COMP';
+}
+
+function highlightGrid(val) {
+    const el = document.getElementById(`num-${val}`);
+    if (el) {
+        el.style.border = "2px solid #fbbf24";
+        el.style.transform = "scale(1.2)";
+        el.style.zIndex = "50";
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+}
+
+function unhighlightGrid(val) {
+    const el = document.getElementById(`num-${val}`);
+    if (el) {
+        el.style.border = "1px solid transparent";
+        el.style.transform = "scale(1)";
+        el.style.zIndex = "1";
+    }
+}
+
+function showTooltip(A, B, val, isRoot) {
+    const tt = document.getElementById('tooltip');
+    tt.style.display = 'block';
+    
+    if (isRoot) {
+        tt.innerHTML = `THE SOURCE: 3 &times; ${B}`;
+    } else {
+        tt.innerHTML = `PROJECT: (${A-2} + 2) &times; (${B-2} + 2) = ${val}`;
+    }
+}
+
+function hideTooltip() {
+    document.getElementById('tooltip').style.display = 'none';
+}
+
+// Init
+runProjection();
+</script>
+
+</body>
+</html>
+

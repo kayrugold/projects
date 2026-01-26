@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gnomon Browser & Spot Constructor</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --accent-color: #38bdf8;
+            --panel-bg: #1e293b;
+            --cell-bg: #1e293b;
+            --cell-hover: #334155;
+            --square-highlight: #0ea5e9;
+            --gnomon-text: #f472b6;
+            --jump-text: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h2 { margin-bottom: 5px; color: var(--accent-color); }
+        p { color: #94a3b8; max-width: 600px; text-align: center; margin-bottom: 20px; font-size: 0.9rem;}
+
+        /* Search Section */
+        .search-container {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #1e293b;
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="number"] {
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid #475569;
+            color: #fff;
+            font-size: 1.2rem;
+            width: 100px;
+            text-align: center;
+            padding: 5px;
+        }
+        input:focus { outline: none; border-color: var(--accent-color); }
+
+        button.search-btn {
+            background-color: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        button.search-btn:active { transform: scale(0.95); }
+
+        /* The Spot Grid (3x3) */
+        .spot-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 10px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .cell {
+            background-color: var(--cell-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border-radius: 8px;
+            position: relative;
+            border: 1px solid #334155;
+            transition: all 0.2s;
+        }
+
+        .cell.center-target {
+            border: 2px solid var(--accent-color);
+            background-color: rgba(56, 189, 248, 0.1);
+            transform: scale(1.05);
+            z-index: 5;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+
+        .cell.empty { background: transparent; border: none; pointer-events: none; }
+
+        .value { font-size: 1.4rem; font-weight: bold; }
+        .equation { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+        
+        .gnomon-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background-color: rgba(244, 114, 182, 0.2);
+            color: var(--gnomon-text);
+            font-size: 0.65rem;
+            padding: 2px 5px;
+            border-radius: 4px;
+            border: 1px solid var(--gnomon-text);
+        }
+
+        /* Directional Jump Labels (Arrows) */
+        .jump-label {
+            position: absolute;
+            font-size: 0.7rem;
+            color: var(--jump-text);
+            background: var(--bg-color);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        .jump-right { right: -50px; top: 40%; }
+        .jump-down { bottom: -25px; left: 35%; }
+
+        /* Slide-up Panel */
+        #infoPanel {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            background-color: var(--panel-bg);
+            border-top: 2px solid var(--accent-color);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 100;
+        }
+        #infoPanel.active { bottom: 0; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+        .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-box { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; }
+        .stat-label { color: #94a3b8; font-size: 0.8rem; display: block; margin-bottom: 4px; }
+        .stat-val { font-family: monospace; font-size: 1.1rem; color: var(--accent-color); }
+        .close-btn { background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+    <h2>Odd Gnomon Browser</h2>
+    <p>Enter a target number to "Spot Construct" its neighborhood using the Gnomon Compression logic.</p>
+
+    <div class="search-container">
+        <span style="color:#94a3b8">Target:</span>
+        <input type="number" id="targetInput" value="35" min="1" step="2">
+        <button class="search-btn" onclick="runSpotCheck()">Construct</button>
+    </div>
+
+    <div id="spotGrid" class="spot-grid">
+        </div>
+
+    <div style="font-size: 0.8rem; color: #64748b; margin-top: 10px; text-align: center;">
+        Horizontal steps add 2 × Row Index<br>
+        Vertical steps add 2 × Column Index
+    </div>
+
+    <div id="infoPanel">
+        <div class="panel-header">
+            <h3 style="margin:0; color:var(--accent-color)">Coordinates & Logic</h3>
+            <button class="close-btn" onclick="closePanel()">&times;</button>
+        </div>
+        <div class="panel-grid">
+            <div class="stat-box">
+                <span class="stat-label">Coordinates (Row, Col)</span>
+                <div class="stat-val" id="pCoords">--</div>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Row Start (Corner)</span>
+                <div class="stat-val" id="pCorner">--</div>
+            </div>
+            <div class="stat-box" style="grid-column: span 2">
+                <span class="stat-label">Navigation Logic</span>
+                <div class="stat-val" id="pLogic" style="font-size: 0.9rem; line-height: 1.4;">--</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Finds the largest odd factor <= sqrt(target)
+        // This places the number in the lowest possible triangular band
+        function findCanonicalCoords(target) {
+            let limit = Math.floor(Math.sqrt(target));
+            // Ensure limit is odd
+            if (limit % 2 === 0) limit--;
+
+            // Scan downwards for the first factor
+            for (let r = limit; r >= 1; r -= 2) {
+                if (target % r === 0) {
+                    return { r: r, c: target / r };
+                }
+            }
+            return { r: 1, c: target }; // Fallback to row 1 (prime behavior)
+        }
+
+        function runSpotCheck() {
+            const input = document.getElementById('targetInput');
+            let target = parseInt(input.value);
+
+            if (!target || target % 2 === 0) {
+                alert("Please enter an Odd Number.");
+                return;
+            }
+
+            const spotGrid = document.getElementById('spotGrid');
+            spotGrid.innerHTML = ''; // Clear previous
+
+            // 1. Identify Center Coords
+            const center = findCanonicalCoords(target);
+            
+            // 2. Generate 3x3 Grid (rows -1, 0, +1 | cols -1, 0, +1)
+            // Note: Grid visual "rows" correspond to changing the Math Row Index (m)
+            // Grid visual "cols" correspond to changing the Math Col Index (n)
+            
+            // We want indices:
+            // Top: R-2 (prev odd band)
+            // Bottom: R+2 (next odd band)
+            // Left: C-2
+            // Right: C+2
+
+            const rowOffsets = [-2, 0, 2];
+            const colOffsets = [-2, 0, 2];
+
+            rowOffsets.forEach((rOff, rIdx) => {
+                colOffsets.forEach((cOff, cIdx) => {
+                    
+                    let curR = center.r + rOff;
+                    let curC = center.c + cOff;
+                    let isValid = (curR >= 1 && curC >= 1);
+
+                    if (isValid) {
+                        let val = curR * curC;
+                        let isSquare = (curR === curC);
+                        let isCenter = (rOff === 0 && cOff === 0);
+                        
+                        // Gnomon Badge Value: 2*Row - 1
+                        let gnomonVal = (2 * curR) - 1;
+
+                        let div = document.createElement('div');
+                        div.className = 'cell';
+                        if (isCenter) div.classList.add('center-target');
+                        if (isSquare) div.style.border = '1px solid var(--square-highlight)';
+
+                        // HTML Content
+                        let html = `<span class="value">${val}</span>`;
+                        html += `<span class="equation">${curR} &times; ${curC}</span>`;
+                        
+                        // Badge logic (Always show Row Gnomon index for context)
+                        html += `<div class="gnomon-badge">${gnomonVal}</div>`;
+                        
+                        // Click event
+                        div.onclick = () => showPanel(val, curR, curC, gnomonVal);
+
+                        div.innerHTML = html;
+                        spotGrid.appendChild(div);
+                    } else {
+                        // Empty cell (out of bounds)
+                        let div = document.createElement('div');
+                        div.className = 'cell empty';
+                        spotGrid.appendChild(div);
+                    }
+                });
+            });
+
+            // Populate initial panel with center target
+            showPanel(target, center.r, center.c, (2*center.r)-1);
+        }
+
+        function showPanel(val, r, c, gnomon) {
+            document.getElementById('infoPanel').classList.add('active');
+            
+            document.getElementById('pCoords').innerText = `Row ${r}, Col ${c}`;
+            document.getElementById('pCorner').innerText = `${r}² = ${r*r}`;
+            
+            // Logic Text
+            let logicHTML = `
+                <span style="color:#94a3b8">Horizontal Step:</span> ±${2 * r} <span style="color:#64748b">(2 × Row)</span><br>
+                <span style="color:#94a3b8">Vertical Jump:</span> ±${2 * c} <span style="color:#64748b">(2 × Col)</span><br>
+                <span style="color:var(--gnomon-text)">Row Gnomon:</span> ${gnomon} (Indices: ${r}, ${c})
+            `;
+            document.getElementById('pLogic').innerHTML = logicHTML;
+        }
+
+        function closePanel() {
+            document.getElementById('infoPanel').classList.remove('active');
+        }
+
+        // Run once on load
+        runSpotCheck();
+
+        // Allow Enter key
+        document.getElementById('targetInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') runSpotCheck();
+        });
+
+    </script>
+</body>
+</html>

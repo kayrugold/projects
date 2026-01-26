@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gnomon Hunter v4</title>
+<style>
+    :root {
+        --bg: #020617;
+        --panel: #0f172a;
+        --cyan: #22d3ee;
+        --pink: #f472b6;
+        --purple: #a855f7;
+        --amber: #d97706;
+        --green: #4ade80;
+        --red: #ef4444;
+        --text: #e2e8f0;
+        --font: 'Courier New', monospace;
+    }
+    
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: var(--font);
+        display: flex; flex-direction: column; align-items: center;
+        min-height: 100vh; margin: 0; padding: 20px;
+    }
+
+    h1 { color: var(--green); letter-spacing: 2px; text-transform: uppercase; font-size: 1.4rem; margin-bottom: 5px; }
+    .subtitle { color: #64748b; font-size: 0.75rem; margin-bottom: 25px; letter-spacing: 1px;}
+
+    .card {
+        background: var(--panel); border: 1px solid #1e293b;
+        border-radius: 12px; padding: 20px; width: 100%; max-width: 600px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative;
+    }
+
+    /* BATTLE ANALYSIS GRID */
+    .analysis-grid {
+        display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+        margin-bottom: 20px; opacity: 0.5; transition: opacity 0.3s;
+    }
+    .card.active .analysis-grid { opacity: 1; }
+
+    .def-badge {
+        background: #1e293b; border: 1px solid #334155; padding: 8px 4px;
+        border-radius: 4px; text-align: center; font-size: 0.65rem; font-weight: bold;
+        color: #64748b; transition: all 0.3s;
+    }
+    
+    /* BADGE STATES */
+    .def-badge.pulse { 
+        border-color: var(--cyan); color: var(--cyan); background: rgba(34, 211, 238, 0.1);
+        animation: pulse 1s infinite; 
+    }
+    .def-badge.clear { 
+        border-color: var(--green); color: #000; background: var(--green); 
+    }
+    .def-badge.breached { 
+        border-color: var(--red); color: #fff; background: var(--red); 
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    }
+    .def-badge.prime {
+        border-color: var(--purple); color: #fff; background: var(--purple);
+    }
+
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+    /* INPUT */
+    .input-group { margin-bottom: 20px; }
+    .input-label { font-size: 0.7rem; color: var(--cyan); font-weight: bold; display: block; margin-bottom: 5px; }
+    
+    input[type="text"] {
+        width: 100%; background: #020617; border: 1px solid #334155;
+        color: white; padding: 15px; font-family: var(--font); font-size: 1.1rem;
+        border-radius: 6px; outline: none; transition: border 0.2s; box-sizing: border-box;
+    }
+    input:focus { border-color: var(--cyan); }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+    
+    button {
+        flex: 1; padding: 12px; font-family: var(--font); font-weight: bold;
+        border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+    .btn-run { background: var(--cyan); color: #000; }
+    .btn-stop { background: var(--red); color: #fff; display: none; }
+
+    /* DASHBOARD */
+    .dashboard {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;
+    }
+    .stat-box {
+        background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;
+        border: 1px solid #1e293b;
+    }
+    .sb-label { font-size: 0.6rem; color: #94a3b8; margin-bottom: 2px; }
+    .sb-val { font-size: 0.9rem; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .status-bar {
+        grid-column: span 2; padding: 10px; background: #1e293b;
+        color: var(--cyan); font-size: 0.85rem; font-weight: bold;
+        border-radius: 4px; text-align: center;
+        border: 1px dashed #334155;
+    }
+
+    /* RESULT */
+    .result-area {
+        margin-top: 20px; background: #000; padding: 20px; border-radius: 8px;
+        border: 1px solid var(--green); text-align: center; display: none;
+    }
+    .res-eq { font-size: 1.1rem; color: var(--green); margin-bottom: 8px; word-break: break-all; font-weight: bold;}
+    .res-note { font-size: 0.75rem; color: #94a3b8; line-height: 1.4; border-top: 1px solid #333; padding-top: 8px; margin-top: 8px;}
+    .prime-alert { border-color: var(--purple); }
+    .prime-alert .res-eq { color: var(--purple); }
+
+</style>
+</head>
+<body>
+
+<h1>Gnomon Hunter v4</h1>
+<div class="subtitle">TACTICAL ANALYSIS EDITION</div>
+
+<div id="mainCard" class="card">
+    
+    <div class="analysis-grid">
+        <div id="badgeRadar" class="def-badge">RADAR SCAN</div>
+        <div id="badgeLow" class="def-badge">LOW ORBIT</div>
+        <div id="badgeFermi" class="def-badge">FERMI CORE</div>
+    </div>
+
+    <div class="input-group">
+        <label class="input-label">TARGET COORDINATE</label>
+        <input type="text" id="inpN" value="2959271173173171731713571375329713901" placeholder="Enter N...">
+    </div>
+
+    <div class="btn-row">
+        <button id="btnStart" class="btn-run" onclick="startHunt()">Initiate</button>
+        <button id="btnStop" class="btn-stop" onclick="stopHunt()">Abort</button>
+    </div>
+
+    <div class="dashboard">
+        <div class="status-bar" id="statusText">SYSTEM READY</div>
+        
+        <div class="stat-box">
+            <div class="sb-label">CURRENT OPERATION</div>
+            <div class="sb-val" id="dispOp">--</div>
+        </div>
+        <div class="stat-box">
+            <div class="sb-label">SPEED (OPS/SEC)</div>
+            <div class="sb-val" id="dispSpeed">0</div>
+        </div>
+    </div>
+
+    <div id="resultArea" class="result-area">
+        <div class="sb-label">FINAL REPORT</div>
+        <div class="res-eq" id="finalEq"></div>
+        <div class="res-note" id="finalNote"></div>
+    </div>
+</div>
+
+<script id="worker-code" type="javascript/worker">
+    // --- BIGINT MATH ---
+    function modPow(base, exp, mod) {
+        let result = 1n; base = base % mod;
+        while (exp > 0n) {
+            if (exp % 2n === 1n) result = (result * base) % mod;
+            exp = exp / 2n; base = (base * base) % mod;
+        }
+        return result;
+    }
+
+    function isPrimeMR(n) {
+        if (n < 2n) return false;
+        if (n === 2n || n === 3n) return true;
+        if (n % 2n === 0n) return false;
+        let d = n - 1n; let s = 0n;
+        while (d % 2n === 0n) { d /= 2n; s++; }
+        const witnesses = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n];
+        for (let a of witnesses) {
+            if (n <= a) break;
+            let x = modPow(a, d, n);
+            if (x === 1n || x === n - 1n) continue;
+            let composite = true;
+            for (let r = 1n; r < s; r++) {
+                x = (x * x) % n;
+                if (x === n - 1n) { composite = false; break; }
+            }
+            if (composite) return false;
+        }
+        return true;
+    }
+
+    function bitSqrt(value) {
+        if (value < 0n) return -1n;
+        if (value < 2n) return value;
+        let x0 = value / 2n; let x1 = (x0 + value / x0) / 2n;
+        while (x1 < x0) { x0 = x1; x1 = (x0 + value / x0) / 2n; }
+        return x0;
+    }
+
+    self.onmessage = function(e) {
+        if (e.data.type === 'start') {
+            try {
+                const N = BigInt(e.data.n);
+                
+                // PHASE 1: RADAR
+                self.postMessage({ type: 'ui_phase', target: 'Radar', state: 'pulse', text: 'RADAR PING...' });
+                const isPrime = isPrimeMR(N);
+                
+                if (isPrime) {
+                    self.postMessage({ type: 'ui_phase', target: 'Radar', state: 'prime' });
+                    self.postMessage({ type: 'prime_detected' });
+                    return;
+                } 
+                
+                self.postMessage({ type: 'ui_phase', target: 'Radar', state: 'clear' });
+
+                // PHASE 2: LOW ORBIT
+                self.postMessage({ type: 'ui_phase', target: 'Low', state: 'pulse', text: 'LOW ORBIT SCAN...' });
+                const limitLow = 500000; 
+
+                if (N % 2n === 0n) {
+                    self.postMessage({ type: 'ui_phase', target: 'Low', state: 'breached' });
+                    self.postMessage({ type: 'found', method: 'Even Check', f1: '2', f2: (N/2n).toString() });
+                    return;
+                }
+
+                for (let i = 3; i < limitLow; i += 2) {
+                    if (N % BigInt(i) === 0n) {
+                        self.postMessage({ type: 'ui_phase', target: 'Low', state: 'breached' });
+                        self.postMessage({ 
+                            type: 'found', method: 'Low Orbit Intercept', 
+                            f1: i.toString(), f2: (N/BigInt(i)).toString() 
+                        });
+                        return;
+                    }
+                    if (i % 50000 === 1) self.postMessage({ type: 'telemetry', op: "Checking: " + i, ops: 0 });
+                }
+                
+                self.postMessage({ type: 'ui_phase', target: 'Low', state: 'clear' });
+
+                // PHASE 3: FERMI CORE
+                self.postMessage({ type: 'ui_phase', target: 'Fermi', state: 'pulse', text: 'FERMI DRIVE ENGAGED...' });
+                
+                let outer = bitSqrt(N);
+                if (outer * outer < N) outer++;
+                
+                // Mod 64 Filter
+                const mod64 = new Uint8Array(64);
+                for(let x=0; x<64; x++) mod64[(x*x)%64] = 1;
+
+                let steps = 0; let t0 = Date.now(); const BATCH = 20000;
+
+                while (true) {
+                    for (let k=0; k<BATCH; k++) {
+                        const diff = (outer * outer) - N;
+                        if (mod64[Number(diff & 63n)] === 0) { outer++; continue; }
+
+                        const inner = bitSqrt(diff);
+                        if (inner * inner === diff) {
+                            self.postMessage({ type: 'ui_phase', target: 'Fermi', state: 'breached' });
+                            self.postMessage({ 
+                                type: 'found', method: 'Fermi Geometry', 
+                                f1: (outer - inner).toString(), f2: (outer + inner).toString() 
+                            });
+                            return;
+                        }
+                        outer++; steps++;
+                    }
+                    const now = Date.now();
+                    if (now - t0 > 500) {
+                        const ops = Math.floor((steps * 1000) / (now - t0));
+                        self.postMessage({ type: 'telemetry', op: "Root: " + outer.toString(), ops: ops });
+                        steps = 0; t0 = now;
+                    }
+                }
+            } catch (err) {
+                self.postMessage({ type: 'error', msg: err.message });
+            }
+        }
+    };
+</script>
+
+<script>
+    let worker = null;
+    const el = (id) => document.getElementById(id);
+    const badges = {
+        Radar: el('badgeRadar'), Low: el('badgeLow'), Fermi: el('badgeFermi')
+    };
+
+    function startHunt() {
+        const nVal = el('inpN').value.replace(/[^0-9]/g, '');
+        if (!nVal) return;
+
+        // UI Reset
+        el('btnStart').style.display = 'none';
+        el('btnStop').style.display = 'block';
+        el('resultArea').style.display = 'none';
+        el('mainCard').classList.add('active');
+        el('mainCard').classList.remove('prime-alert');
+        
+        // Reset Badges
+        Object.values(badges).forEach(b => b.className = 'def-badge');
+        
+        const blob = new Blob([el('worker-code').textContent], {type: "text/javascript"});
+        worker = new Worker(window.URL.createObjectURL(blob));
+
+        worker.onmessage = (e) => {
+            const d = e.data;
+            
+            if (d.type === 'ui_phase') {
+                updateBadge(d.target, d.state);
+                if (d.text) {
+                    el('statusText').innerText = d.text;
+                    // Color code text based on phase
+                    const colors = { Radar: 'var(--purple)', Low: 'var(--amber)', Fermi: 'var(--cyan)' };
+                    el('statusText').style.color = colors[d.target];
+                }
+            }
+            else if (d.type === 'telemetry') {
+                el('dispOp').innerText = d.op;
+                el('dispSpeed').innerText = d.ops.toLocaleString();
+            }
+            else if (d.type === 'found') {
+                stopHunt();
+                showSuccess(d);
+            }
+            else if (d.type === 'prime_detected') {
+                stopHunt();
+                showPrime();
+            }
+            else if (d.type === 'error') {
+                el('statusText').innerText = "ERROR: " + d.msg;
+                stopHunt();
+            }
+        };
+
+        worker.postMessage({ type: 'start', n: nVal });
+    }
+
+    function updateBadge(target, state) {
+        const b = badges[target];
+        b.className = 'def-badge ' + state;
+        if(state === 'clear') b.innerText += " [CLEARED]";
+        if(state === 'breached') b.innerText += " [BREACHED]";
+        if(state === 'prime') b.innerText = "PRIME CONFIRMED";
+    }
+
+    function stopHunt() {
+        if(worker) worker.terminate();
+        worker = null;
+        el('btnStart').style.display = 'block';
+        el('btnStop').style.display = 'none';
+        el('mainCard').classList.remove('active');
+    }
+
+    function showSuccess(d) {
+        el('statusText').innerText = "TARGET NEUTRALIZED";
+        el('statusText').style.color = "var(--green)";
+        el('resultArea').style.display = 'block';
+        el('resultArea').className = 'result-area';
+        
+        el('finalEq').innerText = `${BigInt(d.f1).toLocaleString()} × ${BigInt(d.f2).toLocaleString()}`;
+        
+        let analysis = "";
+        if (d.method.includes('Low Orbit')) analysis = "WEAKNESS FOUND: The number failed the Low Orbit scan. It contained a small factor, making it structurally unstable.";
+        else if (d.method.includes('Fermi')) analysis = "HARD TARGET: The number survived Low Orbit and required a Geometric Breach. It was a Semiprime hidden deep in the grid.";
+        
+        el('finalNote').innerText = `${analysis} (Method: ${d.method})`;
+    }
+
+    function showPrime() {
+        el('statusText').innerText = "TARGET INVINCIBLE";
+        el('statusText').style.color = "var(--purple)";
+        el('resultArea').style.display = 'block';
+        el('resultArea').className = 'result-area prime-alert';
+        
+        el('finalEq').innerText = "PRIME NUMBER";
+        el('finalNote').innerText = "Miller-Rabin Radar confirmed the target is Prime. No geometric factors exist. The number is structurally perfect.";
+    }
+
+</script>
+
+</body>
+</html>

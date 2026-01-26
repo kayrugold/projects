@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SGS Poly-Algo Squad (v0.0.24 - P+1 Breacher)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root {
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --text-main: #e2e8f0;
+  --accent-fermat: #6366f1;
+  --accent-rho: #f59e0b;
+  --accent-p1: #ec4899;
+  --accent-p1plus: #06b6d4; /* Cyan for P+1 */
+  --accent-td: #22c55e;
+  --accent-ecm: #f97316; 
+  --accent-giga: #ef4444;
+}
+body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-main); padding: 1rem; }
+.card { max-width: 1000px; margin: 0 auto; background: var(--card-bg); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); }
+.worker-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+.worker-card { padding: 0.75rem; border-radius: 0.5rem; font-size: 0.70rem; font-weight: bold; text-align: center; color: white; transition: transform 0.1s; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+.log-box { height: 250px; overflow-y: auto; background: #020617; color: #34d399; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; border: 1px solid #334155; }
+.input { background: #334155; border: 1px solid #475569; color: white; padding: 0.5rem; border-radius: 0.25rem; width: 100%; }
+.btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+.bg-fermat { background: var(--accent-fermat); }
+.bg-rho { background: var(--accent-rho); color: black; }
+.bg-p1 { background: var(--accent-p1); }
+.bg-pp1 { background: var(--accent-p1plus); color: black; }
+.bg-td { background: var(--accent-td); color: black; }
+.bg-ecm { background: var(--accent-ecm); color: black; }
+.bg-giga { background: var(--accent-giga); color: white; }
+.flash { animation: flashRed 1s infinite; }
+@keyframes flashRed { 0% { color: #f87171; } 50% { color: white; } 100% { color: #f87171; } }
+</style>
+</head>
+<body>
+<div class="card">
+    <h1 class="text-2xl font-bold text-center text-blue-400 mb-2">SGS Poly-Algorithm Squad v0.0.24</h1>
+    <div class="text-center text-xs text-gray-400 mb-4">
+        <span class="text-cyan-400 font-bold">NEW UNIT: P+1 Breacher (Replaces QS)</span>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-4">
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Base (a)</label><input id="base-input" type="text" class="input" value="10"></div>
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Exp (b)</label><input id="exponent-input" type="text" class="input" value="40"></div>
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Add (c)</label><input id="addend-input" type="text" class="input" value="1"></div>
+    </div>
+    
+    <div class="flex flex-wrap gap-4 justify-center mb-6">
+        <button id="start-btn" class="btn bg-green-600 text-white">Deploy Squad</button>
+        <button id="stop-btn" class="btn bg-red-600 text-white" disabled>Abort</button>
+        <div class="flex gap-2 ml-4 border-l border-gray-600 pl-4">
+            <button onclick="saveMission()" class="btn bg-blue-600 text-xs py-2">💾 Save</button>
+            <label class="btn bg-purple-600 text-xs py-2 cursor-pointer">
+                📂 Load <input type="file" id="file-input" class="hidden" onchange="loadMission(this)">
+            </label>
+        </div>
+    </div>
+
+    <div id="worker-grid" class="worker-grid"></div>
+
+    <div class="mt-4 bg-slate-800 p-3 rounded border border-slate-700">
+        <div class="flex justify-between items-end">
+            <div>
+                <p class="text-xs uppercase font-bold text-slate-400">Factors Found</p>
+                <p id="factors-output" class="text-md font-bold text-white break-all">None</p>
+            </div>
+            <div class="text-right">
+                <p class="text-xs uppercase font-bold text-slate-400">Target Status</p>
+                <p id="target-status" class="text-xs font-mono text-slate-300">Idle</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <pre id="log-output" class="log-box">System Ready.</pre>
+    </div>
+</div>
+
+<script>
+const NUM_WORKERS = 8;
+const QR_PRIMES = [3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n, 41n, 43n, 47n, 53n];
+const FERMAT_RANGE = 2000000n;
+const GIGA_CHUNK_SIZE = 5000000n;
+
+let ecmShellsFired = 0;
+let isMissionLoaded = false;
+
+function parseBigInt(str) {
+  if (!str) return 0n;
+  str = str.replace(/,/g, '').replace(/\s/g, '');
+  if (str.includes('+')) {
+    const terms = str.split('+');
+    return terms.reduce((sum, term) => sum + parseBigInt(term), 0n);
+  }
+  if (str.includes('e') || str.includes('E')) {
+    const parts = str.toLowerCase().split('e');
+    return BigInt(parts[0]) * 10n ** BigInt(parts[1]);
+  }
+  try { return BigInt(str); } catch(e) { return 0n; }
+}
+
+function randomBigInt(low, high) {
+  const diff = high - low;
+  const bitLength = diff.toString(2).length;
+  const byteLength = Math.ceil(bitLength / 8);
+  const buf = new Uint8Array(byteLength);
+  crypto.getRandomValues(buf);
+  let rand = 0n;
+  for (let i = 0; i < byteLength; i++) {
+    rand = (rand << 8n) | BigInt(buf[i]);
+  }
+  return low + (rand % diff);
+}
+
+function mainPowMod(base, exp, mod) {
+    let r = 1n; base %= mod;
+    while (exp > 0n) { if ((exp & 1n) === 1n) r = (r * base) % mod; exp >>= 1n; base = (base * base) % mod; }
+    return r;
+}
+
+function isPrimeMR(n, k = 20) {
+  if (n <= 1n) return false;
+  if (n <= 3n) return true;
+  if ((n & 1n) === 0n) return false;
+  if (n > 10n**100n) k = 5; 
+  let d = n - 1n;
+  let s = 0n;
+  while ((d & 1n) === 0n) { d >>= 1n; s++; }
+  const witnesses = (n < 3825123056546413051n) ? [2n, 3n, 5n, 7n, 11n, 13n, 23n] : null;
+  if (witnesses && k > witnesses.length) k = witnesses.length;
+  for (let i = 0; i < k; i++) {
+    let a = witnesses ? witnesses[i] : randomBigInt(2n, n - 2n);
+    if (a >= n - 1n) continue;
+    let x = mainPowMod(a, d, n);
+    if (x === 1n || x === n - 1n) continue;
+    let composite = true;
+    for (let j = 1n; j < s; j++) {
+      x = (x * x) % n;
+      if (x === n - 1n) { composite = false; break; }
+      if (x === 1n) break;
+    }
+    if (composite) return false;
+  }
+  return true;
+}
+
+const factorWorkerCode = `
+    let spinIdx = 0;
+    const spinners = ['|', '/', '-', '\\\\'];
+    function getSpin() { spinIdx = (spinIdx + 1) % 4; return spinners[spinIdx]; }
+
+    const SQ_MOD_4096 = new Uint8Array(4096);
+    for (let i = 0; i < 4096; i++) SQ_MOD_4096[(i * i) % 4096] = 1;
+
+    function gcd(a, b) { while (b > 0n) { let t = b; b = a % b; a = t; } return a; }
+    function powMod(base, exp, mod) {
+        let r = 1n; base %= mod;
+        while (exp > 0n) { if ((exp & 1n) === 1n) r = (r * base) % mod; exp >>= 1n; base = (base * base) % mod; }
+        return r;
+    }
+    function customIntegerSqrt(n) {
+        if (n < 0n) return null; if (n < 2n) return n;
+        let x = n; let y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    }
+    function legendreSymbol(a, p) {
+        if (a === 0n) return 0; if (p === 2n) return 1;
+        a = (a % p + p) % p;
+        const ls = powMod(a, (p - 1n) / 2n, p);
+        return (ls === p - 1n) ? -1 : 1;
+    }
+
+    // --- ECM HELPERS (Montgomery) ---
+    function montAdd(x1, z1, x2, z2, xDiff, zDiff, N) {
+        let u = (x1 - z1) * (x2 + z2) % N;
+        let v = (x1 + z1) * (x2 - z2) % N;
+        let add = (u + v) % N;
+        let sub = (u - v) % N;
+        let x3 = (zDiff * add * add) % N;
+        let z3 = (xDiff * sub * sub) % N;
+        return [x3, z3];
+    }
+    function montDouble(x1, z1, N, A24) {
+        let u = (x1 + z1); u = (u * u) % N;
+        let v = (x1 - z1); v = (v * v) % N;
+        let diff = u - v;
+        let x2 = (u * v) % N;
+        let z2 = (diff * (v + A24 * diff)) % N;
+        return [x2, z2];
+    }
+    function montLadder(k, x, N, A24) {
+        let x1 = x, z1 = 1n;
+        let x2 = 1n, z2 = 0n;
+        [x2, z2] = montDouble(x1, z1, N, A24); 
+        let bits = k.toString(2);
+        for (let i = 1; i < bits.length; i++) {
+            if (bits[i] === '1') {
+                [x1, z1] = montAdd(x2, z2, x1, z1, x, 1n, N);
+                [x2, z2] = montDouble(x2, z2, N, A24);
+            } else {
+                [x2, z2] = montAdd(x1, z1, x2, z2, x, 1n, N);
+                [x1, z1] = montDouble(x1, z1, N, A24);
+            }
+        }
+        return [x1, z1];
+    }
+    function runECM(data) {
+        const N = BigInt(data.n_str);
+        let B1 = 2000n; 
+        let curveCount = parseInt(data.startCurve || 0); 
+        while(true) {
+            curveCount++;
+            self.postMessage({ type: 'status', msg: getSpin() + ' Firing Shell #' + curveCount, idx: data.idx, shell: curveCount });
+            
+            let sigma = BigInt(Math.floor(Math.random() * 100000000)) + 6n;
+            let x = BigInt(Math.floor(Math.random() * 1000000));
+            let A24 = BigInt(Math.floor(Math.random() * 10000)) + 100n; 
+            let X = x, Z = 1n;
+            for (let p = 2n; p < B1; p++) {
+                let isP = true;
+                if (p > 2n && p%2n===0n) isP=false;
+                else { for(let t=3n; t*t<=p; t+=2n) if(p%t===0n) isP=false; }
+                if (isP) {
+                    let q = p;
+                    while (q < B1) {
+                        [X, Z] = montLadder(p, X, N, A24);
+                        q *= p;
+                    }
+                }
+            }
+            let g = gcd(Z, N);
+            if (g > 1n && g < N) {
+                self.postMessage({ type: 'factor', val: g.toString(), algo: 'ECM', idx: data.idx });
+                return;
+            }
+            if (curveCount % 10 === 0) B1 += 1000n;
+        }
+    }
+
+    function runRho(data) {
+        const N = BigInt(data.n_str);
+        let c = 1n; let x = 2n, y = 2n, d = 1n;
+        let steps = 0;
+        while (d === 1n) {
+            x = (x * x + c) % N;
+            y = (y * y + c) % N; y = (y * y + c) % N;
+            let diff = x > y ? x - y : y - x;
+            d = gcd(diff, N);
+            steps++;
+            if (steps % 50000 === 0) self.postMessage({ type: 'status', msg: getSpin() + ' Spin ' + steps, idx: data.idx });
+        }
+        if (d !== N) self.postMessage({ type: 'factor', val: d.toString(), algo: 'Rho', idx: data.idx });
+    }
+
+    function runP1(data) {
+        const N = BigInt(data.n_str);
+        let B = 50000n; 
+        let a = 2n;
+        while (true) {
+            self.postMessage({ type: 'status', msg: getSpin() + ' Revving to ' + B, idx: data.idx });
+            a = 2n; 
+            for (let i = 2n; i <= B; i++) {
+                a = powMod(a, i, N);
+                if (i % 10000n === 0n) self.postMessage({ type: 'status', msg: getSpin() + ' Revving ' + i + '/' + B, idx: data.idx });
+            }
+            const d = gcd(a - 1n, N);
+            if (d > 1n && d < N) {
+                self.postMessage({ type: 'factor', val: d.toString(), algo: 'P-1', idx: data.idx });
+                return;
+            } else {
+                B *= 2n;
+                self.postMessage({ type: 'status', msg: 'Missed. Power -> ' + B, idx: data.idx });
+            }
+        }
+    }
+
+    // --- ALGO: P+1 BREACHER (Williams) ---
+    function runPPlus1(data) {
+        const N = BigInt(data.n_str);
+        let B = 50000n;
+        // P0=3 is standard. It corresponds to a Lucas seq with D = P*P - 4 = 5.
+        // If (N/5) = -1, it works. If (N/5) = 1, it degrades to P-1. 
+        // Randomizing P0 helps if we fail.
+        let P_val = 3n; 
+        
+        while(true) {
+            self.postMessage({ type: 'status', msg: \`\${getSpin()} Hammering B=\${B}\`, idx: data.idx });
+            
+            // Compute V_k(P) where k = product of primes up to B (simplified: factorial B!)
+            let V = P_val;
+            
+            // Iterate primes (or just all numbers for simplicity in demo)
+            // Optimization: We only need to multiply by primes
+            for(let i=2n; i<=B; i++) {
+                 // V_new = V_i(V_old)
+                 // Use Montgomery Ladder for Lucas V_k
+                 // v0 = 2, v1 = V
+                 let v0 = 2n;
+                 let v1 = V;
+                 let bits = i.toString(2);
+                 
+                 for(let b=0; b<bits.length; b++) {
+                    if(bits[b] === '1') {
+                        // v0 = v0*v1 - P
+                        // v1 = v1*v1 - 2
+                        let t = (v0*v1 - P_val) % N;
+                        if (t < 0n) t += N;
+                        v0 = t;
+                        
+                        let t2 = (v1*v1 - 2n) % N;
+                        if (t2 < 0n) t2 += N;
+                        v1 = t2;
+                    } else {
+                        // v1 = v0*v1 - P
+                        // v0 = v0*v0 - 2
+                        let t = (v0*v1 - P_val) % N;
+                        if (t < 0n) t += N;
+                        v1 = t;
+                        
+                        let t2 = (v0*v0 - 2n) % N;
+                        if (t2 < 0n) t2 += N;
+                        v0 = t2;
+                    }
+                 }
+                 // Update V
+                 V = v0; 
+                 
+                 if (i % 10000n === 0n) {
+                     self.postMessage({ type: 'status', msg: \`\${getSpin()} Hammering \${i}/\${B}\`, idx: data.idx });
+                 }
+            }
+            
+            let g = gcd(V - 2n, N);
+            if (g > 1n && g < N) {
+                 self.postMessage({ type: 'factor', val: g.toString(), algo: 'P+1', idx: data.idx });
+                 return;
+            }
+            
+            // If fail, double bound
+            B *= 2n;
+            self.postMessage({ type: 'status', msg: \`Wall held. Power -> \${B}\`, idx: data.idx });
+        }
+    }
+
+    function runTrialDiv(data) {
+        const N = BigInt(data.n_str);
+        let p = 3n; 
+        let checks = 0;
+        if (N % 2n === 0n) { self.postMessage({ type: 'factor', val: '2', algo: 'TrialDiv', idx: data.idx }); return; }
+        while (true) {
+            if (p * p > N) break; 
+            if (N % p === 0n) {
+                self.postMessage({ type: 'factor', val: p.toString(), algo: 'TrialDiv', idx: data.idx });
+                return;
+            }
+            p += 2n;
+            checks++;
+            if (checks % 50000 === 0) self.postMessage({ type: 'status', msg: getSpin() + ' Checking ' + p, idx: data.idx });
+        }
+    }
+
+    function runFermat(data) {
+        const N = BigInt(data.n_str);
+        let minS = BigInt(data.minS);
+        const maxS = BigInt(data.maxS);
+        const primes = data.primes.map(BigInt);
+        const fourN = N * 4n;
+        let step = (N % 2n !== 0n) ? 2n : 1n;
+        if (step === 2n && minS % 2n !== 0n) minS += 1n;
+
+        let candidates = [];
+        let processed = 0n;
+        const total = maxS - minS;
+
+        for (let S = minS; S <= maxS; S += step) {
+            const D_sq = S * S - fourN;
+            if (D_sq >= 0n) {
+                let passes = true;
+                if (SQ_MOD_4096[Number(D_sq & 4095n)] !== 1) passes = false;
+                else {
+                    for (const p of primes) {
+                        if (legendreSymbol(D_sq, p) === -1) { passes = false; break; }
+                    }
+                }
+                if (passes) candidates.push(S);
+            }
+            processed += step;
+            if (processed % 20000n === 0n) { 
+                 const pct = Number(processed * 100n / total);
+                 self.postMessage({ type: 'status', msg: getSpin() + ' Scanning ' + pct + '%', idx: data.idx });
+            }
+        }
+        for (const S of candidates) {
+            const D_sq = S * S - fourN;
+            const D = customIntegerSqrt(D_sq);
+            if (D !== null && D * D === D_sq) {
+                const f = (S - D) / 2n;
+                if (f > 1n) {
+                    self.postMessage({ type: 'factor', val: f.toString(), algo: 'Fermat', idx: data.idx });
+                    return;
+                }
+            }
+        }
+        self.postMessage({ type: 'fermatDone', idx: data.idx });
+    }
+
+    function runGigantic(data) {
+        const a = BigInt(data.a);
+        const b = BigInt(data.b);
+        const c = BigInt(data.c);
+        let p = BigInt(data.start);
+        const end = BigInt(data.end);
+        let checks = 0;
+        if (p % 2n === 0n) p++;
+        while (p <= end) {
+            const modVal = (powMod(a, b, p) + (c % p) + p) % p;
+            if (modVal === 0n) self.postMessage({ type: 'factor', val: p.toString(), algo: 'GigaSniper', idx: data.idx });
+            p += 2n;
+            checks++;
+            if (checks % 50000 === 0) self.postMessage({ type: 'status', msg: getSpin() + ' Scan ' + p, idx: data.idx });
+        }
+        self.postMessage({ type: 'gigaRangeDone', idx: data.idx });
+    }
+
+    self.onmessage = function(e) {
+        if (e.data.mode === 'gigantic') runGigantic(e.data);
+        else if (e.data.mode === 'ecm') runECM(e.data);
+        else if (e.data.mode === 'rho') runRho(e.data);
+        else if (e.data.mode === 'p1') runP1(e.data);
+        else if (e.data.mode === 'pp1') runPPlus1(e.data);
+        else if (e.data.mode === 'trial') runTrialDiv(e.data);
+        else if (e.data.mode === 'fermat') runFermat(e.data);
+    };
+`;
+const workerBlob = new Blob([factorWorkerCode], { type: 'application/javascript' });
+const workerUrl = URL.createObjectURL(workerBlob);
+
+let workers = [];
+let N_current = 0n;
+let foundFactors = new Set();
+let isRunning = false;
+let SMin = 0n;
+let startTime = 0;
+let isGigantic = false;
+let gigaFrontier = 0n;
+
+function log(msg) {
+    const t = new Date().toLocaleTimeString();
+    const el = document.getElementById('log-output');
+    el.innerHTML += `[${t}] ${msg}\n`;
+    el.scrollTop = el.scrollHeight;
+}
+
+function initGrid() {
+    const grid = document.getElementById('worker-grid');
+    grid.innerHTML = '';
+    for(let i=0; i<NUM_WORKERS; i++) {
+        const div = document.createElement('div');
+        div.id = `card-${i}`;
+        
+        let roleName = `Worker ${i}`;
+        let colorClass = 'bg-slate-700';
+        
+        if (i < 3) { colorClass = 'bg-fermat'; roleName = `🛡️ Fermat Marine ${i+1}`; }
+        else if (i === 3) { colorClass = 'bg-ecm'; roleName = "☄️ ECM Artillery"; }
+        else if (i === 4) { colorClass = 'bg-rho'; roleName = "🐎 Rho Scout"; }
+        else if (i === 5) { colorClass = 'bg-p1'; roleName = "🎯 P-1 Sniper"; }
+        else if (i === 6) { colorClass = 'bg-td'; roleName = "🐜 Trial Grunt"; }
+        else if (i === 7) { colorClass = 'bg-pp1'; roleName = "💥 P+1 Breacher"; } // Replaced QS
+
+        div.className = `worker-card ${colorClass}`;
+        div.innerHTML = `${roleName}<br><span id="status-${i}" class="opacity-75 font-normal">Ready</span>`;
+        grid.appendChild(div);
+    }
+}
+
+function updateStatus(idx, msg) {
+    const el = document.getElementById(`status-${idx}`);
+    if (el) el.textContent = msg;
+}
+
+function stopAll() {
+    workers.forEach(w => w && w.terminate());
+    workers = new Array(NUM_WORKERS).fill(null);
+    isRunning = false;
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = true;
+}
+
+function saveMission() {
+    const missionData = {
+        timestamp: Date.now(),
+        inputs: {
+            a: document.getElementById('base-input').value,
+            b: document.getElementById('exponent-input').value,
+            c: document.getElementById('addend-input').value
+        },
+        currentState: {
+            N_str: N_current ? N_current.toString() : "0", 
+            factors: Array.from(foundFactors),
+            ecm_shells: ecmShellsFired,
+            isGigantic: isGigantic
+        }
+    };
+    
+    const blob = new Blob([JSON.stringify(missionData, null, 2)], {type : 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sgs_mission_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    log("Mission State Saved.");
+}
+
+function loadMission(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            document.getElementById('base-input').value = data.inputs.a;
+            document.getElementById('exponent-input').value = data.inputs.b;
+            document.getElementById('addend-input').value = data.inputs.c;
+            N_current = BigInt(data.currentState.N_str);
+            foundFactors = new Set(data.currentState.factors);
+            ecmShellsFired = data.currentState.ecm_shells || 0;
+            isGigantic = data.currentState.isGigantic;
+            isMissionLoaded = true;
+            
+            document.getElementById('factors-output').textContent = Array.from(foundFactors).join(' × ') || "None";
+            document.getElementById('cofactor-output').textContent = N_current > 0n ? N_current.toString() : "Implicit";
+            document.getElementById('target-status').textContent = "LOADED";
+            log("Mission Loaded. Click 'Deploy Squad' to resume.");
+        } catch(err) {
+            log("Error Loading Mission File.");
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function deploySquad() {
+    workers.forEach(w => w && w.terminate());
+    workers = new Array(NUM_WORKERS).fill(null);
+    
+    const a_str = document.getElementById('base-input').value;
+    const b_str = document.getElementById('exponent-input').value;
+    const c_str = document.getElementById('addend-input').value;
+
+    let bigA, bigB, bigC;
+    try {
+        bigA = parseBigInt(a_str);
+        bigB = parseBigInt(b_str);
+        bigC = parseBigInt(c_str);
+    } catch(e) { log('Invalid Input Format'); return; }
+
+    if (bigB * BigInt(bigA.toString().length) > 10000n) {
+        isGigantic = true;
+    } else {
+        isGigantic = false;
+    }
+
+    if (!isRunning && !isMissionLoaded) {
+        if (isGigantic) {
+             startTime = Date.now();
+             log(`⚠️ GIGANTIC MODE (>10k digits). Implicit Target.`);
+             document.getElementById('target-status').textContent = "IMPLICIT";
+             gigaFrontier = 2n;
+        } else {
+             startTime = Date.now();
+             foundFactors.clear();
+             document.getElementById('factors-output').textContent = 'None';
+             ecmShellsFired = 0;
+             try {
+                N_current = bigA**bigB + bigC;
+                document.getElementById('target-status').textContent = "EXPLICIT";
+                const nStr = N_current.toString();
+                log(`Target: ${nStr.substring(0, 20)}... (${nStr.length} digits)`);
+            } catch(e) { log('Calculation Error (Too Big?)'); return; }
+        }
+    } else if (isMissionLoaded) {
+        isMissionLoaded = false;
+        log("Resuming Mission...");
+    }
+    
+    isRunning = true;
+
+    if (!isGigantic) {
+        if (N_current === 1n) {
+            log('Mission Complete: Target reduced to 1.');
+            stopAll();
+            return;
+        }
+        
+        if (isPrimeMR(N_current)) {
+            log(`🛑 GATEKEEPER: Target is PRIME.`);
+            if (!foundFactors.has(N_current.toString())) {
+                foundFactors.add(N_current.toString());
+                document.getElementById('factors-output').textContent = Array.from(foundFactors).join(' × ');
+            }
+            stopAll();
+            return;
+        }
+        
+        const sqrt = n => { if(n<2n)return n; let x=n, y=(x+1n)/2n; while(y<x){x=y; y=(x+n/x)/2n;} return x; };
+        const isqrt = sqrt(N_current);
+        SMin = isqrt * 2n;
+        if (SMin*SMin < 4n*N_current) SMin += 1n;
+    }
+
+    document.getElementById('start-btn').disabled = true;
+    document.getElementById('stop-btn').disabled = false;
+
+    for(let i=0; i<NUM_WORKERS; i++) {
+        const card = document.getElementById(`card-${i}`);
+        card.className = `worker-card ${isGigantic ? 'bg-giga' : 'bg-slate-600'}`;
+        let roleName = `Worker ${i}`;
+        if(!isGigantic) {
+            if (i < 3) { card.classList.add('bg-fermat'); roleName = `🛡️ Fermat Marine ${i+1}`; }
+            else if (i === 3) { card.classList.add('bg-ecm'); roleName = "☄️ ECM Artillery"; }
+            else if (i === 4) { card.classList.add('bg-rho'); roleName = "🐎 Rho Scout"; }
+            else if (i === 5) { card.classList.add('bg-p1'); roleName = "🎯 P-1 Sniper"; }
+            else if (i === 6) { card.classList.add('bg-td'); roleName = "🐜 Trial Grunt"; }
+            else if (i === 7) { card.classList.add('bg-pp1'); roleName = "💥 P+1 Breacher"; }
+        } else {
+            roleName = `🔭 Giga Sniper ${i}`;
+        }
+        card.innerHTML = `${roleName}<br><span id="status-${i}" class="opacity-75 font-normal">Deploying</span>`;
+    }
+
+    setTimeout(() => {
+        for (let i = 0; i < NUM_WORKERS; i++) {
+            const w = new Worker(workerUrl);
+            workers[i] = w;
+            w.onmessage = handleMsg;
+            
+            if (isGigantic) {
+                dispatchGigaChunk(w, i, bigA.toString(), bigB.toString(), bigC.toString());
+            } else {
+                if (i < 3) startFermatChunk(i, 3);
+                else if (i === 3) w.postMessage({ mode: 'ecm', n_str: N_current.toString(), idx: i, startCurve: ecmShellsFired });
+                else if (i === 4) w.postMessage({ mode: 'rho', n_str: N_current.toString(), idx: i });
+                else if (i === 5) w.postMessage({ mode: 'p1', n_str: N_current.toString(), idx: i });
+                else if (i === 6) w.postMessage({ mode: 'trial', n_str: N_current.toString(), idx: i });
+                else if (i === 7) w.postMessage({ mode: 'pp1', n_str: N_current.toString(), idx: i }); // P+1 BREACHER
+            }
+        }
+    }, 100);
+}
+
+function dispatchGigaChunk(worker, idx, a, b, c) {
+    if (!isRunning) return;
+    const start = gigaFrontier;
+    const end = start + GIGA_CHUNK_SIZE;
+    gigaFrontier = end;
+    worker.postMessage({ mode: 'gigantic', a: a, b: b, c: c, start: start.toString(), end: end.toString(), idx: idx });
+}
+
+function startFermatChunk(idx, armySize) {
+    if (!isRunning) return;
+    const offset = BigInt(idx);
+    const range = FERMAT_RANGE;
+    const myMin = SMin + (offset * range);
+    const myMax = myMin + range - 1n;
+    workers[idx].postMessage({ mode: 'fermat', n_str: N_current.toString(), minS: myMin.toString(), maxS: myMax.toString(), primes: QR_PRIMES.map(String), idx: idx });
+}
+
+function handleMsg(e) {
+    const d = e.data;
+    
+    if (d.algo === 'ECM' && d.shell) ecmShellsFired = d.shell;
+    if (d.type === 'status' && d.shell) ecmShellsFired = d.shell;
+
+    if (d.type === 'status') {
+        updateStatus(d.idx, d.msg);
+    } else if (d.type === 'factor') {
+        const val = d.val;
+        const elapsed = (Date.now() - startTime) / 1000;
+        log(`💥 ${d.algo} Found: ${val} (${elapsed.toFixed(2)}s)`);
+        
+        if (!foundFactors.has(val)) {
+            foundFactors.add(val);
+            document.getElementById('factors-output').textContent = Array.from(foundFactors).join(' × ');
+            
+            if (!isGigantic) {
+                const f = BigInt(val);
+                if (N_current % f === 0n) {
+                    N_current /= f;
+                    log(`Reduced N. Redeploying...`);
+                    ecmShellsFired = 0; 
+                    deploySquad();
+                }
+            }
+        }
+    } else if (d.type === 'fermatDone') {
+        if (isRunning && !isGigantic) {
+            SMin += (FERMAT_RANGE * 3n);
+            startFermatChunk(d.idx, 3);
+        }
+    } else if (d.type === 'gigaRangeDone') {
+        if (isRunning && isGigantic) {
+            const a = document.getElementById('base-input').value;
+            const b = document.getElementById('exponent-input').value;
+            const c = document.getElementById('addend-input').value;
+            let bigA = parseBigInt(a);
+            let bigB = parseBigInt(b);
+            let bigC = parseBigInt(c);
+            dispatchGigaChunk(workers[d.idx], d.idx, bigA.toString(), bigB.toString(), bigC.toString());
+        }
+    }
+}
+
+document.getElementById('start-btn').onclick = () => { 
+    if(!isMissionLoaded) {
+        N_current = 0n; 
+        isRunning = false;
+    }
+    deploySquad(); 
+};
+document.getElementById('stop-btn').onclick = () => { stopAll(); log('Squad Aborted.'); };
+
+initGrid();
+</script>
+</body>
+</html>

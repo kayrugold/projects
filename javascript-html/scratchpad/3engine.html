@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The 3-Engine Proof</title>
+<style>
+    body { background: #0f172a; color: #e2e8f0; font-family: monospace; padding: 20px; }
+    h1 { color: #facc15; }
+    .btn { background: #3b82f6; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 1.2rem; margin-bottom: 20px;}
+    .log-box { background: #1e293b; padding: 15px; border: 1px solid #334155; height: 400px; overflow-y: auto; white-space: pre-wrap; font-size: 0.9rem;}
+    .success { color: #4ade80; font-weight: bold; }
+    .fail { color: #ef4444; font-weight: bold; }
+    .projection { color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<h1>The 3-Engine Cascade Test</h1>
+<p>Hypothesis: Start with 3x3, 3x5... and project (A+2)*(B+2) to find ALL odd composites.</p>
+<button class="btn" onclick="runTest()">RUN PROOF (Limit: 2000)</button>
+
+<div id="log" class="log-box">Waiting to start...</div>
+
+<script>
+function runTest() {
+    const LIMIT = 2000;
+    const logEl = document.getElementById('log');
+    logEl.innerHTML = "--- STARTING GENERATION ---\n";
+
+    // 1. THE USER'S ALGORITHM (The 3-Engine)
+    // We only use the number 3 to start. Nothing else.
+    const userComposites = new Set();
+    
+    // We run the 3-line: 3x3, 3x5, 3x7, 3x9...
+    // Multiplier 'm' starts at 3 and increments by 2 (odd numbers)
+    for (let m = 3; ; m += 2) {
+        
+        // Root Calculation (The 3-Family)
+        let A = 3;
+        let B = m;
+        let product = A * B;
+        
+        // If even the root is past the limit, stop the whole engine
+        if (product > LIMIT) break;
+
+        // Add the root to the set
+        userComposites.add(product);
+        let chainLog = `Root [${A}x${B}=${product}]`;
+
+        // FIRE THE PROJECTION (The "Add 2" Rule)
+        // We keep adding 2 to A and B until we fly off the chart
+        while (true) {
+            A += 2;
+            B += 2;
+            let projectedProduct = A * B;
+            
+            if (projectedProduct > LIMIT) break;
+            
+            userComposites.add(projectedProduct);
+            chainLog += ` -> [${A}x${B}=${projectedProduct}]`;
+        }
+        
+        // Log the first few chains just so we can see it working
+        if (product < 100) {
+            logEl.innerHTML += chainLog + "\n";
+        }
+    }
+
+    logEl.innerHTML += "--- GENERATION COMPLETE ---\n";
+    logEl.innerHTML += `Found ${userComposites.size} unique composites using the 3-Engine.\n`;
+    logEl.innerHTML += "--- VERIFYING AGAINST REALITY ---\n";
+
+    // 2. THE VERIFICATION
+    // We check every odd number from 9 to LIMIT.
+    // If it is Composite in real math, but missing from your Set, YOU FAIL.
+    
+    let errors = 0;
+    
+    for (let i = 9; i < LIMIT; i += 2) {
+        // Standard check: Is 'i' actually composite?
+        let isRealComposite = false;
+        // Simple trial division to check reality
+        for (let k = 3; k * k <= i; k += 2) {
+            if (i % k === 0) {
+                isRealComposite = true;
+                break;
+            }
+        }
+
+        if (isRealComposite) {
+            // It IS composite. Did your 3-Engine find it?
+            if (!userComposites.has(i)) {
+                logEl.innerHTML += `<span class="fail">FAIL: Algorithm missed ${i}! It is composite, but you called it Prime.</span>\n`;
+                errors++;
+            }
+        } else {
+            // It IS Prime. Did your 3-Engine falsely mark it?
+            if (userComposites.has(i)) {
+                logEl.innerHTML += `<span class="fail">FAIL: Algorithm marked ${i} as composite, but it is actually PRIME!</span>\n`;
+                errors++;
+            }
+        }
+    }
+
+    if (errors === 0) {
+        logEl.innerHTML += `\n<span class="success">SUCCESS!</span>\n`;
+        logEl.innerHTML += `Checked all odd numbers up to ${LIMIT}.\n`;
+        logEl.innerHTML += `Your algorithm correctly identified EVERY composite and EVERY Prime.\n`;
+        logEl.innerHTML += `The "3-Engine Projection" is valid.`;
+    } else {
+        logEl.innerHTML += `\n<span class="fail">PROOF FAILED with ${errors} errors.</span>`;
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Geometric Pulse Engine (v0.0.8)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        :root {
+            --bg: #050505;
+            --main: #ffcc00; /* Gold */
+            --sub: #00ffff;  /* Cyan */
+            --dim: #333;
+            --panel: #111;
+        }
+        body {
+            background: var(--bg); color: var(--main);
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0; padding: 15px;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+            /* MOBILE SCROLLING ENABLED */
+            overflow-y: auto; overflow-x: hidden;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        h1 { margin: 0 0 15px 0; font-size:1.4rem; text-align:center; border-bottom: 2px solid var(--dim); padding-bottom: 10px; width: 100%; }
+
+        /* INPUT SECTION */
+        .controls { 
+            width: 100%; display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 20px; 
+        }
+        input { 
+            padding: 15px; background: #1a1a1a; border: 1px solid var(--dim); 
+            color: #fff; font-family: inherit; font-size: 1.1rem; text-align: center;
+            border-radius: 4px; outline: none;
+        }
+        input:focus { border-color: var(--main); }
+        button {
+            padding: 15px; background: var(--main); color: #000; border: none;
+            font-weight: bold; cursor: pointer; font-size: 1rem; border-radius: 4px;
+        }
+        button:active { transform: translateY(2px); }
+
+        /* TIMELINE SLIDER */
+        .slider-box {
+            width: 100%; padding: 15px; box-sizing: border-box;
+            border: 1px solid var(--dim); background: var(--panel);
+            margin-bottom: 15px; text-align: center; border-radius: 4px;
+        }
+        input[type=range] { width: 100%; margin: 15px 0; cursor: pointer; accent-color: var(--sub); }
+        .frame-info { display: flex; justify-content: space-between; font-size: 0.9rem; color: #888; }
+
+        /* VISUALIZER (CANVAS) */
+        #vis-container {
+            width: 100%; aspect-ratio: 1 / 1; max-width: 400px;
+            background: #000; border: 1px solid var(--sub);
+            margin-bottom: 15px; position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.05);
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+        
+        .overlay-tag {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0,0,0,0.7); color: var(--sub);
+            padding: 4px 8px; font-size: 0.8rem; border: 1px solid var(--sub);
+            pointer-events: none;
+        }
+
+        /* DATA DASHBOARD */
+        .dash-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;
+        }
+        .card {
+            background: var(--panel); border: 1px solid var(--dim);
+            padding: 15px 10px; text-align: center; border-radius: 4px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .card.highlight { border-color: var(--sub); background: rgba(0, 255, 255, 0.05); }
+        
+        .lbl { font-size: 0.7rem; color: #888; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .val { font-size: 1.6rem; font-weight: bold; color: #fff; }
+        .sub { font-size: 0.8rem; color: var(--main); margin-top: 4px; }
+        .note { font-size: 0.7rem; color: #666; margin-top: 2px; }
+
+        /* FOOTER INFO */
+        .info-bar {
+            margin-top: 20px; padding: 10px; width: 100%; text-align: center;
+            border-top: 1px solid var(--dim); color: #666; font-size: 0.8rem;
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>Geometric Pulse Engine</h1>
+
+<div class="controls">
+    <input type="number" id="inpNum" value="21" placeholder="Target N">
+    <button onclick="loadEngine()">LOAD</button>
+</div>
+
+<div id="vis-container">
+    <canvas id="canvas"></canvas>
+    <div class="overlay-tag">GNOMON SCOPE</div>
+</div>
+
+<div class="slider-box">
+    <div class="frame-info">
+        <span>TIMELINE SCRUBBER</span>
+        <span id="pulseLabel" style="color:var(--main)">--</span>
+    </div>
+    <input type="range" id="timeSlider" min="1" max="1" value="1" oninput="updateState()">
+    <div class="frame-info">
+        <span>FRAME <span id="frameVal" style="color:#fff; font-weight:bold;">1</span></span>
+        <span>INDEX <span id="idxVal" style="color:#fff;">--</span></span>
+    </div>
+</div>
+
+<div class="dash-grid">
+    <div class="card">
+        <div class="lbl">Total Square</div>
+        <div class="val" id="sqVal">--</div>
+        <div class="sub">√<span id="rootVal">--</span></div>
+    </div>
+
+    <div class="card highlight">
+        <div class="lbl">Active Shell</div>
+        <div class="val" id="shellVal" style="color:var(--sub)">--</div>
+        <div class="sub"><span id="shellMult">--</span> × 8</div>
+        <div class="note">This is the Gnomon</div>
+    </div>
+
+    <div class="card">
+        <div class="lbl">Triangle Base</div>
+        <div class="val" id="triBase">--</div>
+        <div class="note">Count of Shells</div>
+    </div>
+
+    <div class="card">
+        <div class="lbl">Triangle Sum</div>
+        <div class="val" id="triSum" style="color:var(--main)">--</div>
+        <div class="note">Total 8s Used</div>
+    </div>
+</div>
+
+<div class="info-bar">
+    LOGIC: Square = (8 × Triangle) + 1
+</div>
+
+<script>
+    let canvas, ctx;
+    let maxIndex = 1;
+    let targetN = 21;
+
+    function init() {
+        canvas = document.getElementById('canvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        loadEngine();
+    }
+
+    function resizeCanvas() {
+        const rect = document.getElementById('vis-container').getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        updateState(); // Redraw on resize
+    }
+
+    function loadEngine() {
+        const val = parseInt(document.getElementById('inpNum').value);
+        if(val && val % 2 !== 0) {
+            targetN = val;
+            // Determine max frame based on target? 
+            // Let's just give a generous range or base it on the target being an index.
+            // If Target is 21 (Index 11), we want to go at least there.
+            // Let's go up to Index 25 for demo.
+            maxIndex = Math.max(25, (targetN + 1)/2 + 5); 
+            
+            const slider = document.getElementById('timeSlider');
+            slider.max = maxIndex;
+            
+            // Auto-set slider to the target's index if applicable
+            const targetIdx = (targetN + 1) / 2;
+            slider.value = Math.min(targetIdx, maxIndex);
+            
+            updateState();
+        } else {
+            alert("Please enter an odd number.");
+        }
+    }
+
+    function updateState() {
+        const frame = parseInt(document.getElementById('timeSlider').value);
+        
+        // --- MATHS ---
+        // Frame is the Index (k)
+        // Root = 2k - 1
+        const root = (2 * frame) - 1;
+        const square = root * root;
+        
+        // Shell (Gnomon) = (Frame - 1) * 8
+        // Or Difference between current square and prev square
+        const prevRoot = root - 2;
+        const prevSquare = (prevRoot < 0) ? 0 : prevRoot * prevRoot;
+        const shellVol = square - prevSquare;
+        
+        // Triangle Math
+        // The number of 8s is based on (Frame - 1)
+        const triBase = frame - 1;
+        const triSum = (triBase * (triBase + 1)) / 2;
+
+        // --- UI UPDATES ---
+        document.getElementById('frameVal').innerText = frame;
+        document.getElementById('idxVal').innerText = frame; // Frame IS Index
+        document.getElementById('pulseLabel').innerText = (frame === 1) ? "SEED" : "EXPAND (+2)";
+
+        document.getElementById('sqVal').innerText = square;
+        document.getElementById('rootVal').innerText = root;
+
+        document.getElementById('shellVal').innerText = (frame === 1) ? "1 (Seed)" : shellVol;
+        document.getElementById('shellMult').innerText = triBase; // This shell is the Nth shell
+
+        document.getElementById('triBase').innerText = triBase;
+        document.getElementById('triSum').innerText = triSum;
+
+        // --- VISUALIZER DRAW ---
+        drawVisualizer(frame, root);
+    }
+
+    function drawVisualizer(k, root) {
+        // Clear
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Center Point
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+
+        // Determine Cell Size (Fit current square in view)
+        // We want the current 'root' size to fill ~80% of canvas
+        const padding = 20;
+        const availableSize = Math.min(canvas.width, canvas.height) - padding;
+        const cellSize = availableSize / root;
+
+        // Draw The Grid
+        // We draw loops. 
+        // Loop 1 (Center): Size 1x1
+        // Loop 2: Size 3x3 (Gap 1)
+        // ...
+        // Loop k: Size root x root
+        
+        for(let i = 1; i <= k; i++) {
+            let loopRoot = (2 * i) - 1;
+            let loopSize = loopRoot * cellSize;
+            let offset = loopSize / 2;
+            
+            // Is this the Active Shell?
+            let isCurrent = (i === k);
+            
+            if (i === 1) {
+                // The Seed
+                ctx.fillStyle = "#ffcc00"; // Gold
+                ctx.fillRect(cx - cellSize/2, cy - cellSize/2, cellSize-1, cellSize-1);
+            } else {
+                // The Ring
+                // We draw the outer square, then we essentially just stroke it or fill it?
+                // To look like blocks, we can draw the border path with thickness = cellSize
+                
+                ctx.strokeStyle = isCurrent ? "#00ffff" : "#333"; // Cyan vs Dim
+                ctx.lineWidth = cellSize - 1; // Leave a tiny gap
+                if (isCurrent) ctx.lineWidth = cellSize; // Full thickness for active
+
+                // Calculate the path for the center of the ring
+                // The ring is at distance 'i-1' from center?
+                // Visual radius = (loopRoot * cellSize)
+                // We stroke a rect that is slightly smaller than the full dimension 
+                // so the stroke width fills the cells.
+                
+                let strokeSize = loopSize - cellSize; 
+                
+                ctx.strokeRect(cx - strokeSize/2, cy - strokeSize/2, strokeSize, strokeSize);
+                
+                // Optional: Draw block separators for the active shell
+                if (isCurrent && cellSize > 4) {
+                    // This is computationally expensive for large N, so strictly limit
+                    // Just a visual flair for small N
+                    ctx.strokeStyle = "#000";
+                    ctx.lineWidth = 1;
+                    // Top/Bottom row
+                    // (Not implementing full grid lines to save performance on mobile)
+                }
+            }
+        }
+    }
+
+    // Start
+    setTimeout(init, 100);
+
+</script>
+</body>
+</html>

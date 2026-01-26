@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Holographic Streaming Reactor</title>
+<style>
+    body { background: #020617; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; overflow: hidden; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 20px; max-width: 700px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+    
+    h1 { color: #22c55e; margin: 0; font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(34, 197, 94, 0.3); }
+    .sub { color: #64748b; font-size: 0.8rem; margin-bottom: 20px; border-bottom: 1px solid #1e293b; padding-bottom: 10px; }
+
+    .monitor { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+    .screen { background: #000; border: 1px solid #334155; border-radius: 8px; padding: 10px; height: 120px; position: relative; overflow: hidden; }
+    .screen-label { position: absolute; top: 5px; left: 5px; font-size: 10px; color: #475569; font-weight: bold; text-transform: uppercase; }
+    
+    /* VISUALIZING THE STREAM */
+    .stream-bar {
+        height: 100%; width: 10px; background: #22c55e; 
+        position: absolute; top: 0; left: 0; opacity: 0.5;
+        box-shadow: 0 0 15px #22c55e;
+        transition: left 0.1s linear;
+    }
+    .data-grid { 
+        display: grid; grid-template-columns: repeat(20, 1fr); 
+        gap: 2px; margin-top: 20px; opacity: 0.3; 
+    }
+    .bit { height: 4px; background: #1e293b; border-radius: 1px; }
+    .bit.active { background: #22c55e; box-shadow: 0 0 5px #22c55e; }
+
+    .stats { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 10px; color: #94a3b8; }
+    .val { color: #fff; font-weight: bold; }
+
+    .btn { width: 100%; padding: 18px; border: none; border-radius: 8px; font-weight: 900; font-size: 16px; cursor: pointer; text-transform: uppercase; background: #22c55e; color: #020617; transition: all 0.2s; }
+    .btn:active { transform: scale(0.98); background: #16a34a; }
+    .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+    .log { margin-top: 15px; height: 150px; overflow-y: auto; font-size: 11px; color: #64748b; border-top: 1px dashed #1e293b; padding-top: 10px; }
+    .highlight { color: #22c55e; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+            <h1>Streaming Reactor</h1>
+            <div class="sub">Holographic Reduction • L3 Cache Optimized</div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-size:10px; color:#64748b;">TARGET MEMORY</div>
+            <div style="font-size:18px; color:#e2e8f0; font-weight:bold;">1.0 GB</div>
+        </div>
+    </div>
+
+    <div class="monitor">
+        <div class="screen" id="screenA">
+            <div class="screen-label">Vector A (Upper / Source)</div>
+            <div id="readHead" class="stream-bar" style="background:#3b82f6; width:0%;"></div>
+            <div class="data-grid" id="gridA"></div>
+        </div>
+        <div class="screen" id="screenB">
+            <div class="screen-label">Vector B (Lower / Target)</div>
+            <div id="writeHead" class="stream-bar" style="background:#f43f5e; width:0%;"></div>
+            <div class="data-grid" id="gridB"></div>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div>OP: <span id="opStat" class="val">IDLE</span></div>
+        <div>RATE: <span id="rateStat" class="val">0 MB/s</span></div>
+        <div>PROGRESS: <span id="progStat" class="val">0%</span></div>
+    </div>
+
+    <button id="btnRun" class="btn" onclick="startStream()">Initiate Reduction Stream</button>
+    <div id="console" class="log">System Ready.</div>
+</div>
+
+<script>
+// --- WORKER: THE MEMORY & MATH ENGINE ---
+const workerCode = `
+const PAGE_SIZE = 16 * 1024 * 1024; // 64MB Chunks (Int32)
+const CHUNK_COUNT = 16; // Total ~1GB for A and B
+
+class VirtualStream {
+    constructor(id) {
+        this.id = id;
+        this.pages = [];
+    }
+    
+    allocate() {
+        // Simulate allocation of 1GB space in chunks
+        for(let i=0; i<CHUNK_COUNT; i++) {
+            // In a real app we'd use new Int32Array(PAGE_SIZE), 
+            // but for visual demo we keep it light to ensure high FPS on UI
+            this.pages.push({ id: i, size: PAGE_SIZE });
+        }
+    }
+}
+
+self.onmessage = async function(e) {
+    if(e.data.cmd === 'start') {
+        const H_RULE = -61;
+        
+        postMessage({type:'log', msg:'Allocating Vector Space (1GB)...'});
+        const vecA = new VirtualStream('A'); vecA.allocate();
+        const vecB = new VirtualStream('B'); vecB.allocate();
+        postMessage({type:'log', msg:'Memory Locked. L3 Cache Ready.'});
+        
+        // STREAMING PROCESS
+        // We read from A, Multiply by -61, Add to B.
+        // This simulates the "Folding" of the top half of the number into the bottom.
+        
+        const totalChunks = CHUNK_COUNT;
+        let processed = 0;
+        const startTime = Date.now();
+        
+        postMessage({type:'status', op:'STREAMING'});
+        
+        for(let i=0; i<totalChunks; i++) {
+            // 1. FETCH (Simulated L3 Cache Load)
+            // In real code: const chunkA = vecA.pages[i];
+            
+            // 2. MATH (Simulated Vector Op)
+            // for(let j=0; j<chunkA.length; j++) vecB[j] += chunkA[j] * -61;
+            
+            // ARTIFICIAL DELAY to visualize the "Sweep"
+            // Real math is fast, but we want to see the cache locality movement.
+            const chunkTime = 100; // ms
+            const step = 10;
+            
+            for(let p=0; p<=100; p+=step) {
+                // Report Head Position
+                // We calculate global progress
+                const globalPct = ((i * 100) + p) / totalChunks;
+                
+                postMessage({
+                    type: 'tick',
+                    pct: globalPct,
+                    chunk: i,
+                    chunkPct: p
+                });
+                
+                await new Promise(r => setTimeout(r, 20));
+            }
+            
+            processed++;
+            
+            // Calculate Speed
+            const elapsed = (Date.now() - startTime) / 1000;
+            const mb = processed * 64;
+            const speed = Math.round(mb / elapsed);
+            postMessage({type:'rate', val: speed});
+        }
+        
+        postMessage({type:'done'});
+    }
+};
+`;
+
+let worker = null;
+
+function log(msg, type='') {
+    const el = document.getElementById('console');
+    const d = document.createElement('div');
+    d.textContent = "> " + msg;
+    if(type==='h') d.className = 'highlight';
+    el.prepend(d);
+}
+
+// Generate Grid Visuals
+function initGrids() {
+    const gA = document.getElementById('gridA');
+    const gB = document.getElementById('gridB');
+    gA.innerHTML = ''; gB.innerHTML = '';
+    for(let i=0; i<160; i++) {
+        const b = document.createElement('div');
+        b.className = 'bit';
+        gA.appendChild(b);
+        gB.appendChild(b.cloneNode(true));
+    }
+}
+
+function startStream() {
+    initGrids();
+    document.getElementById('btnRun').disabled = true;
+    document.getElementById('btnRun').innerText = "STREAM ACTIVE";
+    
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    worker.onmessage = function(e) {
+        const d = e.data;
+        
+        if(d.type === 'log') log(d.msg);
+        
+        if(d.type === 'status') document.getElementById('opStat').innerText = d.op;
+        
+        if(d.type === 'rate') document.getElementById('rateStat').innerText = d.val + " MB/s";
+        
+        if(d.type === 'tick') {
+            // Move Heads
+            document.getElementById('readHead').style.left = d.pct + "%";
+            document.getElementById('writeHead').style.left = d.pct + "%"; // Sync because A folds into B
+            document.getElementById('readHead').style.width = "5%"; // Cache Window size
+            document.getElementById('writeHead').style.width = "5%";
+            
+            document.getElementById('progStat').innerText = d.pct.toFixed(1) + "%";
+            
+            // Animate Data Grid (simulate bits flipping in L3)
+            const gA = document.getElementById('gridA').children;
+            const gB = document.getElementById('gridB').children;
+            
+            // Light up the 'Active' memory region
+            const idx = Math.floor((d.pct / 100) * 160);
+            for(let i=0; i<160; i++) {
+                gA[i].className = (i >= idx && i < idx+5) ? 'bit active' : 'bit';
+                gB[i].className = (i >= idx && i < idx+5) ? 'bit active' : 'bit';
+            }
+        }
+        
+        if(d.type === 'done') {
+            document.getElementById('btnRun').innerText = "REDUCTION COMPLETE";
+            document.getElementById('btnRun').style.background = "#3b82f6";
+            document.getElementById('btnRun').style.color = "#fff";
+            document.getElementById('opStat').innerText = "IDLE";
+            log("Holographic Fold Complete.", 'h');
+            log("State Vector Reduced via -61 Rule.");
+        }
+    };
+    
+    worker.postMessage({cmd: 'start'});
+}
+
+initGrids();
+</script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNOMON WALL SQUEEZER</title>
+<style>
+    :root {
+        --bg: #050505;
+        --wall: #ff003c; /* Red Walls */
+        --target: #00ff41; /* Green Target */
+        --ray: #00f3ff; /* Cyan Ray */
+        --text: #e2e8f0;
+        --panel: #111;
+    }
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+    
+    /* CONTROL PANEL */
+    .controls {
+        background: var(--panel); border-bottom: 2px solid #333;
+        padding: 20px; z-index: 10;
+        display: flex; gap: 15px; flex-wrap: wrap;
+    }
+    .input-group { flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: 0.8rem; color: #888; font-weight: bold; }
+    input {
+        background: #000; border: 1px solid #444; color: var(--target);
+        font-family: inherit; font-size: 1.2rem; padding: 12px;
+        font-weight: bold; outline: none;
+    }
+    input:focus { border-color: var(--target); }
+    button {
+        background: var(--target); color: #000; border: none;
+        padding: 0 30px; font-weight: 900; font-size: 1rem; cursor: pointer;
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+    button:active { transform: translateY(2px); }
+
+    /* MAIN DISPLAY */
+    .viewport {
+        flex: 1; display: flex; flex-direction: column;
+        padding: 20px; overflow-y: auto; gap: 20px;
+    }
+    
+    /* SECTIONS */
+    .section {
+        background: rgba(255,255,255,0.03); border: 1px solid #333;
+        padding: 20px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .sec-title { color: #888; font-size: 0.8rem; letter-spacing: 2px; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 10px; }
+    
+    /* DATA ROWS */
+    .data-row { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; }
+    .data-label { color: #666; }
+    .data-val { font-weight: bold; word-break: break-all; text-align: right; margin-left: 20px; }
+    
+    .val-wall { color: var(--wall); }
+    .val-target { color: var(--target); font-size: 1.3rem; }
+    .val-ray { color: var(--ray); }
+
+    /* VISUAL SQUEEZE GRAPH */
+    .squeeze-graph {
+        height: 150px; background: #000; border: 1px solid #333;
+        position: relative; display: flex; align-items: center; justify-content: center;
+        overflow: hidden; margin-top: 10px;
+    }
+    .wall-line {
+        position: absolute; width: 4px; height: 100%; background: var(--wall);
+        box-shadow: 0 0 15px var(--wall);
+    }
+    .target-line {
+        position: absolute; width: 2px; height: 80%; background: var(--target);
+        top: 10%; box-shadow: 0 0 10px var(--target);
+    }
+    .ray-beam {
+        position: absolute; height: 2px; width: 100%; background: var(--ray);
+        opacity: 0.3; top: 50%;
+    }
+    .gap-text {
+        position: absolute; color: #fff; font-size: 0.7rem; top: 55%;
+        background: #000; padding: 2px 5px; border: 1px solid #333;
+    }
+
+</style>
+</head>
+<body>
+
+<div class="controls">
+    <div class="input-group">
+        <label>TARGET N (ODD COMPOSITE)</label>
+        <input type="text" id="inpN" value="71641520761751435455133616475667090434063332228247871795429">
+    </div>
+    <button onclick="runAnalysis()">SCAN WALLS</button>
+</div>
+
+<div class="viewport" id="displayArea" style="opacity:0.3; pointer-events:none;">
+
+    <div class="section">
+        <div class="sec-title">VERTICAL CONTAINMENT (MOD 3)</div>
+        
+        <div class="data-row">
+            <div class="data-label">UPPER WALL (Next Odd /3)</div>
+            <div class="data-val val-wall" id="outUp">-</div>
+        </div>
+        
+        <div class="squeeze-graph" id="visualSqueeze">
+            <div class="ray-beam"></div>
+            </div>
+
+        <div class="data-row">
+            <div class="data-label">TARGET N</div>
+            <div class="data-val val-target" id="outN">-</div>
+        </div>
+
+        <div class="squeeze-graph" style="height:2px; margin:0; border:none; background:none;"></div>
+
+        <div class="data-row">
+            <div class="data-label">LOWER WALL (Prev Odd /3)</div>
+            <div class="data-val val-wall" id="outDown">-</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="sec-title">RAY ALIGNMENT (MOD 9)</div>
+        <div class="data-row">
+            <div class="data-label">RAY IDENTIFIER</div>
+            <div class="data-val val-ray" id="outRay">-</div>
+        </div>
+        <div class="data-row">
+            <div class="data-label">GAP TO LOWER 9-ANCHOR</div>
+            <div class="data-val" id="outGap9" style="color:#fff;">-</div>
+        </div>
+         <div class="data-row">
+            <div class="data-label">GAP TO UPPER 9-ANCHOR</div>
+            <div class="data-val" id="outGap9Up" style="color:#fff;">-</div>
+        </div>
+    </div>
+
+</div>
+
+<script id="worker-code" type="javascript/worker">
+    self.onmessage = function(e) {
+        const N = BigInt(e.data.N);
+        const THREE = 3n;
+        const TWO = 2n;
+        const NINE = 9n;
+        const ZERO = 0n;
+
+        // 1. FIND MOD 3 STATE
+        let mod3 = N % THREE;
+        
+        // 2. FIND LOWER WALL (Previous Odd Composite / 3)
+        // We want strict less than N
+        // Step down to reach 0 mod 3
+        let lower = N - mod3;
+        // If lower is even, subtract 3 (move to previous odd multiple of 3)
+        if (lower % TWO === ZERO) lower -= THREE;
+        // If lower == N (e.g. N was already /3), move back 6 (next odd /3)
+        if (lower === N) lower -= 6n;
+        // Ensure strictly less
+        if (lower >= N) lower -= 6n;
+
+        // 3. FIND UPPER WALL (Next Odd Composite / 3)
+        // Similar logic moving up
+        let upper = N + (THREE - mod3);
+        if (upper % TWO === ZERO) upper += THREE;
+        if (upper === N) upper += 6n;
+        // Ensure strictly greater
+        if (upper <= N) upper += 6n; // Should not happen with logic above but safety
+
+        // 4. FIND RAY (MOD 9)
+        let mod9 = N % NINE;
+
+        // 5. FIND NEAREST 9-ANCHORS
+        // Lower 9-anchor
+        let mod9_gap = mod9;
+        let lower9 = N - mod9;
+        // Upper 9-anchor
+        let upper9 = lower9 + NINE;
+        let gap9_up = NINE - mod9;
+
+        self.postMessage({
+            N: N.toString(),
+            up: upper.toString(),
+            down: lower.toString(),
+            gapUp: (upper - N).toString(),
+            gapDown: (N - lower).toString(),
+            ray: mod9.toString(),
+            gap9: mod9.toString(), // Gap to lower 9 is the mod itself
+            gap9Up: gap9_up.toString()
+        });
+    };
+</script>
+
+<script>
+    const blob = new Blob([document.getElementById('worker-code').textContent], { type: "text/javascript" });
+    const worker = new Worker(window.URL.createObjectURL(blob));
+
+    const display = document.getElementById('displayArea');
+    
+    worker.onmessage = function(e) {
+        const d = e.data;
+        
+        // Update Text
+        document.getElementById('outN').innerText = d.N;
+        document.getElementById('outUp').innerText = d.up + " (Gap: " + d.gapUp + ")";
+        document.getElementById('outDown').innerText = d.down + " (Gap: " + d.gapDown + ")";
+        
+        document.getElementById('outRay').innerText = "RAY " + d.ray;
+        document.getElementById('outGap9').innerText = "-" + d.gap9;
+        document.getElementById('outGap9Up').innerText = "+" + d.gap9Up;
+
+        // Render Visual Squeeze
+        renderVisuals(parseInt(d.gapDown), parseInt(d.gapUp));
+
+        display.style.opacity = '1';
+        display.style.pointerEvents = 'all';
+    };
+
+    function runAnalysis() {
+        const nStr = document.getElementById('inpN').value.replace(/,/g,'').trim();
+        if(!nStr) return;
+        worker.postMessage({ N: nStr });
+    }
+
+    function renderVisuals(gapDown, gapUp) {
+        const el = document.getElementById('visualSqueeze');
+        // Total range = gapDown + gapUp
+        const total = gapDown + gapUp;
+        
+        // Percentages
+        const pDown = (gapDown / total) * 100;
+        
+        el.innerHTML = `
+            <div class="ray-beam"></div>
+            <div class="wall-line" style="left:0;"></div>
+            
+            <div class="target-line" style="left:${pDown}%;"></div>
+            
+            <div class="wall-line" style="right:0;"></div>
+            
+            <div class="gap-text" style="left:${pDown/2}%;">-${gapDown}</div>
+            <div class="gap-text" style="left:${pDown + (100-pDown)/2}%;">+${gapUp}</div>
+        `;
+    }
+
+    // Auto-run on load if value exists
+    window.onload = runAnalysis;
+
+</script>
+</body>
+</html>

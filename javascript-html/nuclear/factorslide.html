@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter: Slide to Solve</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        h1 { color: #00e676; margin: 0 0 10px 0; font-size: 1.5rem; text-align: center; }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #1e1e1e;
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        input {
+            padding: 10px;
+            background: #333;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            width: 70px;
+            font-size: 1.2rem;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #00e676;
+            color: #000;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:active { transform: scale(0.95); background: #00c853; }
+
+        #canvas-wrapper {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        canvas {
+            border-radius: 8px;
+            background: #181818;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            cursor: pointer; /* Indicates interactivity */
+        }
+
+        .instruction {
+            position: absolute;
+            bottom: 20px;
+            color: #888;
+            font-size: 0.9rem;
+            animation: pulse 2s infinite;
+        }
+
+        .result-overlay {
+            position: absolute;
+            top: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid #00e676;
+            color: #00e676;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Factor Slide</h1>
+
+    <div class="controls">
+        <button onclick="changeNum(-1)">-</button>
+        <input type="number" id="numInput" value="15" inputmode="numeric">
+        <button onclick="changeNum(1)">+</button>
+        <button onclick="solve()">LOAD</button>
+    </div>
+
+    <div id="canvas-wrapper">
+        <canvas id="mainCanvas"></canvas>
+        <div class="result-overlay" id="resultBox"></div>
+        <div class="instruction" id="instruct">Tap shape to solve</div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. WORKER: FERMAT CALCULATOR
+        // ==========================================
+        const workerScript = `
+            self.onmessage = function(e) {
+                const n = e.data.n;
+                
+                // Find Fermat Pair: N = A^2 - B^2
+                // We want the pair that gives the "Squariest" rectangle (closest factors)
+                // Start A at ceil(sqrt(n))
+                
+                let a = Math.ceil(Math.sqrt(n));
+                let b = 0;
+                let found = false;
+                
+                // Safety limiter for huge primes (in visualizer)
+                const limit = a + 500; 
+                
+                while (a < limit) {
+                    const b2 = a*a - n;
+                    if (b2 >= 0) {
+                        const rootB = Math.sqrt(b2);
+                        if (Number.isInteger(rootB)) {
+                            b = rootB;
+                            found = true;
+                            break;
+                        }
+                    }
+                    a++;
+                }
+                
+                // Factors
+                const f1 = a - b; // Short side
+                const f2 = a + b; // Long side
+                
+                // Geometry Dimensions for Gnomon
+                // Base Arm: Width = A, Height = (A-B)
+                // Side Arm: Width = (A-B), Height = B
+                
+                self.postMessage({
+                    n: n,
+                    a: a,
+                    b: b,
+                    f1: f1, // Height of final rectangle
+                    f2: f2, // Width of final rectangle
+                    found: found
+                });
+            };
+        `;
+
+        const blob = new Blob([workerScript], { type: "application/javascript" });
+        const worker = new Worker(URL.createObjectURL(blob));
+
+        // ==========================================
+        // 2. MAIN LOGIC
+        // ==========================================
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('numInput');
+        const resultBox = document.getElementById('resultBox');
+        const instruct = document.getElementById('instruct');
+
+        let currentData = null;
+        let blocks = [];
+        let state = 'gnomon'; // 'gnomon', 'moving', 'rectangle'
+        let animationFrame;
+
+        // Config
+        const blockSize = 30;
+        const gap = 2;
+
+        function changeNum(delta) {
+            let val = parseInt(input.value) + delta;
+            if (val < 3) val = 3;
+            input.value = val;
+            solve();
+        }
+
+        function solve() {
+            const n = parseInt(input.value);
+            if (!n) return;
+            
+            // Reset
+            state = 'gnomon';
+            resultBox.style.opacity = 0;
+            instruct.style.opacity = 1;
+            instruct.innerText = "Tap shape to solve";
+            
+            worker.postMessage({ n: n });
+        }
+
+        worker.onmessage = function(e) {
+            currentData = e.data;
+            if (!currentData.found) {
+                alert("Calculation too deep for visualizer.");
+                return;
+            }
+            createBlocks();
+            draw();
+        };
+
+        function createBlocks() {
+            blocks = [];
+            const { a, b, f1, f2 } = currentData;
+            
+            // Fermat Geometry:
+            // Gnomon is defined by Outer Square A*A minus Inner B*B
+            // We split this into two static groups for the animation:
+            // Group 1 (Base): The bottom rows. Height = f1 (which is A-B). Width = A.
+            // Group 2 (Mover): The top part of the vertical arm.
+            //    Width = f1 (A-B). Height = B.
+            
+            // 1. Calculate Canvas Size needed
+            // Max width is usually the final rectangle width (f2)
+            // Max height is the Gnomon height (A)
+            
+            const wBlocks = Math.max(a, f2);
+            const hBlocks = Math.max(a, f1);
+            
+            const wPx = wBlocks * (blockSize + gap) + 80;
+            const hPx = hBlocks * (blockSize + gap) + 80;
+            
+            // Resize Canvas
+            const dpr = window.devicePixelRatio || 1;
+            canvas.style.width = wPx + 'px';
+            canvas.style.height = hPx + 'px';
+            canvas.width = wPx * dpr;
+            canvas.height = hPx * dpr;
+            ctx.scale(dpr, dpr);
+            
+            // Centering offsets
+            const startX = 40;
+            const startY = 40;
+
+            // 2. Create Base Blocks (The "Anchor")
+            // This is a rectangle of size [A x (A-B)]
+            // Position: Bottom-Left of the Gnomon
+            // In Gnomon view, it sits at the bottom.
+            
+            const baseHeight = a - b; // f1
+            const baseWidth = a;
+            
+            // Offset Y so Gnomon sits at bottom
+            const gnomonTopY = startY;
+            const baseStartY = gnomonTopY + (b * (blockSize + gap)); 
+
+            let count = 0;
+
+            // Build Base (Green)
+            for (let r = 0; r < baseHeight; r++) {
+                for (let c = 0; c < baseWidth; c++) {
+                    blocks.push({
+                        x: startX + c * (blockSize + gap),
+                        y: baseStartY + r * (blockSize + gap),
+                        color: '#00e676', // Bright Green
+                        group: 'base',
+                        tx: startX + c * (blockSize + gap), // Target is same (it doesn't move)
+                        ty: baseStartY + r * (blockSize + gap)
+                    });
+                    count++;
+                }
+            }
+
+            // 3. Create Mover Blocks (The "Slide")
+            // This is the vertical chunk above the base.
+            // Dimensions: Width = (A-B), Height = B.
+            // Start Pos: Top-Left
+            // Target Pos: Top-Right of the Base? No, to the RIGHT of the base.
+            // Wait, to make a rectangle of size (A+B) x (A-B):
+            // We rotate the vertical chunk 90 degrees?
+            // Actually, visually standard "Fermat Slide" takes the vertical strip
+            // and lays it sideways next to the horizontal strip.
+            // Start: Vertical Strip at (0,0). Width=f1, Height=b.
+            // End: Horizontal Strip at (BaseWidth, 0). Width=b, Height=f1.
+            
+            // Let's iterate the mover blocks
+            const moverWidth = a - b; // f1
+            const moverHeight = b; 
+            
+            for (let r = 0; r < moverHeight; r++) {
+                for (let c = 0; c < moverWidth; c++) {
+                    
+                    // Start Position (Top Left of Gnomon)
+                    const sx = startX + c * (blockSize + gap);
+                    const sy = startY + r * (blockSize + gap);
+                    
+                    // Target Position
+                    // Attached to the RIGHT of the base.
+                    // Base ends at startX + baseWidth*(...)
+                    // We need to rotate coordinates?
+                    // Map (r, c) of mover to (c, r) of target?
+                    // Target X starts at: startX + baseWidth...
+                    // Target Y starts at: baseStartY
+                    
+                    const tx = startX + (baseWidth * (blockSize + gap)) + (r * (blockSize + gap));
+                    const ty = baseStartY + (c * (blockSize + gap));
+                    
+                    blocks.push({
+                        x: sx,
+                        y: sy,
+                        color: '#00c853', // Darker Green
+                        group: 'mover',
+                        tx: tx,
+                        ty: ty
+                    });
+                    count++;
+                }
+            }
+        }
+
+        function animateBlock() {
+            let moving = false;
+            const speed = 0.15;
+            
+            blocks.forEach(b => {
+                if (b.group === 'mover') {
+                    const dx = b.tx - b.x;
+                    const dy = b.ty - b.y;
+                    
+                    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                        b.x += dx * speed;
+                        b.y += dy * speed;
+                        moving = true;
+                    } else {
+                        b.x = b.tx;
+                        b.y = b.ty;
+                    }
+                }
+            });
+
+            draw();
+
+            if (moving) {
+                animationFrame = requestAnimationFrame(animateBlock);
+            } else {
+                // Done
+                state = 'rectangle';
+                showResult();
+            }
+        }
+
+        function showResult() {
+            const { f1, f2, n } = currentData;
+            resultBox.innerText = `Rectangle Locked: ${f1} × ${f2} = ${n}`;
+            resultBox.style.opacity = 1;
+            instruct.innerText = "Solved";
+        }
+
+        function draw() {
+            // Clear
+            const cvsW = canvas.width / (window.devicePixelRatio||1);
+            const cvsH = canvas.height / (window.devicePixelRatio||1);
+            ctx.clearRect(0, 0, cvsW, cvsH);
+
+            // Draw Blocks
+            blocks.forEach(b => {
+                ctx.fillStyle = b.color;
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillRect(b.x + 2, b.y + 2, blockSize, blockSize);
+                
+                // Block
+                ctx.fillStyle = b.color;
+                ctx.fillRect(b.x, b.y, blockSize, blockSize);
+                
+                // Border
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(b.x, b.y, blockSize, blockSize);
+            });
+            
+            // If in Gnomon state, draw outline of the "missing" square?
+            if (state === 'gnomon' && currentData) {
+                // Optional: Hint at the ghost square
+            }
+        }
+
+        // Interaction
+        canvas.addEventListener('click', () => {
+            if (state === 'gnomon') {
+                state = 'moving';
+                instruct.style.opacity = 0;
+                animateBlock();
+            } else if (state === 'rectangle') {
+                // Reset to Gnomon instantly?
+                solve();
+            }
+        });
+
+        // Init
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") solve();
+        });
+        
+        solve();
+
+    </script>
+</body>
+</html>

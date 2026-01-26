@@ -1,0 +1,15 @@
+<h3>Rolling the Bones</h3>
+
+<p>I finally had some downtime at the truck stop to work on the collision logic for the new Dice Roller. I'm avoiding heavy libraries like Matter.js in favor of a custom, lightweight impulse engine.</p>
+
+<img src="./thechronicles/entries/dice_diagram.jpg" style="width:100%; border:1px solid #333; border-radius:4px; margin:15px 0;">
+
+<p>The math is simple enough: check for overlap, separate the bodies, and conserve momentum. The hard part is making it "feel" like a heavy die hitting a wooden table.</p>
+
+<p><strong>Current Challenges:</strong></p>
+<ul>
+    <li><strong>Tunneling:</strong> At high speeds, the dice sometimes clip through the walls. I need to implement continuous collision detection (CCD).</li>
+    <li><strong>Resting:</strong> The dice jitter when they should be still. I added a velocity threshold to force them to "sleep."</li>
+</ul>
+
+<p>Next stop: Adding the texture rotation so they actually look 3D.</p>

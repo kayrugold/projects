@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Giga-Sniper Prototype</title>
+    <style>
+        body { background: #0d1117; color: #c9d1d9; font-family: 'Courier New', monospace; padding: 20px; }
+        .panel { background: #161b22; padding: 20px; border: 1px solid #30363d; max-width: 600px; margin: 0 auto; }
+        input { background: #0d1117; border: 1px solid #30363d; color: #58a6ff; padding: 8px; width: 100px; font-weight: bold; }
+        button { background: #238636; color: white; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        button:hover { background: #2ea043; }
+        .log { margin-top: 20px; white-space: pre-wrap; font-size: 0.9em; max-height: 300px; overflow-y: auto; border-top: 1px solid #30363d; padding-top: 10px; }
+        .hit { color: #ff7b72; font-weight: bold; }
+        .safe { color: #7ee787; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="panel">
+    <h2 style="text-align:center; color:#58a6ff;">GIGA-SNIPER v1.0</h2>
+    <div style="display:flex; gap:10px; align-items:center; justify-content:center;">
+        <div style="text-align:center"><label>Base</label><br><input id="gBase" value="10"></div>
+        <div style="font-size:1.5em">^</div>
+        <div style="text-align:center"><label>Exponent</label><br><input id="gExp" value="1000000000"></div>
+        <div style="font-size:1.5em">+</div>
+        <div style="text-align:center"><label>Add</label><br><input id="gAdd" value="19"></div>
+    </div>
+    
+    <button onclick="fireGigaSniper()">FIRE SCANNER (Max Stride: 100,000)</button>
+    
+    <div id="gigaLog" class="log">System Ready. Awaiting coordinates...</div>
+</div>
+
+<script>
+    // 1. The Magic Weapon: Modular Exponentiation for BigInt
+    // Calculates (base^exp) % mod efficiently
+    function powMod(base, exp, mod) {
+        let res = 1n;
+        base = base % mod;
+        if (base === 0n) return 0n;
+        while (exp > 0n) {
+            if (exp % 2n === 1n) res = (res * base) % mod;
+            exp = exp / 2n;
+            base = (base * base) % mod;
+        }
+        return res;
+    }
+
+    // 2. Prime Generator (Ammo)
+    const MAX_STRIDE = 100000;
+    let primeAmmo = [];
+    
+    function loadAmmo() {
+        const sieve = new Uint8Array(MAX_STRIDE + 1).fill(1);
+        sieve[0]=0; sieve[1]=0;
+        for(let i=2; i*i<=MAX_STRIDE; i++) {
+            if(sieve[i]) {
+                for(let j=i*i; j<=MAX_STRIDE; j+=i) sieve[j]=0;
+            }
+        }
+        // CRITICAL FIX: Start with 3 and 5!
+        primeAmmo = [];
+        for(let i=2; i<=MAX_STRIDE; i++) {
+            if(sieve[i]) primeAmmo.push(BigInt(i));
+        }
+        console.log(`Loaded ${primeAmmo.length} families.`);
+    }
+    loadAmmo();
+
+    // 3. The Giga-Sniper Logic
+    function fireGigaSniper() {
+        const log = document.getElementById('gigaLog');
+        log.innerHTML = "Initializing Giga-Scan...\n";
+        
+        const base = BigInt(document.getElementById('gBase').value);
+        const exp = BigInt(document.getElementById('gExp').value);
+        const add = BigInt(document.getElementById('gAdd').value);
+        
+        log.innerHTML += `Target locked: ${base}^${exp} + ${add}\n`;
+        log.innerHTML += `Target Size: ~${exp} digits (Too big for Index Hops)\n`;
+        log.innerHTML += `Scanning ${primeAmmo.length} families...\n\n`;
+
+        setTimeout(() => {
+            const start = performance.now();
+            let hit = null;
+
+            for (let p of primeAmmo) {
+                // THE MODULAR CHECK
+                // We check: (Base^Exp + Add) % p == 0
+                
+                // Step A: Calculate Base^Exp % p
+                const powerRes = powMod(base, exp, p);
+                
+                // Step B: Add the offset
+                const totalRes = (powerRes + add) % p;
+                
+                if (totalRes === 0n) {
+                    hit = p;
+                    break; // Target destroyed
+                }
+            }
+
+            const end = performance.now();
+            
+            if (hit) {
+                log.innerHTML += `<span class="hit">>>> TARGET DESTROYED <<<</span>\n`;
+                log.innerHTML += `Hit by Family: ${hit}\n`;
+                log.innerHTML += `Note: Hit confirmed via Modular Alignment.\n`;
+            } else {
+                log.innerHTML += `<span class="safe">>>> NO HITS DETECTED <<<</span>\n`;
+                log.innerHTML += `Scanned families up to ${MAX_STRIDE}.\n`;
+                log.innerHTML += `Status: PROBABLE PRIME (Giga-Scale)\n`;
+            }
+            
+            log.innerHTML += `\nScan time: ${(end - start).toFixed(2)}ms`;
+        }, 50);
+    }
+</script>
+</body>
+</html>

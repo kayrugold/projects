@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Two-Phase Factorizer with Chunked GCD</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root {
+  --bg-color: #f3f4f6;
+  --text-color: #1f2937;
+  --card-bg: #fff;
+  --input-border: #d1d5db;
+  --blue-primary: #3b82f6;
+  --green-start: #10b981;
+  --red-stop: #ef4444;
+}
+body { 
+    font-family: 'Inter', system-ui, sans-serif; 
+    background: var(--bg-color); 
+    color: var(--text-color); 
+    display:flex; 
+    justify-content:center; 
+    align-items:flex-start;
+    min-height:100vh; 
+    padding: 1.5rem 1rem;
+}
+.card {
+    width: 100%;
+    max-width: 800px;
+    background: var(--card-bg);
+    box-shadow: 0 10px 25px rgba(0,0,0,.15);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    border-top: 8px solid var(--blue-primary);
+}
+.title {
+    font-size: 1.875rem;
+    font-weight: 800;
+    color: var(--blue-primary);
+    margin-bottom: 0.5rem;
+}
+.subtitle {
+    text-align: center;
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+}
+.input-group { display: flex; flex-direction: column; }
+.label { margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: #374151; }
+.input { 
+    padding: 0.75rem; 
+    border: 1px solid var(--input-border); 
+    border-radius: 0.5rem; 
+    font-size: 1rem; 
+    transition: border-color 0.2s;
+}
+.input:focus { outline: none; border-color: var(--blue-primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+.button { 
+    padding: 0.75rem 1.25rem; 
+    border: none; 
+    border-radius: 0.5rem; 
+    font-weight: 700; 
+    cursor: pointer; 
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.start-btn { background: var(--green-start); color: white; }
+.start-btn:hover:not(:disabled) { background: #059669; transform: translateY(-1px); }
+.stop-btn { background: var(--red-stop); color: white; }
+.stop-btn:hover:not(:disabled) { background: #dc2626; transform: translateY(-1px); }
+.disabled-btn { background: #9ca3af; color: #4b5563; cursor: not-allowed; box-shadow: none; }
+.log-output { 
+    height: 150px; 
+    overflow-y: auto; 
+    background: #1f2937; 
+    color: #4ade80; 
+    padding: 1rem; 
+    border-radius: 0.5rem; 
+    font-family: monospace; 
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+}
+.progress-container { height: 1.5rem; background: #e5e7eb; border-radius: 9999px; overflow: hidden; margin-bottom: 0.5rem; }
+.progress-bar { height: 100%; text-align: center; color: white; font-weight: 600; transition: width 0.3s ease; display: flex; items-center justify-center; }
+.phase-indicator { font-size: 1.125rem; font-weight: 600; padding: 0.5rem; border-radius: 0.5rem; margin-top: 1rem; }
+.sgs-phase { background: #fef3c7; color: #b45309; }
+.line-phase { background: #e0f2fe; color: #1d4ed8; }
+</style>
+</head>
+<body>
+<div class="card">
+    <h1 class="title text-center">Two-Phase Parallel Factorizer (Chunked GCD)</h1>
+    <p class="subtitle">
+        Phase 1: SGS Filter. Phase 2: Factor check uses **Chunked Binary GCD** ($\text{GCD}(N, x) > 1$), demonstrating scalability beyond native BigInt.
+    </p>
+
+    <div class="mb-6 space-y-4">
+        <div class="input-group">
+            <label for="n-input" class="label">Number to Factor ($\mathbf{N}$)</label>
+            <input id="n-input" type="text" class="input" value="1007">
+        </div>
+        <div class="flex space-x-4">
+            <button id="start-btn" class="button start-btn">Start Parallel Search</button>
+            <button id="stop-btn" class="button stop-btn" disabled>Stop Search</button>
+        </div>
+    </div>
+
+    <!-- Status Section -->
+    <div class="mt-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Search Status</h3>
+        
+        <div id="phase-indicator" class="phase-indicator sgs-phase">Idle</div>
+        
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar bg-green-500" style="width: 0%;">0.00%</div>
+        </div>
+    </div>
+    
+    <!-- Results Section -->
+    <div class="mt-8 grid grid-cols-2 gap-4">
+        <div class="bg-indigo-100 p-4 rounded-lg shadow-md">
+            <p class="text-sm font-semibold text-indigo-700">Calculated $S_{\text{min}}$</p>
+            <p id="smin-output" class="text-2xl font-bold text-indigo-900">0</p>
+        </div>
+        <div class="bg-green-100 p-4 rounded-lg shadow-md">
+            <p class="text-sm font-semibold text-green-700">Factors Found</p>
+            <p id="factors-output" class="text-2xl font-bold text-green-900">None Yet</p>
+        </div>
+        <div class="bg-gray-100 p-4 rounded-lg shadow-md col-span-2">
+            <p class="text-sm font-semibold text-gray-700">S-Candidates Found (After Filter)</p>
+            <p id="candidates-output" class="text-xl font-bold text-gray-900">0</p>
+        </div>
+    </div>
+
+    <h3 class="text-xl font-semibold text-gray-800 mt-6 mb-2">Log Output</h3>
+    <pre id="log-output" class="log-output">Log: Ready to begin.</pre>
+</div>
+
+<script>
+// --- Global Constants ---
+const QR_PRIMES = [3n, 5n, 7n, 11n, 13n, 17n];
+const NUM_WORKERS = navigator.hardwareConcurrency || 4;
+const CHUNK_SIZE = 50000n; 
+
+// --- DOM Elements ---
+const nInput = document.getElementById('n-input');
+const startBtn = document.getElementById('start-btn');
+const stopBtn = document.getElementById('stop-btn');
+const sminOutput = document.getElementById('smin-output');
+const factorsOutput = document.getElementById('factors-output');
+const candidatesOutput = document.getElementById('candidates-output');
+const logOutput = document.getElementById('log-output');
+const phaseIndicator = document.getElementById('phase-indicator');
+const progressBar = document.getElementById('progress-bar');
+
+// --- Global State ---
+let isSearching = false;
+let workers = [];
+let N = 0n;
+let SMin = 0n;
+let totalRange = 0n;
+let currentChunkMin = 0n;
+let candidateList = [];
+let foundFactor = null;
+let currentPhase = 'Idle';
+let workerProgress = new Array(NUM_WORKERS).fill(-1);
+let filterCandidates = [];
+
+// --- Math Helpers (Now in Global Scope) ---
+
+/**
+ * Calculates the integer square root of a BigInt n (floor(sqrt(n))).
+ * @param {bigint} n 
+ * @returns {bigint}
+ */
+function integerSqrt(n) {
+    if (n < 0n) return null;
+    if (n < 2n) return n;
+    let x = n;
+    let y = (x + 1n) / 2n;
+    while (y < x) { x = y; y = (x + n / x) / 2n; }
+    return x;
+}
+
+/**
+ * Calculates the starting S-value for S-Search: S_min = 2 * ceil(sqrt(N)).
+ * @param {bigint} number 
+ * @returns {bigint}
+ */
+function calculateSMin(number) {
+    if (number <= 1n) return 2n;
+    const floorSqrtN = integerSqrt(number);
+    let s = floorSqrtN * 2n; 
+    while (s * s <= number * 4n) {
+        s += 1n;
+    }
+    return s;
+}
+
+// --- Worker Code Definition (for Blob URL) ---
+const workerCode = `
+    // --- CHUNKED ARITHMETIC CONSTANTS ---
+    const chunk_size = 9; 
+    const BASE = 10 ** chunk_size;
+
+    // --- UTILITY FUNCTIONS ---
+    function customIntegerSqrt(n) {
+        if (n < 0n) return null;
+        if (n < 2n) return n;
+        let x = n;
+        let y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    }
+    function powMod(base, exp, mod) {
+        let result = 1n;
+        base %= mod;
+        while (exp > 0n) {
+            if ((exp & 1n) === 1n) result = (result * base) % mod;
+            exp >>= 1n;
+            base = (base * base) % mod;
+        }
+        return result;
+    }
+    function legendreSymbol(a, p) {
+        if (a === 0n) return 0;
+        if (p === 2n) return 1;
+        a = (a % p + p) % p;
+        const ls = powMod(a, (p - 1n) / 2n, p);
+        if (ls === p - 1n) return -1;
+        return 1;
+    }
+    function stringToChunks(s) {
+        if (typeof s !== 'string' || s.length === 0) return [0];
+        s = s.trim();
+        const chunks = [];
+        const padLength = (chunk_size - (s.length % chunk_size)) % chunk_size;
+        s = '0'.repeat(padLength) + s;
+        for (let i = 0; i < s.length; i += chunk_size) {
+            chunks.push(parseInt(s.substring(i, i + chunk_size), 10));
+        }
+        return trim(chunks);
+    }
+    function isZero(c) {
+        c = trim(c);
+        return c.length === 1 && c[0] === 0;
+    }
+    function isEven(c) {
+        c = trim(c);
+        if (isZero(c)) return true;
+        return c[c.length - 1] % 2 === 0;
+    }
+    
+    // --- CHUNKED ARITHMETIC IMPLEMENTATION ---
+
+    /** Removes leading zeros. */
+    function trim(c) {
+        let i = 0;
+        if (!Array.isArray(c) || c.length === 0) return [0];
+        while (i < c.length - 1 && c[i] === 0) i++;
+        if (i === c.length) return [0];
+        return c.slice(i);
+    }
+
+    /** Compares two chunked numbers: 1 if A > B, -1 if A < B, 0 if A = B. */
+    function cmp(a, b) {
+        a = trim(a); b = trim(b);
+        if (a.length !== b.length) return a.length > b.length ? 1 : -1;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1;
+        }
+        return 0;
+    }
+    
+    /** Addition: A + B */
+    function add(a, b) {
+        let a_rev = a.slice().reverse(); 
+        let b_rev = b.slice().reverse();
+        let n = Math.max(a_rev.length, b_rev.length), carry = 0, out = [];
+        for (let i = 0; i < n; i++) {
+            let s = (a_rev[i] || 0) + (b_rev[i] || 0) + carry;
+            out.push(s % BASE);
+            carry = Math.floor(s / BASE);
+        }
+        if (carry) out.push(carry);
+        return trim(out.reverse());
+    }
+
+    /** Subtraction: A - B, assumes A >= B. */
+    function sub(a, b) { 
+        let a_rev = a.slice().reverse(); 
+        let b_rev = b.slice().reverse();
+        let n = a_rev.length, borrow = 0, out = [];
+        for (let i = 0; i < n; i++) {
+            let v = (a_rev[i] || 0) - (b_rev[i] || 0) - borrow;
+            if (v < 0) { v += BASE; borrow = 1; } else { borrow = 0; }
+            out.push(v);
+        }
+        return trim(out.reverse());
+    }
+    
+    /** Multiplication by a single chunk/small integer S. */
+    function mulSmall(a, s) {
+        if (s === 0 || isZero(a)) return [0];
+        let a_rev = a.slice().reverse(), carry = 0, out = [];
+        for (const d of a_rev) {
+            let p = d * s + carry;
+            out.push(p % BASE);
+            carry = Math.floor(p / BASE);
+        }
+        while (carry > 0) {
+            out.push(carry % BASE);
+            carry = Math.floor(carry / BASE);
+        }
+        return trim(out.reverse());
+    }
+    
+    /** Divides a chunked number by 2 (right shift). */
+    function divideByTwo(c) {
+        c = trim(c);
+        if (isZero(c)) return [0];
+        let out = [];
+        let carry = 0; 
+        for (const chunk of c) {
+            // Note: Since chunks are < 10^9, val will not exceed 2*10^9, safe in JS number
+            let val = chunk + carry * BASE; 
+            out.push(Math.floor(val / 2));
+            carry = val % 2; 
+        }
+        return trim(out);
+    }
+    
+    /** Naive (Schoolbook) Multiplication, used for GCD factor step. */
+    function mulNaive(a, b) {
+        if (isZero(a) || isZero(b)) return [0];
+        if (a.length < b.length) [a, b] = [b, a];
+
+        let result = [0];
+        let b_rev = b.slice().reverse();
+        
+        for (let i = 0; i < b_rev.length; i++) {
+            const chunk_b = b_rev[i];
+            let partial_product = mulSmall(a, chunk_b);
+            for (let j = 0; j < i; j++) {
+                partial_product.push(0);
+            }
+            result = add(result, partial_product);
+        }
+        return trim(result);
+    }
+
+
+    /** Binary GCD (Stein's) Algorithm using chunked arithmetic. */
+    function chunkedGCD(A, B) {
+        let a = trim(A.slice());
+        let b = trim(B.slice());
+        
+        if (isZero(a)) return b;
+        if (isZero(b)) return a;
+
+        let k = 0; 
+        
+        // Step 1: Divide out common factors of 2
+        while (isEven(a) && isEven(b)) {
+            a = divideByTwo(a);
+            b = divideByTwo(b);
+            k++;
+        }
+        
+        // Step 2: Divide out factors of 2 from A until A is odd
+        while (isEven(a)) {
+            a = divideByTwo(a);
+        }
+        
+        // Step 3: Main loop (A is odd, B might be even or odd)
+        while (!isZero(b)) {
+            // Step 3a: Divide out factors of 2 from B
+            while (isEven(b)) {
+                b = divideByTwo(b);
+            }
+            
+            // Step 3b: Ensure a <= b, then subtract (b = |a - b|)
+            if (cmp(a, b) > 0) { 
+                b = sub(a, b); 
+                [a, b] = [b, a]; // Swap: a becomes the new smaller number
+            } else {
+                b = sub(b, a); // b is now the difference, which must be even
+            }
+        }
+
+        // Step 4: GCD is A * 2^k
+        let result = a;
+        for(let i = 0; i < k; i++) {
+             result = mulSmall(result, 2);
+        }
+        
+        // Check if GCD > 1. A is the resulting GCD (pre-multiplication by 2^k)
+        // If a is [1, 0, 0, ...] or k=0, the GCD is the number in A * 2^k.
+        // We only care if GCD > 1. If A is [1] and k=0, result is [1], so GCD=1.
+        if (cmp(result, [1]) > 0) {
+            return result; // Found non-trivial GCD
+        } else {
+            return [1]; // GCD is 1
+        }
+    }
+
+    // --- FACTORIZATION LOGIC ---
+    
+    // Phase 1 is unchanged (uses BigInt for simplicity, as it's just modular ops)
+    function filterCandidates(data) {
+        // ... (Phase 1 code here, using BigInt for speed as before)
+        const { minS, maxS, N, QR_PRIMES_STR, workerIndex } = data;
+        const N_bi = BigInt(N);
+        const minS_bi = BigInt(minS);
+        const maxS_bi = BigInt(maxS);
+        const fourN = N_bi * 4n;
+        const primes = QR_PRIMES_STR.map(BigInt);
+        let candidates = [];
+        let lastProgress = -1;
+        const totalSteps = maxS_bi - minS_bi;
+
+        for (let S = minS_bi; S <= maxS_bi; S++) {
+            let passes = true;
+            const S_sq = S * S;
+            const D_sq = S_sq - fourN;
+            
+            if (D_sq < 0n) continue;
+
+            for (const p of primes) {
+                const D_mod_p = D_sq % p;
+                if (legendreSymbol(D_mod_p, p) === -1) {
+                    passes = false;
+                    break;
+                }
+            }
+
+            if (passes) { candidates.push(S.toString()); }
+
+            if (totalSteps > 0n && (S - minS_bi) % 1000n === 0n) {
+                const progress = Number((S - minS_bi) * 100n / totalSteps);
+                if (Math.floor(progress) > lastProgress) {
+                    self.postMessage({ type: 'filterProgress', progress: Math.floor(progress), workerIndex });
+                    lastProgress = Math.floor(progress);
+                }
+            }
+        }
+        self.postMessage({ type: 'filterDone', candidates: candidates, workerIndex });
+    }
+
+    // --- Phase 2: Resolve using CHUNKED GCD ---
+    function resolveCandidates(data) {
+        const { S_list, N, workerIndex } = data;
+        const N_bi = BigInt(N);
+        const N_chunks = stringToChunks(N); // N in chunked format for GCD
+        const S_list_bi = S_list.map(BigInt);
+        let foundFactor = null;
+
+        for (let i = 0; i < S_list_bi.length; i++) {
+            const S = S_list_bi[i];
+            
+            // 1. Full S-Search Resolve (Standard Fermat check, still fast)
+            const D_sq = S * S - 4n * N_bi;
+            const D = customIntegerSqrt(D_sq);
+
+            if (D !== null && D * D === D_sq) {
+                 const f1 = (S + D) / 2n;
+                 const f2 = (S - D) / 2n;
+                 if (f2 > 1n) {
+                     foundFactor = { f1: f1.toString(), f2: f2.toString(), S: S.toString() };
+                     break; 
+                 }
+            }
+            
+            // 2. Line Segment Check (New GCD implementation)
+            if (!foundFactor) {
+                 const x_start = customIntegerSqrt(N_bi) || 2n;
+                 const x_end = S / 2n;
+                 
+                 const CHECK_RANGE = 10000n; 
+                 const minX = x_start - CHECK_RANGE < 2n ? 2n : x_start - CHECK_RANGE;
+                 const maxX = x_start + CHECK_RANGE > x_end ? x_end : x_start + CHECK_RANGE;
+
+                 for(let x = minX; x <= maxX; x++) {
+                    const x_str = x.toString();
+                    const x_chunks = stringToChunks(x_str);
+                    
+                    // --- THE GCD CHECK ---
+                    const gcd_chunks = chunkedGCD(N_chunks, x_chunks);
+                    // GCD is > [1] means a non-trivial factor was found
+                    if (cmp(gcd_chunks, [1]) > 0) { 
+                         // Note: We found a factor 'x', which is part of the line segment
+                         // The actual factor is the resulting GCD (x or a factor of x)
+                         const factor_str = gcd_chunks.map(String).join('').replace(/^0+/, ''); 
+
+                         // For simplicity, we assume the GCD is the smallest factor Q
+                         // We must calculate P = N / Q. Since N is BigInt, we use BigInt division
+                         const Q = BigInt(factor_str);
+                         const P = N_bi / Q;
+
+                         foundFactor = { f1: P.toString(), f2: Q.toString(), S: S.toString() };
+                         break;
+                    }
+                 }
+            }
+
+            self.postMessage({ type: 'resolveProgress', progress: Math.floor((i + 1) * 100 / S_list_bi.length), workerIndex });
+            if (foundFactor) break;
+        }
+
+        self.postMessage({ type: 'resolveDone', factor: foundFactor, workerIndex });
+    }
+
+    self.onmessage = function(e) {
+        if (e.data.mode === 'filter') {
+            filterCandidates(e.data);
+        } else if (e.data.mode === 'resolve') {
+            resolveCandidates(e.data);
+        }
+    };
+`;
+const workerUrl = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' }));
+
+
+// --- UI Logic ---
+
+function log(message) {
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    logOutput.textContent += `[${timestamp}] ${message}\n`;
+    logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function setPhase(phase, progress) {
+    currentPhase = phase;
+    phaseIndicator.textContent = phase;
+    progressBar.textContent = `${progress.toFixed(2)}%`;
+    progressBar.style.width = `${progress}%`;
+
+    phaseIndicator.classList.remove('sgs-phase', 'line-phase');
+    if (phase.includes('Filter')) {
+        phaseIndicator.classList.add('sgs-phase');
+        progressBar.style.backgroundColor = '#f59e0b';
+    } else if (phase.includes('Check')) {
+        phaseIndicator.classList.add('line-phase');
+        progressBar.style.backgroundColor = '#3b82f6';
+    } else {
+        progressBar.style.backgroundColor = '#22c55e';
+    }
+}
+
+function updateFilterProgress(workerIndex, progress) {
+    workerProgress[workerIndex] = progress;
+    let activeWorkers = workerProgress.filter(p => p !== -1 && p !== 100);
+    if (activeWorkers.length > 0) {
+        const sum = activeWorkers.reduce((acc, p) => acc + p, 0);
+        const avgProgress = sum / activeWorkers.length;
+        setPhase(currentPhase, avgProgress);
+    }
+}
+
+function updateResolveProgress(workerIndex) {
+    workerProgress[workerIndex] = workerProgress[workerIndex]; // Worker provides its own progress update
+    const numActiveWorkers = workers.filter(w => w !== null).length;
+    
+    if (numActiveWorkers > 0) {
+        const totalProgressSum = workerProgress.reduce((sum, p) => sum + p, 0);
+        const avgProgress = totalProgressSum / numActiveWorkers;
+        setPhase(currentPhase, avgProgress);
+    }
+}
+
+// --- Worker/Chunk Management ---
+
+function assignNextChunk(workerIndex) {
+    const maxS = SMin + totalRange;
+    
+    if (currentChunkMin > maxS) {
+        log(`Worker ${workerIndex} finished all filtering chunks.`);
+        workers[workerIndex] = null;
+        return;
+    }
+
+    const chunkMin = currentChunkMin;
+    let chunkMax = chunkMin + CHUNK_SIZE - 1n;
+    if (chunkMax > maxS) {
+        chunkMax = maxS;
+    }
+
+    currentChunkMin = chunkMax + 1n;
+    
+    log(`Worker ${workerIndex} assigned filter chunk: S [ ${chunkMin.toLocaleString()} to ${chunkMax.toLocaleString()} ]`);
+    
+    const worker = new Worker(workerUrl);
+    worker.onmessage = handleWorkerMessage;
+    workers[workerIndex] = worker;
+
+    worker.postMessage({
+        mode: 'filter',
+        minS: chunkMin.toString(),
+        maxS: chunkMax.toString(),
+        N: N.toString(),
+        QR_PRIMES_STR: QR_PRIMES.map(String),
+        workerIndex: workerIndex
+    });
+    workerProgress[workerIndex] = 0;
+}
+
+function handleWorkerMessage(e) {
+    const data = e.data;
+    const workerIndex = data.workerIndex;
+
+    if (data.type === 'filterDone') {
+        filterCandidates = filterCandidates.concat(data.candidates);
+        workers[workerIndex].terminate();
+        workers[workerIndex] = null;
+        workerProgress[workerIndex] = 100;
+
+        if (workers.every(w => w === null)) {
+             log(`Phase 1 Complete. Found ${filterCandidates.length.toLocaleString()} S-candidates.`);
+             candidateList = filterCandidates;
+             candidatesOutput.textContent = candidateList.length.toLocaleString();
+             
+             startResolvePhase();
+        } else {
+             assignNextChunk(workerIndex);
+        }
+    } else if (data.type === 'filterProgress') {
+         updateFilterProgress(workerIndex, data.progress);
+    } else if (data.type === 'resolveDone') {
+        workers[workerIndex].terminate();
+        workers[workerIndex] = null;
+        workerProgress[workerIndex] = 100;
+
+        if (data.factor && !foundFactor) {
+             foundFactor = data.factor;
+             factorsOutput.textContent = `${foundFactor.f1.toLocaleString()} × ${foundFactor.f2.toLocaleString()}`;
+             log(`🎉 Factor Found! (Worker ${workerIndex}) S=${data.factor.S.toLocaleString()}`);
+             log(`P: ${foundFactor.f1}, Q: ${foundFactor.f2}`);
+             stopSearch();
+             return; 
+        }
+        
+        if (workers.every(w => w === null)) {
+             log('Phase 2 Complete. All S-candidates resolved.');
+             if (!foundFactor) log("No factors found in the search range.");
+             stopSearch();
+        }
+    } else if (data.type === 'resolveProgress') {
+        workerProgress[workerIndex] = data.progress;
+        updateResolveProgress(workerIndex);
+    }
+}
+
+function startResolvePhase() {
+    if (candidateList.length === 0) {
+        log("Filter finished, but no S-candidates were found. Search complete.");
+        stopSearch();
+        return;
+    }
+
+    setPhase('Phase 2: Chunked GCD Check', 0);
+    log(`Phase 2 Starting: Checking ${candidateList.length.toLocaleString()} S-candidates with Chunked GCD.`);
+    log(`NOTE: Chunked GCD is slower than native BigInt modulus, but demonstrates scalability.`);
+    
+    const candidatesPerWorker = Math.ceil(candidateList.length / NUM_WORKERS);
+    
+    workers = new Array(NUM_WORKERS).fill(null); 
+    workerProgress.fill(0); 
+
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        const start = i * candidatesPerWorker;
+        const end = Math.min((i + 1) * candidatesPerWorker, candidateList.length);
+        const workerCandidates = candidateList.slice(start, end);
+
+        if (workerCandidates.length > 0) {
+            const worker = new Worker(workerUrl);
+            worker.onmessage = handleWorkerMessage;
+            workers[i] = worker;
+
+            worker.postMessage({
+                mode: 'resolve',
+                S_list: workerCandidates,
+                N: N.toString(),
+                workerIndex: i
+            });
+        }
+    }
+}
+
+
+function startSearch() {
+    if (isSearching) return;
+    
+    // Reset state
+    logOutput.textContent = '';
+    factorsOutput.textContent = 'None Yet';
+    candidatesOutput.textContent = '0';
+    foundFactor = null;
+    filterCandidates = [];
+    candidateList = [];
+    workers.forEach(w => w?.terminate());
+    workers = new Array(NUM_WORKERS).fill(null);
+    workerProgress.fill(-1);
+    
+    // 1. Validation and Setup
+    const NInputStr = nInput.value;
+    try { N = BigInt(NInputStr); } catch (e) { log('Error: Invalid number format for N.'); return; }
+
+    if (N <= 1n) { log('Error: N must be greater than 1.'); return; }
+
+    // 2. Calculate S_min
+    SMin = calculateSMin(N);
+    sminOutput.textContent = SMin.toLocaleString();
+    
+    log('--- Starting Two-Phase Parallel Factorization (Chunked GCD) ---');
+
+    const MAX_K_STEPS = 500000n;
+    totalRange = MAX_K_STEPS;
+    currentChunkMin = SMin;
+
+    log(`Phase 1: Starting SGS Quadratic Residue Filter on S range [ ${SMin.toLocaleString()} to ${(SMin + MAX_K_STEPS - 1n).toLocaleString()} ]`);
+    
+    // 3. Initialize search
+    isSearching = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    
+    setPhase('Phase 1: SGS Filter (Screening)', 0);
+
+    // 4. Assign initial filter chunks
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        assignNextChunk(i);
+    }
+}
+
+function stopSearch() {
+    workers.forEach(worker => {
+      if (worker) worker.terminate();
+    });
+    workers = new Array(NUM_WORKERS).fill(null);
+    isSearching = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    setPhase('Stopped', 0);
+}
+
+// --- Event Listeners and Initial Setup ---
+window.onload = function() {
+    startBtn.addEventListener('click', startSearch);
+    stopBtn.addEventListener('click', stopSearch);
+
+    // Initial calculation for display
+    try {
+        const initialN = BigInt(nInput.value);
+        SMin = calculateSMin(initialN);
+        sminOutput.textContent = SMin.toLocaleString();
+    } catch {
+        sminOutput.textContent = '0';
+    }
+
+    // Cleanup worker URL on page exit
+    window.addEventListener('beforeunload', () => {
+        URL.revokeObjectURL(workerUrl);
+    });
+};
+</script>
+</body>
+</html>
+

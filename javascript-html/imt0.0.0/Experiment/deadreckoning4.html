@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNOMON HYPER-BREAKER</title>
+<style>
+    :root {
+        --bg: #000000;
+        --core-off: #1a1a1a;
+        --core-on: #00ff41;
+        --core-busy: #008f11;
+        --text: #e2e8f0;
+        --accent: #ff003c;
+    }
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* HEADER */
+    .header {
+        padding: 20px; border-bottom: 2px solid #333;
+        background: #050505; display: flex; justify-content: space-between; align-items: center;
+    }
+    .title { font-weight: 900; font-size: 1.5rem; letter-spacing: 2px; color: #fff; }
+    .status { font-size: 0.8rem; color: #666; }
+
+    /* INPUT ZONE */
+    .control-panel {
+        padding: 20px; background: #0a0a0a;
+        display: grid; grid-template-columns: 1fr auto; gap: 10px;
+        border-bottom: 1px solid #222;
+    }
+    input {
+        background: #000; border: 1px solid #333; color: var(--core-on);
+        padding: 12px; font-family: inherit; font-size: 1.1rem; font-weight: bold;
+        width: 100%; box-sizing: border-box;
+    }
+    button {
+        background: var(--text); color: #000; border: none; padding: 0 30px;
+        font-weight: 900; font-size: 1rem; cursor: pointer;
+        transition: all 0.1s;
+    }
+    button:active { transform: scale(0.98); }
+    button.stop { background: var(--accent); color: #fff; }
+
+    /* CORE GRID */
+    .core-grid {
+        flex: 1; padding: 20px; overflow-y: auto;
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px; align-content: start;
+    }
+    .core-card {
+        background: var(--core-off); border: 1px solid #333;
+        padding: 10px; display: flex; flex-direction: column; gap: 5px;
+        transition: border-color 0.2s;
+    }
+    .core-card.active { border-color: var(--core-on); background: rgba(0, 255, 65, 0.05); }
+    
+    .core-head { display: flex; justify-content: space-between; font-size: 0.7rem; color: #888; }
+    .core-id { font-weight: bold; color: #fff; }
+    .core-val { font-size: 0.9rem; color: var(--core-on); font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .core-speed { font-size: 0.7rem; color: #666; }
+    
+    /* PROGRESS BAR */
+    .progress-strip {
+        height: 4px; background: #111; width: 100%;
+        position: relative; overflow: hidden;
+    }
+    .progress-bar {
+        height: 100%; background: var(--core-on); width: 0%;
+        box-shadow: 0 0 10px var(--core-on);
+    }
+
+    /* RESULT MODAL */
+    .modal {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+        display: none; align-items: center; justify-content: center; z-index: 999;
+    }
+    .modal-content {
+        background: #111; border: 2px solid var(--core-on);
+        padding: 40px; max-width: 800px; width: 90%;
+        box-shadow: 0 0 50px rgba(0, 255, 65, 0.2);
+    }
+    .res-row { margin: 15px 0; border-bottom: 1px solid #333; padding-bottom: 5px; }
+    .res-label { font-size: 0.8rem; color: #888; letter-spacing: 1px; }
+    .res-val { font-size: 1.5rem; color: #fff; word-break: break-all; font-weight: bold; }
+    .highlight { color: var(--core-on); }
+
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="title">HYPER-BREAKER</div>
+    <div class="status" id="sysStatus">SYSTEM IDLE</div>
+</div>
+
+<div class="control-panel">
+    <input type="text" id="inpTarget" value="71641520761751435455133616475667090434063332228247871795429" placeholder="ENTER TARGET N">
+    <button id="btnAction" onclick="toggleEngine()">IGNITE ALL CORES</button>
+</div>
+
+<div class="progress-strip"><div class="progress-bar" id="masterProg"></div></div>
+
+<div class="core-grid" id="cpuGrid">
+    </div>
+
+<div class="modal" id="resultModal">
+    <div class="modal-content">
+        <h1 style="margin:0 0 20px 0; color:var(--core-on);">TARGET FRACTURED</h1>
+        
+        <div class="res-row">
+            <div class="res-label">PRIMARY FACTOR (A)</div>
+            <div class="res-val highlight" id="outA">-</div>
+        </div>
+        <div class="res-row">
+            <div class="res-label">SECONDARY FACTOR (B)</div>
+            <div class="res-val highlight" id="outB">-</div>
+        </div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            <div>
+                <div class="res-label">DEAD RECKONING STEPS (k)</div>
+                <div class="res-val" id="outK" style="font-size:1rem;">-</div>
+            </div>
+            <div>
+                <div class="res-label">3-LINE ORIGIN (Root)</div>
+                <div class="res-val" id="outR" style="font-size:1rem;">-</div>
+            </div>
+        </div>
+
+        <button onclick="document.getElementById('resultModal').style.display='none'" style="margin-top:30px; width:100%; border:1px solid var(--core-on); background:transparent; color:var(--core-on);">CONFIRM</button>
+    </div>
+</div>
+
+<script id="worker-kernel" type="javascript/worker">
+    self.onmessage = function(e) {
+        const { cmd, N_str, workerId, totalWorkers, startK } = e.data;
+        
+        if (cmd === 'ignite') {
+            const N = BigInt(N_str);
+            const step = BigInt(totalWorkers);
+            let k = BigInt(workerId) + BigInt(startK);
+            const chunkSize = 200000;
+            
+            // --- DEAD RECKONING FILTER ---
+            // N % 9 constraint logic
+            // We want A = 2k+3.
+            // If N % 3 != 0, then A % 3 != 0.
+            // (2k+3) % 3 != 0 => always true for integer k? No.
+            // 2k+3 is div by 3 if 2k is div by 3 => k is div by 3.
+            // So if N is not div by 3, k CANNOT be a multiple of 3.
+            // This cuts search by 33% instantly.
+            const nNotDiv3 = (N % 3n !== 0n);
+
+            const t0 = performance.now();
+            let checked = 0;
+
+            while(true) {
+                for (let i = 0; i < chunkSize; i++) {
+                    
+                    // Filter: Skip k if k%3==0 and N not div by 3
+                    if (nNotDiv3) {
+                         // Optimization: If step is multiple of 3, this doesn't change
+                         // If step is coprime to 3, we hit mod0 eventually.
+                         // Simple check:
+                         if (k % 3n === 0n) {
+                             k += step;
+                             continue;
+                         }
+                    }
+
+                    let A = (k << 1n) + 3n; // 2k+3
+                    
+                    if (N % A === 0n) {
+                        let B = N / A;
+                        self.postMessage({ type: 'found', k: k.toString(), A: A.toString(), B: B.toString() });
+                        return;
+                    }
+                    
+                    k += step;
+                    checked++;
+                }
+                
+                // Telemetry
+                const t1 = performance.now();
+                self.postMessage({ type: 'status', currentK: k.toString(), rate: checked, time: t1-t0 });
+                // Reset rate counter in main thread logic, not here to avoid BigInt math overhead
+            }
+        }
+    };
+</script>
+
+<script>
+    // --- MAIN CONTROL ---
+    const workers = [];
+    let isRunning = false;
+    const coreCount = navigator.hardwareConcurrency || 4;
+    let globalRate = 0;
+    
+    // Init Grid
+    const grid = document.getElementById('cpuGrid');
+    for(let i=0; i<coreCount; i++) {
+        let div = document.createElement('div');
+        div.className = 'core-card';
+        div.id = `core-${i}`;
+        div.innerHTML = `
+            <div class="core-head"><span class="core-id">CORE ${i}</span><span>IDLE</span></div>
+            <div class="core-val">0</div>
+            <div class="core-speed">0 ops/s</div>
+        `;
+        grid.appendChild(div);
+    }
+    document.getElementById('sysStatus').innerText = `DETECTED ${coreCount} LOGICAL CORES`;
+
+    function toggleEngine() {
+        if (isRunning) {
+            shutdown();
+        } else {
+            boot();
+        }
+    }
+
+    function boot() {
+        const nStr = document.getElementById('inpTarget').value.trim();
+        if(!nStr) return;
+        
+        isRunning = true;
+        document.getElementById('btnAction').innerText = "EMERGENCY STOP";
+        document.getElementById('btnAction').classList.add('stop');
+        document.getElementById('resultModal').style.display = 'none';
+
+        const blob = new Blob([document.getElementById('worker-kernel').textContent], { type: "text/javascript" });
+        const url = window.URL.createObjectURL(blob);
+
+        // Clear workers
+        workers.length = 0;
+        
+        for(let i=0; i<coreCount; i++) {
+            const w = new Worker(url);
+            
+            // Status Tracking
+            let lastTime = performance.now();
+            let lastK = 0n;
+
+            w.onmessage = function(e) {
+                if(e.data.type === 'found') {
+                    terminateAll(e.data);
+                } else if (e.data.type === 'status') {
+                    // Update UI for this core
+                    const card = document.getElementById(`core-${i}`);
+                    card.classList.add('active');
+                    
+                    // Simple throttle
+                    if (Math.random() > 0.8) {
+                        card.querySelector('.core-val').innerText = BigInt(e.data.currentK).toLocaleString();
+                        // Speed? We need logic. Worker sends accumulated checked.
+                        // Just showing activity for "Enough thinking" mode.
+                        card.querySelector('.core-head span:last-child').innerText = "BUSY";
+                        card.querySelector('.core-head span:last-child').style.color = "var(--core-on)";
+                    }
+                }
+            };
+            
+            workers.push(w);
+            // Stagger start slightly to avoid UI freeze
+            setTimeout(() => {
+                if(isRunning) w.postMessage({ cmd: 'ignite', N_str: nStr, workerId: i, totalWorkers: coreCount, startK: "0" });
+            }, i * 50);
+        }
+    }
+
+    function shutdown() {
+        workers.forEach(w => w.terminate());
+        workers.length = 0;
+        isRunning = false;
+        document.getElementById('btnAction').innerText = "IGNITE ALL CORES";
+        document.getElementById('btnAction').classList.remove('stop');
+        
+        // Reset UI
+        for(let i=0; i<coreCount; i++) {
+            const card = document.getElementById(`core-${i}`);
+            card.classList.remove('active');
+            card.querySelector('.core-head span:last-child').innerText = "HALTED";
+            card.querySelector('.core-head span:last-child').style.color = "#888";
+        }
+    }
+
+    function terminateAll(successData) {
+        shutdown();
+        
+        const k = BigInt(successData.k);
+        const A = BigInt(successData.A);
+        const B = BigInt(successData.B);
+        const R = B - (2n * k); // Approximate root derivation for display
+
+        document.getElementById('outA').innerText = A.toString();
+        document.getElementById('outB').innerText = B.toString();
+        document.getElementById('outK').innerText = k.toString();
+        document.getElementById('outR').innerText = R.toString();
+        
+        document.getElementById('resultModal').style.display = 'flex';
+    }
+
+</script>
+</body>
+</html>

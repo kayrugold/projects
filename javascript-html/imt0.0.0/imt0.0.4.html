@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v6.9 (Counting Engine)</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --pink: #f472b6; --green: #34d399;
+        --input-bg: rgba(0,0,0,0.3);
+        --mod-highlight: #3b82f6; 
+    }
+    * { box-sizing: border-box; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden; 
+    }
+
+    /* --- TOP BAR --- */
+    .top-section {
+        background: var(--panel); border-bottom: 2px solid var(--cyan);
+        padding: 4px 8px; flex-shrink: 0; z-index: 200;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    
+    .controls { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .control-toggles-left, .control-toggles-right { display: flex; gap: 4px; align-items: center; }
+    
+    .toggle-btn { 
+        background: #334155; color: #94a3b8; padding: 0 8px; height: 32px; 
+        display: grid; place-items: center; border-radius: 4px; border:none; 
+        cursor: pointer; font-weight:bold; font-size:0.65rem; transition: all 0.2s; text-transform: uppercase;
+    }
+    .toggle-btn.active { background: var(--cyan); color: #000; box-shadow: 0 0 5px var(--cyan); }
+    #btnGnomon.active { background: var(--pink); color: #000; box-shadow: 0 0 5px var(--pink); }
+
+    .cargo-input-row { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+    #inpFind { 
+        background: #1e293b; border: 1px solid #334155; color: #fff; 
+        padding: 8px; width: 100%; font-family: 'Courier New', monospace; 
+        font-weight: 800; font-size: 1.1rem; outline: none; text-align: center; border-radius: 4px; flex: 1;
+    }
+    #btnFind {
+        background: var(--cyan); color: #000; border: none; border-radius: 4px;
+        font-weight: bold; cursor: pointer; padding: 0 12px; height: 40px; font-size: 0.8rem; white-space: nowrap;
+    }
+
+    /* --- CANVAS --- */
+    .layout { flex: 1; position: relative; overflow: hidden; background: #000; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* --- DECODER --- */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--pink); 
+        display: flex; flex-direction: column; flex-shrink: 0; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8); z-index: 150;
+    }
+    .panel-sec { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 2px; }
+    
+    .big-math { background: #0b1120; }
+    .bm-val { font-size: 1.2rem; font-weight: 900; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;}
+    .bm-sub { font-size: 0.8rem; color: var(--pink); font-weight: bold; margin-top: 2px; }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; padding: 8px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 3px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; margin-bottom: 1px; }
+    .info-input { width: 100%; background: var(--input-bg); border: 1px solid #334155; color: #fff; font-family: inherit; font-weight: bold; font-size: 0.8rem; text-align: center; padding: 2px; border-radius: 4px; outline: none; }
+    .inp-k { color: var(--green); } .inp-b { color: var(--pink); } .inp-a { color: #3b82f6; } .inp-g { color: #fbbf24; }
+
+    /* --- TECH PANEL --- */
+    .tech-panel { background: #020617; border-top: 1px solid var(--border); padding: 0; z-index: 150; flex-shrink: 0; }
+    .tech-header { padding: 6px 10px; background: #0f172a; color: var(--cyan); font-size: 0.75rem; font-weight: bold; display: flex; justify-content: space-between; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .tech-content { padding: 8px; display: none; }
+    .tech-content.open { display: block; }
+
+    /* Tags */
+    .filter-tag { background: var(--mod-highlight); color: #000; padding: 2px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; margin-right: 5px; margin-bottom: 3px; }
+    .filter-tag span { margin-left: 4px; font-weight: 900; }
+
+    #toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.95); border: 1px solid var(--cyan); color: var(--cyan); padding: 10px 20px; border-radius: 30px; font-size: 0.9rem; font-weight: bold; z-index: 1200; opacity: 0; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 0 20px rgba(34, 211, 238, 0.3); }
+    #toast.show { opacity: 1; }
+
+    /* Modals */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(2, 6, 23, 0.95); z-index: 1100; display: none; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(5px); }
+    .modal-card { background: #0f172a; border: 1px solid var(--cyan); width: 100%; max-width: 600px; max-height: 85vh; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); color: #cbd5e1; }
+    .modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-weight: bold; color: var(--cyan); font-size: 1.1rem; }
+    .modal-close { color: #fff; cursor: pointer; font-size: 1.5rem; line-height: 1; }
+    .modal-body { padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<div id="toast">SCANNING...</div>
+
+<div class="top-section">
+    <div class="controls">
+        <div class="control-toggles-left">
+            <button class="toggle-btn" id="btnHelp" title="Field Guide">?</button>
+            <input id="inpZoom" type="range" min="20" max="150" value="64" style="width: 50px;">
+        </div>
+        <div class="control-toggles-right">
+            <button class="toggle-btn active" id="btnTrivials">TRIVIALS</button>
+            <button class="toggle-btn" id="btnGnomon">GNOMON</button>
+            <button class="toggle-btn active" id="btnMirror" title="Toggle Mirror">◥</button>
+            <button class="toggle-btn" id="btnLayout" title="Switch Layout">SPINE</button>
+        </div>
+    </div>
+    <div class="cargo-input-row">
+        <button id="btnFind">FIND ID</button>
+        <input id="inpFind" type="text" placeholder="Enter Tape ID (e.g. 10)">
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="panel-sec big-math">
+        <div>
+            <div class="sec-lbl">SMART ID (a.b)</div>
+            <div id="dispComp" class="bm-val">--</div>
+            <div id="dispSq" class="bm-sub">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">CARGO (N)</div>
+            <div id="dispVal" class="bm-val">--</div>
+            <div id="dispFactors" class="bm-sub" style="color:var(--cyan)">--</div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-lbl">GNOMON INDEX</div>
+            <input id="inpGnomon" type="text" class="info-input inp-g" readonly>
+        </div>
+        <div class="info-item">
+            <div class="info-lbl" id="lblCol">GAP (b)</div>
+            <input id="inpCol" type="text" class="info-input inp-b" onchange="updateFromInput('col')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">ANCHOR (a)</div>
+            <input id="inpA" type="text" class="info-input inp-a" onchange="updateFromInput('a')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">ROW (k)</div>
+            <input id="inpK" type="text" class="info-input inp-k" onchange="updateFromInput('k')">
+        </div>
+    </div>
+</div>
+
+<div class="tech-panel">
+    <div class="tech-header" id="techHeader">
+        <span id="scanStatus">SYSTEM IDLE</span>
+        <span>▼</span>
+    </div>
+    <div class="tech-content" id="techContent">
+        <button id="btnInvertMods" class="toggle-btn" style="width:100%">INVERT MODS</button>
+        <div style="margin-top:10px; padding:8px; border:1px solid #1e293b; background:#0b1120;">
+            <div style="display:flex; gap:5px;">
+                <input id="inpModulus" type="number" placeholder="Modulus" style="flex:1; padding:4px; font-size:0.8rem; background:#1e293b; border:1px solid #334155; color:#fff;">
+                <button id="btnAddFilter" style="background:#3b82f6; border:none; color:#000; font-weight:bold; padding:4px 8px;">ADD</button>
+            </div>
+            <div id="activeFilters" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="helpModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header"><span class="modal-title">Manual</span><span class="modal-close" id="closeHelp">×</span></div>
+        <div class="modal-body">
+            <p><strong>FIND ID:</strong> Enter any Tape ID to jump directly to its coordinates. No calculation limits.</p>
+            <p><strong>Counting Walk:</strong> Anchor (a) follows a sequential walk from the ones diagonal (a=n) to the spine (a=2n-1).</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+let cellS = 64; const HDR_S = 30; 
+let viewAnchor = { r: 0n, c: 0n };
+let scrollX = 0, scrollY = 0;
+let highlight = { r: 0n, c: 0n };
+let hideMirror = true; 
+let layoutMode = 'spine'; 
+let cellCache = new Map();
+let activeModuli = []; let isInvertMod = false;
+let showTrivials = true; let showGnomon = false;
+
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const getTapeID = (row, gap) => { return (row * (row + 1n)) / 2n + gap; }
+    const checkModulus = (N, moduli) => {
+        if (!moduli || moduli.length === 0) return false;
+        try {
+            const N_big = BigInt(N);
+            for(let i=0; i<moduli.length; i++) {
+                if (N_big % BigInt(moduli[i]) === 0n) return true;
+            }
+        } catch(e) { }
+        return false;
+    }
+    const process = (r_in, c_in, mode) => {
+        const r = BigInt(r_in); const c = BigInt(c_in);
+        let P2, P1, k, a, b, isSq;
+        if (mode === 'spine') {
+            k = r; b = c; P2 = (k * 2n) + 1n; P1 = P2 - (b * 2n); a = P2 - b; isSq = (c === 0n);
+        } else {
+            let k_raw = r; let j_raw = c;
+            if (k_raw >= j_raw) { P2 = (k_raw * 2n) + 1n; P1 = (j_raw * 2n) + 1n; k = k_raw; } 
+            else { P2 = (j_raw * 2n) + 1n; P1 = (k_raw * 2n) + 1n; k = j_raw; }
+            b = (P2 - P1) / 2n; a = (P2 + P1) / 2n; isSq = (r === c);
+        }
+        if (P1 <= 0n) return null;
+        const val = P2 * P1;
+        return {
+            r: r_in, c: c_in, k: k.toString(), a: a.toString(), b: b.toString(),
+            tapeID: getTapeID(k, b).toString(), 
+            g: (k + 1n).toString(),
+            val: val.toString().length > 8 ? ".." + val.toString().slice(-6) : val.toString(), 
+            fullVal: val.toString(), isSq: isSq, P2: P2.toString(), P1: P1.toString(),
+            isMod: checkModulus(val, msg.moduli)
+        };
+    };
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.r, it.c, msg.mode)).filter(x => x);
+        self.postMessage({ type: 'batch', payload: res });
+    } else if (msg.cmd === 'cell') {
+        const res = process(msg.r, msg.c, msg.mode);
+        self.postMessage({ type: 'cell', payload: res });
+    }
+});
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+worker.onmessage = (ev) => {
+    if (ev.data.type === 'batch') { ev.data.payload.forEach(p => cellCache.set(`${p.r}|${p.c}`, p)); draw(); }
+    else if (ev.data.type === 'cell') {
+        const p = ev.data.payload; cellCache.set(`${p.r}|${p.c}`, p);
+        if(highlight.r.toString() === p.r && highlight.c.toString() === p.c) updateDecoder(p);
+        draw();
+    }
+};
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function requestBatch() {
+    const w = canvas.width/DPR; const h = canvas.height/DPR;
+    const cols = Math.ceil(w/cellS); const rows = Math.ceil(h/cellS);
+    const items = []; const buffer = 4;
+    for(let r = -buffer; r < rows + buffer; r++) {
+        for (let c = -buffer; c < cols + buffer; c++) {
+            const gridR = viewAnchor.r + BigInt(r); const gridC = viewAnchor.c + BigInt(c);
+            if(gridR<0n || gridC<0n) continue;
+            if(layoutMode==='diag' && hideMirror && gridC > gridR) continue;
+            if(layoutMode==='spine' && gridC > gridR) continue;
+            if(!cellCache.has(`${gridR}|${gridC}`) || (activeModuli.length>0 && cellCache.get(`${gridR}|${gridC}`).isMod===undefined)) 
+                 items.push({r: gridR.toString(), c: gridC.toString()});
+        }
+    }
+    if(items.length) worker.postMessage({cmd:'batch', items, mode: layoutMode, moduli: activeModuli});
+}
+
+function draw() {
+    const w = canvas.width/DPR; const h = canvas.height/DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    while (scrollX > 0) { scrollX -= cellS; viewAnchor.c -= 1n; }
+    while (scrollX <= -cellS) { scrollX += cellS; viewAnchor.c += 1n; }
+    while (scrollY > 0) { scrollY -= cellS; viewAnchor.r -= 1n; }
+    while (scrollY <= -cellS) { scrollY += cellS; viewAnchor.r += 1n; }
+    const colsToDraw = Math.ceil(w/cellS)+1; const rowsToDraw = Math.ceil(h/cellS)+1;
+    const fsBase = Math.floor(cellS*0.22); const fsSmall = Math.max(6, Math.floor(cellS*0.15));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.save(); ctx.translate(HDR_S + scrollX, HDR_S + scrollY); 
+    for (let r = -1; r < rowsToDraw + 1; r++) { 
+        for (let c = -1; c < colsToDraw + 1; c++) {
+            const gridR = viewAnchor.r + BigInt(r); const gridC = viewAnchor.c + BigInt(c);
+            if(gridR < 0n || gridC < 0n) continue;
+            if(layoutMode==='diag' && hideMirror && gridC > gridR) continue;
+            if(layoutMode==='spine' && gridC > gridR) continue;
+            const x = c * cellS; const y = r * cellS;
+            if (x < -cellS || x > w || y < -cellS || y > h) continue;
+            const cell = cellCache.get(`${gridR}|${gridC}`);
+            if (cell && cell.P1 === "1" && !showTrivials) continue;
+            const isSel = (gridR === highlight.r && gridC === highlight.c);
+            const isMod = cell ? cell.isMod : false;
+            let bg = '#111827';
+            if (cell && cell.isSq) bg = 'rgba(59, 130, 246, 0.1)';
+            if (isMod) bg = isInvertMod ? 'rgba(30, 41, 59, 0.4)' : 'rgba(59, 130, 246, 0.2)';
+            if (showGnomon && cell && !isMod && !cell.isSq) { const hue = (Number(gridR % 100n) * 40) % 360; bg = `hsla(${hue}, 60%, 25%, 0.4)`; }
+            ctx.fillStyle = bg; ctx.fillRect(x, y, cellS-1, cellS-1);
+            if (isSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(x+1, y+1, cellS-3, cellS-3); ctx.fillStyle = 'rgba(34, 211, 238, 0.25)'; ctx.fillRect(x+1, y+1, cellS-3, cellS-3); }
+            if (cell) {
+                ctx.fillStyle = showGnomon ? 'rgba(255,255,255,0.7)' : '#334155';
+                ctx.font = '9px monospace'; ctx.textAlign = 'left'; ctx.fillText(cell.tapeID, x + 4, y + 10);
+                ctx.textAlign = 'center'; ctx.font = `bold ${fsBase}px monospace`;
+                ctx.fillStyle = isSel || showGnomon ? '#fff' : (cell.isSq ? '#22d3ee' : '#64748b');
+                ctx.fillText(`${cell.a}.${cell.b}`, x + cellS/2, y + cellS/2 - 2);
+                ctx.font = `${fsSmall}px monospace`; ctx.fillStyle = isSel ? '#fff' : (showGnomon ? '#ccc' : '#444');
+                ctx.fillText(cell.val, x + cellS/2, y + cellS/2 + fsSmall + 2);
+            }
+        }
+    }
+    ctx.restore();
+    ctx.font = 'bold 10px monospace'; ctx.save(); ctx.translate(HDR_S + scrollX, 0);
+    for(let c=-1; c<colsToDraw+1; c++) {
+        const val = viewAnchor.c + BigInt(c); if(val<0n) continue;
+        const x = c * cellS; ctx.fillStyle = '#1e293b'; ctx.fillRect(x, 0, cellS-1, HDR_S);
+        ctx.fillStyle = layoutMode==='spine' ? '#f472b6' : '#22d3ee'; ctx.fillText(val.toString(), x+cellS/2, HDR_S/2);
+    }
+    ctx.restore(); ctx.save(); ctx.translate(0, HDR_S + scrollY);
+    for(let r=-1; r<rowsToDraw+1; r++) {
+        const val = viewAnchor.r + BigInt(r); if(val<0n) continue;
+        const y = r * cellS; ctx.fillStyle = '#1e293b'; ctx.fillRect(0, y, HDR_S, cellS-1);
+        ctx.fillStyle = '#34d399'; ctx.fillText(val.toString(), HDR_S/2, y+cellS/2);
+    }
+    ctx.restore(); ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,HDR_S,HDR_S);
+}
+
+function pan(dx, dy) { scrollX += dx; scrollY += dy; requestBatch(); draw(); }
+function jumpTo(r, c) {
+    viewAnchor = { r: BigInt(r), c: BigInt(c) }; scrollX = 0; scrollY = 0; highlight = { r: BigInt(r), c: BigInt(c) };
+    cellCache.clear(); worker.postMessage({cmd:'cell', r: highlight.r.toString(), c: highlight.c.toString(), mode: layoutMode, moduli: activeModuli}); requestBatch(); draw();
+}
+function tapSelect(clickX, clickY) {
+    const rect = wrap.getBoundingClientRect(); const relX = clickX - rect.left - HDR_S - scrollX; const relY = clickY - rect.top - HDR_S - scrollY;
+    const targetR = viewAnchor.r + BigInt(Math.floor(relY / cellS)); const targetC = viewAnchor.c + BigInt(Math.floor(relX / cellS));
+    if (targetR < 0n || targetC < 0n) return;
+    highlight = { r: targetR, c: targetC }; worker.postMessage({cmd:'cell', r: targetR.toString(), c: targetC.toString(), mode: layoutMode, moduli: activeModuli}); draw();
+}
+function zoomAtPoint(newCellS, clientX, clientY) {
+    const rect = wrap.getBoundingClientRect(); const relX = clientX - rect.left - HDR_S - scrollX; const relY = clientY - rect.top - HDR_S - scrollY;
+    const gC = Number(viewAnchor.c) + (relX / cellS); const gR = Number(viewAnchor.r) + (relY / cellS);
+    cellS = Math.max(20, Math.min(150, newCellS)); document.getElementById('inpZoom').value = cellS;
+    scrollX = Math.round((clientX - rect.left - HDR_S) - (gC - Number(viewAnchor.c)) * cellS);
+    scrollY = Math.round((clientY - rect.top - HDR_S) - (gR - Number(viewAnchor.r)) * cellS);
+    requestBatch(); draw();
+}
+
+let dragging = false, lastX=0, lastY=0, startX=0, startY=0, pDist=0, pS=64, pCX=0, pCY=0;
+wrap.addEventListener('touchstart', e => {
+    if(e.touches.length===2) { dragging=false; pDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); pS=cellS; pCX=(e.touches[0].clientX+e.touches[1].clientX)/2; pCY=(e.touches[0].clientY+e.touches[1].clientY)/2; }
+    else if(e.touches.length===1) { dragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; startX=lastX; startY=lastY; }
+}, {passive:false});
+wrap.addEventListener('touchmove', e => {
+    if(e.touches.length===2) { e.preventDefault(); zoomAtPoint(Math.round(pS * (Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY)/pDist)), pCX, pCY); }
+    else if(dragging && e.touches.length===1) { e.preventDefault(); pan(e.touches[0].clientX-lastX, e.touches[0].clientY-lastY); lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
+}, {passive:false});
+wrap.addEventListener('touchend', e => { dragging=false; if(e.changedTouches.length>0 && e.touches.length===0 && Math.hypot(e.changedTouches[0].clientX-startX, e.changedTouches[0].clientY-startY)<10) tapSelect(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
+wrap.addEventListener('mousedown', e => { dragging=true; lastX=e.clientX; lastY=e.clientY; startX=e.clientX; startY=e.clientY; });
+wrap.addEventListener('mousemove', e => { if(dragging) { pan(e.clientX-lastX, e.clientY-lastY); lastX=e.clientX; lastY=e.clientY; } });
+wrap.addEventListener('mouseup', e => { dragging=false; if(Math.hypot(e.clientX-startX, e.clientY-startY)<5) tapSelect(e.clientX, e.clientY); });
+
+function sqrtBigInt(n) { if(n<2n) return n; let x=n, y=(x+1n)/2n; while(y<x){x=y;y=(x+n/x)/2n;} return x; }
+function handleSearch() {
+    const v = BigInt(document.getElementById('inpFind').value.trim());
+    const k = (sqrtBigInt(8n*v+1n)-1n)/2n; jumpTo(k, v-(k*(k+1n))/2n); showToast(`JUMPED TO ID ${v}`);
+}
+function updateDecoder(p) { document.getElementById('dispComp').innerText=`${p.a}.${p.b}`; document.getElementById('dispSq').innerText=`Tape ID: ${p.tapeID}`; document.getElementById('dispVal').innerText=p.fullVal; document.getElementById('dispFactors').innerText=`${p.P2} × ${p.P1}`; document.getElementById('inpK').value=p.k; document.getElementById('inpCol').value=p.c; document.getElementById('inpA').value=p.a; document.getElementById('inpGnomon').value=p.g; }
+document.getElementById('btnFind').onclick=handleSearch;
+document.getElementById('btnTrivials').onclick=(e)=>{ showTrivials=!showTrivials; e.target.classList.toggle('active'); draw(); };
+document.getElementById('btnGnomon').onclick=(e)=>{ showGnomon=!showGnomon; e.target.classList.toggle('active'); draw(); };
+document.getElementById('btnLayout').onclick=(e)=>{ layoutMode=(layoutMode==='spine')?'diag':'spine'; e.target.innerText=(layoutMode==='spine')?'SPINE':'DIAG'; document.getElementById('btnMirror').disabled=(layoutMode==='spine'); cellCache.clear(); requestBatch(); draw(); };
+document.getElementById('btnMirror').onclick=(e)=>{ if(layoutMode==='spine')return; hideMirror=!hideMirror; e.target.classList.toggle('active'); cellCache.clear(); requestBatch(); draw(); };
+document.getElementById('techHeader').onclick=()=>{ document.getElementById('techContent').classList.toggle('open'); setTimeout(() => { DPR=window.devicePixelRatio||1; canvas.width=wrap.clientWidth*DPR; canvas.height=wrap.clientHeight*DPR; requestBatch(); draw(); }, 50); };
+document.getElementById('btnAddFilter').onclick=()=>{ const M=parseInt(document.getElementById('inpModulus').value); if(!activeModuli.includes(M)){activeModuli.push(M); document.getElementById('activeFilters').innerHTML=activeModuli.map(m=>`<div class="filter-tag" onclick="removeFilter(${m})">Mod ${m} <span>×</span></div>`).join(''); cellCache.clear(); requestBatch(); } };
+window.removeFilter=(M)=>{ activeModuli=activeModuli.filter(m=>m!==M); document.getElementById('activeFilters').innerHTML=activeModuli.map(m=>`<div class="filter-tag" onclick="removeFilter(${m})">Mod ${m} <span>×</span></div>`).join(''); cellCache.clear(); requestBatch(); };
+document.getElementById('btnHelp').onclick=()=>document.getElementById('helpModal').style.display='flex';
+document.getElementById('closeHelp').onclick=()=>document.getElementById('helpModal').style.display='none';
+window.onresize=()=>{ DPR=window.devicePixelRatio||1; canvas.width=wrap.clientWidth*DPR; canvas.height=wrap.clientHeight*DPR; requestBatch(); draw(); };
+window.onload=()=>{ window.onresize(); jumpTo(0n, 0n); };
+</script>
+</body>
+</html>

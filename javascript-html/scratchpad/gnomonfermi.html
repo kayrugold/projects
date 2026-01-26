@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gnomon Hunter v3</title>
+<style>
+    :root {
+        --bg: #020617;
+        --panel: #0f172a;
+        --cyan: #22d3ee;
+        --pink: #f472b6;
+        --purple: #a855f7;
+        --amber: #d97706;
+        --green: #4ade80;
+        --red: #ef4444;
+        --text: #e2e8f0;
+        --font: 'Courier New', monospace;
+    }
+    
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: var(--font);
+        display: flex; flex-direction: column; align-items: center;
+        min-height: 100vh; margin: 0; padding: 20px;
+    }
+
+    h1 { color: var(--cyan); letter-spacing: 2px; text-transform: uppercase; font-size: 1.5rem; margin-bottom: 5px; }
+    .subtitle { color: #64748b; font-size: 0.8rem; margin-bottom: 30px; letter-spacing: 1px;}
+
+    .card {
+        background: var(--panel); border: 1px solid #1e293b;
+        border-radius: 12px; padding: 20px; width: 100%; max-width: 600px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative;
+    }
+
+    .input-group { margin-bottom: 20px; }
+    .input-label { font-size: 0.7rem; color: var(--pink); font-weight: bold; display: block; margin-bottom: 5px; }
+    
+    input[type="text"] {
+        width: 100%; background: #020617; border: 1px solid #334155;
+        color: white; padding: 15px; font-family: var(--font); font-size: 1.2rem;
+        border-radius: 6px; outline: none; transition: border 0.2s;
+        box-sizing: border-box;
+    }
+    input:focus { border-color: var(--cyan); }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+    
+    button {
+        flex: 1; padding: 12px; font-family: var(--font); font-weight: bold;
+        border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+    .btn-run { background: var(--cyan); color: #000; }
+    .btn-stop { background: var(--red); color: #fff; display: none; }
+
+    /* RADAR VISUAL */
+    .radar-box {
+        margin-top: 15px; padding: 10px; background: rgba(0,0,0,0.4);
+        border: 1px solid #334155; border-radius: 6px; display: flex;
+        align-items: center; justify-content: space-between;
+    }
+    .radar-status { font-weight: bold; font-size: 0.9rem; }
+    .radar-icon {
+        width: 12px; height: 12px; border-radius: 50%; background: #334155;
+        box-shadow: 0 0 5px #000;
+    }
+    .radar-icon.pinging { animation: ping 1s infinite; background: var(--purple); }
+    .radar-icon.safe { background: var(--green); box-shadow: 0 0 10px var(--green); }
+    .radar-icon.danger { background: var(--red); box-shadow: 0 0 10px var(--red); }
+
+    @keyframes ping { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(2); } }
+    
+    /* DASHBOARD */
+    .dashboard {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;
+    }
+    .stat-box {
+        background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px;
+        border: 1px solid #1e293b;
+    }
+    .sb-label { font-size: 0.6rem; color: #94a3b8; margin-bottom: 2px; }
+    .sb-val { font-size: 1rem; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .status-bar {
+        grid-column: span 2; padding: 10px; background: #1e293b;
+        color: var(--cyan); font-size: 0.85rem; font-weight: bold;
+        border-radius: 4px; text-align: center;
+        border: 1px dashed #334155;
+    }
+
+    /* RESULT */
+    .result-area {
+        margin-top: 20px; background: #000; padding: 20px; border-radius: 8px;
+        border: 1px solid var(--green); text-align: center; display: none;
+    }
+    .res-eq { font-size: 1.1rem; color: var(--green); margin-bottom: 5px; word-break: break-all; }
+    .res-note { font-size: 0.8rem; color: #64748b; }
+    .prime-alert { border-color: var(--red); }
+    .prime-alert .res-eq { color: var(--red); }
+
+</style>
+</head>
+<body>
+
+<h1>Gnomon Hunter v3</h1>
+<div class="subtitle">RADAR (MILLER-RABIN) + HYBRID ENGINE</div>
+
+<div id="mainCard" class="card">
+    
+    <div class="input-group">
+        <label class="input-label">TARGET COORDINATE</label>
+        <input type="text" id="inpN" value="295927117317317" placeholder="Enter N...">
+    </div>
+
+    <div class="radar-box">
+        <span class="radar-status" id="radarText">RADAR OFFLINE</span>
+        <div id="radarIcon" class="radar-icon"></div>
+    </div>
+
+    <div class="btn-row">
+        <button id="btnStart" class="btn-run" onclick="startHunt()">Engage</button>
+        <button id="btnStop" class="btn-stop" onclick="stopHunt()">Abort</button>
+    </div>
+
+    <div class="dashboard">
+        <div class="status-bar" id="statusText">SYSTEM READY</div>
+        
+        <div class="stat-box">
+            <div class="sb-label">CURRENT OPERATION</div>
+            <div class="sb-val" id="dispOp">--</div>
+        </div>
+        <div class="stat-box">
+            <div class="sb-label">SCAN SPEED (OPS/SEC)</div>
+            <div class="sb-val" id="dispSpeed">0</div>
+        </div>
+    </div>
+
+    <div id="resultArea" class="result-area">
+        <div class="sb-label">RESULT</div>
+        <div class="res-eq" id="finalEq"></div>
+        <div class="res-note" id="finalNote"></div>
+    </div>
+</div>
+
+<script id="worker-code" type="javascript/worker">
+    // --- BIGINT MATH UTILS ---
+    
+    // Modular Exponentiation: (base^exp) % mod
+    function modPow(base, exp, mod) {
+        let result = 1n;
+        base = base % mod;
+        while (exp > 0n) {
+            if (exp % 2n === 1n) result = (result * base) % mod;
+            exp = exp / 2n;
+            base = (base * base) % mod;
+        }
+        return result;
+    }
+
+    // Miller-Rabin Primality Test
+    // Returns TRUE if probably prime, FALSE if composite
+    function isPrimeMR(n) {
+        if (n < 2n) return false;
+        if (n === 2n || n === 3n) return true;
+        if (n % 2n === 0n) return false;
+
+        let d = n - 1n;
+        let s = 0n;
+        while (d % 2n === 0n) {
+            d /= 2n;
+            s++;
+        }
+
+        // Witnesses (deterministic for 64-bit, good enough probabilistic for larger)
+        const witnesses = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n];
+        
+        for (let a of witnesses) {
+            if (n <= a) break;
+            let x = modPow(a, d, n);
+            if (x === 1n || x === n - 1n) continue;
+            let composite = true;
+            for (let r = 1n; r < s; r++) {
+                x = (x * x) % n;
+                if (x === n - 1n) {
+                    composite = false;
+                    break;
+                }
+            }
+            if (composite) return false;
+        }
+        return true;
+    }
+
+    function bitSqrt(value) {
+        if (value < 0n) return -1n;
+        if (value < 2n) return value;
+        let x0 = value / 2n;
+        let x1 = (x0 + value / x0) / 2n;
+        while (x1 < x0) { x0 = x1; x1 = (x0 + value / x0) / 2n; }
+        return x0;
+    }
+
+    self.onmessage = function(e) {
+        if (e.data.type === 'start') {
+            try {
+                const N = BigInt(e.data.n);
+                
+                // --- PHASE 0: RADAR (Primality Test) ---
+                self.postMessage({ type: 'phase', phase: 'RADAR PING...', color: 'purple' });
+                
+                const isPrime = isPrimeMR(N);
+                
+                if (isPrime) {
+                    self.postMessage({ 
+                        type: 'prime_detected', 
+                        msg: 'Target is PRIME. No geometric rectangle exists.' 
+                    });
+                    return;
+                } else {
+                    self.postMessage({ type: 'radar_clear', msg: 'Target is COMPOSITE. Engaging engines.' });
+                }
+
+                // --- PHASE 1: LOW ORBIT (Turbo) ---
+                // Increased range to 500,000 to catch "Medium" factors
+                const limitLow = 500000; 
+                self.postMessage({ type: 'phase', phase: 'Checking Low Orbit...', color: 'amber' });
+                
+                if (N % 2n === 0n) {
+                    self.postMessage({ type: 'found', method: 'Even Check', f1: '2', f2: (N/2n).toString() });
+                    return;
+                }
+
+                // Block Check optimization for small factors
+                let t0 = Date.now();
+                for (let i = 3; i < limitLow; i += 2) {
+                    if (N % BigInt(i) === 0n) {
+                        self.postMessage({ 
+                            type: 'found', 
+                            method: 'Low Orbit Intercept', 
+                            f1: i.toString(), 
+                            f2: (N/BigInt(i)).toString() 
+                        });
+                        return;
+                    }
+                    if (i % 50000 === 1) {
+                         self.postMessage({ type: 'telemetry', op: "Checking Factor: " + i, ops: 0 });
+                    }
+                }
+
+                // --- PHASE 2: FERMI DRIVE ---
+                self.postMessage({ type: 'phase', phase: 'Engaging Fermi Drive...', color: 'cyan' });
+                
+                let outer = bitSqrt(N);
+                if (outer * outer < N) outer++;
+                
+                // Modulo 64 Filter
+                const mod64 = new Uint8Array(64);
+                for(let x=0; x<64; x++) mod64[(x*x)%64] = 1;
+
+                let steps = 0;
+                t0 = Date.now();
+                const BATCH = 20000;
+
+                while (true) {
+                    for (let k=0; k<BATCH; k++) {
+                        const diff = (outer * outer) - N;
+                        
+                        if (mod64[Number(diff & 63n)] === 0) {
+                            outer++;
+                            continue;
+                        }
+
+                        const inner = bitSqrt(diff);
+                        if (inner * inner === diff) {
+                            const f1 = outer - inner;
+                            const f2 = outer + inner;
+                            self.postMessage({ 
+                                type: 'found', 
+                                method: 'Gnomon Geometry', 
+                                f1: f1.toString(), 
+                                f2: f2.toString() 
+                            });
+                            return;
+                        }
+                        outer++;
+                        steps++;
+                    }
+
+                    const now = Date.now();
+                    if (now - t0 > 500) {
+                        const ops = Math.floor((steps * 1000) / (now - t0));
+                        self.postMessage({ type: 'telemetry', op: "Outer Root: " + outer.toString(), ops: ops });
+                        steps = 0;
+                        t0 = now;
+                    }
+                }
+
+            } catch (err) {
+                self.postMessage({ type: 'error', msg: err.message });
+            }
+        }
+    };
+</script>
+
+<script>
+    let worker = null;
+    const el = (id) => document.getElementById(id);
+    const radarIcon = el('radarIcon');
+    const radarText = el('radarText');
+
+    function startHunt() {
+        const nVal = el('inpN').value.replace(/[^0-9]/g, '');
+        if (!nVal) return;
+
+        // UI Reset
+        el('btnStart').style.display = 'none';
+        el('btnStop').style.display = 'block';
+        el('resultArea').style.display = 'none';
+        el('statusText').innerText = "INITIALIZING...";
+        el('statusText').style.color = "var(--cyan)";
+        el('mainCard').classList.remove('prime-alert');
+        
+        // Radar Reset
+        radarIcon.className = 'radar-icon pinging';
+        radarText.innerText = "RADAR SCANNING...";
+        radarText.style.color = "var(--purple)";
+
+        // Worker Init
+        const blob = new Blob([el('worker-code').textContent], {type: "text/javascript"});
+        worker = new Worker(window.URL.createObjectURL(blob));
+
+        worker.onmessage = (e) => {
+            const d = e.data;
+            
+            if (d.type === 'phase') {
+                el('statusText').innerText = d.phase;
+                el('statusText').style.color = `var(--${d.color})`;
+            }
+            else if (d.type === 'radar_clear') {
+                radarIcon.className = 'radar-icon safe';
+                radarText.innerText = "TARGET CONFIRMED COMPOSITE";
+                radarText.style.color = "var(--green)";
+            }
+            else if (d.type === 'prime_detected') {
+                radarIcon.className = 'radar-icon danger';
+                radarText.innerText = "PRIME DETECTED";
+                radarText.style.color = "var(--red)";
+                stopHunt();
+                showPrime(d.msg);
+            }
+            else if (d.type === 'telemetry') {
+                el('dispOp').innerText = d.op;
+                el('dispSpeed').innerText = d.ops.toLocaleString();
+            }
+            else if (d.type === 'found') {
+                stopHunt();
+                showSuccess(d);
+            }
+            else if (d.type === 'error') {
+                el('statusText').innerText = "ERROR: " + d.msg;
+                stopHunt();
+            }
+        };
+
+        worker.postMessage({ type: 'start', n: nVal });
+    }
+
+    function stopHunt() {
+        if(worker) worker.terminate();
+        worker = null;
+        el('btnStart').style.display = 'block';
+        el('btnStop').style.display = 'none';
+        el('statusText').innerText = "IDLE";
+        el('statusText').style.color = "#64748b";
+    }
+
+    function showSuccess(d) {
+        el('statusText').innerText = "TARGET BREACHED";
+        el('statusText').style.color = "var(--green)";
+        el('resultArea').style.display = 'block';
+        el('resultArea').className = 'result-area'; // reset
+        
+        el('finalEq').innerText = `${BigInt(d.f1).toLocaleString()} × ${BigInt(d.f2).toLocaleString()}`;
+        el('finalNote').innerText = `Method: ${d.method}`;
+    }
+
+    function showPrime(msg) {
+        el('statusText').innerText = "ABORTED";
+        el('statusText').style.color = "var(--red)";
+        el('resultArea').style.display = 'block';
+        el('resultArea').className = 'result-area prime-alert';
+        
+        el('finalEq').innerText = "PRIME NUMBER";
+        el('finalNote').innerText = msg;
+    }
+
+</script>
+
+</body>
+</html>

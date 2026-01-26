@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gnomon Hunter v7.3</title>
+<style>
+    :root {
+        --bg: #020617;
+        --panel: #0f172a;
+        --border: #1e293b;
+        --cyan: #22d3ee;
+        --wall: #d97706;      
+        --gnomon: #f472b6;    
+        --text: #e2e8f0;
+        --sq-glow: #3b82f6;   
+        /* Brightened Header Background for contrast */
+        --header-bg: #334155; 
+        --focus-panel-bg: rgba(15, 23, 42, 0.98);
+    }
+    
+    * { box-sizing: border-box; }
+
+    body { 
+        background: var(--bg); color: var(--text); 
+        font-family: 'Courier New', monospace; 
+        height: 100dvh; width: 100vw;
+        margin: 0; padding: 0;
+        display: flex; flex-direction: column; 
+        overflow: hidden;
+    }
+
+    /* CONTROLS (Fixed Top) */
+    .controls { 
+        padding: 5px 10px; background: #0f172a; border-bottom: 1px solid var(--border); 
+        display: flex; gap: 4px; align-items: center; justify-content: space-between;
+        flex-shrink: 0; z-index: 200;
+        height: 50px;
+        width: 100%;
+    }
+    .brand { font-weight: 900; color: #fff; font-size: 0.85rem; letter-spacing: 1px; white-space: nowrap; }
+    
+    .input-group { display: flex; gap: 4px; align-items: center; }
+    
+    /* Responsive label hide on very small screens */
+    .lbl-size { font-size:0.8rem; color:#64748b; font-weight:bold; }
+    @media (max-width: 360px) { .lbl-size { display: none; } }
+
+    .head-input { 
+        background: #1e293b; border: 1px solid #334155; 
+        color: white; padding: 6px 2px; width: 45px; text-align: center; 
+        border-radius: 4px; font-weight: bold; font-family: monospace; font-size: 0.9rem;
+    }
+    
+    .interactive-input {
+        background: rgba(0,0,0,0.3); border: 1px solid #334155;
+        color: inherit; font-family: inherit; font-size: inherit; font-weight: bold;
+        width: 100%; text-align: center; padding: 4px; border-radius: 4px;
+        outline: none; transition: all 0.2s;
+    }
+    .interactive-input:focus {
+        border-color: var(--cyan); background: #000; box-shadow: 0 0 10px rgba(34, 211, 238, 0.2);
+    }
+
+    button { 
+        background: var(--cyan); border: none; padding: 6px 10px; 
+        border-radius: 4px; font-weight: bold; cursor: pointer; color: #000; font-size: 0.75rem;
+        white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-icon { background: #334155; color: #fff; width: 36px; padding: 6px 0; font-size: 1.1em; display:flex; justify-content:center; align-items:center; }
+    .btn-icon.active { background: var(--gnomon); color: #000; }
+
+    /* LAYOUT CONTAINER */
+    .layout { 
+        display: flex; flex-direction: column; 
+        flex: 1; 
+        overflow: hidden; 
+        position: relative;
+        width: 100%;
+    }
+
+    /* GRID SCROLL AREA */
+    .table-wrapper { 
+        flex: 1; 
+        overflow: auto; 
+        position: relative; 
+        background: #000;
+        -webkit-overflow-scrolling: touch;
+        /* Ensure headers stick relative to this container */
+        contain: strict; 
+    }
+    
+    .grid { 
+        display: grid; gap: 2px; padding: 0; /* Padding removed to align sticky headers exactly */
+        padding-bottom: 80px;
+    }
+
+    /* CELL STYLES */
+    .cell {
+        background: #111827; height: 50px; min-width: 50px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        cursor: pointer; position: relative; user-select: none;
+        border: 1px solid #1f2937;
+        transition: opacity 0.2s; 
+    }
+
+    /* === STICKY HEADERS === */
+    .cell.header { 
+        background: var(--header-bg); 
+        color: var(--cyan); font-weight: bold; 
+        position: sticky; 
+        border-color: #475569;
+        opacity: 1 !important;
+        /* Box shadow creates a separator line when scrolling */
+        box-shadow: 0 0 0 1px #000; 
+    }
+    
+    /* Top Row Sticky */
+    .cell.header-top { 
+        top: 0; 
+        z-index: 105; 
+        border-bottom: 2px solid var(--cyan); 
+    }
+    
+    /* Left Col Sticky */
+    .cell.header-left { 
+        left: 0; 
+        z-index: 105; 
+        border-right: 2px solid var(--cyan); 
+    }
+    
+    /* Corner (Top-Left) needs highest Z to stay over both */
+    .cell.corner { 
+        top: 0; left: 0; 
+        z-index: 200; 
+        border: 1px solid var(--cyan); 
+        color: white; 
+        background: #1e293b; /* Slightly darker corner */
+    }
+
+    /* Filter Classes */
+    .cell.dimmed {
+        opacity: 0.4; /* Increased from 0.15 so text is readable */
+        border-color: #111;
+        filter: grayscale(100%);
+    }
+    .cell.hidden-mirror {
+        visibility: hidden; pointer-events: none;
+    }
+
+    /* Visual Markers */
+    .cell.is-wall {
+        background: #1a1005; color: #78350f; border-color: #451a03;
+    }
+    .cell.is-sq {
+        background: rgba(59, 130, 246, 0.15) !important;
+        box-shadow: 0 0 15px var(--sq-glow), inset 0 0 5px var(--sq-glow);
+        border: 2px solid #60a5fa !important;
+        z-index: 5;
+    }
+
+    .g-badge {
+        position: absolute; top: 1px; right: 2px;
+        font-size: 0.55rem; color: #fff; opacity: 0.9;
+        background: #000; padding: 0 3px; border-radius: 2px; border: 1px solid #333;
+    }
+
+    .cell.active { 
+        background: white !important; color: black !important; 
+        transform: scale(1.15); 
+        z-index: 90; 
+        box-shadow: 0 0 25px white; border: 2px solid var(--cyan) !important;
+        opacity: 1 !important; 
+    }
+    .cell.active .val { color: black; }
+    .cell.active .eq { color: #333; }
+    .cell.active .g-badge { color: black; background: transparent; border-color: #000; font-weight: bold; }
+
+    .val { font-size: 0.85rem; font-weight: bold; }
+    .eq { font-size: 0.55rem; opacity: 0.6; margin-top: 1px; }
+
+    /* DECODER PANEL (Bottom Fixed) */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--cyan); 
+        display: flex; flex-direction: column; flex-shrink: 0; 
+        height: 35dvh; 
+        overflow-y: auto; 
+        box-shadow: 0 -10px 50px rgba(0,0,0,0.8); z-index: 150;
+    }
+    @media (min-width: 768px) {
+        .decoder { width: 380px; height: auto; border-top: none; border-left: 3px solid var(--cyan); }
+    }
+
+    .panel-section { padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-title { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+
+    /* MATH DISPLAY */
+    .big-math { background: #0b1120; }
+    .bm-val { font-size: 1.8rem; font-weight: 900; color: #fff; line-height: 1; }
+    .bm-eq { font-size: 0.8rem; color: var(--cyan); font-weight: bold; }
+    .type-tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+
+    /* SUNDARAM GRID */
+    .sun-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; margin-top: 5px;}
+    .sun-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 5px; border-radius: 4px; text-align: center; }
+    .sun-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; margin-bottom: 2px; }
+    
+    .sun-item input { font-size: 1rem; color: #fff; }
+    .sun-item.k-box { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); }
+    .sun-item.k-box input { color: #34d399; }
+    .sun-item.k-box .sun-lbl { color: #34d399; }
+
+    /* GNOMON VIZ */
+    .canvas-container { 
+        flex: 1; min-height: 120px; position: relative;
+        background: radial-gradient(circle, #1e293b 0%, #020617 80%);
+        display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    canvas { max-width: 90%; max-height: 90%; }
+    .g-overlay {
+        position: absolute; bottom: 5px; width: 100%; text-align: center;
+        font-size: 0.75rem; color: #fff; text-shadow: 0 2px 4px #000; pointer-events: none;
+    }
+
+    /* === FOCUS MENU (Right Slider) === */
+    .focus-menu {
+        position: absolute; top: 0; right: 0; bottom: 0; width: 260px;
+        background: var(--focus-panel-bg); border-left: 2px solid var(--cyan);
+        z-index: 300; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex; flex-direction: column; backdrop-filter: blur(10px);
+    }
+    .focus-menu.open { transform: translateX(0); }
+    
+    .focus-header { 
+        padding: 15px; background: #0b1120; border-bottom: 1px solid var(--cyan); 
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .focus-title { font-weight: bold; color: var(--cyan); letter-spacing: 1px; }
+    .focus-close { cursor: pointer; color: #fff; font-size: 1.2rem; padding: 5px; }
+
+    .focus-content { padding: 15px; overflow-y: auto; flex: 1; }
+    
+    .control-block { margin-bottom: 25px; }
+    .control-label { font-size: 0.75rem; color: #94a3b8; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
+    
+    /* Toggle Switch */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; cursor: pointer; }
+    .toggle-label { font-size: 0.9rem; color: #e2e8f0; }
+    .toggle-switch { 
+        width: 40px; height: 20px; background: #334155; border-radius: 10px; position: relative; transition: 0.2s;
+    }
+    .toggle-switch::after {
+        content:''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; 
+        background: #fff; border-radius: 50%; transition: 0.2s;
+    }
+    .toggle-row.active .toggle-switch { background: var(--gnomon); }
+    .toggle-row.active .toggle-switch::after { transform: translateX(20px); }
+
+    /* Modulus List */
+    .mod-list { display: flex; flex-direction: column; gap: 8px; }
+    .mod-item { 
+        display: flex; gap: 5px; align-items: center; 
+        background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;
+    }
+    .mod-item input { width: 100%; border: none; background: transparent; color: white; text-align: center; font-family: monospace; font-size:1.1rem;}
+    .btn-remove { background: #ef4444; color: white; padding: 6px 8px; font-size: 0.75rem; width: auto; font-weight:bold; }
+    .btn-add { background: #334155; color: var(--cyan); width: 100%; margin-top: 5px; padding: 12px; font-size:0.85rem;}
+
+    /* HELP MODAL */
+    .help-modal {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(2, 6, 23, 0.95); z-index: 2000;
+        display: none; justify-content: center; align-items: center;
+        padding: 20px; backdrop-filter: blur(5px);
+    }
+    .help-modal.active { display: flex; animation: fadeIn 0.2s; }
+    @keyframes fadeIn { from {opacity:0} to {opacity:1} }
+    .help-card {
+        background: #0f172a; border: 1px solid var(--cyan);
+        width: 100%; max-width: 600px; max-height: 80vh;
+        border-radius: 12px; display: flex; flex-direction: column;
+        box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    }
+    .help-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .help-content { padding: 20px; overflow-y: auto; font-size: 0.85rem; color: #cbd5e1; line-height: 1.6; }
+    .help-close { color: var(--cyan); font-size: 1.5rem; cursor: pointer; font-weight: bold; }
+
+</style>
+</head>
+<body>
+
+<div class="controls">
+    <div class="input-group">
+        <span class="brand">GNOMON HUNTER</span>
+        <button class="btn-icon" onclick="toggleHelp()" style="width:28px; height:28px; font-size:0.8rem; margin-left:5px;">?</button>
+    </div>
+    <div class="input-group">
+        <span class="lbl-size">SIZE:</span>
+        <input id="inpMax" class="head-input" type="number" value="31" min="1" step="2">
+        <button onclick="render()">LOAD</button>
+        <button class="btn-icon" id="btnMenu" onclick="toggleMenu()" style="margin-left:5px;">☰</button>
+    </div>
+</div>
+
+<div class="layout">
+    <div class="table-wrapper">
+        <div id="grid" class="grid"></div>
+    </div>
+
+    <div id="focusMenu" class="focus-menu">
+        <div class="focus-header">
+            <span class="focus-title">FOCUS FILTERS</span>
+            <span class="focus-close" onclick="toggleMenu()">→</span>
+        </div>
+        <div class="focus-content">
+            
+            <div class="control-block">
+                <div class="control-label">View Modes</div>
+                <div class="toggle-row" id="togMirror" onclick="setMirror(!state.mirror)">
+                    <span class="toggle-label">Show Mirror</span>
+                    <div class="toggle-switch"></div>
+                </div>
+            </div>
+
+            <div class="control-block">
+                <div class="control-label">Modulus Walls (Remover)</div>
+                <div style="font-size: 0.7rem; color:#64748b; margin-bottom:8px; line-height:1.4;">
+                    Adding a Modulus (e.g. 5) will <strong>DIM</strong> all multiples of 5. They remain visible but faded.
+                </div>
+                <div id="modList" class="mod-list">
+                    </div>
+                <button class="btn-add" onclick="addModulus()">+ ADD FILTER</button>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="decoder">
+        
+        <div class="panel-section big-math">
+            <div>
+                <div class="sec-title">VALUE</div>
+                <div id="dispVal" class="bm-val">--</div>
+            </div>
+            <div style="text-align:right">
+                <div class="sec-title">FACTORS</div>
+                <div id="dispEq" class="bm-eq">--</div>
+                <div id="dispType" class="type-tag" style="margin-top:5px; display:inline-block;">--</div>
+            </div>
+        </div>
+
+        <div class="panel-section" style="display:block">
+            <div class="sec-title">SUNDARAM INPUTS (k = i + j + 2ij)</div>
+            <div class="sun-grid">
+                <div class="sun-item">
+                    <div class="sun-lbl">ROW (i)</div>
+                    <input id="inpI" type="number" class="interactive-input" onchange="updateFromInputs('i')">
+                </div>
+                <div class="sun-item">
+                    <div class="sun-lbl">COL (j)</div>
+                    <input id="inpJ" type="number" class="interactive-input" onchange="updateFromInputs('j')">
+                </div>
+                <div class="sun-item k-box">
+                    <div class="sun-lbl">INDEX (k)</div>
+                    <input id="inpK" type="number" class="interactive-input" onchange="updateFromInputs('k')">
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="viz"></canvas>
+            <div class="g-overlay">
+                Outer: <span id="dispOuter" style="color:#38bdf8">--</span>² 
+                - Inner: <span id="dispInner" style="color:#f472b6">--</span>²
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="helpModal" class="help-modal">
+    <div class="help-card">
+        <div class="help-header">
+            <span class="brand" style="color:white">GNOMON FIELD GUIDE</span>
+            <span class="help-close" onclick="toggleHelp()">×</span>
+        </div>
+        <div class="help-content">
+            <h3>Hunter Tools v7.3</h3>
+            <ul>
+                <li><strong>Headers:</strong> Top row and Left column are now sticky and higher contrast.</li>
+                <li><strong>Menu (☰):</strong> Open the side menu for filters.</li>
+                <li><strong>Modulus Walls:</strong> Add a number (e.g., 5). Multiples of 5 will be DIMMED.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const grid = document.getElementById('grid');
+    const canvas = document.getElementById('viz');
+    const ctx = canvas.getContext('2d');
+
+    // STATE
+    const state = {
+        mirror: true,
+        mods: [] // { val: 3, id: 123 }
+    };
+
+    // --- MENU LOGIC ---
+    function toggleMenu() {
+        const m = document.getElementById('focusMenu');
+        const b = document.getElementById('btnMenu');
+        m.classList.toggle('open');
+        b.classList.toggle('active');
+    }
+
+    function setMirror(bool) {
+        state.mirror = bool;
+        const el = document.getElementById('togMirror');
+        if(bool) el.classList.add('active');
+        else el.classList.remove('active');
+        applyFilters();
+    }
+    
+    // Initialize Toggle visual
+    setMirror(true);
+
+    // Modulus Logic
+    function addModulus() {
+        const id = Date.now();
+        state.mods.push({ val: 5, id: id }); 
+        renderModList();
+        applyFilters();
+    }
+
+    function removeMod(id) {
+        state.mods = state.mods.filter(m => m.id !== id);
+        renderModList();
+        applyFilters();
+    }
+
+    function updateModVal(id, newVal) {
+        const m = state.mods.find(x => x.id === id);
+        if(m) {
+            let v = parseInt(newVal);
+            if(isNaN(v) || v < 1) v = 1;
+            m.val = v;
+            applyFilters();
+        }
+    }
+
+    function renderModList() {
+        const list = document.getElementById('modList');
+        list.innerHTML = '';
+        state.mods.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'mod-item';
+            div.innerHTML = `
+                <span style="font-size:0.8rem; color:#aaa; font-weight:bold;">DIM</span>
+                <input type="number" value="${m.val}" onchange="updateModVal(${m.id}, this.value)">
+                <button class="btn-remove" onclick="removeMod(${m.id})">REM</button>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    // --- GRID FILTERING ---
+    function applyFilters() {
+        const cells = document.querySelectorAll('.cell');
+        
+        cells.forEach(cell => {
+            // Ignore headers, they are special
+            if(cell.classList.contains('header')) return; 
+
+            const rowF = parseInt(cell.dataset.r);
+            const colF = parseInt(cell.dataset.c);
+            const val = parseInt(cell.dataset.val);
+            
+            let shouldHide = false;
+            let shouldDim = false;
+
+            // 1. Mirror Check
+            if (!state.mirror && colF > rowF) {
+                shouldHide = true;
+            }
+
+            // 2. Modulus Check (DIM IF MATCH)
+            if (state.mods.length > 0) {
+                state.mods.forEach(m => {
+                    // If the value is a multiple of the Modulus, DIM IT.
+                    if (val % m.val === 0) shouldDim = true;
+                });
+            }
+
+            // Apply Classes
+            if (shouldHide) cell.classList.add('hidden-mirror');
+            else cell.classList.remove('hidden-mirror');
+
+            if (shouldDim) cell.classList.add('dimmed');
+            else cell.classList.remove('dimmed');
+        });
+    }
+
+    // --- RENDER LOGIC ---
+    function render() {
+        let max = parseInt(document.getElementById('inpMax').value);
+        if (max < 1) max = 1;
+        if (max % 2 === 0) max++;
+
+        const factors = [];
+        for(let n=1; n<=max; n+=2) factors.push(n);
+        const size = factors.length;
+
+        grid.style.gridTemplateColumns = `50px repeat(${size}, 60px)`;
+        grid.innerHTML = '';
+
+        // Headers
+        grid.appendChild(createCell('cell corner header', '×'));
+        factors.forEach(f => grid.appendChild(createCell('cell header header-top', f)));
+
+        let firstCell = null;
+
+        factors.forEach(rowF => {
+            grid.appendChild(createCell('cell header header-left', rowF));
+
+            factors.forEach(colF => {
+                let val = rowF * colF;
+                let cell = createCell('cell', '');
+                
+                cell.dataset.r = rowF;
+                cell.dataset.c = colF;
+                cell.dataset.val = val;
+
+                const isSq = (rowF === colF);
+                const isWall = (val % 3 === 0);
+                const gIndex = (2 * rowF) - 1;
+
+                if (isSq) cell.classList.add('is-sq');
+                if (isWall) cell.classList.add('is-wall');
+                
+                cell.innerHTML = `
+                    <span class="val">${val}</span>
+                    <span class="eq">${rowF}×${colF}</span>
+                    ${isSq ? `<div class="g-badge">${gIndex}</div>` : ''}
+                `;
+
+                const i = (rowF - 1) / 2;
+                const j = (colF - 1) / 2;
+
+                cell.onclick = () => {
+                    document.querySelectorAll('.cell.active').forEach(c => c.classList.remove('active'));
+                    cell.classList.add('active');
+                    document.getElementById('inpI').value = i;
+                    document.getElementById('inpJ').value = j;
+                    updateFromInputs('grid');
+                };
+
+                if(!firstCell) firstCell = { el: cell };
+                grid.appendChild(cell);
+            });
+        });
+
+        applyFilters();
+
+        if(firstCell) firstCell.el.click();
+    }
+
+    function createCell(cls, content) {
+        const d = document.createElement('div');
+        d.className = cls;
+        d.innerText = content;
+        return d;
+    }
+
+    // --- INTERACTIVE LOGIC ---
+    function updateFromInputs(source) {
+        let i = parseInt(document.getElementById('inpI').value) || 0;
+        let j = parseInt(document.getElementById('inpJ').value) || 0;
+        let k = parseInt(document.getElementById('inpK').value) || 0;
+
+        if (source === 'k') {
+            const N = 2*k + 1;
+            const factors = getFactors(N); 
+            i = (factors.a - 1) / 2;
+            j = (factors.b - 1) / 2;
+            document.getElementById('inpI').value = i;
+            document.getElementById('inpJ').value = j;
+        } else {
+            k = i + j + (2*i*j);
+            document.getElementById('inpK').value = k;
+        }
+
+        const A = 2*i + 1;
+        const B = 2*j + 1;
+        const val = A * B;
+        const type = (val % 4 === 1) ? 1 : 2;
+        const isWall = (val % 3 === 0);
+
+        const outer = (A + B) / 2;
+        const inner = Math.abs(A - B) / 2;
+
+        document.getElementById('dispVal').innerText = val;
+        document.getElementById('dispEq').innerText = `${A} × ${B}`;
+        
+        const tBadge = document.getElementById('dispType');
+        tBadge.innerText = `TYPE ${type} (4k+${type===1?1:3})`;
+        tBadge.style.backgroundColor = type === 1 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(249, 115, 22, 0.2)';
+        tBadge.style.color = type === 1 ? '#22c55e' : '#f97316';
+
+        document.getElementById('dispOuter').innerText = outer;
+        document.getElementById('dispInner').innerText = inner;
+
+        drawGnomon(outer, inner, isWall);
+    }
+
+    function getFactors(n) {
+        let a = 1, b = n;
+        for(let i = Math.floor(Math.sqrt(n)); i > 0; i--) {
+            if(n % i === 0) {
+                a = i; b = n/i;
+                break;
+            }
+        }
+        return {a, b};
+    }
+
+    function drawGnomon(outer, inner, isWall) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        const rect = canvas.parentNode.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height) || 300;
+        const dpr = window.devicePixelRatio || 1;
+        
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, size, size);
+
+        let padding = 30;
+        let avail = size - (padding * 2);
+        let unit = avail / outer; 
+        let cx = size / 2, cy = size / 2;
+
+        let colorStroke = isWall ? '#d97706' : '#38bdf8';
+        let colorFill = isWall ? 'rgba(217, 119, 6, 0.1)' : 'rgba(56, 189, 248, 0.1)';
+        const oSize = outer * unit;
+        
+        ctx.fillStyle = colorFill;
+        ctx.strokeStyle = colorStroke;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.rect(cx - oSize/2, cy - oSize/2, oSize, oSize);
+        ctx.fill();
+        ctx.stroke();
+
+        const iSize = inner * unit;
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#f472b6';
+        ctx.lineWidth = 2;
+
+        if (inner > 0) {
+            ctx.beginPath();
+            ctx.rect(cx - iSize/2, cy - iSize/2, iSize, iSize);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(244, 114, 182, 0.3)';
+            ctx.moveTo(cx - iSize/2, cy - iSize/2); ctx.lineTo(cx + iSize/2, cy + iSize/2);
+            ctx.moveTo(cx + iSize/2, cy - iSize/2); ctx.lineTo(cx - iSize/2, cy + iSize/2);
+            ctx.stroke();
+        }
+    }
+
+    function toggleHelp() {
+        const el = document.getElementById('helpModal');
+        el.classList.toggle('active');
+    }
+
+    render();
+
+</script>
+</body>
+</html>

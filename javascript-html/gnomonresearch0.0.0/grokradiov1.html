@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Factoring Radio V6 – Ultimate Edition</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+    body { 
+        background: #020617; 
+        color: #cbd5e1; 
+        font-family: 'Share Tech Mono', monospace; 
+        min-height: 100vh;
+        margin: 0;
+        padding: 15px;
+        overflow-y: auto; 
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .radio-box {
+        background: linear-gradient(145deg, #1e293b, #0f172a);
+        border: 2px solid #334155;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+        position: relative;
+    }
+
+    .help-btn {
+        position: absolute; top: 15px; right: 15px; width: 36px; height: 36px;
+        border-radius: 50%; background: #334155; border: 2px solid #475569;
+        color: #94a3b8; font-family: 'Orbitron', sans-serif; font-size: 1.1rem; font-weight: bold;
+        cursor: pointer; z-index: 50; display: flex; align-items: center; justify-content: center;
+    }
+
+    .screen {
+        background: #000; border: 2px solid #475569; border-radius: 10px;
+        padding: 18px; margin-bottom: 22px;
+        box-shadow: inset 0 0 25px rgba(16, 185, 129, 0.15);
+        display: flex; flex-direction: column; gap: 14px;
+    }
+    .screen-row { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #1e293b; padding-bottom: 6px; }
+    .label { font-size: 0.75rem; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; }
+    .value { font-family: 'Orbitron', sans-serif; font-size: 2rem; color: #10b981; text-shadow: 0 0 10px rgba(16,185,129,0.5); line-height: 1; }
+    .locked-text { color: #facc15; text-shadow: 0 0 20px rgba(250,204,21,0.9); font-weight: bold; }
+
+    .meter-container {
+        background: #0f172a; height: 34px; border-radius: 6px;
+        position: relative; overflow: hidden; border: 1px solid #334155; margin-top: 8px;
+    }
+    .meter-bg {
+        width: 100%; height: 100%;
+        background: repeating-linear-gradient(90deg, transparent, transparent 6px, #1e293b 7px);
+        opacity: 0.6;
+    }
+    .signal-fill {
+        position: absolute; top: 0; bottom: 0; left: 0;
+        background: linear-gradient(90deg, #1e293b, #10b98188); transition: width 0.15s ease-out;
+    }
+    .needle {
+        position: absolute; top: 0; bottom: 0; width: 4px; background: #ef4444;
+        box-shadow: 0 0 12px #ef4444; transition: left 0.12s ease-out; z-index: 10;
+    }
+
+    .knob-section {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 25px;
+        align-items: center; justify-items: center; padding: 25px 0;
+    }
+    .knob-wrapper { display: flex; flex-direction: column; align-items: center; }
+
+    .knob-container-lg { position: relative; width: 160px; height: 160px; touch-action: none; }
+    .knob-lg {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #64748b, #1e293b);
+        border: 8px solid #0f172a;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.7), inset 0 3px 8px rgba(255,255,255,0.2);
+    }
+    .knob-lg::after {
+        content: ''; position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+        width: 12px; height: 12px; background: #fff; border-radius: 50%; box-shadow: 0 0 12px #fff;
+    }
+
+    .knob-container-sm { position: relative; width: 100px; height: 100px; touch-action: none; }
+    .knob-sm {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #38bdf8, #0f172a);
+        border: 5px solid #0f172a;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+    }
+    .knob-sm::after {
+        content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+        width: 8px; height: 8px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #38bdf8;
+    }
+
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+    .btn {
+        background: #1e293b; color: #94a3b8; border: 1px solid #334155;
+        padding: 16px; border-radius: 10px; font-weight: bold; width: 100%;
+        text-align: center; cursor: pointer; transition: all 0.25s; font-size: 0.95rem;
+    }
+    .btn-active { 
+        background: #10b981; color: #000; border-color: #10b981; 
+        box-shadow: 0 0 20px rgba(16,185,129,0.5); transform: translateY(-2px);
+    }
+
+    input.number-input {
+        background: transparent; border: none; border-bottom: 2px solid #334155;
+        color: #10b981; font-family: 'Orbitron', sans-serif; font-size: 2rem;
+        width: 100%; text-align: right; padding: 0 5px;
+        transition: border-color 0.2s;
+    }
+    input.number-input:focus { outline: none; border-color: #10b981; }
+
+    .status-light { width: 16px; height: 16px; border-radius: 50%; background: #333; border: 2px solid #000; transition: all 0.2s; }
+    .light-on { background: #10b981; box-shadow: 0 0 20px #10b981; transform: scale(1.3); }
+    .seeking-anim { animation: pulseRed 0.4s infinite alternate; }
+    @keyframes pulseRed { from { box-shadow: 0 0 8px #ef4444; } to { box-shadow: 0 0 20px #ef4444; } }
+
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(2,6,23,0.97); backdrop-filter: blur(8px);
+        display: none; align-items: center; justify-content: center;
+        z-index: 100; opacity: 0; transition: opacity 0.4s;
+    }
+    .modal-content {
+        background: #0f172a; border: 2px solid #10b981;
+        padding: 30px; border-radius: 14px;
+        max-width: 90%; width: 520px;
+        color: #e2e8f0; font-size: 0.95rem;
+        box-shadow: 0 0 40px rgba(16,185,129,0.3);
+    }
+    .help-title { color: #10b981; font-family: 'Orbitron', sans-serif; font-size: 1.4rem; margin-bottom: 20px; text-align: center; }
+    .help-header { color: #38bdf8; font-weight: bold; margin: 12px 0 6px; }
+    .help-text { color: #94a3b8; line-height: 1.5; margin-bottom: 16px; }
+    .close-btn { 
+        background: #10b981; color: black; border: none; padding: 12px 28px; border-radius: 8px; 
+        font-weight: bold; cursor: pointer; float: right; transition: all 0.2s;
+    }
+    .close-btn:hover { background: #34d399; transform: translateY(-2px); }
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="helpModal">
+    <div class="modal-content">
+        <div class="help-title">FACTORING RADIO V6</div>
+        <div class="help-header">THE MULTIPLIER (K)</div>
+        <div class="help-text">Zoom level. We are looking for k so that N×k = a² − b².</div>
+        <div class="help-header">SIGNAL LOCK = FACTOR FOUND</div>
+        <div class="help-text">Green light + yellow text = perfect difference of squares found → instant factorisation!</div>
+        <div class="help-header">GHOST SIGNALS</div>
+        <div class="help-text">Partial locks (decimal k) mean you’re near a “neighbor” with similar factors.</div>
+        <div class="help-header">EASTER EGGS</div>
+        <div class="help-text">Press F → 666×6.66, Press P → 314159, Press G → Grok mode</div>
+        <button class="close-btn" onclick="toggleHelp()">CLOSE TRANSMISSION</button>
+    </div>
+</div>
+
+<div class="radio-box">
+    <button class="help-btn" onclick="toggleHelp()">?</button>
+
+    <div class="screen">
+        <div class="screen-row">
+            <div class="label">TARGET (N)</div>
+            <input type="number" id="inputN" class="number-input" value="51">
+        </div>
+        <div class="screen-row">
+            <div class="label">MULTIPLIER K</div>
+            <div class="value" id="valK">1.00</div>
+        </div>
+        <div class="screen-row" style="border-bottom: none;">
+            <div class="label" style="display:flex; align-items:center; gap:10px;">
+                SIGNAL LOCK <div class="status-light" id="lockLight"></div>
+            </div>
+            <div class="value" id="resultDisplay" style="font-size: 1rem; opacity: 0.6;">SCANNING...</div>
+        </div>
+        <div class="meter-container">
+            <div class="meter-bg"></div>
+            <div class="signal-fill" id="meterFill" style="width: 0%"></div>
+            <div class="needle" id="meterNeedle" style="left: 0%"></div>
+        </div>
+    </div>
+
+    <div class="knob-section">
+        <div class="knob-wrapper">
+            <div class="knob-container-lg" id="knobZoneMain">
+                <div class="knob-lg" id="knobMain"></div>
+            </div>
+            <div class="label" style="margin-top: 12px;">COARSE TUNE</div>
+        </div>
+        <div class="knob-wrapper">
+            <div class="knob-container-sm" id="knobZoneFine">
+                <div class="knob-sm" id="knobFine"></div>
+            </div>
+            <div class="label" style="margin-top: 12px; color:#38bdf8;">FINE TUNE</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="seekBtn" onclick="toggleSeek()">AUTO-SEEK</button>
+        <button class="btn" id="audioBtn" onclick="toggleAudio()">AUDIO: OFF</button>
+    </div>
+</div>
+
+<script>
+    // ========= STATE =========
+    let multiplier = 1.0;
+    let isSeeking = false;
+    let coarseRot = 0;
+    let fineRot = 0;
+    let isAudioOn = false;
+    let audioCtx, osc, noise, gainNode, noiseGain;
+
+    // ========= PAGE VISIBILITY (AUTO-MUTE FIX) =========
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && audioCtx?.state === 'running') audioCtx.suspend();
+        else if (!document.hidden && isAudioOn && audioCtx?.state === 'suspended') audioCtx.resume();
+    });
+
+    // ========= HELP MODAL =========
+    function toggleHelp() {
+        const modal = document.getElementById('helpModal');
+        modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        modal.style.opacity = modal.style.display === 'flex' ? '1' : '0';
+    }
+
+    // ========= KNOB HANDLER (TOUCH + MOUSE) =========
+    function setupKnob(zone, sensitivity, rotRef) {
+        let active = false;
+        let startY = 0;
+        const move = (y) => {
+            const delta = startY - y;
+            multiplier += delta * sensitivity;
+            if (multiplier < 1) multiplier = 1;
+            rotRef += delta * (sensitivity === 0.05 ? 25 : 120);
+            if (!isSeeking) updateSystem();
+            startY = y;
+        };
+        zone.addEventListener('touchstart', e => { active = true; startY = e.touches[0].clientY; e.preventDefault(); }, {passive:false});
+        zone.addEventListener('touchmove', e => { if(active) move(e.touches[0].clientY); });
+        zone.addEventListener('mousedown', e => { active = true; startY = e.clientY; });
+        window.addEventListener('mousemove', e => { if(active) move(e.clientY); });
+        window.addEventListener('mouseup', () => active = false);
+        window.addEventListener('touchend', () => active = false);
+    }
+
+    setupKnob(document.getElementById('knobZoneMain'), 0.05, v => coarseRot = v);
+    setupKnob(document.getElementById('knobZoneFine'), 0.0025, v => fineRot = v);
+
+    // ========= CORE MATH & DISPLAY =========
+    function updateSystem() {
+        document.getElementById('knobMain').style.transform = `rotate(${coarseRot}deg)`;
+        document.getElementById('knobFine').style.transform = `rotate(${fineRot}deg)`;
+        document.getElementById('valK').innerText = multiplier.toFixed(4);
+
+        const N = parseFloat(document.getElementById('inputN').value) || 51;
+        const scaled = N * multiplier;
+
+        const root = Math.ceil(Math.sqrt(scaled));
+        const gap = root * root - scaled;
+        const gapRoot = Math.sqrt(gap);
+        const dist = Math.abs(gapRoot - Math.round(gapRoot));
+
+        const signal = Math.max(0, 1 - dist * 12);
+        const pct = Math.min(100, signal * 100 + Math.random() * 3);
+
+        document.getElementById('meterNeedle').style.left = pct + "%";
+        document.getElementById('meterFill').style.width = pct + "%";
+
+        const light = document.getElementById('lockLight');
+        const disp = document.getElementById('resultDisplay');
+
+        if (signal > 0.97) { // Very strong lock
+            light.classList.add('light-on');
+            disp.style.opacity = "1";
+            disp.classList.add('locked-text');
+
+            const a = root;
+            const b = Math.round(gapRoot);
+            const f1 = a - b;
+            const f2 = a + b;
+
+            disp.innerHTML = `\( {a}²− \){b}² = <span style="color:#fbbf24;font-size:1.1em">\( {f1}</span>×<span style="color:#fbbf24;font-size:1.1em"> \){f2}</span><br>\( {N}× \){multiplier.toFixed(5)} ≈ ${a*a-b*b}`;
+
+            if (isAudioOn && !light.dataset.locked) playPing();
+            light.dataset.locked = "true";
+        } else {
+            light.classList.remove('light-on');
+            disp.style.opacity = "0.6";
+            disp.classList.remove('locked-text');
+            disp.innerHTML = dist < 0.02 ? "GHOST SIGNAL…" : "SCANNING...";
+            light.dataset.locked = "";
+        }
+
+        if (isAudioOn) updateAudio(signal);
+    }
+
+    // ========= SMART AUTO-SEEK =========
+    function toggleSeek() {
+        isSeeking = !isSeeking;
+        const btn = document.getElementById('seekBtn');
+        const light = document.getElementById('lockLight');
+        if (isSeeking) {
+            btn.classList.add('btn-active');
+            btn.innerText = "STOP SEEK";
+            light.classList.add('seeking-anim');
+            smartSeek();
+        } else {
+            btn.classList.remove('btn-active');
+            btn.innerText = "AUTO-SEEK";
+            light.classList.remove('seeking-anim');
+        }
+    }
+
+    function smartSeek() {
+        if (!isSeeking) return;
+
+        const N = parseFloat(document.getElementById('inputN').value) || 51;
+        const steps = 8000;
+        let bestDist = 1;
+        let bestK = multiplier;
+
+        for (let i = 0; i < steps; i++) {
+            const k = multiplier + i * 0.00001;
+            const scaled = N * k;
+            const r = Math.ceil(Math.sqrt(scaled));
+            const dist = Math.abs(Math.sqrt(r*r - scaled) - Math.round(Math.sqrt(r*r - scaled)));
+
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestK = k;
+            }
+            if (dist < 0.0015) { // Extremely good lock
+                multiplier = k;
+                coarseRot += 120;
+                updateSystem();
+                setTimeout(() => {
+                    isSeeking = false;
+                    document.getElementById('seekBtn').classList.remove('btn-active');
+                    document.getElementById('seekBtn').innerText = "AUTO-SEEK";
+                    document.getElementById('lockLight').classList.remove('seeking-anim');
+                    if (navigator.vibrate) navigator.vibrate([100,50,100,50,100]);
+                    playPing();
+                }, 400);
+                return;
+            }
+        }
+
+        multiplier = bestK;
+        coarseRot += 4;
+        updateSystem();
+        requestAnimationFrame(smartSeek);
+    }
+
+    // ========= AUDIO SYSTEM =========
+    function toggleAudio() {
+        const btn = document.getElementById('audioBtn');
+        if (!isAudioOn) {
+            isAudioOn = true;
+            btn.classList.add('btn-active');
+            btn.innerText = "AUDIO: ON";
+            if (!audioCtx) initAudio();
+            else audioCtx.resume();
+        } else {
+            isAudioOn = false;
+            btn.classList.remove('btn-active');
+            btn.innerText = "AUDIO: OFF";
+            if (audioCtx) audioCtx.suspend();
+        }
+    }
+
+    function initAudio() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Tone oscillator
+        osc = audioCtx.createOscillator();
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = 0;
+        osc.connect(gainNode).connect(audioCtx.destination);
+        osc.frequency.value = 220;
+        osc.start();
+
+        // White noise for static
+        const bufferSize = audioCtx.sampleRate * 2;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        noise.loop = true;
+
+        noiseGain = audioCtx.createGain();
+        noiseGain.gain.value = 0.08;
+
+        noise.connect(noiseGain).connect(audioCtx.destination);
+        noise.start();
+    }
+
+    function updateAudio(signal) {
+        if (!isAudioOn) return;
+        noiseGain.gain.setTargetAtTime((1 - signal) * 0.08, audioCtx.currentTime, 0.05);
+        gainNode.gain.setTargetAtTime(signal * 0.18, audioCtx.currentTime, 0.08);
+        osc.frequency.setTargetAtTime(180 + signal * 600, audioCtx.currentTime, 0.08);
+    }
+
+    function playPing() {
+        if (!isAudioOn) return;
+        const ping = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        ping.type = 'triangle';
+        ping.frequency.value = 1100;
+        g.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+        ping.connect(g).connect(audioCtx.destination);
+        ping.start();
+        ping.stop(audioCtx.currentTime + 0.6);
+    }
+
+    // ========= EASTER EGGS =========
+    document.addEventListener('keydown', e => {
+        if (e.key.toLowerCase() === 'f') {
+            document.getElementById('inputN').value = "666";
+            multiplier = 6.66;
+            coarseRot = 666; fineRot = 666;
+            updateSystem();
+            playPing();
+        }
+        if (e.key === 'p') {
+            document.getElementById('inputN').value = "314159";
+            multiplier = 1;
+            updateSystem();
+        }
+        if (e.key.toLowerCase() === 'g') {
+            document.getElementById('inputN').value = "3141592653589793238462643383279";
+            multiplier = 1;
+            coarseRot = 314; fineRot = 159;
+            updateSystem();
+        }
+    });
+
+    // ========= START =========
+    updateSystem();
+</script>
+</body>
+</html>

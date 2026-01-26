@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sundaram Matrix Scanner</title>
+    <style>
+        :root {
+            --bg: #0b0c10;
+            --grid-bg: #1f2833;
+            --cell-active: #45a29e;
+            --cell-burned: #1f2833; /* Faded */
+            --cell-survivor: #66fcf1; /* Bright */
+            --text-main: #c5c6c7;
+            --highlight: #f0a500; /* Row Highlight */
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text-main);
+            font-family: 'Segoe UI', monospace;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* CONTROL PANEL */
+        .controls {
+            padding: 15px;
+            background: #111;
+            border-bottom: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--cell-survivor); }
+        
+        .legend { display: flex; gap: 15px; font-size: 0.75rem; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        
+        .scan-slider-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #222;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        input[type="range"] { flex: 1; accent-color: var(--highlight); }
+
+        /* MATRIX GRID */
+        .matrix-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+            gap: 8px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: #1b1b1b;
+            border: 1px solid #333;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .cell .k-val { font-size: 1rem; font-weight: bold; color: #555; }
+        .cell .g-val { font-size: 0.65rem; color: #444; margin-top: 2px; }
+        
+        /* STATES */
+        .cell.burned { 
+            background: #2a1b1b; 
+            border-color: #442222;
+        }
+        .cell.burned .k-val { color: #d32f2f; text-decoration: line-through; opacity: 0.5; }
+
+        .cell.survivor { 
+            background: rgba(16, 185, 129, 0.1); 
+            border-color: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+        }
+        .cell.survivor .k-val { color: #10b981; }
+        .cell.survivor .g-val { color: #a7f3d0; font-weight: bold; }
+
+        /* SCAN LINE ANIMATION HIGHLIGHT */
+        .cell.scanning {
+            background: var(--highlight) !important;
+            border-color: white !important;
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        .cell.scanning .k-val { color: black !important; text-decoration: none; }
+        .cell.scanning .g-val { color: black !important; }
+
+        /* INFO FOOTER */
+        .footer {
+            height: 80px;
+            background: #111;
+            border-top: 1px solid #333;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-block { font-size: 0.9rem; }
+        .big-info { font-size: 1.2rem; font-weight: bold; color: white; }
+        .sub-info { font-size: 0.8rem; color: #888; font-family: monospace; }
+
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="header">
+            <h1>Sundaram Matrix</h1>
+            <div class="legend">
+                <div class="legend-item"><div class="dot" style="background:#10b981"></div> Survivor (Prime)</div>
+                <div class="legend-item"><div class="dot" style="background:#d32f2f"></div> Burned (Comp)</div>
+            </div>
+        </div>
+        
+        <div class="scan-slider-box">
+            <span style="font-size:0.8rem; color:#aaa; width: 60px;">SCAN ROW</span>
+            <input type="range" id="scan-row" min="0" max="10" value="0">
+            <span style="font-size:0.9rem; font-weight:bold; color:var(--highlight); width: 30px;" id="row-display">OFF</span>
+        </div>
+        <div style="font-size: 0.75rem; color: #666; margin-top:-5px;">
+            Slide to visualize Arithmetic Progressions (i=1, i=2...)
+        </div>
+    </div>
+
+    <div class="matrix-container" id="matrix">
+        <!-- JS Generates Grid -->
+    </div>
+
+    <div class="footer">
+        <div class="info-block">
+            <div style="color:#888; font-size:0.7rem;">SELECTED INTEGER (k)</div>
+            <div class="big-info" id="sel-k">--</div>
+        </div>
+        <div class="info-block" style="text-align:right;">
+            <div style="color:#888; font-size:0.7rem;">GENERATED GNOMON (2k+1)</div>
+            <div class="big-info" id="sel-g" style="color:var(--cell-survivor)">--</div>
+            <div class="sub-info" id="sel-eq"></div>
+        </div>
+    </div>
+
+    <script>
+        const matrix = document.getElementById('matrix');
+        const slider = document.getElementById('scan-row');
+        const rowDisp = document.getElementById('row-display');
+        const selK = document.getElementById('sel-k');
+        const selG = document.getElementById('sel-g');
+        const selEq = document.getElementById('sel-eq');
+
+        const MAX_K = 100;
+        let burnedSet = new Map(); // k -> "i=x, j=y"
+
+        // 1. PRE-CALCULATE SUNDARAM
+        function runSieve() {
+            burnedSet.clear();
+            // i goes from 1 to ...
+            for (let i = 1; i <= MAX_K; i++) {
+                // j starts at i
+                for (let j = i; (i + j + 2*i*j) <= MAX_K; j++) {
+                    let k = i + j + 2*i*j;
+                    if (!burnedSet.has(k)) {
+                        burnedSet.set(k, []);
+                    }
+                    burnedSet.get(k).push({i, j});
+                }
+            }
+        }
+
+        // 2. RENDER GRID
+        function render() {
+            matrix.innerHTML = '';
+            
+            for (let k = 1; k <= MAX_K; k++) {
+                const isBurned = burnedSet.has(k);
+                const gnomon = 2 * k + 1;
+                
+                const el = document.createElement('div');
+                el.className = `cell ${isBurned ? 'burned' : 'survivor'}`;
+                el.id = `cell-${k}`;
+                el.onclick = () => selectK(k);
+                
+                el.innerHTML = `
+                    <div class="k-val">${k}</div>
+                    <div class="g-val">${gnomon}</div>
+                `;
+                
+                matrix.appendChild(el);
+            }
+        }
+
+        // 3. INTERACTION
+        function selectK(k) {
+            const gnomon = 2 * k + 1;
+            selK.innerText = k;
+            selG.innerText = gnomon;
+            
+            if (burnedSet.has(k)) {
+                const proofs = burnedSet.get(k);
+                const p = proofs[0]; // Take first proof
+                selEq.innerHTML = `<span style="color:#d32f2f">COMPOSITE</span> (${(2*p.i+1)} × ${(2*p.j+1)})`;
+                selG.style.color = '#d32f2f';
+            } else {
+                selEq.innerHTML = `<span style="color:#10b981">PRIME SEED</span>`;
+                selG.style.color = '#10b981';
+            }
+        }
+
+        // 4. SCAN LINE VISUALIZER
+        slider.addEventListener('input', (e) => {
+            const i = parseInt(e.target.value);
+            
+            // Reset visual
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('scanning'));
+            
+            if (i === 0) {
+                rowDisp.innerText = "OFF";
+                return;
+            }
+            
+            rowDisp.innerText = `i=${i}`;
+            
+            // Highlight the progression for this i
+            // Formula: Start at i + i + 2*i*i ?? No.
+            // j starts at i. 
+            // Sequence starts at: i + i + 2*i*i
+            // Step is: 2*i + 1
+            
+            const start = 3 * i + 1; // Actually, logic is k = i + j(2i+1). 
+            // If j starts at i, first term is i + i(2i+1) = i + 2i^2 + i = 2i^2 + 2i.
+            // Wait, usually j starts at 1? 
+            // In Sundaram, usually 1 <= i <= j.
+            
+            for (let j = i; ; j++) {
+                const val = i + j + 2*i*j;
+                if (val > MAX_K) break;
+                
+                const cell = document.getElementById(`cell-${val}`);
+                if (cell) cell.classList.add('scanning');
+            }
+        });
+
+        // Init
+        runSieve();
+        render();
+
+    </script>
+</body>
+</html>
+

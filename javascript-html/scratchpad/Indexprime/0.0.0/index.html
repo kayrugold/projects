@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parallel Factorization Test</title>
+    <style>
+        body { font-family: sans-serif; }
+        .progress-container { margin-bottom: 10px; }
+        .progress-bar { height: 20px; background-color: #f0f0f0; border: 1px solid #ccc; width: 100%; }
+        .progress-fill { height: 100%; background-color: #4CAF50; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <h1>Enhanced Factoring Algorithm Test</h1>
+    <label for="numberInput">Number to Factor (N):</label>
+    <input type="number" id="numberInput" value="30000000037" style="width: 200px;"><br><br>
+    <button onclick="startFactoring()">Start 8-Core Test</button>
+    <p id="result"></p>
+
+    <h2>Core Progress (8 Workers)</h2>
+    <div id="workerProgress">
+        </div>
+
+    <script src="main.js"></script>
+</body>
+</html>

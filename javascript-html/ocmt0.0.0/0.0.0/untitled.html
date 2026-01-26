@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAPE RUNNER v2.1 (GPS Fixed)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root { --bg: #020617; --panel: #0f172a; --accent: #8b5cf6; --hit: #f43f5e; --text: #e2e8f0; --dim: #64748b; }
+    body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; }
+    .card { background: var(--panel); border: 1px solid #1e293b; max-width: 800px; margin: 0 auto; padding: 20px; border-radius: 12px; box-shadow: 0 0 50px rgba(139, 92, 246, 0.1); }
+    
+    label { font-size: 0.7rem; color: var(--dim); font-weight: bold; letter-spacing: 1px; }
+    input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 10px; width: 100%; border-radius: 6px; font-family: monospace; font-size: 1.1rem; margin-bottom: 10px; text-align: center; }
+    input:focus { outline: none; border-color: var(--accent); }
+
+    .btn { width: 100%; padding: 15px; font-weight: 900; border-radius: 6px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+    .btn-calc { background: #334155; color: #fff; }
+    .btn-run { background: var(--accent); color: #fff; }
+    .btn-run:hover { background: #7c3aed; box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); }
+    .btn-stop { background: var(--hit); color: #fff; display: none; }
+
+    .gps-panel { background: #0f172a; border: 1px dashed #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; }
+    .gps-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .gps-val { color: var(--accent); font-weight: bold; }
+    
+    .manual-panel { background: #1e293b; border-left: 4px solid var(--accent); padding: 10px; margin-bottom: 20px; display: none; }
+
+    .worker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+    .worker-card { background: #1e293b; border: 1px solid #334155; padding: 10px; border-radius: 6px; text-align: center; font-size: 0.8rem; }
+    .running { border-color: var(--accent); box-shadow: 0 0 10px rgba(139, 92, 246, 0.2); }
+    
+    .log-box { margin-top: 20px; height: 150px; overflow-y: auto; background: #000; border: 1px solid #334155; padding: 10px; font-size: 0.8rem; color: var(--dim); border-radius: 6px; }
+    .success { color: #10b981; font-weight: bold; }
+    .sys { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-3xl font-black text-center text-purple-400 mb-2">TAPE RUNNER v2.1</h1>
+    <p class="text-center text-xs text-slate-500 mb-6">PURE COMPOSITE + CORRECTED GPS</p>
+
+    <label>TARGET NUMBER (N)</label>
+    <input id="inpTarget" placeholder="Enter N..." value="1007">
+
+    <div style="margin-bottom: 15px; text-align:right;">
+         <label style="display:inline-flex; align-items:center; cursor:pointer;">
+             <input type="checkbox" id="chkManual" style="width:auto; margin:0 8px 0 0;" onchange="toggleManual()">
+             MANUAL START / RESUME
+         </label>
+    </div>
+
+    <div id="manualBox" class="manual-panel">
+        <label style="color:#fff">RESUME FROM TAPE ID (L)</label>
+        <input id="inpManualStart" placeholder="Enter Tape ID...">
+    </div>
+
+    <div id="gpsBox" class="gps-panel">
+        <div class="gps-row"><span>RAW ODDS ((N-1)/2):</span> <span id="valOdds" class="gps-val">0</span></div>
+        <div class="gps-row"><span>ESTIMATED PRIMES:</span> <span id="valPrimes" class="gps-val">0</span></div>
+        <div class="gps-row"><span>START ID (GPS):</span> <span id="valRank" class="gps-val">0</span></div>
+    </div>
+
+    <div class="flex gap-2">
+        <button id="btnCalc" class="btn btn-calc" onclick="calculateGPS()">CALCULATE GPS</button>
+        <button id="btnRun" class="btn btn-run" onclick="deployRunners()">DEPLOY RUNNERS</button>
+        <button id="btnStop" class="btn btn-stop" onclick="stopAll()">STOP</button>
+    </div>
+
+    <div id="workerGrid" class="worker-grid"></div>
+    <div id="logBox" class="log-box">Ready. Pure Composite Logic Active.</div>
+</div>
+
+<script>
+/* --- THE ENGINE: PURE COMPOSITE UNPACKER --- */
+const runnerCode = `
+self.onmessage = function(e) {
+    const { startL_str, chunkSize, targetN_str } = e.data;
+    
+    let L = BigInt(startL_str);
+    const targetN = BigInt(targetN_str);
+    const count = BigInt(chunkSize);
+    
+    // Safety
+    if(count > 2000000n) { self.postMessage({type:'error', msg:'Chunk too large'}); return; }
+
+    function sqrtBigInt(n) {
+        if (n < 2n) return n;
+        let x = n; let y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    }
+
+    for(let i = 0n; i < count; i++) {
+        // 1. FIND ROW k
+        // We need k such that T_{k-1} < L <= T_k
+        // Approx: k approx sqrt(2L)
+        let val = L * 8n + 1n;
+        let root = sqrtBigInt(val);
+        let k = (root - 1n) / 2n; // Approx
+        
+        // Calculate Triangular number for this k
+        let triK = (k * (k + 1n)) / 2n;
+        
+        // Adjust k if we underestimated (L > T_k means we are in row k+1)
+        if (L > triK) {
+            k++;
+            triK = (k * (k + 1n)) / 2n;
+        }
+        
+        // 2. FIND COLUMN OFFSET
+        // Previous triangle T_{k-1}
+        let triPrev = (k * (k - 1n)) / 2n;
+        
+        // Index inside the row (1 to k)
+        let colIndex = L - triPrev; 
+        
+        // 3. RESOLVE GEOMETRY
+        // Row k corresponds to P2 = 2k+1
+        let P2 = k * 2n + 1n;
+        
+        // Pure Composite: No "Ones Diagonal"
+        // P1 starts at P2 and goes down to 3.
+        // colIndex=1 means P1=P2.
+        // Gap (b_geo) = colIndex - 1
+        // P1 = P2 - 2*b_geo
+        let b_geo = colIndex - 1n;
+        let P1 = P2 - (b_geo * 2n);
+        
+        // 4. CHECK TARGET
+        let N_calc = P2 * P1;
+        
+        if (N_calc === targetN) {
+            let a = (P2 + P1) / 2n;
+            self.postMessage({
+                type: 'found',
+                L: L.toString(),
+                a: a.toString(),
+                b: b_geo.toString(),
+                P1: P1.toString(),
+                P2: P2.toString()
+            });
+            return;
+        }
+
+        if(i % 50000n === 0n) {
+            self.postMessage({type:'progress', currentL: L.toString()});
+        }
+        L++;
+    }
+    self.postMessage({type:'done', lastL: (L).toString()});
+};
+`;
+
+/* --- MAIN APP LOGIC --- */
+let workers = [];
+let startID = 0n;
+let targetN = 0n;
+const NUM_CORES = navigator.hardwareConcurrency || 4;
+let isRunning = false;
+let maxTickReached = 0n;
+
+function toggleManual() {
+    const isMan = document.getElementById('chkManual').checked;
+    document.getElementById('manualBox').style.display = isMan ? 'block' : 'none';
+    document.getElementById('gpsBox').style.opacity = isMan ? '0.3' : '1';
+    document.getElementById('btnCalc').disabled = isMan;
+}
+
+function calculateGPS() {
+    const raw = document.getElementById('inpTarget').value.replace(/,/g,'').trim();
+    if(!raw) return;
+    try { targetN = BigInt(raw); } catch(e) { log("Invalid Number"); return; }
+
+    const oddsIndex = (targetN - 1n) / 2n;
+    
+    /* THE FIX: Use safe prime estimation
+       Small N: Use (ln N - 1.1) to count enough primes.
+       Large N: Use (ln N - 1) to ensure we subtract enough.
+       This prevents starting "after" the target.
+    */
+    const nStr = targetN.toString();
+    const digits = nStr.length;
+    const lnN = 2.3025 * digits; 
+    
+    let estPrimes = 0n;
+    
+    if(targetN < 1000000n) {
+        const val = Number(targetN);
+        const est = val / (Math.log(val) - 1.1); 
+        estPrimes = BigInt(Math.floor(est));
+    } else {
+        const densityInv = BigInt(Math.floor(lnN - 1));
+        estPrimes = targetN / densityInv;
+    }
+
+    const gpsRank = oddsIndex - estPrimes;
+    
+    // 1% Buffer
+    const safetyBuffer = gpsRank / 100n; 
+    startID = gpsRank - safetyBuffer;
+    if(startID < 1n) startID = 1n;
+
+    document.getElementById('valOdds').innerText = oddsIndex.toLocaleString();
+    document.getElementById('valPrimes').innerText = "~" + estPrimes.toLocaleString();
+    document.getElementById('valRank').innerText = startID.toLocaleString();
+    
+    log(`GPS Locked. Safe Start Tick: ${startID}`);
+}
+
+function deployRunners() {
+    if(document.getElementById('chkManual').checked) {
+        const manVal = document.getElementById('inpManualStart').value.trim();
+        if(!manVal) { log("Enter a Resume ID"); return; }
+        try { startID = BigInt(manVal); } catch(e){ log("Invalid ID"); return; }
+        const rawT = document.getElementById('inpTarget').value.replace(/,/g,'').trim();
+        try { targetN = BigInt(rawT); } catch(e){ log("Invalid Target"); return; }
+        log(`RESUMING from Tape ID: ${startID}`, "sys");
+    } else {
+        if(!startID || !targetN) calculateGPS();
+    }
+    
+    if(isRunning) return;
+    isRunning = true;
+    
+    document.getElementById('btnRun').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'inline-block';
+    document.getElementById('workerGrid').innerHTML = '';
+    
+    const blob = new Blob([runnerCode], {type:'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    
+    const batchSize = 1000000n; 
+    
+    for(let i=0; i<NUM_CORES; i++) {
+        const w = new Worker(url);
+        
+        const card = document.createElement('div');
+        card.className = 'worker-card running';
+        card.id = `w-${i}`;
+        card.innerHTML = `Core ${i+1}<br><span id="stat-${i}" class="text-xs text-gray-500">Init...</span>`;
+        document.getElementById('workerGrid').appendChild(card);
+        
+        const myStart = startID + (BigInt(i) * batchSize);
+        if(myStart > maxTickReached) maxTickReached = myStart;
+        
+        w.postMessage({
+            startL_str: myStart.toString(),
+            chunkSize: batchSize.toString(),
+            targetN_str: targetN.toString()
+        });
+        w.onmessage = (e) => handleMsg(e, i, w);
+        workers.push(w);
+    }
+}
+
+function handleMsg(e, idx, worker) {
+    const d = e.data;
+    const stat = document.getElementById(`stat-${idx}`);
+    
+    if(d.type === 'progress') {
+        const currentL = BigInt(d.currentL);
+        if(currentL > maxTickReached) maxTickReached = currentL;
+        stat.innerText = `ID ${d.currentL}`;
+    }
+    else if(d.type === 'found') {
+        stopAll();
+        log(">>> TARGET ACQUIRED <<<");
+        log(`TAPE ID: ${d.L}`, "success");
+        log(`GEO: ${d.a} : ${targetN} @ ${d.a}-${d.b}`, "success");
+        log(`FACTORS: ${d.P2} x ${d.P1}`, "success");
+        
+        const card = document.getElementById(`w-${idx}`);
+        if(card) {
+            card.style.borderColor = "#10b981";
+            card.style.backgroundColor = "#064e3b";
+            stat.innerHTML = `FOUND!<br>ID: ${d.L}`;
+            stat.style.color = "#fff";
+            stat.style.fontWeight = "bold";
+        }
+    }
+    else if(d.type === 'done') {
+        stat.innerText = "Clear";
+        const card = document.getElementById(`w-${idx}`);
+        card.classList.remove('running');
+        const doneL = BigInt(d.lastL);
+        if(doneL > maxTickReached) maxTickReached = doneL;
+    }
+}
+
+function stopAll() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    isRunning = false;
+    document.getElementById('btnRun').style.display = 'inline-block';
+    document.getElementById('btnStop').style.display = 'none';
+    if(maxTickReached > 0n) log(`STOPPED. Resume ID: ${maxTickReached}`, "sys");
+}
+
+function log(msg, type='') {
+    const box = document.getElementById('logBox');
+    const line = document.createElement('div');
+    line.innerHTML = `> ${msg}`;
+    if(type === 'success') line.className = "success";
+    if(type === 'sys') line.className = "sys";
+    box.prepend(line);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+    <title>Codex Gnomonicus: Unified Console</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+
+    <style>
+        :root {
+            --paper: #f3e5ab;
+            --ink: #2c1810;
+            --gold: #b45309;
+            --trace: #c62828;
+            --panel-bg: rgba(253, 251, 247, 0.96);
+            --ui-border: #5d4037;
+        }
+
+        body { 
+            margin: 0; overflow: hidden; height: 100vh; width: 100vw; 
+            background-color: var(--paper);
+            font-family: 'Courier Prime', monospace;
+            touch-action: none; /* Prevents browser zoom/scroll */
+        }
+
+        /* --- CANVAS LAYER --- */
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* --- HUD (Top) --- */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; 
+            padding: 10px 15px; box-sizing: border-box; pointer-events: none;
+            display: flex; justify-content: space-between;
+            color: var(--ink); z-index: 10;
+            background: linear-gradient(to bottom, rgba(243, 229, 171, 0.9), transparent);
+        }
+        .hud-stat { font-size: 1.2rem; font-weight: bold; }
+        .hud-lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+
+        /* --- CONTROLS (Bottom / Thumb Zone) --- */
+        #control-deck {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            padding: 15px 15px 30px 15px; box-sizing: border-box;
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+            background: var(--panel-bg);
+            border-top: 2px solid var(--ui-border);
+            z-index: 20;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+        }
+
+        .ink-btn {
+            background: #fff; border: 2px solid var(--ui-border);
+            color: var(--ink); padding: 12px 0;
+            font-family: 'Caveat', cursive; font-size: 1.3rem; font-weight: 700;
+            border-radius: 8px; cursor: pointer; text-align: center;
+            user-select: none; transition: transform 0.1s;
+        }
+        .ink-btn:active { transform: scale(0.96); background: var(--ui-border); color: #fff; }
+        .ink-btn.primary { background: var(--gold); color: #fff; border-color: var(--gold); }
+
+        /* --- DATA DOCK (Overlay) --- */
+        #data-dock {
+            position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 400px; 
+            background: var(--panel-bg); border: 2px solid var(--ui-border);
+            border-radius: 8px; padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: none; flex-direction: column; gap: 8px;
+            z-index: 30; font-size: 0.9rem;
+        }
+        .dock-row { display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(0,0,0,0.1); padding-bottom: 4px; }
+        .dock-val { font-weight: bold; color: var(--gold); word-break: break-all; text-align: right; }
+        .dock-lg { font-size: 1.2rem; color: var(--trace); border-bottom: 2px solid var(--trace); margin-bottom: 5px; }
+
+        /* --- INPUT MODAL --- */
+        #nav-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(44, 24, 16, 0.9); backdrop-filter: blur(4px);
+            z-index: 50; display: none; justify-content: center; align-items: center;
+        }
+        .modal-card {
+            background: var(--paper); width: 85%; max-width: 350px;
+            padding: 20px; border-radius: 12px; border: 3px solid var(--gold);
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .nav-inp {
+            width: 100%; padding: 12px; font-size: 1.1rem;
+            border: 2px solid var(--ui-border); background: #fff;
+            font-family: monospace; box-sizing: border-box;
+        }
+        .modal-title { font-family: 'Caveat', cursive; font-size: 2rem; color: var(--ui-border); text-align: center; margin: 0; }
+
+        /* --- TOAST --- */
+        #toast {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); color: #fff; padding: 10px 20px;
+            border-radius: 20px; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+            z-index: 100; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gridCanvas"></canvas>
+
+    <div id="hud">
+        <div>
+            <div class="hud-lbl">ANCHOR ROW (k)</div>
+            <div id="disp-k" class="hud-stat">0</div>
+        </div>
+        <div style="text-align:right;">
+            <div class="hud-lbl">SCALE</div>
+            <div id="disp-zoom" class="hud-stat">1.0x</div>
+        </div>
+    </div>
+
+    <div id="toast">Navigation Complete</div>
+
+    <div id="data-dock" onclick="this.style.display='none'">
+        <div class="dock-lg" id="dock-val">--</div>
+        <div class="dock-row"><span>Tape ID</span><span id="dock-tape" class="dock-val">--</span></div>
+        <div class="dock-row"><span>Coords</span><span id="dock-coords" class="dock-val">--</span></div>
+        <div class="dock-row"><span>Geometry (a.b)</span><span id="dock-geo" class="dock-val">--</span></div>
+        <div class="dock-row"><span>Factors</span><span id="dock-fact" class="dock-val">--</span></div>
+        <div style="text-align:center; font-size:0.7rem; color:#888; margin-top:5px;">(Tap to Close)</div>
+    </div>
+
+    <div id="control-deck">
+        <button class="ink-btn" onclick="resetView()">Origin</button>
+        <button class="ink-btn primary" onclick="openNav()">Jump</button>
+        <button class="ink-btn" onclick="toggleTrivials()">Trivials</button>
+    </div>
+
+    <div id="nav-modal">
+        <div class="modal-card">
+            <h2 class="modal-title">Gnomon Jump</h2>
+            <div>
+                <label style="font-weight:bold; font-size:0.8rem;">JUMP TO TAPE ID</label>
+                <input type="number" id="inp-tape" class="nav-inp" placeholder="e.g. 15375">
+            </div>
+            <div>
+                <label style="font-weight:bold; font-size:0.8rem;">OR VALUE (N)</label>
+                <input type="number" id="inp-val" class="nav-inp" placeholder="e.g. 1007">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="ink-btn primary" style="flex:1" onclick="execJump()">GO</button>
+                <button class="ink-btn" style="flex:1" onclick="closeNav()">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- CORE CONFIG ---
+    const canvas = document.getElementById("gridCanvas");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const CELL_W = 110;
+    const CELL_H = 64;
+    
+    // --- STATE ---
+    let scale = 1.0;
+    let offsetX = 0;
+    let offsetY = 120;
+    let selectedCell = null;
+    let showTrivials = true;
+
+    // --- POINTER STATE (The Fix) ---
+    // We store active pointers (fingers) in a cache to handle multi-touch safely
+    let evCache = new Array();
+    let prevDiff = -1;
+
+    function init() {
+        window.addEventListener('resize', onResize);
+        onResize();
+        resetView();
+        
+        // Use Pointer Events (Unifies Mouse & Touch)
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointermove', onPointerMove);
+        canvas.addEventListener('pointerup', onPointerUp);
+        canvas.addEventListener('pointercancel', onPointerUp);
+        canvas.addEventListener('pointerout', onPointerUp);
+        canvas.addEventListener('pointerleave', onPointerUp);
+        
+        // Prevent default browser zooming/scrolling
+        canvas.addEventListener('wheel', onWheel, {passive: false});
+        
+        requestAnimationFrame(draw);
+    }
+
+    function onResize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        draw();
+    }
+
+    function resetView() {
+        scale = 1.0;
+        offsetX = canvas.width / 2;
+        offsetY = 150;
+        selectedCell = null;
+        document.getElementById('data-dock').style.display = 'none';
+        draw();
+    }
+
+    // --- INTERACTION HANDLERS (The New Logic) ---
+
+    function onPointerDown(ev) {
+        // Add this pointer to the cache
+        evCache.push(ev);
+    }
+
+    function onPointerMove(ev) {
+        // Find this event in the cache and update its record
+        const index = evCache.findIndex(cachedEv => cachedEv.pointerId === ev.pointerId);
+        if (index > -1) {
+            evCache[index] = ev;
+        }
+
+        // CASE 1: PAN (1 Finger / Mouse)
+        if (evCache.length === 1) {
+            // Calculate delta from the movement of this specific pointer
+            const dx = ev.movementX;
+            const dy = ev.movementY;
+            
+            // Apply Pan
+            offsetX += dx;
+            offsetY += dy;
+            requestAnimationFrame(draw);
+        }
+
+        // CASE 2: ZOOM (2 Fingers)
+        if (evCache.length === 2) {
+            // Calculate distance between the two pointers
+            const curDiff = Math.hypot(
+                evCache[0].clientX - evCache[1].clientX,
+                evCache[0].clientY - evCache[1].clientY
+            );
+
+            if (prevDiff > 0) {
+                // Determine zoom factor
+                const zoomSpeed = 0.05; // Dampening
+                if (curDiff > prevDiff) {
+                    // Zoom In
+                    scale *= (1 + (curDiff - prevDiff) * 0.01);
+                }
+                if (curDiff < prevDiff) {
+                    // Zoom Out
+                    scale *= (1 - (prevDiff - curDiff) * 0.01);
+                }
+                // Clamp Zoom limits
+                if (scale < 0.01) scale = 0.01;
+                if (scale > 50) scale = 50;
+            }
+
+            // Cache current distance for next frame
+            prevDiff = curDiff;
+            requestAnimationFrame(draw);
+        }
+    }
+
+    function onPointerUp(ev) {
+        // Remove this pointer from the cache
+        const index = evCache.findIndex(cachedEv => cachedEv.pointerId === ev.pointerId);
+        if (index > -1) {
+            evCache.splice(index, 1);
+        }
+        
+        // Reset zoom tracking
+        if (evCache.length < 2) {
+            prevDiff = -1;
+        }
+
+        // CLICK DETECTION
+        // If it was a quick tap without movement (handled by simple math)
+        // For simplicity in this unified engine, we use a separate 'click' listener
+        // But to avoid conflicts, we check if movement was minimal.
+        // Let's just use the standard click handler for selection, it fires after pointerup.
+    }
+    
+    // Separate click handler for selecting cells (only fires if not dragging)
+    let isDragging = false;
+    canvas.addEventListener('pointerdown', () => isDragging = false);
+    canvas.addEventListener('pointermove', () => isDragging = true);
+    canvas.addEventListener('click', (e) => {
+        if (isDragging && evCache.length === 0) return; // Ignore drag-clicks
+        
+        // Calculate Grid Coords
+        let wx = (e.clientX - offsetX) / scale;
+        let wy = (e.clientY - offsetY) / scale;
+        
+        let c = Math.round(wx / CELL_W);
+        let k = Math.round(wy / CELL_H);
+        
+        // Valid Triangle Check
+        if (k >= 0 && Math.abs(c) <= k) {
+            selectCell(k, c);
+        }
+    });
+
+    function onWheel(ev) {
+        ev.preventDefault();
+        const zoomIntensity = 0.1;
+        const delta = ev.deltaY > 0 ? -1 : 1;
+        const factor = 1 + (delta * zoomIntensity);
+        scale *= factor;
+        if (scale < 0.01) scale = 0.01;
+        requestAnimationFrame(draw);
+    }
+
+
+    // --- MATH KERNEL (BigInt Logic) ---
+    function bigSqrt(value) {
+        if (value < 0n) return -1n;
+        if (value < 2n) return value;
+        let x = value;
+        let y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (value / x + x) / 2n; }
+        return x;
+    }
+
+    function getCellData(k, c) {
+        let bigK = BigInt(k);
+        let bigC = BigInt(c);
+        let absC = bigC < 0n ? -bigC : bigC;
+        
+        let anchorBase = (bigK * 2n) + 1n; 
+        let spine = anchorBase * anchorBase; 
+        let step = anchorBase * 2n; 
+        
+        let valRaw = spine - (absC * step);
+        let val = bigC >= 0n ? valRaw : -valRaw; 
+        
+        let tapeStart = (bigK * (bigK + 1n)) / 2n + 1n;
+        let tapeID = tapeStart + absC;
+
+        let b = absC;
+        let a = anchorBase - b;
+        
+        let p1 = a - b;
+        let p2 = a + b;
+        let factors = (p1 > 1n && p2 > 1n && (p1*p2)===(val<0n?-val:val)) ? `${p1} × ${p2}` : "Prime/Trivial";
+
+        return { val, tape: tapeID, a, b, factors, k: bigK, c: bigC };
+    }
+
+    // --- DRAW LOOP ---
+    function draw() {
+        ctx.fillStyle = "#f3e5ab";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let minX = (0 - offsetX) / scale;
+        let maxX = (canvas.width - offsetX) / scale;
+        let minY = (0 - offsetY) / scale;
+        let maxY = (canvas.height - offsetY) / scale;
+
+        let minK = Math.max(0, Math.floor(minY / CELL_H));
+        let maxK = Math.floor(maxY / CELL_H) + 1;
+
+        // HUD Update
+        document.getElementById('disp-k').innerText = Math.max(0, Math.floor((minK + maxK)/2));
+        document.getElementById('disp-zoom').innerText = scale.toFixed(2) + "x";
+
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+        ctx.scale(scale, scale);
+
+        // Spine
+        ctx.strokeStyle = "rgba(180, 83, 9, 0.2)";
+        ctx.lineWidth = 4 / scale;
+        ctx.beginPath();
+        let drawH = Math.max(1000, maxK * CELL_H);
+        ctx.moveTo(0, 0); ctx.lineTo(0, drawH); ctx.stroke();
+
+        let showText = scale > 0.35;
+        let stride = 1;
+        if (scale < 0.1) stride = 5;
+        if (scale < 0.02) stride = 20;
+
+        for (let k = minK; k <= maxK; k += stride) {
+            let rowY = k * CELL_H;
+            let maxC = k; 
+            let startC = Math.floor(minX / CELL_W);
+            let endC = Math.ceil(maxX / CELL_W);
+            
+            if (startC < -maxC) startC = -maxC;
+            if (endC > maxC) endC = maxC;
+            if (startC > endC) continue;
+            let c_align = startC - (startC % stride);
+
+            for (let c = c_align; c <= endC; c += stride) {
+                if (Math.abs(c) > k) continue;
+                if (!showTrivials && c === k) continue; // Optional filter
+
+                let cellX = c * CELL_W;
+                
+                if (showText) {
+                    let data = getCellData(k, c);
+                    ctx.font = "bold 28px 'Courier Prime', monospace";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillStyle = c === 0 ? "#b45309" : "#2c1810";
+                    
+                    let txt = data.val.toString();
+                    if (txt.length > 7) txt = txt.substring(0,3) + ".." + txt.slice(-2);
+                    
+                    ctx.fillText(txt, cellX, rowY);
+                    
+                    if (c!==0) {
+                        ctx.beginPath();
+                        ctx.fillStyle = "rgba(0,0,0,0.1)";
+                        ctx.arc(cellX, rowY + 20, 3, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                } else {
+                    ctx.fillStyle = c===0 ? "#b45309" : "rgba(44, 24, 16, 0.4)";
+                    let r = 8 / scale;
+                    if (r > CELL_W/2) r = CELL_W/2;
+                    ctx.beginPath();
+                    ctx.arc(cellX, rowY, r, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        if (selectedCell) {
+            let sy = Number(selectedCell.k) * CELL_H;
+            let sx = Number(selectedCell.c) * CELL_W;
+            ctx.strokeStyle = "#c62828";
+            ctx.lineWidth = 4 / scale;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 40/scale, 0, Math.PI*2);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    // --- SELECTION LOGIC ---
+    function selectCell(k, c) {
+        selectedCell = { k: k, c: c };
+        let data = getCellData(k, c);
+        
+        document.getElementById('dock-val').innerText = data.val.toString();
+        document.getElementById('dock-tape').innerText = data.tape.toString();
+        document.getElementById('dock-coords').innerText = `Row ${k}, Col ${c}`;
+        document.getElementById('dock-geo').innerText = `a=${data.a}, b=${data.b}`;
+        document.getElementById('dock-fact').innerText = data.factors;
+        
+        document.getElementById('data-dock').style.display = 'flex';
+        draw();
+    }
+
+    // --- NAVIGATION LOGIC ---
+    function openNav() { document.getElementById('nav-modal').style.display = 'flex'; }
+    function closeNav() { document.getElementById('nav-modal').style.display = 'none'; }
+    
+    function execJump() {
+        let tVal = document.getElementById('inp-tape').value;
+        let nVal = document.getElementById('inp-val').value;
+        let targetK = 0n, targetC = 0n;
+
+        if (tVal) {
+            let T = BigInt(tVal);
+            let root = bigSqrt(T * 2n);
+            if ((root*(root+1n))/2n >= T) root -= 1n;
+            targetK = root;
+            let startT = (targetK*(targetK+1n))/2n + 1n;
+            targetC = T - startT;
+        } else if (nVal) {
+            let N = BigInt(nVal);
+            if (N < 0n) N = -N;
+            let a = bigSqrt(N);
+            if (a*a < N) a += 1n;
+            if (a % 2n === 0n) a += 1n; 
+            targetK = (a - 1n) / 2n;
+            let S = a*a;
+            let step = a * 2n;
+            targetC = (S - N) / step;
+        }
+
+        offsetY = (canvas.height/2) - (Number(targetK) * CELL_H * scale);
+        offsetX = (canvas.width/2) - (Number(targetC) * CELL_W * scale);
+        selectCell(targetK, targetC);
+        
+        closeNav();
+        showToast("Jump Successful");
+    }
+
+    function showToast(msg) {
+        let t = document.getElementById('toast');
+        t.innerText = msg;
+        t.style.opacity = 1;
+        setTimeout(() => t.style.opacity = 0, 2000);
+    }
+
+    function toggleTrivials() {
+        showTrivials = !showTrivials;
+        showToast(showTrivials ? "Showing All" : "Hiding Trivials");
+        draw();
+    }
+
+    // Start
+    init();
+
+</script>
+
+</body>
+</html>

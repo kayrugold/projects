@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>The Gnomon Fitter</title>
+<style>
+    :root {
+        --bg: #0f172a;
+        --panel: #1e293b;
+        --text: #94a3b8;
+        --highlight: #f59e0b; /* Orange - The Gnomon */
+        --core: #3b82f6;      /* Blue - The Seed */
+        --success: #10b981;   /* Green - Match */
+        --gap: #ef4444;       /* Red - Missing/Overflow */
+    }
+
+    body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Segoe UI', monospace;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* Controls */
+    header {
+        padding: 15px;
+        background: var(--panel);
+        border-bottom: 1px solid #334155;
+        z-index: 10;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .row:last-child { margin-bottom: 0; }
+
+    input[type="number"] {
+        background: #020617;
+        border: 1px solid #475569;
+        color: white;
+        padding: 8px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 1.1rem;
+        width: 80px;
+        text-align: center;
+    }
+
+    /* Slider Styling */
+    input[type=range] {
+        -webkit-appearance: none;
+        width: 100%;
+        background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 24px;
+        width: 24px;
+        border-radius: 50%;
+        background: var(--core);
+        border: 2px solid #fff;
+        margin-top: -10px;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        background: #334155;
+        border-radius: 2px;
+    }
+
+    button {
+        background: var(--core);
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    /* Canvas Area */
+    #canvas-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-image: radial-gradient(#1e293b 1px, transparent 1px);
+        background-size: 20px 20px;
+    }
+
+    canvas { box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+
+    /* Footer Stats */
+    #footer {
+        background: var(--panel);
+        border-top: 1px solid #334155;
+        padding: 15px;
+        text-align: center;
+        z-index: 10;
+    }
+
+    .math-row { font-size: 1.1rem; color: #fff; margin-bottom: 5px; }
+    .status-row { font-size: 0.9rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;}
+    
+    .hl-blue { color: var(--core); }
+    .hl-orange { color: var(--highlight); }
+    .hl-green { color: var(--success); }
+    .hl-red { color: var(--gap); }
+
+    /* Floating Labels */
+    .label-float {
+        position: absolute;
+        background: rgba(0,0,0,0.7);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        pointer-events: none;
+        color: white;
+    }
+
+</style>
+</head>
+<body>
+
+<header>
+    <div class="row">
+        <label>Target (N)</label>
+        <input type="number" id="inpTarget" value="117" min="3" step="2">
+        <button id="btnSolve" style="background:var(--success)">Auto Solve</button>
+    </div>
+    <div class="row">
+        <span style="font-size:0.9rem; color:var(--core);">Inner Square (B): <b id="valB">2</b></span>
+        <input type="range" id="sliderB" min="1" max="100" value="2">
+    </div>
+</header>
+
+<div id="canvas-container">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<div id="footer">
+    <div class="math-row" id="mathDisplay">
+        <span class="hl-orange">117</span> + <span class="hl-blue">2²</span> = 121
+    </div>
+    <div class="status-row" id="statusDisplay">Checking...</div>
+    <div style="font-size: 0.8rem; margin-top:5px; color:#64748b;">
+        Factors: <span id="factorDisplay">--</span>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+    
+    // Inputs
+    const inpTarget = document.getElementById('inpTarget');
+    const sliderB = document.getElementById('sliderB');
+    const btnSolve = document.getElementById('btnSolve');
+    
+    // Displays
+    const valB = document.getElementById('valB');
+    const mathDisplay = document.getElementById('mathDisplay');
+    const statusDisplay = document.getElementById('statusDisplay');
+    const factorDisplay = document.getElementById('factorDisplay');
+
+    let target = 117;
+    let b = 2; // Inner square side
+    let animating = false;
+
+    // --- Main Render Loop ---
+    function render() {
+        // Update State
+        target = parseInt(inpTarget.value);
+        b = parseInt(sliderB.value);
+        if(b < 1) b = 1;
+        valB.innerText = b;
+
+        // 1. Calculations
+        // We want to see if Target + B^2 = Perfect Square
+        const blueArea = b * b;
+        const totalArea = target + blueArea;
+        
+        // The side of the square we actully draw is determined by the total area roughly
+        // We calculate what the "Next Perfect Square" would be that can fit this.
+        // Actually, physically, we build the Blue Square BxB.
+        // Then we wrap 'target' blocks around it.
+        // The resulting shape has a side length 'a'.
+        
+        // Estimated 'a' (outer side)
+        const exactRoot = Math.sqrt(totalArea);
+        const a = Math.floor(exactRoot);
+        const isPerfect = (a * a === totalArea);
+        
+        // What do we actually draw?
+        // We draw a square of size 'a+1' just to show gaps if needed?
+        // Let's draw the square of size 'a'. 
+        // If isPerfect, we fit exactly.
+        // If not perfect, we show the overflow or underflow.
+        
+        // Determine grid size
+        // We need to fit a square of size 'a' (or a+1) on screen
+        const displaySize = isPerfect ? a : a + 1;
+        
+        resizeCanvas(displaySize);
+        
+        const cellSize = canvas.width / displaySize;
+        
+        // 2. Draw Blue Inner Square
+        ctx.fillStyle = '#1e3a8a'; // Darker Blue
+        ctx.fillRect(0, 0, b * cellSize, b * cellSize);
+        
+        ctx.fillStyle = '#3b82f6'; // Bright Blue Border
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, b * cellSize, b * cellSize);
+
+        // 3. Draw The Gnomon (The Orange Blocks)
+        // Logic: Fill columns/rows outside of B until we run out of 'target'
+        
+        let blocksLeft = target;
+        let currentRing = b; // Starting at the layer immediately outside B
+        
+        ctx.fillStyle = '#f59e0b'; // Orange
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+
+        // Iterate rings until out of blocks or out of space
+        while (blocksLeft > 0 && currentRing < displaySize) {
+            // A ring consists of:
+            // 1. Right column (height currentRing)
+            // 2. Bottom row (width currentRing + 1)
+            
+            // Draw Right Column
+            for (let y = 0; y < currentRing; y++) {
+                if (blocksLeft <= 0) break;
+                // Coords: x = currentRing, y = y
+                drawBlock(currentRing, y, cellSize);
+                blocksLeft--;
+            }
+            
+            // Draw Bottom Row (including the corner)
+            for (let x = 0; x <= currentRing; x++) {
+                if (blocksLeft <= 0) break;
+                // Coords: x = x, y = currentRing
+                drawBlock(x, currentRing, cellSize);
+                blocksLeft--;
+            }
+            
+            currentRing++;
+        }
+
+        // 4. Visual Feedback for Fit
+        if (isPerfect) {
+            // Success!
+            statusDisplay.innerHTML = `<span class="hl-green">PERFECT SQUARE (${a} × ${a})</span>`;
+            statusDisplay.style.color = "#10b981";
+            
+            // Draw a nice green border around the whole thing
+            ctx.strokeStyle = "#10b981";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(0, 0, a * cellSize, a * cellSize);
+            
+            // Calc factors
+            // N = A^2 - B^2 = (A-B)(A+B)
+            const f1 = a - b;
+            const f2 = a + b;
+            factorDisplay.innerText = `${f1} × ${f2} = ${target}`;
+            
+            if(animating) stopAnimate();
+
+        } else {
+            // Failure
+            if (blocksLeft > 0) {
+                // We filled the view but have blocks left (Overflow)
+                statusDisplay.innerHTML = `<span class="hl-red">OVERFLOW (${blocksLeft} blocks left)</span>`;
+                
+                // Draw remaining indicator?
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+                ctx.fillRect(displaySize*cellSize - 20, displaySize*cellSize - 20, 20, 20); // Corner warning
+            } else {
+                // We ran out of blocks before finishing the current ring (Gap)
+                // Calculate Gap
+                const gap = (a+1)*(a+1) - (b*b) - target; 
+                // Wait, simpler: Next square area - totalArea
+                const nextSq = (a+1)*(a+1);
+                const currentSq = a*a;
+                // If we didn't fill 'a', calculate gap to 'a'
+                // Actually the visual loop fills partial rings.
+                // Just say "Not a square"
+                 statusDisplay.innerHTML = `<span class="hl-red">GAP / MISMATCH</span>`;
+            }
+            factorDisplay.innerText = "--";
+        }
+
+        // Math Equation Update
+        mathDisplay.innerHTML = `
+            <span class="hl-orange">${target}</span> + 
+            <span class="hl-blue">${b}²</span> = 
+            ${totalArea} 
+            <span style="font-size:0.8em; color:#64748b">(${isPerfect ? 'Square' : 'Not Square'})</span>
+        `;
+    }
+
+    function drawBlock(c, r, size) {
+        // Slight padding for "block" look
+        const pad = size * 0.05;
+        ctx.fillRect(c * size + pad, r * size + pad, size - pad*2, size - pad*2);
+    }
+
+    function resizeCanvas(gridSize) {
+        // Fit to container, square aspect ratio
+        const minDim = Math.min(container.clientWidth, container.clientHeight) - 40;
+        canvas.width = minDim;
+        canvas.height = minDim;
+        // Don't need to scale context, we calculate coords manually
+    }
+
+    // --- Interaction ---
+    sliderB.addEventListener('input', render);
+    inpTarget.addEventListener('change', () => {
+        sliderB.max = parseInt(inpTarget.value); // Heuristic
+        render();
+    });
+    window.addEventListener('resize', render);
+
+    // --- Auto Solve Logic ---
+    function stopAnimate() {
+        animating = false;
+        btnSolve.innerText = "Auto Solve";
+        btnSolve.style.background = "var(--success)";
+    }
+
+    btnSolve.addEventListener('click', () => {
+        if(animating) {
+            stopAnimate();
+            return;
+        }
+        
+        animating = true;
+        btnSolve.innerText = "Stop";
+        btnSolve.style.background = "#ef4444";
+        
+        let attempt = 1;
+        sliderB.value = attempt;
+        
+        const loop = setInterval(() => {
+            if(!animating) { clearInterval(loop); return; }
+            
+            // Logic: Increment B
+            attempt++;
+            sliderB.value = attempt;
+            render(); // Update visual
+            
+            // Check success
+            // Get current math
+            const t = parseInt(inpTarget.value);
+            const sq = attempt*attempt;
+            const tot = t + sq;
+            const root = Math.sqrt(tot);
+            
+            if (Number.isInteger(root)) {
+                // Found it!
+                clearInterval(loop);
+                // Don't stop animate flag immediately so we don't toggle UI weirdly
+                stopAnimate();
+            }
+            
+            if (attempt > t) { // Safety break
+                clearInterval(loop);
+                stopAnimate();
+                alert("No integer factors found in range.");
+            }
+            
+        }, 50); // Speed
+    });
+
+    // Init
+    render();
+
+</script>
+</body>
+</html>

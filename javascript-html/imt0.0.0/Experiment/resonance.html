@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON RESONANCE SCANNER</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;900&display=swap');
+
+    :root {
+        --bg: #000000;
+        --panel: #0a0a0a;
+        --border: #333;
+        --text: #555;
+        --lit: #00ff41;
+        --warn: #ffbd00;
+        --bad: #ff003c;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Share Tech Mono', monospace;
+        margin: 0; padding: 0; height: 100vh;
+        display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* --- HUD --- */
+    .hud {
+        padding: 10px; border-bottom: 2px solid #111;
+        background: radial-gradient(circle at 50% 0, #111, #000);
+        flex-shrink: 0;
+    }
+    
+    .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    .label { font-size: 0.7rem; letter-spacing: 1px; color: #444; }
+    
+    input {
+        background: transparent; border: none; border-bottom: 1px solid #333;
+        color: var(--lit); font-family: 'Orbitron'; font-size: 1.5rem;
+        width: 100%; text-align: right; outline: none;
+    }
+
+    /* --- SPECTRUM VISUALIZER --- */
+    .viz-container {
+        flex: 1; position: relative; background: #050505;
+        border-top: 1px solid #222; border-bottom: 1px solid #222;
+        overflow: hidden;
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    
+    .overlay-info {
+        position: absolute; top: 10px; left: 10px;
+        font-size: 0.8rem; color: var(--lit); opacity: 0.7;
+        pointer-events: none;
+    }
+
+    /* --- SIGNAL LOG --- */
+    .signal-log {
+        height: 180px; background: #020202;
+        border-top: 2px solid #222;
+        overflow-y: auto; padding: 10px;
+        font-family: monospace; font-size: 0.85rem;
+    }
+    .log-item { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+    .sig-freq { color: var(--warn); font-weight: bold; }
+    .sig-res { color: #444; }
+    .sig-lock { color: var(--lit); text-shadow: 0 0 5px var(--lit); font-weight: 900; animation: blink 1s infinite; }
+    
+    @keyframes blink { 50% { opacity: 0.5; } }
+
+    /* --- CONTROLS --- */
+    .control-deck {
+        background: #080808; padding: 15px;
+        display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+        border-top: 1px solid #333; flex-shrink: 0;
+    }
+
+    .btn {
+        background: #111; border: 1px solid #333; color: #666;
+        border-radius: 4px; font-family: 'Orbitron'; font-size: 0.9rem;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column; height: 60px; cursor: pointer;
+        transition: all 0.1s;
+    }
+    .btn:active { background: #222; border-color: #555; color: #fff; }
+    .btn-run { border-color: #004400; color: #008800; }
+    .btn-run.active { background: #002200; color: var(--lit); box-shadow: 0 0 10px rgba(0,255,0,0.2); }
+    .btn-stop { border-color: #440000; color: #880000; }
+    
+    .knob-container {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .range-wrap { width: 100%; display: flex; flex-direction: column; align-items: center; }
+    input[type=range] {
+        -webkit-appearance: none; width: 100%; background: transparent; margin: 10px 0; border: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none; height: 20px; width: 20px;
+        border-radius: 50%; background: var(--warn);
+        cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px var(--warn);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+        width: 100%; height: 4px; cursor: pointer;
+        background: #333; border-radius: 2px;
+    }
+    
+    .stat-bar {
+        font-size: 0.7rem; color: #444; display: flex; justify-content: space-between; padding: 2px 5px; background: #000;
+    }
+</style>
+</head>
+<body>
+
+<div class="hud">
+    <div class="row">
+        <span class="label">TARGET FREQUENCY (N)</span>
+        <span class="label" id="coreDisp">8 CORES READY</span>
+    </div>
+    <input type="text" id="inpN" value="1000000000063">
+    <div class="row" style="margin-top:10px;">
+        <div>
+            <span class="label">ANCHOR START</span>
+            <input type="number" id="inpStart" style="font-size:1rem; color:#888;" value="1">
+        </div>
+        <div style="text-align:right">
+            <span class="label">RANGE</span>
+            <input type="number" id="inpRange" style="font-size:1rem; color:#888;" value="1000000">
+        </div>
+    </div>
+</div>
+
+<div class="viz-container">
+    <canvas id="scope"></canvas>
+    <div class="overlay-info">
+        SCANNING BAND: <span id="scanA">--</span><br>
+        RESONANCE PEAK: <span id="peakVal">--</span>
+    </div>
+</div>
+
+<div class="stat-bar">
+    <span id="speedStat">0 A/s</span>
+    <span id="statusStat">STANDBY</span>
+</div>
+
+<div class="signal-log" id="log">
+    <div class="log-item" style="color:#333; text-align:center;">--- SYSTEM LOG ---</div>
+</div>
+
+<div class="control-deck">
+    <button id="btnToggle" class="btn btn-run" onclick="toggleScan()">INIT<br>SCAN</button>
+    
+    <div class="knob-container">
+        <span class="label">SQUELCH (THRESHOLD)</span>
+        <div class="range-wrap">
+            <input type="range" id="sqSlider" min="2" max="50" value="5" oninput="updSquelch(this.value)">
+        </div>
+        <span class="label" id="sqDisp" style="color:var(--warn)">5 HITS</span>
+    </div>
+
+    <button class="btn" onclick="clearLog()">CLR<br>LOG</button>
+</div>
+
+<script>
+/**
+ * GNOMON RESONANCE SCANNER
+ * Uses 8-core workers to generate DNA streams.
+ * Collects frequency data (histogram).
+ * Triggers modulo checks on high-frequency "Resonant" numbers.
+ */
+
+// --- CONFIG ---
+const CORES = navigator.hardwareConcurrency || 8;
+document.getElementById('coreDisp').innerText = `${CORES} CORES DETECTED`;
+
+let isRunning = false;
+let workers = [];
+let scanStart = 0;
+let scanRange = 0;
+let squelch = 5;
+let N_global = 0n;
+
+// Vis State
+const canvas = document.getElementById('scope');
+const ctx = canvas.getContext('2d');
+let spectrum = new Array(100).fill(0); // Simple visual buckets
+let animationId;
+let lastSpeedUpdate = 0;
+let processedCount = 0;
+
+// --- WORKER BLOB ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { cmd, start, end, N_str, squelch } = e.data;
+    
+    if (cmd === 'scan') {
+        const N = BigInt(N_str);
+        const map = new Map(); // Frequency buffer
+        let batchSize = 1000;
+        let counter = 0;
+
+        // Helper: Integer Sqrt
+        const sqrtBig = (n) => {
+            if (n < 2n) return n;
+            let x = n;
+            let y = (x + 1n) / 2n;
+            while (y < x) { x = y; y = (x + n / x) / 2n; }
+            return x;
+        };
+
+        for (let a = BigInt(start); a < BigInt(end); a++) {
+            let R = N - (a * a);
+            // We care about magnitude for DNA
+            let val = (R < 0n) ? -R : R;
+            
+            // DNA DECOMPOSITION (Greedy Square)
+            // We only take the first 3 roots to keep it fast and "noisy"
+            let dna = [];
+            for(let i=0; i<3; i++) {
+                if(val === 0n) break;
+                let r = sqrtBig(val);
+                dna.push(r);
+                val = val - (r*r);
+            }
+
+            // ADD TO RESONANCE POOL
+            // We add: Roots, and Anchor +/- Root
+            // This creates the "Interference Pattern"
+            const addToMap = (k) => {
+                if(k <= 1n) return;
+                let key = k.toString();
+                let c = (map.get(key) || 0) + 1;
+                map.set(key, c);
+            };
+
+            dna.forEach(d => {
+                addToMap(d);
+                addToMap(a + d);
+                // addToMap(a - d); // Optional: add diffs
+            });
+
+            counter++;
+            
+            // Check Buffer every batch
+            if(counter % batchSize === 0) {
+                let candidates = [];
+                // Visualization Data (histogram buckets)
+                let vizData = new Array(20).fill(0);
+
+                for (let [k, v] of map) {
+                    // Fill Viz (simple hash)
+                    let hash = parseInt(k.slice(-2)) % 20;
+                    vizData[hash] += v;
+
+                    // CHECK SQUELCH
+                    if (v >= squelch) {
+                        candidates.push({ val: k, hits: v });
+                        // Reset count slightly so it doesn't spam, but keeps "glowing"
+                        map.set(k, Math.floor(v/2));
+                    }
+                }
+                
+                // Decay the map to keep it real-time
+                for (let [k, v] of map) {
+                    if (v < 2) map.delete(k);
+                    else map.set(k, v - 1);
+                }
+
+                postMessage({ 
+                    type: 'tick', 
+                    processed: batchSize, 
+                    candidates: candidates,
+                    viz: vizData,
+                    currA: a.toString()
+                });
+            }
+        }
+        postMessage({ type: 'done' });
+    }
+};
+`;
+
+const blob = new Blob([workerCode], {type: 'application/javascript'});
+const workerURL = URL.createObjectURL(blob);
+
+// --- MAIN THREAD ---
+
+function resize() {
+    canvas.width = canvas.parentElement.offsetWidth;
+    canvas.height = canvas.parentElement.offsetHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function updSquelch(v) {
+    squelch = parseInt(v);
+    document.getElementById('sqDisp').innerText = `${squelch} HITS`;
+    // Update live workers
+    workers.forEach(w => w.terminate()); // Brute force reset for cleaner logic in this lightweight tool
+    if(isRunning) startScan();
+}
+
+function logMsg(val, hits, isLock) {
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    
+    let cls = isLock ? 'sig-lock' : 'sig-freq';
+    let txt = isLock ? 'SIGNAL LOCKED' : 'RESONANCE';
+    
+    div.innerHTML = `
+        <span class="${cls}">${val}</span>
+        <span class="sig-res">${hits} HITS [${txt}]</span>
+    `;
+    const box = document.getElementById('log');
+    box.prepend(div);
+    if(box.children.length > 50) box.lastChild.remove();
+}
+
+function clearLog() {
+    document.getElementById('log').innerHTML = '<div class="log-item" style="color:#333; text-align:center;">--- CLEARED ---</div>';
+}
+
+function toggleScan() {
+    if(isRunning) stopScan();
+    else startScan();
+}
+
+function stopScan() {
+    isRunning = false;
+    workers.forEach(w => w.terminate());
+    workers = [];
+    document.getElementById('btnToggle').classList.remove('active');
+    document.getElementById('btnToggle').innerHTML = "INIT<br>SCAN";
+    document.getElementById('statusStat').innerText = "STANDBY";
+    document.getElementById('statusStat').style.color = "#555";
+    cancelAnimationFrame(animationId);
+}
+
+function startScan() {
+    const rawN = document.getElementById('inpN').value;
+    try {
+        N_global = BigInt(rawN);
+    } catch(e) { alert("Invalid N"); return; }
+    
+    scanStart = parseInt(document.getElementById('inpStart').value);
+    scanRange = parseInt(document.getElementById('inpRange').value);
+    
+    isRunning = true;
+    document.getElementById('btnToggle').classList.add('active');
+    document.getElementById('btnToggle').innerHTML = "ABORT<br>SCAN";
+    document.getElementById('statusStat').innerText = "SCANNING...";
+    document.getElementById('statusStat').style.color = "var(--lit)";
+
+    processedCount = 0;
+    lastSpeedUpdate = Date.now();
+    
+    const chunkSize = Math.floor(scanRange / CORES);
+    
+    for(let i=0; i<CORES; i++) {
+        const w = new Worker(workerURL);
+        const s = scanStart + (i * chunkSize);
+        const e = (i === CORES-1) ? (scanStart + scanRange) : (s + chunkSize);
+        
+        w.postMessage({
+            cmd: 'scan',
+            start: s,
+            end: e,
+            N_str: N_global.toString(),
+            squelch: squelch
+        });
+        
+        w.onmessage = (ev) => handleWorkerMsg(ev.data);
+        workers.push(w);
+    }
+    
+    drawLoop();
+}
+
+let testedCandidates = new Set();
+
+function handleWorkerMsg(data) {
+    if(data.type === 'done') {
+        // One worker finished
+    }
+    else if(data.type === 'tick') {
+        processedCount += data.processed;
+        document.getElementById('scanA').innerText = data.currA;
+
+        // Mix Viz Data
+        for(let i=0; i<data.viz.length; i++) {
+            spectrum[i] = (spectrum[i] || 0) + data.viz[i];
+        }
+
+        // Check Candidates
+        if(data.candidates.length > 0) {
+            data.candidates.forEach(c => {
+                // Prevent spamming same number
+                if(!testedCandidates.has(c.val)) {
+                    let valBig = BigInt(c.val);
+                    if (valBig > 1n && valBig < N_global) {
+                        // THE MODULO CHECK
+                        if (N_global % valBig === 0n) {
+                            logMsg(c.val, c.hits, true);
+                            // Play sound or vibration here if needed
+                        } else {
+                            // Just resonance
+                            if(Math.random() > 0.8) { // Only log some resonance to avoid spam
+                                logMsg(c.val, c.hits, false);
+                                document.getElementById('peakVal').innerText = c.val;
+                            }
+                        }
+                    }
+                    testedCandidates.add(c.val);
+                    // Clear from set after a while to allow re-detection? 
+                    // No, for this run we ignore repeats.
+                }
+            });
+        }
+    }
+}
+
+// --- VISUAL LOOP ---
+function drawLoop() {
+    if(!isRunning) return;
+    
+    // Calculate Speed
+    const now = Date.now();
+    if(now - lastSpeedUpdate > 1000) {
+        document.getElementById('speedStat').innerText = `${processedCount} A/s`;
+        processedCount = 0;
+        lastSpeedUpdate = now;
+    }
+
+    // Fade effect
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const barW = canvas.width / 20;
+    
+    for(let i=0; i<20; i++) {
+        // Get value and decay it
+        let h = (spectrum[i] || 0) * 2; // Scale factor
+        if(h > canvas.height) h = canvas.height;
+        
+        // Color based on height
+        ctx.fillStyle = h > canvas.height * 0.8 ? '#ffbd00' : '#00ff41';
+        
+        // Draw Bar
+        const x = i * barW;
+        const y = canvas.height - h;
+        ctx.fillRect(x + 1, y, barW - 2, h);
+        
+        // Decay spectrum array
+        if(spectrum[i] > 0) spectrum[i] = Math.max(0, spectrum[i] - 1);
+    }
+    
+    animationId = requestAnimationFrame(drawLoop);
+}
+
+</script>
+</body>
+</html>

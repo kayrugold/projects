@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter: Triangle Completer</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        h1 { color: #00e676; margin-bottom: 5px; text-align: center; }
+        .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 20px; text-align: center; }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: #1e1e1e;
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        input {
+            padding: 10px;
+            background: #333;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            width: 70px;
+            font-size: 1.2rem;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #00e676;
+            color: #000;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        #canvas-wrapper {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+            width: 100%;
+            padding: 20px;
+        }
+
+        canvas {
+            /* border: 1px solid #333; */
+        }
+
+        .stats-box {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            margin-top: 20px;
+            text-align: center;
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+        .green-txt { color: #00e676; font-weight: bold; }
+        .white-txt { color: #ccc; font-weight: bold; }
+        .total-txt { color: #4fc3f7; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Triangle Completer</h1>
+    <div class="subtitle">Odd Numbers are just the base of a Pyramid</div>
+
+    <div class="controls">
+        <button onclick="changeNum(-2)">-</button>
+        <input type="number" id="numInput" value="15" inputmode="numeric" step="2">
+        <button onclick="changeNum(2)">+</button>
+    </div>
+
+    <div id="canvas-wrapper">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="stats-box" id="stats">
+        </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('numInput');
+        const stats = document.getElementById('stats');
+
+        function changeNum(delta) {
+            let val = parseInt(input.value) + delta;
+            if (val < 1) val = 1;
+            if (val % 2 === 0) val += 1; // Keep odd
+            input.value = val;
+            draw();
+        }
+
+        input.addEventListener('change', () => {
+            let val = parseInt(input.value);
+            if (val % 2 === 0) val += 1; // Force Odd
+            input.value = val;
+            draw();
+        });
+
+        function draw() {
+            const n = parseInt(input.value);
+            
+            // 1. Math Logic
+            // Odd Number n = (k) + (k-1).
+            // Example 15 = 8 + 7.  So k=8.
+            // k = (n+1)/2.
+            
+            const k = (n + 1) / 2;      // The Base size
+            const baseRow = k;          // 8
+            const secondRow = k - 1;    // 7
+            
+            // The "White Space" is the rest of the triangle (rows k-2 down to 1)
+            // Triangle size T_total = T_k
+            // White Triangle size T_white = T_(k-2)
+            
+            const totalBlocks = (k * (k + 1)) / 2;
+            const whiteBlocks = totalBlocks - n;
+            const whiteRows = k - 2;
+
+            // 2. Render Setup
+            const blockSize = 30;
+            const gap = 4;
+            const totalSizePx = (k * (blockSize + gap)) + 40;
+            
+            const dpr = window.devicePixelRatio || 1;
+            canvas.style.width = totalSizePx + 'px';
+            canvas.style.height = totalSizePx + 'px';
+            canvas.width = totalSizePx * dpr;
+            canvas.height = totalSizePx * dpr;
+            ctx.scale(dpr, dpr);
+            
+            ctx.clearRect(0, 0, totalSizePx, totalSizePx);
+
+            // 3. Draw The Staircase (Right Triangle)
+            // We draw from Bottom-Left corner
+            const startX = 20;
+            const startY = totalSizePx - 20 - blockSize; 
+
+            // Loop through all rows of the Total Triangle
+            // Row 0 is bottom (size k)
+            // Row i has size (k-i)
+            
+            for (let r = 0; r < k; r++) {
+                const rowWidth = k - r; // How many blocks in this row
+                
+                // Determine Type: Green or White?
+                // Green = Bottom 2 rows (r=0 and r=1)
+                // White = The rest (r >= 2)
+                const isGreen = (r < 2);
+                
+                for (let c = 0; c < rowWidth; c++) {
+                    const x = startX + c * (blockSize + gap);
+                    const y = startY - r * (blockSize + gap); // Build UP
+                    
+                    if (isGreen) {
+                        // Draw Solid Green
+                        ctx.fillStyle = '#00e676';
+                        ctx.fillRect(x, y, blockSize, blockSize);
+                        
+                        // Shadow/Depth
+                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                        ctx.fillRect(x+2, y+2, blockSize, blockSize);
+                        
+                        // Border
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x, y, blockSize, blockSize);
+                    } else {
+                        // Draw Ghost White
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                        ctx.fillRect(x, y, blockSize, blockSize);
+                        
+                        // Dashed Border
+                        ctx.strokeStyle = '#555';
+                        ctx.setLineDash([2, 2]);
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x, y, blockSize, blockSize);
+                        ctx.setLineDash([]); // Reset
+                        
+                        // Draw Number? (Optional, maybe for small triangles)
+                        if (k < 10) {
+                            // ctx.fillStyle = '#555';
+                            // ctx.fillText(c+1, x+10, y+20);
+                        }
+                    }
+                }
+            }
+
+            // 4. Update Stats
+            stats.innerHTML = `
+                <span class="green-txt">Green Base</span>: ${baseRow} + ${secondRow} = ${n}<br>
+                <span class="white-txt">White Space</span>: Triangle T<sub>${Math.max(0, whiteRows)}</sub> = ${whiteBlocks}<br>
+                <hr style="border-color:#333">
+                <span class="total-txt">Total Triangle</span>: T<sub>${k}</sub> = ${totalBlocks}
+            `;
+        }
+
+        draw();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Odd Composite Engine</title>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#071025; --muted:#94a3b8; --accent:#f6c84c;
+    --prime:#0b5f3b; --comp:#5a1212; --cell:#111827; --glass: rgba(255,255,255,0.03);
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#020617);color:#e6eef6;font-family:Inter,ui-sans-serif,system-ui,monospace}
+  .wrap{max-width:1200px;margin:18px auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+  header{display:flex;align-items:center;gap:12px}
+  h1{margin:0;font-size:1.1rem;color:#9ad0ff}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=number]{width:120px;padding:8px;border-radius:6px;border:1px solid #223046;background:var(--panel);color:#e6eef6}
+  button{padding:8px 12px;border-radius:8px;border:0;background:#2563eb;color:white;cursor:pointer}
+  button.secondary{background:#334155}
+  .layout{display:grid;grid-template-columns:2fr 1fr;gap:12px;height:68vh}
+  .panel{background:var(--panel);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.6);overflow:auto}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:8px;padding:8px}
+  .cell{background:var(--cell);padding:10px;border-radius:8px;text-align:center;cursor:pointer;user-select:none;border:1px solid transparent;transition:all .12s}
+  .cell.small{padding:6px;font-size:0.85rem}
+  .cell.prime{background:var(--prime);color:#d8fbe1;border-color:#059669}
+  .cell.comp{background:var(--comp);color:#ffd7d7;border-color:#7f1d1d}
+  .cell.selected{outline:3px solid rgba(246,200,76,0.15);transform:scale(1.03)}
+  .info{display:flex;flex-direction:column;gap:8px}
+  .info-row{display:flex;justify-content:space-between;gap:8px}
+  .small-muted{color:var(--muted);font-size:0.86rem}
+  .chains{display:flex;flex-direction:column;gap:6px;padding:6px}
+  .chain-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .chip{background:var(--glass);padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);font-size:0.88rem}
+  footer{font-size:0.82rem;color:var(--muted);display:flex;justify-content:space-between;gap:12px;align-items:center}
+  @media (max-width:900px){.layout{grid-template-columns:1fr;height:62vh}.grid{grid-template-columns:repeat(auto-fill,minmax(44px,1fr))}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Odd Composite Engine — Count & Multiply</h1>
+    <div style="flex:1"></div>
+    <div class="controls">
+      <label class="small-muted">Max odd number</label>
+      <input id="inpLimit" type="number" min="11" step="2" value="2001"/>
+      <button id="btnRun">Generate</button>
+      <button id="btnChains" class="secondary">Show chains</button>
+      <button id="btnExport" class="secondary">Export CSV</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Left: Grid -->
+    <div class="panel" id="leftPanel">
+      <div class="small-muted" id="summary">Ready.</div>
+      <div id="grid" class="grid" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Right: Info -->
+    <div class="panel info" id="rightPanel">
+      <div>
+        <div class="small-muted">Selected</div>
+        <div id="selNum" style="font-size:1.4rem;font-weight:700;margin-top:6px">—</div>
+        <div id="selType" class="small-muted" style="margin-top:4px">—</div>
+      </div>
+
+      <div>
+        <div class="small-muted">Factorization</div>
+        <div id="factors" style="margin-top:6px">Click a number to inspect factors.</div>
+      </div>
+
+      <div>
+        <div class="small-muted">Nearest composite walls</div>
+        <div id="walls" style="margin-top:6px">—</div>
+      </div>
+
+      <div>
+        <div class="small-muted">Gnomon / square index</div>
+        <div id="gnomon" style="margin-top:6px">—</div>
+      </div>
+
+      <div>
+        <div class="small-muted">Chains preview (roots → projections)</div>
+        <div class="chains" id="chainsBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div>Engine: iterate odd factors a=3..√N step 2, b=a..N/a step 2 — mark composites once.</div>
+    <div id="perf" class="small-muted">—</div>
+  </footer>
+</div>
+
+<script>
+/*
+  Odd Composite Engine
+  - Generates all odd composites <= limit by iterating odd factors.
+  - Records smallest odd factor for each composite for factorization.
+  - Exposes primes as numbers with no odd factor recorded (except 1).
+*/
+
+const el = id => document.getElementById(id);
+const gridEl = el('grid'), summaryEl = el('summary'), selNumEl = el('selNum'),
+      selTypeEl = el('selType'), factorsEl = el('factors'), wallsEl = el('walls'),
+      gnomonEl = el('gnomon'), chainsBox = el('chainsBox'), perfEl = el('perf');
+
+let limit = 2001;
+let smallestOddFactor = null;  // Int32Array or Array
+let oddList = [];              // list of odd numbers shown
+let selected = null;
+let chainsCache = [];
+
+function makeArrays(maxN){
+  // We'll use typed array for performance. Index by integer.
+  smallestOddFactor = new Int32Array(maxN + 1);
+  // 0 means "no odd factor found" -> prime or 1/2. We'll use only odd indices.
+}
+
+function generate(limitVal){
+  const t0 = performance.now();
+  limit = Math.floor(limitVal);
+  if (limit % 2 === 0) limit--; // force odd
+  makeArrays(limit);
+  oddList = [];
+  // Prepare odd numbers 1..limit (odd indices)
+  for (let i = 1; i <= limit; i += 2) oddList.push(i);
+
+  // iterate odd factors a = 3,5,...,floor(sqrt(limit))
+  const maxA = Math.floor(Math.sqrt(limit));
+  for (let a = 3; a <= maxA; a += 2) {
+    for (let b = a; ; b += 2) {
+      const prod = a * b;
+      if (prod > limit) break;
+      // Do not mark numbers where a == 1 (we started a at 3) — correct: 1×p doesn't make p composite.
+      // Record smallest odd factor if none set yet
+      if (smallestOddFactor[prod] === 0) smallestOddFactor[prod] = a;
+    }
+  }
+
+  // Prepare chains cache for quick viewing (roots are 3×m rows)
+  chainsCache = [];
+  for (let m = 3; m <= limit; m += 2) {
+    const val = 3 * m;
+    if (val > limit) break;
+    // Build chain by projecting (a+2,b+2) starting with a=3,b=m
+    let A = 3, B = m;
+    const row = [];
+    while (A * B <= limit) {
+      row.push([A,B,A*B]);
+      A += 2; B += 2;
+    }
+    if (row.length) chainsCache.push(row);
+  }
+
+  const t1 = performance.now();
+  renderGrid();
+  summaryEl.textContent = `Generated up to ${limit}. Odd entries: ${oddList.length}. Composites marked: ${countComposites()}. Took ${(t1-t0).toFixed(1)} ms.`;
+  perfEl.textContent = `√limit ≈ ${Math.floor(Math.sqrt(limit))}. Chains: ${chainsCache.length}`;
+}
+
+function countComposites(){
+  let c = 0;
+  for (let i = 3; i <= limit; i += 2) if (smallestOddFactor[i] !== 0) c++;
+  return c;
+}
+
+function renderGrid(){
+  gridEl.innerHTML = '';
+  // Responsive cell sizing
+  const small = limit > 400;
+  for (let i = 1; i <= limit; i += 2){
+    const div = document.createElement('div');
+    div.className = 'cell' + (small ? ' small' : '');
+    div.innerText = i;
+    div.dataset.val = i;
+    if (i === 1) {
+      div.classList.add('prime'); // treat 1 visually as special (not composite)
+      div.title = '1 (unit)';
+    } else if (smallestOddFactor[i] === 0) {
+      div.classList.add('prime');
+      div.title = 'Prime (no odd factor found)';
+    } else {
+      div.classList.add('comp');
+      const a = smallestOddFactor[i];
+      const b = i / a;
+      div.title = `Composite: ${a} × ${b}`;
+    }
+
+    div.onclick = () => selectNumber(i, div);
+    gridEl.appendChild(div);
+  }
+}
+
+function selectNumber(n, domEl){
+  // clear previous selected class
+  const prev = document.querySelector('.cell.selected');
+  if (prev) prev.classList.remove('selected');
+  domEl.classList.add('selected');
+  selected = n;
+  selNumEl.innerText = n;
+  const sf = smallestOddFactor[n];
+  if (n === 1) {
+    selTypeEl.innerText = 'Unit (1)';
+    factorsEl.innerHTML = '1 has no nontrivial factors.';
+  } else if (sf === 0) {
+    selTypeEl.innerText = 'Prime';
+    factorsEl.innerHTML = `<div class="small-muted">No odd factor recorded (prime)</div>`;
+  } else {
+    selTypeEl.innerText = 'Composite';
+    // show all odd factor pairs by iterating factors ascendingly until sqrt
+    const pairs = [];
+    // small factor recorded is smallest odd factor >=3, but there could be even factors; we are focusing on odd factorization
+    let a = sf;
+    let b = n / a;
+    pairs.push([a, b]);
+    // there may be other odd a' < b; to list all odd factor pairs, brute force odd i 3..sqrt
+    for (let i = a + 2; i * i <= n; i += 2) {
+      if (n % i === 0) pairs.push([i, n / i]);
+    }
+    // include symmetric if b>=a etc
+    let html = pairs.map(p => `<div class="chip">${p[0]} × ${p[1]} = ${n}</div>`).join(' ');
+    factorsEl.innerHTML = html;
+  }
+
+  // walls: nearest composite below and above (odd steps)
+  let lower = null, upper = null;
+  for (let x = n - 2; x >= 3; x -= 2) {
+    if (smallestOddFactor[x] !== 0) { lower = x; break; }
+  }
+  for (let x = n + 2; x <= limit; x += 2) {
+    if (smallestOddFactor[x] !== 0) { upper = x; break; }
+  }
+  wallsEl.innerHTML = `<div class="small-muted">Lower:</div> ${lower ?? 'none'} ${lower ? `<span class="small-muted">(${smallestOddFactor[lower]}×${lower/smallestOddFactor[lower]})</span>` : ''}` +
+                      `<br><div class="small-muted">Upper:</div> ${upper ?? 'none'} ${upper ? `<span class="small-muted">(${smallestOddFactor[upper]}×${upper/smallestOddFactor[upper]})</span>` : ''}` +
+                      `<br><div class="small-muted">Gap size:</div> ${ (lower && upper) ? (upper-lower) : '—' }`;
+
+  // gnomon index: n = 2k-1 => k = (n+1)/2
+  const k = (n + 1)/2;
+  gnomonEl.innerHTML = `n = ${k} (wraps ${(k-1)}² square)`;
+}
+
+function showChains(){
+  // render the first ~40 chains to the chains box
+  chainsBox.innerHTML = '';
+  const maxShow = Math.min(chainsCache.length, 60);
+  for (let i = 0; i < maxShow; i++){
+    const row = chainsCache[i];
+    const rowEl = document.createElement('div');
+    rowEl.className = 'chain-row';
+    for (let j = 0; j < row.length; j++){
+      const [A,B,val] = row[j];
+      const elChip = document.createElement('div');
+      elChip.className = 'chip';
+      elChip.innerText = `${A}×${B}=${val}`;
+      elChip.onclick = () => {
+        // scroll cell into view and select
+        const cell = document.querySelector(`.cell[data-val='${val}']`);
+        if (cell) {
+          cell.scrollIntoView({behavior:'smooth',block:'center'});
+          cell.click();
+        }
+      };
+      rowEl.appendChild(elChip);
+      if (j < row.length-1){
+        const arrow = document.createElement('div');
+        arrow.className = 'small-muted';
+        arrow.style.alignSelf='center';
+        arrow.style.padding='0 6px';
+        arrow.innerText = '→';
+        rowEl.appendChild(arrow);
+      }
+    }
+    chainsBox.appendChild(rowEl);
+  }
+  if (chainsCache.length > 60){
+    const more = document.createElement('div'); more.className='small-muted'; more.innerText = `... ${chainsCache.length - 60} more chains hidden`;
+    chainsBox.appendChild(more);
+  }
+}
+
+function exportCSV(){
+  // produce CSV: n,isComposite,smallestOddFactor
+  let csv = 'n,isComposite,smallestOddFactor\n';
+  for (let i=1;i<=limit;i+=2){
+    const f = smallestOddFactor[i] || '';
+    csv += `${i},${f?1:0},${f}\n`;
+  }
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download = `odd-composites-to-${limit}.csv`; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Attach UI
+el('btnRun').onclick = () => {
+  const v = parseInt(el('inpLimit').value) || 2001;
+  if (v < 11) { alert('Pick a higher odd limit (≥11)'); return; }
+  generate(v);
+};
+el('btnChains').onclick = showChains;
+el('btnExport').onclick = exportCSV;
+
+// Start default
+generate(parseInt(el('inpLimit').value));
+</script>
+</body>
+</html>

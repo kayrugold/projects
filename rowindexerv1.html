@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Pattern Enumerator</title>
+    <style>
+        body { font-family: monospace; background: #121212; color: #00ff41; padding: 20px; }
+        .container { max-width: 600px; margin: auto; border: 1px solid #00ff41; padding: 20px; }
+        input { background: #000; color: #00ff41; border: 1px solid #00ff41; padding: 10px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        #output { margin-top: 20px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; border-top: 1px solid #333; padding-top: 10px; }
+        button { background: #00ff41; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; width: 100%; }
+        button:hover { background: #00cc33; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Pattern Enumerator</h2>
+    <p>Enter an odd number to see its sequence:</p>
+    <input type="text" id="numberInput" placeholder="Enter an odd BigInt (e.g. 81)">
+    <button onclick="startCalculation()">Enumerate</button>
+    <div id="output"></div>
+</div>
+
+<script id="worker-script" type="text/javascript">
+    self.onmessage = function(e) {
+        let x = BigInt(e.data.val);
+        if (x % 2n === 0n) {
+            self.postMessage("Please enter an odd number.");
+            return;
+        }
+
+        // Find the starting n where n^2 >= x
+        let n = 1n;
+        while (n * n < x) {
+            n += 2n;
+        }
+
+        let results = [];
+        let currentX = n * n;
+        let startA = n;
+        
+        // Enumerate downwards to find the specific input x and its neighbors
+        while (currentX >= x || results.length < 5) {
+            let tempX = currentX;
+            let a = startA;
+            let b = 0n;
+
+            // Generate the sub-sequence for this square root block
+            while (tempX > 0n && a > 0n) {
+                if (tempX === x) {
+                    results.push(`>> ${tempX}:${a}.${b} <<`);
+                } else {
+                    results.push(`${tempX}:${a}.${b}`);
+                }
+                tempX -= 18n; // The pattern shifts by 18 for each decimal increment
+                a -= 1n;
+                b += 1n;
+            }
+
+            if (currentX <= x) break;
+            
+            n -= 2n;
+            if (n < 1n) break;
+            currentX = n * n;
+            startA = n;
+        }
+
+        self.postMessage(results.join('\n'));
+    };
+</script>
+
+<script>
+    // Initialize Worker via Blob
+    const blob = new Blob([document.getElementById('worker-script').textContent], { type: 'text/javascript' });
+    const worker = new Worker(window.URL.createObjectURL(blob));
+
+    worker.onmessage = function(e) {
+        document.getElementById('output').innerText = e.data;
+    };
+
+    function startCalculation() {
+        const val = document.getElementById('numberInput').value;
+        if (!val) return;
+        document.getElementById('output').innerText = "Calculating...";
+        worker.postMessage({ val: val });
+    }
+</script>
+
+</body>
+</html>

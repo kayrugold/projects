@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Codex Gnomonicus v0.0.6 (Night Mode)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        :root {
+            --bg: #020617; 
+            --panel: #0f172a; 
+            --border: #1e293b;
+            --cyan: #22d3ee; 
+            --pink: #f472b6; 
+            --green: #34d399;
+            --gold: #fbbf24;
+            --text: #e2e8f0;
+            --font-mono: 'Roboto Mono', monospace;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-mono);
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* HUD CONTROLS */
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 10px; box-sizing: border-box;
+            display: flex; justify-content: space-between;
+            pointer-events: none; z-index: 10;
+        }
+        .stat-box { 
+            background: rgba(15, 23, 42, 0.9); 
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            border: 1px solid var(--cyan); 
+            font-size: 0.9rem; 
+            color: var(--cyan);
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.1);
+        }
+
+        #btn-jump {
+            position: absolute; bottom: 30px; right: 30px;
+            width: 64px; height: 64px;
+            background: var(--cyan); color: #000;
+            border-radius: 50%; border: none;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+            font-family: var(--font-mono); font-size: 1rem; font-weight: 900;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; z-index: 50;
+            text-transform: uppercase;
+        }
+        #btn-jump:active { transform: scale(0.95); background: #fff; }
+
+        /* DATA CARD */
+        #card {
+            position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 400px;
+            background: rgba(15, 23, 42, 0.95); 
+            border: 1px solid var(--pink);
+            padding: 0; border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            display: none; flex-direction: column;
+            font-size: 0.85rem;
+            z-index: 40; overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+        
+        .card-header { 
+            font-size: 1.2rem; color: #fff; font-weight: bold;
+            text-align: center; padding: 12px; background: var(--pink);
+            color: #000; letter-spacing: 1px;
+        }
+
+        .card-body { padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+
+        .data-row { display: flex; justify-content: space-between; align-items: center; }
+        .data-lbl { color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
+        .data-val { font-weight: bold; color: #fff; font-size: 1rem; font-family: monospace; }
+        .cargo-val { color: var(--cyan); font-size: 1.4rem; font-weight: 900; text-shadow: 0 0 10px rgba(34, 211, 238, 0.3); }
+
+        .factor-box {
+            background: rgba(52, 211, 153, 0.1); 
+            border: 1px solid var(--green); 
+            padding: 10px; margin-top: 10px; 
+            text-align: center; border-radius: 4px;
+        }
+        .factor-lbl { color: var(--green); font-size: 0.7rem; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; }
+        .factor-val { color: #fff; font-size: 1.2rem; font-weight: bold; }
+
+        /* ANALYSIS SUMS */
+        .sum-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;
+            margin-top: 10px; border-top: 1px solid #334155; padding-top: 10px;
+        }
+        .sum-item { text-align: center; }
+        .sum-lbl { font-size: 0.6rem; color: var(--pink); font-weight: bold; letter-spacing: 1px; }
+        .sum-val { font-size: 0.9rem; font-weight: bold; color: #fff; }
+
+        canvas { display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="stat-box">ROW <span id="disp-row" style="color:#fff">--</span></div>
+        <div class="stat-box">ZOOM <span id="disp-scale" style="color:#fff">1.0x</span></div>
+    </div>
+
+    <button id="btn-jump" onclick="askJump()">SCAN</button>
+
+    <div id="card" onclick="this.style.display='none'">
+        <div class="card-header">ID: <span id="c-tape">--</span></div>
+        <div class="card-body">
+            <div class="data-row">
+                <span class="data-lbl">Coordinate</span>
+                <span class="data-val" id="c-coord">--</span>
+            </div>
+            <div class="data-row" style="margin-top:5px;">
+                <span class="data-lbl" style="color:var(--gold)">ANCHOR (a)</span>
+                <span class="data-val" id="c-anchor" style="color:var(--gold)">--</span>
+            </div>
+            <div class="data-row">
+                <span class="data-lbl" style="color:var(--pink)">GAP (b)</span>
+                <span class="data-val" id="c-gap" style="color:var(--pink)">--</span>
+            </div>
+            <div style="border-top: 1px solid #334155; margin: 10px 0;"></div>
+            <div class="data-row">
+                <span class="data-lbl">CARGO (VALUE)</span>
+                <span class="data-val cargo-val" id="c-val">--</span>
+            </div>
+            <div class="factor-box">
+                <div class="factor-lbl">FACTORS DETECTED</div>
+                <div class="factor-val" id="c-factors">--</div>
+            </div>
+            
+            <div class="sum-grid" id="sum-section" style="display:none;">
+                <div class="sum-item">
+                    <div class="sum-lbl">ROW Σ</div>
+                    <div class="sum-val" id="sum-row">--</div>
+                </div>
+                <div class="sum-item">
+                    <div class="sum-lbl">GAP Σ</div>
+                    <div class="sum-val" id="sum-col">--</div>
+                </div>
+                <div class="sum-item">
+                    <div class="sum-lbl">GNOMON Σ</div>
+                    <div class="sum-val" id="sum-gnomon">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+
+        let scale = 60;
+        let offsetX = window.innerWidth / 2;
+        let offsetY = 100;
+        let selected = null;
+        let showAnalysis = false;
+
+        let evCache = [];
+        let prevDiff = -1;
+        let clickStartPos = {x:0, y:0};
+
+        function init() {
+            window.addEventListener('resize', resize);
+            resize();
+            canvas.addEventListener('pointerdown', onPointerDown);
+            canvas.addEventListener('pointermove', onPointerMove);
+            canvas.addEventListener('pointerup', onPointerUp);
+            canvas.addEventListener('pointercancel', onPointerUp);
+            canvas.addEventListener('pointerout', onPointerUp);
+            canvas.addEventListener('pointerleave', onPointerUp);
+            canvas.addEventListener('wheel', onWheel, {passive: false});
+            canvas.addEventListener('click', onClick);
+            requestAnimationFrame(draw);
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+
+        function getGridInfo(r, c) {
+            let R = BigInt(r) + 1n; 
+            let halfW = R - 1n;
+            let endID = R * R;
+            let offsetFromEnd = halfW - BigInt(c);
+            let tapeID = endID - offsetFromEnd;
+            let a = 2n * R - 1n; 
+            let gap = BigInt(Math.abs(c));
+            let val = a * (a - (2n * gap));
+            let f1 = a;
+            let f2 = a - (2n * gap);
+            let p1 = f1, p2 = f2;
+            if (p1 < 0n) p1 = -p1; if (p2 < 0n) p2 = -p2;
+            if (p1 > p2) { let t=p1; p1=p2; p2=t; }
+
+            return {
+                R: R, c: BigInt(c), tapeID: tapeID,
+                a: a, gap: gap, val: val, factors: `${p1} × ${p2}`,
+                isEnd: (BigInt(c) === halfW), isCenter: (c === 0)
+            };
+        }
+
+        function calculateSums(r, c) {
+            let R = BigInt(r) + 1n;
+            let targetGap = Math.abs(c);
+            let rowSum = 0n;
+            let halfW = Number(R) - 1;
+            for(let i=0; i<=halfW; i++) {
+                let node = getGridInfo(r, i);
+                rowSum += node.val;
+            }
+            let colSum = 0n;
+            for(let i=targetGap; i<=r; i++) {
+                let node = getGridInfo(i, targetGap);
+                colSum += node.val;
+            }
+            let intersectVal = getGridInfo(r, targetGap).val;
+            let gnomonSum = rowSum + colSum - intersectVal;
+            return { row: rowSum, col: colSum, gnomon: gnomonSum };
+        }
+
+        function getCoordsFromTape(T_str) {
+            try {
+                let T = bigInt(T_str);
+                let R = bigSqrt(T.value); 
+                if (R*R < T.value) R++;
+                let endID = R * R;
+                let offsetFromEnd = endID - T.value;
+                let halfW = R - 1n;
+                let c = halfW - offsetFromEnd;
+                return { r: Number(R) - 1, c: Number(c), valid: true };
+            } catch(e) { return { valid: false }; }
+        }
+
+        function bigSqrt(value) {
+            if (value < 0n) return -1n;
+            if (value < 2n) return value;
+            let x = value;
+            let y = (x + 1n) / 2n;
+            while (y < x) { x = y; y = (value / x + x) / 2n; }
+            return x;
+        }
+
+        function draw() {
+            // Dark Mode Background
+            ctx.fillStyle = "#020617";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let startRow = Math.floor(-offsetY / scale);
+            let endRow = startRow + Math.ceil(canvas.height / scale) + 1;
+            if (startRow < 0) startRow = 0;
+            let midX = offsetX;
+
+            document.getElementById('disp-row').innerText = startRow + 1;
+            document.getElementById('disp-scale').innerText = (scale/60).toFixed(1) + "x";
+
+            // Analysis Lines (Glow)
+            if (selected && showAnalysis) {
+                drawAnalysisLines(selected.r, selected.c, midX);
+            }
+
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            let fontSize = Math.max(10, scale * 0.35);
+            ctx.font = `bold ${fontSize}px monospace`;
+
+            for (let r = startRow; r < endRow; r++) {
+                let y = offsetY + r * scale;
+                let R = r + 1;
+                let halfW = R - 1;
+                
+                let screenLeftC = Math.floor((-offsetX) / scale) - 1;
+                let screenRightC = Math.floor((canvas.width - offsetX) / scale) + 1;
+                let startC = Math.max(-halfW, screenLeftC);
+                let endC = Math.min(halfW, screenRightC);
+
+                for (let c = startC; c <= endC; c++) {
+                    let x = midX + c * scale;
+                    let bigR = BigInt(R);
+                    let endID = bigR * bigR;
+                    let offsetFromEnd = BigInt(halfW - c);
+                    let tapeID = endID - offsetFromEnd;
+
+                    let isSel = (selected && selected.tapeID === tapeID);
+                    let isEnd = (c === halfW); // The Cornerstone
+                    let isCenter = (c === 0);
+
+                    // Cell Background
+                    ctx.fillStyle = "#0f172a"; // Default dark block
+                    if (isCenter) ctx.fillStyle = "rgba(34, 211, 238, 0.1)"; // Center Cyan tint
+                    if (isEnd) ctx.fillStyle = "rgba(251, 191, 36, 0.1)"; // End Gold tint
+                    if (isSel) ctx.fillStyle = "rgba(244, 114, 182, 0.2)"; // Selection Pink tint
+
+                    // Draw Rect
+                    ctx.fillRect(x - scale/2 + 1, y - scale/2 + 1, scale - 2, scale - 2);
+
+                    // Borders
+                    ctx.lineWidth = 1;
+                    if (isEnd) { ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2; } // Gold border for cornerstone
+                    else if (isCenter) ctx.strokeStyle = "#22d3ee";
+                    else ctx.strokeStyle = "#1e293b"; // Subtle grid
+                    
+                    if (isSel) { ctx.strokeStyle = "#f472b6"; ctx.lineWidth = 3; }
+                    ctx.strokeRect(x - scale/2 + 1, y - scale/2 + 1, scale - 2, scale - 2);
+
+                    // Text
+                    ctx.fillStyle = "#64748b";
+                    if (isCenter) ctx.fillStyle = "#22d3ee";
+                    if (isEnd) ctx.fillStyle = "#fbbf24";
+                    if (isSel) ctx.fillStyle = "#fff";
+
+                    if (scale > 20) {
+                        let txt = tapeID.toString();
+                        if (txt.length > 6) txt = txt.substring(0, 2) + ".." + txt.slice(-2);
+                        ctx.fillText(txt, x, y);
+                    } else { 
+                        ctx.fillStyle = isEnd ? "#fbbf24" : "#334155";
+                        ctx.fillRect(x - 2, y - 2, 4, 4); 
+                    }
+                }
+            }
+        }
+
+        function drawAnalysisLines(r, c, midX) {
+            let y = offsetY + r * scale;
+            let x = midX + c * scale;
+            let R = r + 1;
+            let halfW = R - 1;
+            let gap = Math.abs(c);
+
+            // Neon Glow Settings
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#f472b6";
+            ctx.strokeStyle = "#f472b6";
+            ctx.lineWidth = Math.max(2, scale * 0.05);
+            ctx.lineCap = "round";
+
+            // Horizontal (Row) - Center to Edge
+            let startX = midX - halfW * scale;
+            let endX = midX + halfW * scale;
+            ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
+
+            // Vertical (Gap) - Tip to Current
+            let topY = offsetY + gap * scale;
+            ctx.beginPath(); ctx.moveTo(x, topY); ctx.lineTo(x, y); ctx.stroke();
+
+            // Reset Shadow
+            ctx.shadowBlur = 0;
+
+            // Reticle Intersection
+            ctx.beginPath(); 
+            ctx.arc(x, y, scale * 0.3, 0, Math.PI*2);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+        }
+
+        // --- INTERACTION ---
+        function onPointerDown(ev) { evCache.push(ev); clickStartPos={x:ev.clientX, y:ev.clientY}; }
+        function onPointerMove(ev) {
+            const index = evCache.findIndex(e => e.pointerId === ev.pointerId);
+            if (index > -1) evCache[index] = ev;
+            if (evCache.length === 1) {
+                offsetX += ev.movementX; offsetY += ev.movementY; requestAnimationFrame(draw);
+            } else if (evCache.length === 2) {
+                const curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY);
+                const midX = (evCache[0].clientX + evCache[1].clientX) / 2;
+                const midY = (evCache[0].clientY + evCache[1].clientY) / 2;
+                if (prevDiff > 0) {
+                    let zoomFactor = 1.0 + (curDiff - prevDiff) * 0.005;
+                    if (curDiff < prevDiff) zoomFactor = 1.0 - (prevDiff - curDiff) * 0.005;
+                    const newScale = scale * zoomFactor;
+                    if (newScale > 0.5 && newScale < 500) {
+                        offsetX = midX - (midX - offsetX) * zoomFactor;
+                        offsetY = midY - (midY - offsetY) * zoomFactor;
+                        scale = newScale;
+                    }
+                }
+                prevDiff = curDiff; requestAnimationFrame(draw);
+            }
+        }
+        function onPointerUp(ev) {
+            const index = evCache.findIndex(e => e.pointerId === ev.pointerId);
+            if (index > -1) evCache.splice(index, 1);
+            if (evCache.length < 2) prevDiff = -1;
+        }
+        function onWheel(ev) {
+            ev.preventDefault();
+            const zoomFactor = ev.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = scale * zoomFactor;
+            if (newScale > 0.5 && newScale < 500) {
+                offsetX = ev.clientX - (ev.clientX - offsetX) * zoomFactor;
+                offsetY = ev.clientY - (ev.clientY - offsetY) * zoomFactor;
+                scale = newScale; draw();
+            }
+        }
+
+        function onClick(e) {
+            const dist = Math.hypot(e.clientX - clickStartPos.x, e.clientY - clickStartPos.y);
+            if (dist > 10) return; 
+            let r = Math.floor((e.clientY - (offsetY - scale/2)) / scale);
+            let c = Math.floor((e.clientX - (offsetX - scale/2)) / scale);
+            let info = getGridInfo(r, c);
+            if (info) {
+                selected = { tapeID: info.tapeID, r: r, c: c };
+                showAnalysis = true;
+                let sums = calculateSums(r, c);
+                document.getElementById('sum-row').innerText = sums.row.toString();
+                document.getElementById('sum-col').innerText = sums.col.toString();
+                document.getElementById('sum-gnomon').innerText = sums.gnomon.toString();
+                document.getElementById('sum-section').style.display = "grid";
+                showCard(info);
+                draw();
+            }
+        }
+
+        function askJump() {
+            let val = prompt("Enter Tape ID to Scan:");
+            if (val) {
+                let coords = getCoordsFromTape(val);
+                if (coords.valid) {
+                    offsetY = (canvas.height / 2) - (coords.r * scale);
+                    offsetX = (canvas.width / 2) - (coords.c * scale);
+                    let T = bigInt(val).value;
+                    let info = getGridInfo(coords.r, coords.c);
+                    selected = { tapeID: T, r: coords.r, c: coords.c };
+                    showAnalysis = true;
+                    let sums = calculateSums(coords.r, coords.c);
+                    document.getElementById('sum-row').innerText = sums.row.toString();
+                    document.getElementById('sum-col').innerText = sums.col.toString();
+                    document.getElementById('sum-gnomon').innerText = sums.gnomon.toString();
+                    document.getElementById('sum-section').style.display = "grid";
+                    if(info) showCard(info);
+                    draw();
+                }
+            }
+        }
+
+        function showCard(info) {
+            document.getElementById('card').style.display = 'flex';
+            document.getElementById('c-tape').innerText = info.tapeID.toString();
+            document.getElementById('c-coord').innerText = `Row ${info.R}, Gap ${info.gap}`;
+            document.getElementById('c-anchor').innerText = info.a.toString();
+            document.getElementById('c-gap').innerText = info.gap.toString();
+            document.getElementById('c-val').innerText = info.val.toString();
+            document.getElementById('c-factors').innerText = info.factors;
+        }
+
+        init();
+    </script>
+</body>
+</html>

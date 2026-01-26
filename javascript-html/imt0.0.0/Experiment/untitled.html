@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v7.7</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --pink: #f472b6; --green: #34d399; --gold: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden; 
+    }
+    .top-section { background: var(--panel); border-bottom: 2px solid var(--cyan); padding: 8px; flex-shrink: 0; z-index: 200; }
+    .controls { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .action-btn { background: var(--cyan); color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; padding: 0 10px; height: 40px; font-size: 0.75rem; }
+    #inpFind, #inpTrace { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 8px; width: 100%; font-family: inherit; font-size: 1.0rem; text-align: center; border-radius: 4px; outline: none; }
+    .layout { flex: 1; position: relative; overflow: hidden; background: #000; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .decoder { background: #0f172a; border-top: 3px solid var(--pink); display: flex; flex-direction: column; flex-shrink: 0; z-index: 150; }
+    .panel-sec { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; }
+    .bm-val { font-size: 1.1rem; font-weight: 900; color: #fff; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; padding: 8px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 4px; border-radius: 4px; text-align: center; }
+    .info-input { width: 100%; background: transparent; border: none; color: #fff; font-family: inherit; font-weight: bold; font-size: 0.8rem; text-align: center; outline: none; }
+</style>
+</head>
+<body>
+
+<div class="top-section">
+    <div class="controls">
+        <span style="font-size: 0.7rem; color: var(--cyan);">v7.7 [DNA ENGAGED]</span>
+        <button class="action-btn" id="btnMirror">◥ MIRROR</button>
+    </div>
+    <div style="display:flex; gap:6px;">
+        <div style="flex:1; display:flex; gap:2px;">
+            <button id="btnFind" class="action-btn">JUMP</button>
+            <input id="inpFind" type="text" placeholder="Tape ID">
+        </div>
+        <div style="flex:1; display:flex; gap:2px;">
+            <button id="btnTrace" class="action-btn" style="background:var(--gold)">TRACE</button>
+            <input id="inpTrace" type="text" placeholder="Cargo N">
+        </div>
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap"><canvas id="gridCanvas"></canvas></div>
+
+<div class="decoder">
+    <div class="panel-sec" style="background:#0b1120">
+        <div>
+            <div class="sec-lbl">SMART ID (a.b)</div>
+            <div id="dispComp" class="bm-val">--</div>
+            <div id="dispFactors" style="font-size:0.8rem; color:var(--cyan); font-weight:bold;">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">SQUARE CODE (DNA)</div>
+            <div id="dispDNA" class="bm-val" style="color:var(--gold)">--</div>
+        </div>
+    </div>
+    <div class="panel-sec">
+        <div><div class="sec-lbl">CARGO (N)</div><div id="dispVal" class="bm-val" style="font-size:1.4rem">--</div></div>
+    </div>
+    <div class="info-grid">
+        <div class="info-item"><div class="info-lbl">GNOMON</div><input id="inpGnomon" class="info-input" readonly></div>
+        <div class="info-item"><div class="info-lbl">GAP (b)</div><input id="inpCol" class="info-input"></div>
+        <div class="info-item"><div class="info-lbl">ANCHOR (a)</div><input id="inpA" class="info-input" readonly></div>
+        <div class="info-item"><div class="info-lbl">ROW (k)</div><input id="inpK" class="info-input"></div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+let cellS = 64; let viewAnchor = { r: 0n, c: 0n };
+let scrollX = 0, scrollY = 0; let highlight = { r: 0n, c: 0n };
+let cellCache = new Map(); let hideMirror = true;
+let dragging = false, lastX=0, lastY=0, startX=0, startY=0;
+let pinchStartDist = 0, pinchStartCellS = 64;
+
+// --- WORKER CODE ---
+const workerBlob = new Blob([`
+self.onmessage = function(e) {
+    const msg = e.data;
+    if (msg.cmd === 'batch') {
+        const results = msg.items.map(it => {
+            const r = BigInt(it.r), c = BigInt(it.c);
+            const R = r + 1n;
+            const a = 2n * R - 1n;
+            const val = a * (a - (2n * c));
+            let f1 = a, f2 = a - (2n * c);
+            if (f1 > f2) { let t=f1; f1=f2; f2=t; }
+            return { r: it.r, c: it.c, a: a.toString(), b: c.toString(), val: val.toString(), f1: f1.toString(), f2: f2.toString(), g: R.toString() };
+        });
+        self.postMessage({ type: 'batch', payload: results });
+    }
+};`], {type: 'application/javascript'});
+const worker = new Worker(URL.createObjectURL(workerBlob));
+
+worker.onmessage = (ev) => {
+    if (ev.data.type === 'batch') {
+        ev.data.payload.forEach(p => cellCache.set(p.r + '|' + p.c, p));
+        draw();
+    }
+};
+
+function sqrtBigInt(n) {
+    if(n < 2n) return n;
+    let x = n, y = (x + 1n) / 2n;
+    while(y < x) { x = y; y = (x + n/x) / 2n; }
+    return x;
+}
+
+function getSquareDNA(n) {
+    let val = BigInt(n);
+    if (val <= 0n) return "0";
+    let dna = [];
+    while (val > 0n) {
+        let root = sqrtBigInt(val);
+        dna.push(root.toString());
+        val -= (root * root);
+    }
+    return dna.join(".");
+}
+
+function updateDecoder(p) {
+    document.getElementById('dispComp').innerText = p.a + '.' + p.b;
+    document.getElementById('dispVal').innerText = p.val;
+    document.getElementById('dispDNA').innerText = getSquareDNA(p.val);
+    document.getElementById('dispFactors').innerText = p.f2 + ' x ' + p.f1;
+    document.getElementById('inpK').value = p.r;
+    document.getElementById('inpCol').value = p.c;
+    document.getElementById('inpA').value = p.a;
+    document.getElementById('inpGnomon').value = p.g;
+}
+
+function requestBatch() {
+    const w = canvas.width/DPR, h = canvas.height/DPR;
+    const items = [];
+    const cols = Math.ceil(w/cellS) + 4;
+    const rows = Math.ceil(h/cellS) + 4;
+    for(let r = -2; r < rows; r++) {
+        for(let c = -2; c < cols; c++) {
+            const gR = viewAnchor.r + BigInt(r);
+            const gC = viewAnchor.c + BigInt(c);
+            if(gR < 0n || gC > gR || (hideMirror && gC < 0n)) continue;
+            const key = gR.toString() + '|' + gC.toString();
+            if(!cellCache.has(key)) items.push({r: gR.toString(), c: gC.toString()});
+        }
+    }
+    if(items.length > 0) worker.postMessage({cmd: 'batch', items});
+}
+
+function draw() {
+    const w = canvas.width/DPR, h = canvas.height/DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+
+    while (scrollX > 0) { scrollX -= cellS; viewAnchor.c -= 1n; }
+    while (scrollX <= -cellS) { scrollX += cellS; viewAnchor.c += 1n; }
+    while (scrollY > 0) { scrollY -= cellS; viewAnchor.r -= 1n; }
+    while (scrollY <= -cellS) { scrollY += cellS; viewAnchor.r += 1n; }
+
+    ctx.save(); ctx.translate(scrollX, scrollY);
+    const cols = Math.ceil(w/cellS) + 2;
+    const rows = Math.ceil(h/cellS) + 2;
+
+    for (let r = -1; r < rows; r++) { 
+        for (let c = -1; c < cols; c++) {
+            const gR = viewAnchor.r + BigInt(r);
+            const gC = viewAnchor.c + BigInt(c);
+            if(gR < 0n || gC > gR || (hideMirror && gC < 0n)) continue;
+            const x = c * cellS, y = r * cellS;
+            const isSel = (gR === highlight.r && gC === highlight.c);
+            const cell = cellCache.get(gR.toString() + '|' + gC.toString());
+
+            ctx.fillStyle = isSel ? 'rgba(34, 211, 238, 0.2)' : '#0f172a';
+            ctx.fillRect(x + 1, y + 1, cellS - 2, cellS - 2);
+            ctx.strokeStyle = isSel ? '#22d3ee' : '#1e293b';
+            ctx.strokeRect(x + 1, y + 1, cellS - 2, cellS - 2);
+
+            if (cell) {
+                ctx.fillStyle = isSel ? '#fff' : '#64748b';
+                ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+                ctx.fillText(cell.a + '.' + cell.b, x + cellS/2, y + cellS/2);
+            }
+        }
+    }
+    ctx.restore();
+}
+
+function jumpTo(r, c) {
+    highlight = {r: BigInt(r), c: BigInt(c)};
+    viewAnchor = {r: BigInt(r), c: BigInt(c)};
+    scrollX = 0; scrollY = 0; cellCache.clear();
+    requestBatch(); draw();
+}
+
+// --- TOUCH ENGINE ---
+function getDist(t1, t2) { return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY); }
+
+wrap.addEventListener('touchstart', e => {
+    if(e.touches.length === 2) {
+        dragging = false; pinchStartDist = getDist(e.touches[0], e.touches[1]); pinchStartCellS = cellS;
+    } else {
+        dragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        startX = lastX; startY = lastY;
+    }
+}, {passive: false});
+
+wrap.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if(e.touches.length === 2) {
+        const dist = getDist(e.touches[0], e.touches[1]);
+        cellS = Math.max(30, Math.min(150, (dist / pinchStartDist) * pinchStartCellS));
+    } else if(dragging) {
+        scrollX += (e.touches[0].clientX - lastX);
+        scrollY += (e.touches[0].clientY - lastY);
+        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    }
+    requestBatch(); draw();
+}, {passive: false});
+
+wrap.addEventListener('touchend', e => {
+    dragging = false;
+    if(e.changedTouches.length === 1 && Math.hypot(e.changedTouches[0].clientX - startX, e.changedTouches[0].clientY - startY) < 10) {
+        const rect = wrap.getBoundingClientRect();
+        const cIdx = Math.floor((e.changedTouches[0].clientX - rect.left - scrollX) / cellS);
+        const rIdx = Math.floor((e.changedTouches[0].clientY - rect.top - scrollY) / cellS);
+        const tR = viewAnchor.r + BigInt(rIdx), tC = viewAnchor.c + BigInt(cIdx);
+        if(tR >= 0n && tC <= tR) {
+            highlight = {r: tR, c: tC};
+            const cell = cellCache.get(tR.toString() + '|' + tC.toString());
+            if(cell) updateDecoder(cell); draw();
+        }
+    }
+});
+
+// Init
+window.addEventListener('resize', () => { canvas.width = wrap.clientWidth * DPR; canvas.height = wrap.clientHeight * DPR; requestBatch(); draw(); });
+canvas.width = wrap.clientWidth * DPR; canvas.height = wrap.clientHeight * DPR;
+jumpTo(0, 0);
+</script>
+</body>
+</html>

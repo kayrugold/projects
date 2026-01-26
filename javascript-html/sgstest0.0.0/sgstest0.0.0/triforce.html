@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SGS Poly-Algorithm Squad (v0.0.4 Fixed)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+/* Mobile-First Styling */
+:root {
+  --bg-color: #f3f4f6;
+  --text-color: #1f2937;
+  --card-bg: #fff;
+  --blue-primary: #3b82f6;
+  --green-start: #10b981;
+  --red-stop: #ef4444;
+  --purple-fermat: #4f46e5;
+  --yellow-rho: #f59e0b;
+  --pink-p1: #db2777;
+}
+body { 
+    font-family: 'Inter', sans-serif; 
+    background: var(--bg-color); 
+    color: var(--text-color); 
+    padding: 1.5rem;
+}
+.card {
+    max-width: 900px;
+    margin: 0 auto;
+    background: var(--card-bg);
+    box-shadow: 0 10px 25px rgba(0,0,0,.1);
+    border-radius: 1rem;
+    padding: 2rem;
+    border-top: 8px solid var(--blue-primary);
+}
+.worker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+.worker-card {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    color: white;
+    transition: transform 0.2s;
+}
+.worker-card:hover { transform: scale(1.02); }
+.bg-fermat { background-color: var(--purple-fermat); }
+.bg-rho { background-color: var(--yellow-rho); color: #000; }
+.bg-p1 { background-color: var(--pink-p1); }
+.log-output { 
+    height: 250px; 
+    overflow-y: auto; 
+    background: #111827; 
+    color: #34d399; 
+    padding: 1rem; 
+    border-radius: 0.5rem; 
+    font-family: monospace; 
+    font-size: 0.8rem;
+    margin-top: 1.5rem;
+}
+.input { padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.375rem; width: 100%; }
+.btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: bold; color: white; cursor: pointer; }
+.btn-start { background: var(--green-start); }
+.btn-stop { background: var(--red-stop); }
+</style>
+</head>
+<body>
+<div class="card">
+    <h1 class="text-3xl font-bold text-center text-blue-600 mb-2">SGS Poly-Algorithm Squad</h1>
+    <p class="text-center text-gray-500 mb-6">
+        8-Worker Config: 2x Rho (Scouts) | 4x Fermat (Army) | 2x P-1 (Snipers)
+    </p>
+
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div><label class="block text-sm font-bold mb-1">Base (a)</label><input id="base-input" type="text" class="input" value="10"></div>
+        <div><label class="block text-sm font-bold mb-1">Exp (b)</label><input id="exponent-input" type="text" class="input" value="30"></div>
+        <div><label class="block text-sm font-bold mb-1">Add (c)</label><input id="addend-input" type="text" class="input" value="1"></div>
+    </div>
+    
+    <div class="flex gap-4 justify-center">
+        <button id="start-btn" class="btn btn-start">Deploy Squad</button>
+        <button id="stop-btn" class="btn btn-stop" disabled>Abort Mission</button>
+    </div>
+
+    <div id="worker-grid" class="worker-grid">
+        </div>
+
+    <div class="mt-6 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+        <p class="text-xs uppercase font-bold text-indigo-400">Factors Found</p>
+        <p id="factors-output" class="text-lg font-bold text-indigo-900 break-all">None</p>
+        <div class="mt-2 border-t border-indigo-200 pt-2">
+             <p class="text-xs uppercase font-bold text-indigo-400">Current Cofactor (N)</p>
+             <p id="cofactor-output" class="text-sm font-mono text-gray-700 break-all">N/A</p>
+        </div>
+    </div>
+
+    <pre id="log-output" class="log-output">System Ready.</pre>
+</div>
+
+<script>
+// --- CONFIGURATION ---
+const QR_PRIMES = [3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n, 41n, 43n, 47n, 53n];
+const NUM_WORKERS = 8; // Force 8 for the "Full Squad" demo
+const FERMAT_RANGE = 5000000n; 
+const P1_BOUND_1 = 10000n; // Worker 6 limit
+const P1_BOUND_2 = 50000n; // Worker 7 limit (Aggressive)
+
+// --- WORKER SCRIPT (Inside this string, backticks MUST be escaped with \) ---
+const factorWorkerCode = `
+    const SQ_MOD_4096 = new Uint8Array(4096);
+    for (let i = 0; i < 4096; i++) SQ_MOD_4096[(i * i) % 4096] = 1;
+
+    function gcd(a, b) { while (b > 0n) { let t = b; b = a % b; a = t; } return a; }
+    function powMod(base, exp, mod) {
+        let r = 1n; base %= mod;
+        while (exp > 0n) { if ((exp & 1n) === 1n) r = (r * base) % mod; exp >>= 1n; base = (base * base) % mod; }
+        return r;
+    }
+    function legendreSymbol(a, p) {
+        if (a === 0n) return 0; if (p === 2n) return 1;
+        a = (a % p + p) % p;
+        const ls = powMod(a, (p - 1n) / 2n, p);
+        return (ls === p - 1n) ? -1 : 1;
+    }
+    function customIntegerSqrt(n) {
+        if (n < 0n) return null; if (n < 2n) return n;
+        let x = n; let y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    }
+
+    // --- ALGORITHM 1: POLLARD'S RHO (Cycle Finding) ---
+    function runPollardRho(data) {
+        const N = BigInt(data.n_str);
+        let c = BigInt(data.constant);
+        const idx = data.workerIndex;
+        
+        let x = 2n, y = 2n, d = 1n;
+        let steps = 0;
+        
+        while (d === 1n) {
+            x = (x * x + c) % N;
+            y = (y * y + c) % N; y = (y * y + c) % N; // Hare moves twice
+            let diff = x > y ? x - y : y - x;
+            d = gcd(diff, N);
+            steps++;
+            if (steps % 50000 === 0) self.postMessage({ type: 'status', msg: \`Running... Step \${steps}\`, idx });
+        }
+        if (d === N) self.postMessage({ type: 'fail', msg: 'Cycle failed (d=N)', idx });
+        else self.postMessage({ type: 'factor', val: d.toString(), algo: 'Rho', idx });
+    }
+
+    // --- ALGORITHM 2: POLLARD'S P-1 (Smoothness Sniper) ---
+    function runPollardP1(data) {
+        const N = BigInt(data.n_str);
+        const B = BigInt(data.bound);
+        const idx = data.workerIndex;
+        let a = 2n;
+        
+        self.postMessage({ type: 'status', msg: \`Revving to B=\${B}...\`, idx });
+
+        // Compute a^(B!) mod N
+        // We do this by iterating 2..B and updating a = a^i mod N
+        for (let i = 2n; i <= B; i++) {
+            a = powMod(a, i, N);
+            if (i % 2000n === 0n) {
+                self.postMessage({ type: 'status', msg: \`Revving... \${i}/\${B}\`, idx });
+            }
+        }
+        
+        const d = gcd(a - 1n, N);
+        if (d > 1n && d < N) {
+            self.postMessage({ type: 'factor', val: d.toString(), algo: 'P-1', idx });
+        } else {
+            self.postMessage({ type: 'fail', msg: 'Bound exhausted', idx });
+        }
+    }
+
+    // --- ALGORITHM 3: FERMAT SCANNER (S-List) ---
+    function runFermat(data) {
+        const N = BigInt(data.n_str);
+        let minS = BigInt(data.minS);
+        const maxS = BigInt(data.maxS);
+        const primes = data.primes.map(BigInt);
+        const fourN = N * 4n;
+        
+        let step = (N % 2n !== 0n) ? 2n : 1n;
+        if (step === 2n && minS % 2n !== 0n) minS += 1n;
+
+        let candidates = [];
+        let processed = 0n;
+        const total = maxS - minS;
+
+        for (let S = minS; S <= maxS; S += step) {
+            const D_sq = S * S - fourN;
+            if (D_sq >= 0n) {
+                let passes = true;
+                if (SQ_MOD_4096[Number(D_sq & 4095n)] !== 1) passes = false;
+                else {
+                    for (const p of primes) {
+                        if (legendreSymbol(D_sq, p) === -1) { passes = false; break; }
+                    }
+                }
+                if (passes) candidates.push(S);
+            }
+            processed += step;
+            if (processed % 100000n === 0n) {
+                 const pct = Number(processed * 100n / total);
+                 self.postMessage({ type: 'status', msg: \`Scanning... \${pct}%\`, idx: data.workerIndex });
+            }
+        }
+
+        // Resolve candidates
+        for (const S of candidates) {
+            const D_sq = S * S - fourN;
+            const D = customIntegerSqrt(D_sq);
+            if (D !== null && D * D === D_sq) {
+                const f = (S - D) / 2n;
+                if (f > 1n) {
+                    self.postMessage({ type: 'factor', val: f.toString(), algo: 'Fermat', idx: data.workerIndex });
+                    return;
+                }
+            }
+        }
+        self.postMessage({ type: 'fermatDone', idx: data.workerIndex });
+    }
+
+    self.onmessage = function(e) {
+        if (e.data.mode === 'rho') runPollardRho(e.data);
+        else if (e.data.mode === 'p1') runPollardP1(e.data);
+        else if (e.data.mode === 'fermat') runFermat(e.data);
+    };
+`;
+const workerBlob = new Blob([factorWorkerCode], { type: 'application/javascript' });
+const workerUrl = URL.createObjectURL(workerBlob);
+
+// --- UI & LOGIC (Main Thread - No Backslash Escaping Here!) ---
+let workers = [];
+let N_current = 0n;
+let foundFactors = new Set();
+let isRunning = false;
+let SMin = 0n;
+
+function log(msg) {
+    const t = new Date().toLocaleTimeString();
+    const el = document.getElementById('log-output');
+    el.innerHTML += `[${t}] ${msg}\n`; // Fixed syntax
+    el.scrollTop = el.scrollHeight;
+}
+
+function initGrid() {
+    const grid = document.getElementById('worker-grid');
+    grid.innerHTML = '';
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        let role = 'Unassigned';
+        let color = 'bg-gray-500';
+        if (i < 2) { role = 'Rho Scout ' + (i+1); color = 'bg-rho'; }
+        else if (i >= 6) { role = 'P-1 Sniper ' + (i-5); color = 'bg-p1'; }
+        else { role = 'Fermat Army ' + (i-1); color = 'bg-fermat'; }
+        
+        const div = document.createElement('div');
+        div.className = `worker-card ${color}`; // Fixed syntax
+        div.id = `worker-${i}`; // Fixed syntax
+        div.innerHTML = `${role}<br><span id="status-${i}" class="text-xs opacity-80">Idle</span>`; // Fixed syntax
+        grid.appendChild(div);
+    }
+}
+
+function updateWorkerStatus(idx, msg) {
+    const el = document.getElementById(`status-${idx}`); // Fixed syntax
+    if (el) el.textContent = msg;
+}
+
+function deploySquad() {
+    if (isRunning) return;
+    
+    // Reset
+    workers.forEach(w => w && w.terminate());
+    workers = new Array(NUM_WORKERS).fill(null);
+    foundFactors.clear();
+    document.getElementById('factors-output').textContent = 'None';
+    
+    // Calc N
+    try {
+        const a = BigInt(document.getElementById('base-input').value);
+        const b = BigInt(document.getElementById('exponent-input').value);
+        const c = BigInt(document.getElementById('addend-input').value);
+        N_current = a**b + c;
+    } catch(e) { log('Invalid Input'); return; }
+    
+    document.getElementById('cofactor-output').textContent = N_current.toString();
+    log(`Target Acquired: ${N_current.toString().substring(0, 20)}...`); // Fixed syntax
+    
+    // S-List Prep
+    const sqrt = n => { if(n<2n)return n; let x=n, y=(x+1n)/2n; while(y<x){x=y; y=(x+n/x)/2n;} return x; };
+    const isqrt = sqrt(N_current);
+    SMin = isqrt * 2n;
+    if (SMin*SMin < 4n*N_current) SMin += 1n;
+
+    isRunning = true;
+    document.getElementById('start-btn').disabled = true;
+    document.getElementById('stop-btn').disabled = false;
+
+    // --- ASSIGN WORKERS ---
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        const w = new Worker(workerUrl);
+        workers[i] = w;
+        w.onmessage = handleMsg;
+        
+        // WORKERS 0 & 1: POLLARD'S RHO
+        if (i === 0) {
+            w.postMessage({ mode: 'rho', n_str: N_current.toString(), constant: '1', workerIndex: i });
+        } else if (i === 1) {
+            w.postMessage({ mode: 'rho', n_str: N_current.toString(), constant: '3', workerIndex: i });
+        }
+        // WORKERS 6 & 7: POLLARD'S P-1
+        else if (i === 6) {
+            w.postMessage({ mode: 'p1', n_str: N_current.toString(), bound: P1_BOUND_1.toString(), workerIndex: i });
+        } else if (i === 7) {
+            w.postMessage({ mode: 'p1', n_str: N_current.toString(), bound: P1_BOUND_2.toString(), workerIndex: i });
+        }
+        // WORKERS 2-5: FERMAT ARMY
+        else {
+            startFermatChunk(i);
+        }
+    }
+}
+
+function startFermatChunk(idx) {
+    if (!isRunning) return;
+    const armySize = 4; // Workers 2,3,4,5
+    const offset = BigInt(idx - 2);
+    const range = FERMAT_RANGE;
+    
+    const myMin = SMin + (offset * range);
+    const myMax = myMin + range - 1n;
+    
+    workers[idx].postMessage({
+        mode: 'fermat',
+        n_str: N_current.toString(),
+        minS: myMin.toString(),
+        maxS: myMax.toString(),
+        primes: QR_PRIMES.map(String),
+        workerIndex: idx
+    });
+}
+
+function handleMsg(e) {
+    const d = e.data;
+    if (d.type === 'status') {
+        updateWorkerStatus(d.idx, d.msg);
+    } else if (d.type === 'factor') {
+        const f = BigInt(d.val);
+        if (f !== 1n && f !== N_current) {
+            log(`💥 ${d.algo} HIT! Factor: ${f}`); // Fixed syntax
+            if (!foundFactors.has(d.val)) {
+                foundFactors.add(d.val);
+                document.getElementById('factors-output').textContent = Array.from(foundFactors).join(' × ');
+                
+                if (N_current % f === 0n) {
+                    N_current /= f;
+                    document.getElementById('cofactor-output').textContent = N_current.toString();
+                    log(`Cofactor reduced. New N: ${N_current.toString().substring(0,15)}...`); // Fixed syntax
+                }
+            }
+        }
+    } else if (d.type === 'fermatDone') {
+        if (isRunning) {
+            SMin += (FERMAT_RANGE * 4n); 
+            startFermatChunk(d.idx);
+        }
+    } else if (d.type === 'fail') {
+        updateWorkerStatus(d.idx, d.msg); 
+    }
+}
+
+document.getElementById('start-btn').onclick = deploySquad;
+document.getElementById('stop-btn').onclick = () => {
+    workers.forEach(w => w && w.terminate());
+    isRunning = false;
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = true;
+    log('Squad recalled.');
+};
+
+initGrid();
+</script>
+</body>
+</html>

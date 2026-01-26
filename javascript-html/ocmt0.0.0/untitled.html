@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGS Beast Checker (Primality Test)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: #e2e8f0; font-family: 'Courier New', monospace; }
+        .panel { background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 1.5rem; }
+        .input-glow { border: 1px solid #334155; background: #1e293b; color: #6ee7b7; text-align: center; font-size: 1.2rem; }
+        .input-glow:focus { border-color: #10b981; outline: none; box-shadow: 0 0 10px #059669; }
+        .result-box { margin-top: 20px; padding: 20px; text-align: center; font-weight: bold; font-size: 1.5rem; border-radius: 8px; }
+        .prime { background: #064e3b; color: #34d399; border: 1px solid #10b981; }
+        .composite { background: #450a0a; color: #f87171; border: 1px solid #ef4444; }
+    </style>
+</head>
+<body class="p-4 flex items-center justify-center min-h-screen">
+    <div class="max-w-2xl w-full panel">
+        <h1 class="text-2xl font-bold text-emerald-500 text-center mb-6">SGS BEAST CHECKER</h1>
+        
+        <div class="mb-6">
+            <label class="text-xs text-slate-500 uppercase font-bold">Target Number</label>
+            <textarea id="targetN" class="w-full p-4 rounded input-glow h-32" placeholder="Paste your 60-digit number here..."></textarea>
+        </div>
+
+        <button onclick="checkPrime()" class="w-full bg-blue-600 hover:bg-blue-500 p-4 rounded font-black tracking-widest uppercase shadow-lg">
+            IS IT PRIME?
+        </button>
+        
+        <div id="resultDisplay" class="hidden result-box"></div>
+        <div id="detailBox" class="text-center text-xs text-slate-400 mt-2 font-mono"></div>
+    </div>
+
+<script>
+// --- Miller-Rabin Primality Test ---
+function checkPrime() {
+    const nStr = document.getElementById('targetN').value.trim();
+    if (!nStr) return;
+    
+    const display = document.getElementById('resultDisplay');
+    const details = document.getElementById('detailBox');
+    
+    try {
+        const N = BigInt(nStr);
+        if (N < 2n) throw "Too small";
+        if (N === 2n || N === 3n) { showResult(true, "Small Prime"); return; }
+        if (N % 2n === 0n) { showResult(false, "Divisible by 2"); return; }
+
+        // Run Miller-Rabin k=20 times
+        const k = 20;
+        const result = isProbablyPrime(N, k);
+        
+        if (result) {
+            showResult(true, "Passes Miller-Rabin (Probability > 99.99%)");
+        } else {
+            showResult(false, "Fails Witness Test (Composite)");
+        }
+    } catch (e) {
+        alert("Invalid Number");
+    }
+}
+
+function showResult(isPrime, reason) {
+    const display = document.getElementById('resultDisplay');
+    const details = document.getElementById('detailBox');
+    
+    display.classList.remove('hidden', 'prime', 'composite');
+    
+    if (isPrime) {
+        display.classList.add('prime');
+        display.innerText = "IT IS PRIME";
+    } else {
+        display.classList.add('composite');
+        display.innerText = "IT IS A BEAST (COMPOSITE)";
+    }
+    details.innerText = reason;
+}
+
+function isProbablyPrime(n, k) {
+    // Write n-1 as 2^r * d
+    let d = n - 1n;
+    let r = 0n;
+    while (d % 2n === 0n) {
+        d /= 2n;
+        r++;
+    }
+
+    // Witness loop
+    for (let i = 0; i < k; i++) {
+        // Pick random base 'a' in [2, n-2]
+        // Since Math.random doesn't support BigInt, we use a small set of prime bases first
+        // If n is huge, these bases are usually enough to prove composition
+        const bases = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n];
+        let a = bases[i % bases.length];
+        if (n <= a) break;
+
+        let x = power(a, d, n);
+        if (x === 1n || x === n - 1n) continue;
+
+        let continueOuter = false;
+        for (let j = 0n; j < r - 1n; j++) {
+            x = (x * x) % n;
+            if (x === n - 1n) {
+                continueOuter = true;
+                break;
+            }
+        }
+        if (continueOuter) continue;
+
+        return false; // Composite
+    }
+    return true; // Probably Prime
+}
+
+// Modular Exponentiation: (base^exp) % mod
+function power(base, exp, mod) {
+    let res = 1n;
+    base %= mod;
+    while (exp > 0n) {
+        if (exp % 2n === 1n) res = (res * base) % mod;
+        base = (base * base) % mod;
+        exp /= 2n;
+    }
+    return res;
+}
+</script>
+</body>
+</html>

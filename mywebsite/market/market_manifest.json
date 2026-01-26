@@ -1,0 +1,21 @@
+[
+  {
+    "id": "win-dev-pack",
+    "title": "WIN DEV UTILITY PACK",
+    "description": "Regex parsers, sprite packers, and JSON smithing tools.",
+    "price": "9.99 Gold",
+    "buttonText": "ACQUIRE",
+    "icon": "📦",
+    "image": "./assets/devpack.png",
+    "action": "window.open('https://itch.io', '_blank')"
+  },
+  {
+    "id": "sound-module",
+    "title": "AETHER AUDIO MODULE",
+    "description": "Procedural soundscapes for the modern web weaver.",
+    "price": "4.99 Gold",
+    "buttonText": "ACQUIRE",
+    "icon": "🎵",
+    "action": "window.open('https://itch.io', '_blank')"
+  }
+]

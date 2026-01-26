@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gnomon Sieve Machine</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --arm-color: #3b82f6;   /* Blue for Even Arms */
+            --corner-color: #f43f5e; /* Red for Cornerstone */
+            --prime-color: #10b981;  /* Emerald for Prime */
+            --comp-color: #64748b;   /* Slate for Composite */
+            --sq-color: #f59e0b;     /* Amber for Square Gnomon */
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- HEADER --- */
+        header {
+            padding: 12px 16px;
+            background: #020617;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 { margin: 0; font-size: 1rem; letter-spacing: -0.5px; }
+        .mode-toggles { display: flex; gap: 8px; }
+        .btn {
+            background: #334155; border: none; color: #cbd5e1;
+            padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;
+        }
+        .btn.active { background: var(--arm-color); color: white; }
+
+        /* --- MAIN STAGE --- */
+        .stage {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: radial-gradient(#334155 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden;
+        }
+        canvas {
+            max-width: 90%;
+            max-height: 80%;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+        }
+
+        /* --- SIEVE STRIP --- */
+        .sieve-strip-container {
+            height: 60px;
+            background: #020617;
+            border-top: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            padding: 0 50vw 0 16px; /* Center active item */
+            scroll-behavior: smooth;
+        }
+        .sieve-strip-container::-webkit-scrollbar { display: none; }
+        
+        .sieve-cell {
+            min-width: 40px;
+            height: 40px;
+            margin-right: 8px;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            border: 1px solid #334155;
+            background: #1e293b;
+        }
+        .sieve-cell.active {
+            transform: scale(1.15);
+            border-color: white;
+            z-index: 10;
+        }
+        .sieve-cell.prime { border-bottom: 3px solid var(--prime-color); }
+        .sieve-cell.composite { border-bottom: 3px solid var(--comp-color); opacity: 0.7; }
+        .sieve-cell.square { border-bottom: 3px solid var(--sq-color); }
+
+        .k-val { font-size: 0.6rem; color: #64748b; margin-top: 2px; }
+
+        /* --- INFO PANEL --- */
+        .info-panel {
+            height: 160px;
+            background: var(--bg-card);
+            padding: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 12px;
+        }
+        
+        .stat-box {
+            background: #0f172a;
+            border-radius: 6px;
+            padding: 10px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .stat-val { font-size: 1.1rem; font-weight: 700; color: white; display: flex; align-items: baseline; gap: 6px; }
+        .sub-val { font-size: 0.75rem; color: var(--text-muted); font-weight: normal; }
+
+        .full-width { grid-column: span 2; }
+        
+        .arm-visual {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .dot.blue { background: var(--arm-color); }
+        .dot.red { background: var(--corner-color); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Gnomon Sieve</h1>
+        <div class="mode-toggles">
+            <button class="btn active" id="btn-arm" onclick="setMode('arm')">Arms</button>
+            <button class="btn" id="btn-fill" onclick="setMode('fill')">Solid</button>
+        </div>
+    </header>
+
+    <div class="stage">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- Sieve Strip: The Sundaram Index Tape -->
+    <div class="sieve-strip-container" id="sieveStrip">
+        <!-- JS will populate -->
+    </div>
+
+    <div class="info-panel">
+        <!-- 1. The Gnomon Breakdown -->
+        <div class="stat-box full-width">
+            <div class="stat-label">Gnomon Decomposed <span style="float:right; color:#64748b;">Index n=<span id="lbl-n"></span></span></div>
+            <div class="arm-visual">
+                <span style="color:var(--arm-color); font-weight:bold;" id="val-arm1">6</span>
+                <span class="sub-val">Arm</span>
+                <span>+</span>
+                <span style="color:var(--arm-color); font-weight:bold;" id="val-arm2">6</span>
+                <span class="sub-val">Arm</span>
+                <span>+</span>
+                <span style="color:var(--corner-color); font-weight:bold;">1</span>
+                <span class="sub-val">Corner</span>
+                <span>=</span>
+                <span style="color:white; font-weight:bold; font-size:1.1rem;" id="val-gnomon">13</span>
+            </div>
+        </div>
+
+        <!-- 2. The Sieve Status -->
+        <div class="stat-box">
+            <div class="stat-label">Properties</div>
+            <div class="stat-val" id="val-props" style="font-size:0.9rem;">Prime</div>
+            <div class="sub-val" id="val-factors">No factors</div>
+        </div>
+
+        <!-- 3. The Sundaram Compression -->
+        <div class="stat-box">
+            <div class="stat-label">Sundaram Index (k)</div>
+            <div class="stat-val" id="val-k">3</div>
+            <div class="sub-val">2k + 1 = Gnomon</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const strip = document.getElementById('sieveStrip');
+        
+        let state = {
+            n: 7,
+            maxN: 50,
+            mode: 'arm' // 'arm' or 'fill'
+        };
+
+        // --- MATH UTILS ---
+        function checkPrime(num) {
+            if (num <= 1) return false;
+            for (let i = 2; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) return i; // Return factor if composite
+            }
+            return true;
+        }
+
+        function isPerfectSquare(n) {
+            return Math.sqrt(n) % 1 === 0;
+        }
+
+        // --- SIEVE STRIP GENERATION ---
+        function initStrip() {
+            strip.innerHTML = '';
+            for (let i = 1; i <= state.maxN; i++) {
+                const gnomon = 2 * i - 1;
+                const isPrime = checkPrime(gnomon) === true;
+                const isSq = isPerfectSquare(gnomon);
+                
+                const el = document.createElement('div');
+                el.className = `sieve-cell ${isPrime ? 'prime' : isSq ? 'square' : 'composite'}`;
+                el.id = `cell-${i}`;
+                el.innerHTML = `
+                    <span style="font-weight:bold">${i}</span>
+                    <span class="k-val">k=${i-1}</span>
+                `;
+                el.onclick = () => selectIndex(i);
+                strip.appendChild(el);
+            }
+        }
+
+        // --- CORE LOGIC ---
+        function selectIndex(n) {
+            state.n = n;
+            
+            // 1. Update Strip UI
+            document.querySelectorAll('.sieve-cell').forEach(c => c.classList.remove('active'));
+            const activeCell = document.getElementById(`cell-${n}`);
+            if(activeCell) {
+                activeCell.classList.add('active');
+                activeCell.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            }
+
+            // 2. Update Math Panel
+            const gnomon = 2 * n - 1;
+            const armLen = n - 1;
+            const sundaramK = n - 1;
+            const primeCheck = checkPrime(gnomon);
+            
+            document.getElementById('lbl-n').innerText = n;
+            document.getElementById('val-arm1').innerText = armLen;
+            document.getElementById('val-arm2').innerText = armLen;
+            document.getElementById('val-gnomon').innerText = gnomon;
+            document.getElementById('val-k').innerText = sundaramK;
+
+            const propBox = document.getElementById('val-props');
+            const factorBox = document.getElementById('val-factors');
+
+            if (primeCheck === true) {
+                propBox.innerText = "PRIME";
+                propBox.style.color = "var(--prime-color)";
+                factorBox.innerText = "Sieved In";
+            } else {
+                if (isPerfectSquare(gnomon)) {
+                    propBox.innerText = "PERFECT SQUARE";
+                    propBox.style.color = "var(--sq-color)";
+                    factorBox.innerText = `√${gnomon} = ${Math.sqrt(gnomon)}`;
+                } else {
+                    propBox.innerText = "COMPOSITE";
+                    propBox.style.color = "var(--comp-color)";
+                    factorBox.innerText = `Divisible by ${primeCheck}`;
+                }
+            }
+
+            render();
+        }
+
+        function setMode(m) {
+            state.mode = m;
+            document.getElementById('btn-arm').className = m === 'arm' ? 'btn active' : 'btn';
+            document.getElementById('btn-fill').className = m === 'fill' ? 'btn active' : 'btn';
+            render();
+        }
+
+        // --- VISUALIZATION ---
+        function render() {
+            // Setup Canvas
+            const size = Math.min(window.innerWidth, window.innerHeight * 0.5);
+            const dpr = window.devicePixelRatio || 2;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, size, size);
+
+            // Calc Geometry
+            const n = state.n;
+            const maxGrid = Math.max(n + 2, 10); // Auto zoom
+            const cellSize = size / maxGrid;
+            const offset = (size - (n * cellSize)) / 2;
+
+            // 1. Draw Previous Square (The Ghost)
+            ctx.fillStyle = '#1e293b'; // Dark bg for inner square
+            ctx.fillRect(offset, offset, (n-1)*cellSize, (n-1)*cellSize);
+            
+            // Draw Inner Grid Lines
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i=0; i<n; i++) {
+                ctx.moveTo(offset + i*cellSize, offset);
+                ctx.lineTo(offset + i*cellSize, offset + (n-1)*cellSize);
+                ctx.moveTo(offset, offset + i*cellSize);
+                ctx.lineTo(offset + (n-1)*cellSize, offset + i*cellSize);
+            }
+            ctx.stroke();
+
+
+            // 2. Draw The Gnomon
+            // Logic: Two Arms + Cornerstone
+            const armLen = n - 1;
+            const padding = 2;
+
+            // Helper to draw cell
+            const drawCell = (c, r, color) => {
+                ctx.fillStyle = color;
+                ctx.fillRect(
+                    offset + c*cellSize + padding, 
+                    offset + r*cellSize + padding, 
+                    cellSize - padding*2, 
+                    cellSize - padding*2
+                );
+            };
+
+            if (state.mode === 'arm') {
+                // Cornerstone (Bottom Right)
+                drawCell(n-1, n-1, '#f43f5e'); // Red
+
+                // Vertical Arm (Right side, above corner)
+                for (let r = 0; r < n-1; r++) {
+                    drawCell(n-1, r, '#3b82f6'); // Blue
+                }
+
+                // Horizontal Arm (Bottom side, left of corner)
+                for (let c = 0; c < n-1; c++) {
+                    drawCell(c, n-1, '#3b82f6'); // Blue
+                }
+            } else {
+                // Solid Fill Mode (classic L shape)
+                ctx.fillStyle = checkPrime(2*n-1) === true ? '#10b981' : '#64748b';
+                
+                // Vertical Strip
+                ctx.fillRect(
+                    offset + (n-1)*cellSize + padding, 
+                    offset + padding, 
+                    cellSize - padding*2, 
+                    (n*cellSize) - padding*2
+                );
+                // Horizontal Strip
+                ctx.fillRect(
+                    offset + padding, 
+                    offset + (n-1)*cellSize + padding, 
+                    ((n-1)*cellSize) - padding*2, 
+                    cellSize - padding*2
+                );
+            }
+        }
+
+        // Init
+        initStrip();
+        selectIndex(7);
+        window.addEventListener('resize', render);
+
+    </script>
+</body>
+</html>
+

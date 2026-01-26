@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v7.1</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --pink: #f472b6; --green: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden; 
+    }
+    .top-section { background: var(--panel); border-bottom: 2px solid var(--cyan); padding: 8px; flex-shrink: 0; }
+    .cargo-input-row { display: flex; align-items: center; gap: 6px; }
+    #inpFind { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 10px; width: 100%; font-weight: 800; font-size: 1.1rem; border-radius: 4px; flex: 1; outline: none; text-align: center; }
+    #btnFind { background: var(--cyan); color: #000; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; padding: 0 15px; height: 45px; }
+    .layout { flex: 1; position: relative; overflow: hidden; background: #000; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .decoder { background: #0f172a; border-top: 3px solid var(--pink); display: flex; flex-direction: column; padding: 10px; flex-shrink: 0; }
+    .big-math { background: #0b1120; padding: 8px; display: flex; justify-content: space-between; border-radius: 4px; border: 1px solid var(--border); }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; text-transform: uppercase; }
+    .bm-val { font-size: 1.3rem; font-weight: 900; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="top-section">
+    <div class="cargo-input-row">
+        <input id="inpFind" type="text" placeholder="Enter Tape ID" inputmode="numeric">
+        <button id="btnFind" onclick="handleSearch()">FIND ID</button>
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="big-math">
+        <div>
+            <div class="sec-lbl">PHASE ID (a.q.r)</div>
+            <div id="dispPhase" class="bm-val">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">CARGO (N)</div>
+            <div id="dispVal" class="bm-val">--</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+let cellS = 85; const HDR_S = 30;
+let viewAnchor = { r: 0n, c: 0n };
+let scrollX = 0, scrollY = 0;
+let highlight = { r: 0n, c: 0n };
+let cellCache = new Map();
+
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const isqrt = (n) => {
+        if (n < 0n) return null;
+        if (n < 2n) return n;
+        let x = n, y = (x + 1n) >> 1n;
+        while (y < x) { x = y; y = (x + n / x) >> 1n; }
+        return x;
+    };
+
+    const process = (r_in, c_in) => {
+        const r = BigInt(r_in); // Row k
+        const c = BigInt(c_in); // Column b
+        
+        // YOUR RULE: Start at baseOdd^2, subtract Gap multiples
+        const baseOdd = (r * 2n) + 1n;
+        const maxVal = baseOdd * baseOdd;
+        const gapPerStep = (r * 4n) + 2n;
+        const N = maxVal - (c * gapPerStep);
+
+        if (N <= 0n) return null;
+
+        // a.q.r Logic (Harmonic Address)
+        const root_p = isqrt(N);
+        const a_p = (root_p * root_p === N) ? root_p : (root_p + 1n);
+        const G_p = (a_p * a_p) - N;
+        const q_p = G_p / 8n;
+        const r_p = G_p % 8n;
+
+        return {
+            r: r_in, c: c_in, 
+            phaseID: \`\${a_p}.\${q_p}.\${r_p}\`,
+            tapeID: ((r * (r + 1n)) / 2n + c).toString(),
+            smartID: \`\${a_p}.\${c}\`,
+            val: N.toString().length > 7 ? ".." + N.toString().slice(-5) : N.toString(),
+            fullVal: N.toString()
+        };
+    };
+
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.r, it.c)).filter(x => x);
+        self.postMessage({ type: 'batch', payload: res });
+    }
+});
+`;
+
+const blob = new Blob([workerCode], {type:'application/javascript'});
+const worker = new Worker(URL.createObjectURL(blob));
+worker.onmessage = (ev) => { if (ev.data.type === 'batch') { ev.data.payload.forEach(p => cellCache.set(`${p.r}|${p.c}`, p)); draw(); } };
+
+function requestBatch() {
+    const items = [];
+    const rows = Math.ceil(canvas.height/(cellS*DPR)) + 2;
+    const cols = Math.ceil(canvas.width/(cellS*DPR)) + 2;
+    for(let r = -1; r < rows; r++) {
+        for(let c = -1; c < cols; c++) {
+            const gr = viewAnchor.r + BigInt(r), gc = viewAnchor.c + BigInt(c);
+            if (gr >= 0n && gc >= 0n && gc <= gr && !cellCache.has(`${gr}|${gc}`)) 
+                items.push({r: gr.toString(), c: gc.toString()});
+        }
+    }
+    if(items.length) worker.postMessage({cmd:'batch', items});
+}
+
+function draw() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0,0,canvas.width/DPR, canvas.height/DPR);
+    ctx.save(); ctx.translate(HDR_S + scrollX, HDR_S + scrollY);
+
+    const rows = Math.ceil(canvas.height/(cellS*DPR)) + 2;
+    const cols = Math.ceil(canvas.width/(cellS*DPR)) + 2;
+
+    for(let r = -1; r < rows; r++) {
+        for(let c = -1; c < cols; c++) {
+            const gr = viewAnchor.r + BigInt(r), gc = viewAnchor.c + BigInt(c);
+            if (gr < 0n || gc < 0n || gc > gr) continue;
+            const x = c * cellS, y = r * cellS;
+            const cell = cellCache.get(`${gr}|${gc}`);
+            const isSel = (gr === highlight.r && gc === highlight.c);
+
+            ctx.fillStyle = isSel ? '#1e293b' : '#0f172a';
+            ctx.fillRect(x, y, cellS-1, cellS-1);
+            if(isSel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x,y,cellS-1,cellS-1); }
+
+            if(cell) {
+                // Top Left: TapeID
+                ctx.fillStyle = '#64748b'; ctx.font = '8px monospace'; ctx.textAlign = 'left';
+                ctx.fillText(cell.tapeID, x+4, y+10);
+                // Top Right: a.q.r
+                ctx.fillStyle = '#0af'; ctx.textAlign = 'right';
+                ctx.fillText(cell.phaseID, x+cellS-4, y+10);
+                // Center: CARGO (N)
+                ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = 'bold 14px monospace';
+                ctx.fillText(cell.val, x+cellS/2, y+cellS/2 + 4);
+                // Bottom: SmartID (a.b)
+                ctx.fillStyle = '#444'; ctx.font = '9px monospace';
+                ctx.fillText(cell.smartID, x+cellS/2, y+cellS/2 + 18);
+            }
+        }
+    }
+    ctx.restore();
+}
+
+function handleSearch() {
+    const id = BigInt(document.getElementById('inpFind').value);
+    const k = (isqrt(8n * id + 1n) - 1n) / 2n;
+    const b = id - (k * (k + 1n)) / 2n;
+    viewAnchor = { r: k, c: 0n }; highlight = { r: k, c: b };
+    cellCache.clear(); requestBatch(); draw();
+}
+
+function isqrt(n) { let x=n, y=(x+1n)/2n; while(y<x){x=y;y=(x+n/x)/2n;} return x; }
+
+wrap.addEventListener('mousedown', e => {
+    const rect = wrap.getBoundingClientRect();
+    const cx = Math.floor((e.clientX - rect.left - HDR_S) / cellS);
+    const cy = Math.floor((e.clientY - rect.top - HDR_S) / cellS);
+    highlight = { r: viewAnchor.r + BigInt(cy), c: viewAnchor.c + BigInt(cx) };
+    const cell = cellCache.get(`${highlight.r}|${highlight.c}`);
+    if(cell) {
+        document.getElementById('dispPhase').innerText = cell.phaseID;
+        document.getElementById('dispVal').innerText = cell.fullVal;
+    }
+    draw();
+});
+
+window.onresize = () => { canvas.width = wrap.clientWidth * DPR; canvas.height = wrap.clientHeight * DPR; requestBatch(); draw(); };
+window.onload = window.onresize;
+</script>
+</body>
+</html>

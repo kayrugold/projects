@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gnomon Tape Indexer</title>
+<style>
+    :root {
+        --bg-color: #050505;
+        --tape-bg: #0f1115;
+        --text-color: #e2e8f0;
+        --accent-color: #0ea5e9; /* Sky Blue */
+        --highlight-bg: #1e3a8a; /* Dark Blue Highlight */
+        --highlight-border: #3b82f6;
+        --row-border: #1f2937;
+        --font-mono: 'Courier New', monospace;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* --- DASHBOARD (Search) --- */
+    .dashboard {
+        background: #111;
+        border-bottom: 2px solid #333;
+        padding: 15px;
+        z-index: 10;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    .search-group {
+        display: flex;
+        gap: 10px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    input {
+        flex: 1;
+        background: #222;
+        border: 1px solid #444;
+        color: #fff;
+        padding: 12px;
+        font-family: var(--font-mono);
+        font-size: 1.1rem;
+        border-radius: 6px;
+        font-weight: bold;
+    }
+
+    input:focus { outline: none; border-color: var(--accent-color); }
+
+    button {
+        background: var(--accent-color);
+        color: #000;
+        border: none;
+        padding: 0 20px;
+        font-weight: 900;
+        border-radius: 6px;
+        cursor: pointer;
+        text-transform: uppercase;
+    }
+
+    .status-bar {
+        text-align: center;
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 8px;
+        font-family: var(--font-mono);
+    }
+
+    /* --- THE TAPE (Scrollable Area) --- */
+    .tape-container {
+        flex: 1;
+        overflow-y: auto;
+        background: var(--tape-bg);
+        position: relative;
+        scroll-behavior: auto; /* Instant jump */
+    }
+
+    .tape-header {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 2fr; /* L | k.b | a | N */
+        background: #1a1a1a;
+        padding: 10px 5px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        color: #94a3b8;
+        border-bottom: 1px solid #333;
+        text-align: center;
+        text-transform: uppercase;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+
+    .tape-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 2fr;
+        padding: 12px 5px;
+        border-bottom: 1px solid var(--row-border);
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        align-items: center;
+        text-align: center;
+    }
+
+    .tape-row:nth-child(even) { background: rgba(255,255,255,0.02); }
+
+    /* The "Found" Highlight */
+    .tape-row.highlight {
+        background: var(--highlight-bg);
+        border: 1px solid var(--highlight-border);
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        z-index: 1;
+        position: relative;
+    }
+
+    .col-n { color: #fff; font-weight: bold; font-size: 1.1rem; }
+    .col-coords { color: var(--accent-color); }
+    .col-meta { color: #64748b; font-size: 0.8rem; }
+
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="search-group">
+        <input type="text" id="searchInput" placeholder="Enter N (e.g. 1007)" value="1007">
+        <button onclick="searchIndex()">LOOKUP</button>
+    </div>
+    <div class="status-bar" id="status">System Ready. Index Loaded (Mock).</div>
+</div>
+
+<div class="tape-header">
+    <div>Tape ID (L)</div>
+    <div>k.b</div>
+    <div>Anchor (a)</div>
+    <div>Number (N)</div>
+</div>
+
+<div class="tape-container" id="tapeFeed">
+    <div style="padding:40px; text-align:center; color:#444;">
+        Waiting for Input...
+    </div>
+</div>
+
+<script>
+    /* === THE MOCK DATABASE === 
+       In the real app, this is your 2TB hard drive file.
+       Here, it's a JSON object for demonstration.
+    */
+    const INDEX_DB = {
+        "1007": { k: 26, b: 17, L: 368 },
+        "3": { k: 1, b: 1, L: 1 },
+        "15": { k: 2, b: 2, L: 3 }
+    };
+
+    /* === THE WORKER ENGINE (SIMULATED) ===
+       This represents logic that would normally be in your 
+       'largesqrt.html' or 'gcd_worker.js' for big math.
+       We use BigInt to ensure we can handle large rows.
+    */
+    const Engine = {
+        // 1. Calculate Row Constants (The "Jump" Math)
+        initRow: function(k) {
+            const K = BigInt(k);
+            const P2 = 2n * K + 1n;      // Largest Factor
+            const N_start = P2 * P2;     // Square Start (Multiplication)
+            const CD = 2n * P2;          // Common Difference (Additive)
+            const BaseL = (K * (K + 1n)) / 2n; // Triangle Number for L
+            
+            return { P2, N_start, CD, BaseL };
+        },
+
+        // 2. Generate a single row entry based on Gap b
+        getRowData: function(rowProps, b) {
+            const B = BigInt(b);
+            // Additive logic: Start - (CD * b)
+            // N = N_start - (CD * b) ??? 
+            // WAIT! At b=0 (which doesn't exist), N=N_start. 
+            // At b=1, N = N_start - CD.
+            // So N = N_start - (CD * B)
+            
+            const N = rowProps.N_start - (rowProps.CD * B);
+            
+            // Calculate Anchor a (Additive: a = P2 - b)
+            const a = rowProps.P2 - B;
+            
+            // Calculate Tape ID L (Additive: BaseL + b)
+            const L = rowProps.BaseL + B;
+            
+            return { L, a, N };
+        }
+    };
+
+    const tapeFeed = document.getElementById('tapeFeed');
+    const statusDiv = document.getElementById('status');
+
+    function searchIndex() {
+        const inputN = document.getElementById('searchInput').value.trim();
+        
+        // 1. THE LOOKUP (Database Check)
+        const entry = INDEX_DB[inputN];
+
+        if (!entry) {
+            statusDiv.textContent = `N=${inputN} not found in Index (Try 1007, 15, 3)`;
+            return;
+        }
+
+        statusDiv.textContent = `FOUND! Row ${entry.k} | Gap ${entry.b}`;
+
+        // 2. THE RENDER (Draw the Road)
+        renderTapeAround(entry.k, entry.b);
+    }
+
+    function renderTapeAround(targetK, targetB) {
+        tapeFeed.innerHTML = ''; // Clear tape
+
+        // Initialize the Row Engine
+        const rowProps = Engine.initRow(targetK);
+        
+        // We want to show a "window" of the tape. 
+        // Let's show 5 steps before the target and 10 steps after.
+        // range: startB to endB
+        
+        // Calculate max B for this row (where P1=1 approx, or a=b+1)
+        // P1 = P2 - 2b. If P1=1, 1 = P2 - 2b => 2b = P2-1 => b = (P2-1)/2 = k.
+        const maxB = targetK; 
+
+        let startB = Math.max(1, targetB - 5);
+        let endB = Math.min(maxB, targetB + 10);
+
+        // PROCEDURAL GENERATION LOOP
+        for (let b = startB; b <= endB; b++) {
+            // Use the Additive Engine to get data
+            const data = Engine.getRowData(rowProps, b);
+            
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'tape-row';
+            
+            // Highlight the target
+            if (b === targetB) {
+                rowDiv.classList.add('highlight');
+                // Scroll into view logic would go here
+            }
+
+            rowDiv.innerHTML = `
+                <div class="col-meta">${data.L}</div>
+                <div class="col-coords">${targetK}.${b}</div>
+                <div class="col-meta">${data.a}</div>
+                <div class="col-n">${data.N}</div>
+            `;
+            
+            tapeFeed.appendChild(rowDiv);
+        }
+        
+        // Auto-scroll to highlight
+        const hl = document.querySelector('.highlight');
+        if(hl) hl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+</script>
+
+</body>
+</html>

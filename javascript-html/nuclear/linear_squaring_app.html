@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O(N) Linear Squaring Engine</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #e2e8f0;
+        --accent: #06b6d4; /* Cyan */
+        --danger: #ef4444;
+    }
+    body { background-color: var(--bg); color: var(--text); font-family: system-ui, sans-serif; padding: 20px; }
+    .card { max-width: 600px; margin: 0 auto; background: var(--card); border-radius: 12px; padding: 25px; box-shadow: 0 0 20px rgba(6, 182, 212, 0.2); }
+    input { background: #334155; border: 1px solid #475569; color: white; padding: 10px; border-radius: 6px; width: 100%; font-family: monospace; }
+    .btn { padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    .btn-start { background: var(--accent); color: var(--bg); }
+    .btn-stop { background: var(--danger); color: white; }
+    .progress-bar { height: 10px; background: #334155; border-radius: 5px; overflow: hidden; margin-top: 15px; }
+    .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.2s; }
+    #logOutput { height: 150px; overflow-y: auto; background: #020617; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 0.8rem; margin-top: 15px; border: 1px solid #334155; white-space: pre-wrap; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-black text-center text-cyan-400 mb-2">Geometric Linear Squaring $\mathbf{(\mathcal{O}(N))}$</h1>
+    <p class="text-center text-sm text-gray-400 mb-6">Calculates $\mathbf{(10^E + C)^2}$ using Gnomon-based additive recurrence.</p>
+
+    <div class="grid-2">
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Exponent (E)</label><input id="inpExp" value="1000000"></div>
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Addend (C)</label><input id="inpAdd" value="61"></div>
+    </div>
+    
+    <div class="flex gap-4 mt-4">
+        <button id="btnStart" class="btn btn-start flex-grow">Start $\mathcal{O}(N)$ Calculation</button>
+        <button id="btnStop" class="btn btn-stop" disabled>Stop</button>
+    </div>
+
+    <div class="progress-bar"><div id="progressBar" class="progress-fill"></div></div>
+    
+    <div id="status" class="text-center mt-3 font-semibold text-gray-400">Status: Idle</div>
+
+    <div id="downloadArea" class="mt-4 pt-4 border-t border-gray-700 hidden">
+        <div class="text-center text-sm text-green-400 mb-2 font-bold">CALCULATION COMPLETE</div>
+        <button id="btnSave" class="btn bg-green-600 text-white w-full">💾 Save Result File (Approx. <span id="fileSize">0</span> MB)</button>
+    </div>
+
+    <pre id="logOutput">Log: System Ready. Enter $E=1000000$ to test the $2 \text{ MB}$ output scale.</pre>
+</div>
+
+<script>
+const inpExp = document.getElementById('inpExp');
+const inpAdd = document.getElementById('inpAdd');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const progressBar = document.getElementById('progressBar');
+const statusDiv = document.getElementById('status');
+const logOutput = document.getElementById('logOutput');
+const btnSave = document.getElementById('btnSave');
+const fileSizeSpan = document.getElementById('fileSize');
+
+let calculationWorker = null;
+let chunkedResult = [];
+
+function log(msg) {
+    logOutput.textContent += '> ' + msg + '\n';
+    logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function setStatus(msg) { statusDiv.textContent = 'Status: ' + msg; }
+
+function setProgress(percent) {
+    const p = Math.min(100, Math.max(0, percent)).toFixed(2);
+    progressBar.style.width = p + '%';
+}
+
+// --- File Saving Logic ---
+
+btnSave.onclick = function() {
+    if (chunkedResult.length === 0) return;
+
+    // Use Blob to generate a file from the collected chunks
+    const blob = new Blob(chunkedResult, {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    
+    // Create a virtual link for download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `squared_result_10^${inpExp.value}_plus_${inpAdd.value}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    log(`Result saved to file. Size: ${fileSizeSpan.textContent} MB`);
+};
+
+// --- Worker Orchestration ---
+
+function startCalculation() {
+    if (calculationWorker) stopCalculation();
+
+    const expStr = inpExp.value;
+    const addStr = inpAdd.value;
+
+    const E = BigInt(expStr);
+    const C = BigInt(addStr);
+
+    if (E <= 0n || C < 0n || E < 3n) {
+        log('Error: Exponent must be large and positive.');
+        return;
+    }
+
+    logOutput.textContent = '';
+    chunkedResult = [];
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    document.getElementById('downloadArea').classList.add('hidden');
+    setStatus('Initializing $\mathcal{O}(N)$ Engine...');
+    setProgress(0);
+
+    const workerCode = document.getElementById('linear_squaring_worker').textContent;
+    const workerBlob = new Blob([workerCode], {type: 'application/javascript'});
+    calculationWorker = new Worker(URL.createObjectURL(workerBlob));
+    
+    calculationWorker.onmessage = handleWorkerMessage;
+    
+    log(`Target: $\\mathbf{(10^{${expStr}} + ${addStr})^2}$`);
+    
+    // Start the calculation in the worker
+    calculationWorker.postMessage({ expStr, addStr });
+}
+
+function stopCalculation() {
+    if (calculationWorker) {
+        calculationWorker.terminate();
+        calculationWorker = null;
+    }
+    btnStart.disabled = false;
+    btnStop.disabled = true;
+    setStatus('Stopped by user.');
+    log('Calculation aborted.');
+}
+
+function handleWorkerMessage(e) {
+    const data = e.data;
+
+    if (data.type === 'log') {
+        log(data.message);
+    } else if (data.type === 'progress') {
+        setStatus(`Calculating... Stage ${data.stage} | ${data.percent.toFixed(2)}%`);
+        setProgress(data.percent);
+    } else if (data.type === 'chunk') {
+        // --- CHUNKED OUTPUT STREAMING ---
+        // We receive a piece of the final number and immediately store it in our result array.
+        // The worker then clears its internal memory for this chunk.
+        chunkedResult.push(data.chunk);
+    } else if (data.type === 'metadata') {
+        const totalMB = (data.totalDigits / 1000000).toFixed(2);
+        fileSizeSpan.textContent = totalMB;
+        log(`Metadata: Final result will have approx ${data.totalDigits.toLocaleString()} digits.`);
+        log(`Pre-allocating ${totalMB} MB storage buffer...`);
+    } else if (data.type === 'done') {
+        stopCalculation();
+        setStatus('Result calculated and buffered.');
+        document.getElementById('downloadArea').classList.remove('hidden');
+        log('--- CALCULATION COMPLETE ---');
+    } else if (data.type === 'error') {
+        log(`ERROR: ${data.message}`);
+        stopCalculation();
+    }
+}
+
+btnStart.addEventListener('click', startCalculation);
+btnStop.addEventListener('click', stopCalculation);
+</script>
+
+<script type="worker" id="linear_squaring_worker">
+// --- WORKER CODE ---
+const BASE = 1000000000; // Base 10^9 (for maximum chunk efficiency within 53-bit JS limit)
+const CHUNK_DIGITS = 9;  // Max digits per chunk
+
+// --- Utility Functions (BigInt based arithmetic) ---
+
+function padChunk(chunk, isFirst) {
+    // Pad chunks with leading zeros for consistent spacing in the output
+    if (isFirst) {
+        return chunk.toString();
+    }
+    return chunk.toString().padStart(CHUNK_DIGITS, '0');
+}
+
+// --- Main Linear Squaring Engine ---
+
+self.onmessage = async function(e) {
+    const { expStr, addStr } = e.data;
+
+    try {
+        const E = BigInt(expStr);
+        const C = BigInt(addStr);
+        const BASE_BI = BigInt(BASE);
+        
+        // --- 1. Algebraic Decomposition ---
+        // N^2 = (10^E + C)^2 = 10^(2E) + 2C * 10^E + C^2
+        
+        // C^2 is 61^2 = 3721 (instant)
+        const C_SQUARED = C * C;
+        
+        // 2C is 122 (constant)
+        const TWO_C = 2n * C; 
+
+        const TOTAL_DIGITS = Number(2n * E); // Final length is 2E
+        self.postMessage({ type: 'metadata', totalDigits: TOTAL_DIGITS });
+
+        const totalChunks = Math.ceil(TOTAL_DIGITS / CHUNK_DIGITS);
+        let carry = 0n;
+        let digitsOutput = 0;
+        
+        // --- 2. Chunked Output Streaming ---
+
+        // We iterate through every digit position, from low-order (right) to high-order (left)
+        // This process is equivalent to a fast long-addition of the three parts:
+        // P1: 10^(2E)
+        // P2: 2C * 10^E
+        // P3: C^2
+        
+        // We handle C^2 (P3) first, then P2, then P1.
+        
+        // A. Handle the Trivial End (P3: C^2 = 3721)
+        
+        let cSq = C_SQUARED;
+        let cEndChunks = [];
+        let p3ChunksProcessed = 0;
+
+        // Extract chunks of C^2
+        while (cSq > 0n) {
+            cEndChunks.push(Number(cSq % BASE_BI));
+            cSq = cSq / BASE_BI;
+        }
+
+        // Output C^2 chunks immediately (e.g., 961)
+        for (const chunk of cEndChunks) {
+            let val = BigInt(chunk) + carry;
+            let resultChunk = Number(val % BASE_BI);
+            carry = val / BASE_BI;
+            
+            self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk, digitsOutput === 0) });
+            digitsOutput += CHUNK_DIGITS;
+            p3ChunksProcessed++;
+        }
+
+        // B. Handle the Transition and Mid-Range (P2: 2C * 10^E)
+
+        // The term 2C * 10^E starts at position E.
+        // It has a short value (TWO_C = 122) and a long string of zeros.
+        
+        // Find the chunk index where 2C starts
+        const E_chunks = Math.ceil(Number(E) / CHUNK_DIGITS);
+        const P3_offset = Math.ceil(C_SQUARED.toString().length / CHUNK_DIGITS);
+        
+        // Fill the long gap of zeros after C^2 and before P2 starts.
+        for(let i=p3ChunksProcessed; i < E_chunks; i++) {
+             let val = carry; // Only carry remains
+             let resultChunk = Number(val % BASE_BI);
+             carry = val / BASE_BI;
+
+             self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk, digitsOutput === 0) });
+             digitsOutput += CHUNK_DIGITS;
+             
+             const percent = (digitsOutput / TOTAL_DIGITS) * 100;
+             if (i % 1000 === 0) self.postMessage({ type: 'progress', percent, stage: 'Transition Gap' });
+             await new Promise(r => setTimeout(r, 0)); // Yield
+        }
+
+        // C. Handle the P2 Term (2C = 122)
+        // This is where 2C * 10^E sits.
+        let P2_val = TWO_C;
+        
+        let p2ChunksProcessed = 0;
+        while (P2_val > 0n) {
+            let p2Chunk = P2_val % BASE_BI;
+            P2_val = P2_val / BASE_BI;
+
+            let val = p2Chunk + carry;
+            let resultChunk = Number(val % BASE_BI);
+            carry = val / BASE_BI;
+            
+            self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk, digitsOutput === 0) });
+            digitsOutput += CHUNK_DIGITS;
+            p2ChunksProcessed++;
+        }
+        
+        // D. Handle the High-Order Gap and P1 Term (10^(2E))
+
+        // Fill the massive gap of zeros between P2 and P1.
+        for(let i = E_chunks + p2ChunksProcessed; i < totalChunks - 1; i++) {
+            let val = carry;
+            let resultChunk = Number(val % BASE_BI);
+            carry = val / BASE_BI;
+            
+            self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk, digitsOutput === 0) });
+            digitsOutput += CHUNK_DIGITS;
+
+            const percent = (digitsOutput / TOTAL_DIGITS) * 100;
+            if (i % 10000 === 0) self.postMessage({ type: 'progress', percent, stage: 'High-Order Zeros' });
+            await new Promise(r => setTimeout(r, 0)); // Yield
+        }
+
+        // E. Handle the Highest Order Term (P1: 10^(2E))
+        
+        // The last chunk is always 1 (from 10^(2E)) plus any remaining carry.
+        let val = 1n + carry; 
+        let finalChunk = Number(val % BASE_BI);
+        
+        // Output final chunk
+        self.postMessage({ type: 'chunk', chunk: padChunk(finalChunk, digitsOutput === 0) });
+        digitsOutput += CHUNK_DIGITS;
+        
+        self.postMessage({ type: 'progress', percent: 100, stage: 'Finalizing' });
+        self.postMessage({ type: 'done' });
+        
+    } catch (e) {
+        self.postMessage({ type: 'error', message: 'Calculation Error: ' + e.message });
+    }
+};
+</script>
+

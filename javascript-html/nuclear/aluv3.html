@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Holographic ALU v3.0</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #020617; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 15px; max-width: 800px; margin: 0 auto; box-shadow: 0 0 40px rgba(56, 189, 248, 0.1); }
+    h1 { color: #38bdf8; font-weight: 900; letter-spacing: 2px; text-align: center; margin-bottom: 15px; font-size: 1.5rem; }
+    
+    /* INPUTS */
+    .register-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 15px; }
+    .reg-box { background: #1e293b; padding: 10px; border-radius: 6px; border: 1px solid #334155; }
+    .reg-label { font-size: 0.7rem; color: #94a3b8; display: block; margin-bottom: 4px; font-weight: bold; }
+    .reg-input { background: transparent; color: #fff; font-size: 1.1rem; font-weight: bold; width: 100%; outline: none; border: none; font-family: monospace; }
+    
+    /* BUTTONS - 2 Columns for Mobile */
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .btn { padding: 15px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: #fff; font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; text-transform: uppercase; }
+    .btn:hover { background: #475569; border-color: #94a3b8; }
+    
+    .btn-basic { background: #1e293b; color: #94a3b8; } /* Add/Sub */
+    .btn-core { background: #0369a1; border-color: #0ea5e9; color: #fff; } /* Mul/Sq */
+    .btn-adv { background: #4c1d95; border-color: #8b5cf6; color: #e9d5ff; } /* Div/Sqrt */
+
+    /* CONSOLE */
+    .console { background: #000; border: 1px solid #334155; height: 200px; overflow-y: auto; padding: 10px; font-size: 0.75rem; color: #34d399; font-family: monospace; border-radius: 6px; margin-bottom: 10px; }
+    .log-dim { color: #475569; }
+    .log-hlt { color: #38bdf8; font-weight: bold; }
+    .log-res { color: #facc15; font-weight: bold; border-top: 1px dashed #334155; padding-top: 4px; margin-top: 4px; }
+    
+    .res-display { text-align: center; font-size: 1.1rem; color: #fff; font-weight: bold; word-break: break-all; background: #1e293b; padding: 10px; border-radius: 6px; border: 1px solid #3b82f6; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1>HOLOGRAPHIC ALU v3</h1>
+    
+    <div class="register-grid">
+        <div class="reg-box">
+            <span class="reg-label">REGISTER A (Primary)</span>
+            <input id="regA" class="reg-input" value="123456789">
+        </div>
+        <div class="reg-box">
+            <span class="reg-label">REGISTER B (Secondary)</span>
+            <input id="regB" class="reg-input" value="987">
+        </div>
+    </div>
+
+    <div class="btn-grid">
+        <button class="btn btn-basic" onclick="runOp('add')">A + B</button>
+        <button class="btn btn-basic" onclick="runOp('sub')">A - B</button>
+        
+        <button class="btn btn-core" onclick="runOp('sq')">Square A</button>
+        <button class="btn btn-core" onclick="runOp('mul')">Multiply</button>
+        
+        <button class="btn btn-adv" onclick="runOp('div')">Divide A/B</button>
+        <button class="btn btn-adv" onclick="runOp('sqrt')">Sqrt A</button>
+    </div>
+
+    <div id="console" class="console">
+        <div class="log-dim">Holographic Kernel Loaded.</div>
+        <div class="log-dim">Mode: L3 Stream Addition.</div>
+    </div>
+    
+    <div id="finalRes" class="res-display">0</div>
+</div>
+
+<script>
+const logBox = document.getElementById('console');
+
+function log(msg, type='') {
+    const d = document.createElement('div');
+    if(type==='res') d.className='log-res';
+    else if(type==='dim') d.className='log-dim';
+    else if(type==='hlt') d.className='log-hlt';
+    d.innerText = "> " + msg;
+    logBox.prepend(d);
+}
+
+// --- 1. BASIC OPS (Native) ---
+function opAdd(a, b) { return a + b; }
+function opSub(a, b) { return a - b; }
+
+// --- 2. SQUARING (The 4x Reactor) ---
+// Logic: N^2 via bit-streaming (addition/shifting only)
+function opSquare(val) {
+    const bits = val.toString(2);
+    let area = 0n;
+    let index = 0n; // Represents the "Side Length"
+    
+    log(`Streaming ${bits.length} bits into Reactor...`, 'dim');
+    
+    for(let i=0; i<bits.length; i++) {
+        // 4x Scale Rule: Area shifts 2, Side shifts 1
+        area <<= 2n;
+        index <<= 1n;
+        
+        if(bits[i] === '1') {
+            // Add Gnomon: 2*Index + 1
+            const gnomon = (index << 1n) + 1n;
+            area += gnomon;
+            index += 1n;
+        }
+    }
+    return area;
+}
+
+// --- 3. MULTIPLICATION (Nomad Method) ---
+// Logic: XY = ((X+Y)/2)^2 - ((X-Y)/2)^2
+function opMul(a, b) {
+    const sum = a + b;
+    let diff = a > b ? a - b : b - a;
+    
+    // Parity Matcher: If one is odd and one even, double both to align geometry
+    if ((a % 2n) !== (b % 2n)) {
+        log("Parity mismatch. Scaling grid by 2...", 'dim');
+        // (2A * 2B) / 4
+        const scaledRes = opMul(a << 1n, b << 1n);
+        return scaledRes >> 2n;
+    }
+    
+    const avg = sum >> 1n;
+    const rad = diff >> 1n;
+    
+    log(`Midpoint: ${avg}`, 'dim');
+    log(`Radius: ${rad}`, 'dim');
+    
+    const s1 = opSquare(avg);
+    const s2 = opSquare(rad);
+    
+    return s1 - s2;
+}
+
+// --- 4. SQUARE ROOT (Reverse 4x Reactor) ---
+// Logic: Collapse the area by 4, subtract gnomons if possible
+function opSqrt(val) {
+    if (val < 0n) throw "Imaginary Number";
+    if (val === 0n) return 0n;
+    
+    let bits = val.toString(2);
+    if (bits.length % 2 !== 0) bits = '0' + bits;
+    
+    let res = 0n;
+    let rem = 0n;
+    
+    log(`Collapsing ${bits.length} bit area...`, 'dim');
+    
+    for (let i = 0; i < bits.length; i += 2) {
+        // Bring down 2 bits of Area (Inverse of 4x scale)
+        const chunk = BigInt(parseInt(bits.substr(i, 2), 2));
+        rem = (rem << 2n) + chunk;
+        
+        // Can we subtract the next Gnomon?
+        // Gnomon size = (4 * res) + 1  (in binary: res<<2 | 1)
+        const gnomon = (res << 2n) | 1n;
+        
+        if (rem >= gnomon) {
+            rem -= gnomon;
+            res = (res << 1n) | 1n;
+        } else {
+            res = (res << 1n);
+        }
+    }
+    return res;
+}
+
+// --- 5. DIVISION (Rectangle Packing) ---
+function opDiv(a, b) {
+    if (b === 0n) return "DIV/0";
+    let quotient = 0n;
+    let remainder = 0n;
+    const bits = a.toString(2);
+    
+    log(`Packing Rectangles...`, 'dim');
+    
+    for (let i = 0; i < bits.length; i++) {
+        remainder = (remainder << 1n) | BigInt(bits[i]);
+        if (remainder >= b) {
+            remainder -= b;
+            quotient = (quotient << 1n) | 1n;
+        } else {
+            quotient = (quotient << 1n);
+        }
+    }
+    return quotient; // We return quotient, could return [q, r]
+}
+
+function runOp(mode) {
+    try {
+        const strA = document.getElementById('regA').value || "0";
+        const strB = document.getElementById('regB').value || "0";
+        const A = BigInt(strA);
+        const B = BigInt(strB);
+        let res = 0n;
+        
+        const start = performance.now();
+        
+        if(mode === 'add') res = opAdd(A, B);
+        else if(mode === 'sub') res = opSub(A, B);
+        else if(mode === 'sq') res = opSquare(A);
+        else if(mode === 'mul') res = opMul(A, B);
+        else if(mode === 'sqrt') res = opSqrt(A);
+        else if(mode === 'div') res = opDiv(A, B);
+        
+        const end = performance.now();
+        
+        const shortRes = res.toString();
+        const display = shortRes.length > 20 ? shortRes.substr(0,20) + "..." : shortRes;
+        
+        log(`${mode.toUpperCase()} Success: ${display}`, 'hlt');
+        log(`Time: ${(end-start).toFixed(3)}ms`, 'dim');
+        document.getElementById('finalRes').innerText = res.toString();
+        
+    } catch(e) {
+        log("Error: " + e, 'res');
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gnomon Architect Mobile</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-panel: #1e293b;
+            --border: #334155;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-indigo: #818cf8;
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Prevent body scroll, we scroll main */
+        }
+
+        /* --- HEADER --- */
+        header {
+            background-color: #020617;
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            z-index: 50;
+            flex-shrink: 0;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Segmented Control for Mode */
+        .mode-switcher {
+            display: flex;
+            background: var(--bg-panel);
+            padding: 4px;
+            border-radius: 8px;
+            width: 100%;
+        }
+
+        .mode-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: #334155;
+            color: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .mode-btn.active[data-mode="explore"] { color: var(--accent-blue); }
+        .mode-btn.active[data-mode="pythagorean"] { color: var(--accent-green); }
+        .mode-btn.active[data-mode="scan"] { color: var(--accent-indigo); }
+
+        /* --- SCROLLABLE MAIN CONTENT --- */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            padding-bottom: calc(2rem + var(--safe-area-bottom));
+        }
+
+        /* --- CANVAS SECTION --- */
+        .canvas-wrapper {
+            width: 100%;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            background: linear-gradient(to bottom, #020617 0%, var(--bg-dark) 100%);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        canvas {
+            border-radius: 8px;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
+            touch-action: none; /* Critical for drag handling */
+            max-width: 100%;
+        }
+
+        /* --- INFO / MATH PANEL --- */
+        .panel {
+            padding: 0 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .math-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            padding: 1rem 0;
+            opacity: 0.6;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0.5rem;
+            align-items: center;
+            text-align: center;
+        }
+
+        .stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;}
+        .stat-val { font-family: monospace; font-size: 1.25rem; font-weight: 700; color: #fff; }
+        .stat-val.highlight { color: var(--accent-blue); }
+        
+        .triple-banner {
+            margin-top: 1rem;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* --- CONTROLS --- */
+        .controls-section {
+            padding: 0 1.25rem;
+        }
+
+        .slider-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .slider-label-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+        }
+
+        /* Chunky Mobile Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 24px; /* Larger touch area */
+            background: transparent;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 4px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: var(--text-main);
+            margin-top: -9px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        input[type="range"]:focus { outline: none; }
+
+        /* Scrollable List container */
+        .scroll-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 300px;
+            /* overflow-y: auto; handled by parent main usually, but limits height here */ 
+        }
+
+        .list-btn {
+            background: var(--bg-panel);
+            border: 1px solid transparent;
+            padding: 12px;
+            border-radius: 8px;
+            color: var(--text-main);
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.9rem;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .list-btn:active { background: #334155; transform: scale(0.98); }
+        .list-btn span.tag { font-size: 0.7rem; background: rgba(16, 185, 129, 0.2); color: var(--accent-green); padding: 2px 6px; border-radius: 4px; }
+
+        /* Scan Controls */
+        .scan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .btn-action {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .btn-action.selected { background: var(--accent-indigo); color: white; border-color: var(--accent-indigo); }
+        
+        .btn-primary {
+            width: 100%;
+            background: #fff;
+            color: #000;
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 700;
+            border: none;
+            font-size: 1rem;
+        }
+        .btn-primary:active { transform: scale(0.98); background: #e2e8f0; }
+        .btn-primary:disabled { opacity: 0.5; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-top">
+            <h1>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 20h20"/><path d="M2 20V4a2 2 0 0 1 2-2h16"/><path d="M2 14h12a2 2 0 0 0 2-2V2"/></svg>
+                Gnomon Mobile
+            </h1>
+        </div>
+        <div class="mode-switcher">
+            <button class="mode-btn active" data-mode="explore" onclick="setMode('explore')">Explore</button>
+            <button class="mode-btn" data-mode="pythagorean" onclick="setMode('pythagorean')">Pythagorean</button>
+            <button class="mode-btn" data-mode="scan" onclick="setMode('scan')">Data Scan</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Canvas sticks to top -->
+        <div class="canvas-wrapper">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <!-- Math Output -->
+        <div class="panel">
+            <div id="math-card" class="math-card">
+                <div class="empty-state">
+                    Drag finger across grid to inspect
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-section">
+            
+            <div class="slider-container">
+                <div class="slider-label-row">
+                    <span>GRID SIZE (N)</span>
+                    <span id="label-size">12</span>
+                </div>
+                <input type="range" id="size-slider" min="3" max="50" value="12">
+            </div>
+
+            <!-- Dynamic content area -->
+            <div id="controls-content"></div>
+            
+            <div style="height: 40px;"></div> <!-- Spacer -->
+        </div>
+    </main>
+
+    <!-- WORKER -->
+    <script id="worker-code" type="javascript/worker">
+        self.onmessage = function(e) {
+            const { action, maxIndex, scanType } = e.data;
+
+            if (action === 'analyze_math') {
+                const results = [];
+                for (let n = 1; n <= 60; n++) {
+                    const gnomon = 2 * n - 1;
+                    const sqrtGnomon = Math.sqrt(gnomon);
+                    if (sqrtGnomon % 1 === 0) {
+                        results.push({ n, gnomon, root: sqrtGnomon, prev: n - 1 });
+                    }
+                }
+                self.postMessage({ type: 'math_results', data: results });
+            }
+
+            if (action === 'generate_path') {
+                const path = [];
+                if (scanType === 'raster') {
+                    for (let y = 0; y < maxIndex; y++) {
+                        for (let x = 0; x < maxIndex; x++) path.push({x, y});
+                    }
+                } else {
+                    for (let n = 0; n < maxIndex; n++) {
+                        for (let y = 0; y <= n; y++) path.push({x: n, y});
+                        for (let x = 0; x < n; x++) path.push({x, y: n});
+                    }
+                }
+                self.postMessage({ type: 'path_results', data: path });
+            }
+        };
+    </script>
+
+    <script>
+        // --- APP STATE ---
+        const state = {
+            maxN: 12,
+            mode: 'explore', 
+            scanType: 'gnomonic',
+            isScanning: false,
+            scanProgress: 0,
+            hoveredIndex: null, // This is persistent on mobile until changed
+            triples: [],
+            pathData: []
+        };
+
+        // --- DOM REFS ---
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for mobile
+        const mathCard = document.getElementById('math-card');
+        const slider = document.getElementById('size-slider');
+        const labelSize = document.getElementById('label-size');
+        const controlsContent = document.getElementById('controls-content');
+
+        // --- WORKER ---
+        const workerBlob = new Blob([document.getElementById('worker-code').textContent], {type: "text/javascript"});
+        const worker = new Worker(URL.createObjectURL(workerBlob));
+
+        worker.onmessage = (e) => {
+            if (e.data.type === 'math_results') {
+                state.triples = e.data.data;
+                if(state.mode === 'pythagorean') renderControls();
+            }
+            if (e.data.type === 'path_results') {
+                state.pathData = e.data.data;
+            }
+        };
+
+        worker.postMessage({ action: 'analyze_math' });
+
+        // --- LAYOUT & CANVAS ---
+        function resizeCanvas() {
+            // Mobile: Take nearly full width minus padding
+            const containerWidth = canvas.parentElement.offsetWidth;
+            const size = Math.min(containerWidth, 500); // Max width for larger Notes
+            const dpr = window.devicePixelRatio || 2; // High DPI for Note 20
+            
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+            
+            ctx.scale(dpr, dpr);
+            render();
+        }
+
+        // --- RENDERING ---
+        function render() {
+            const size = parseFloat(canvas.style.width);
+            const padding = 10; // Tighter padding for mobile
+            const drawingSize = size - (padding * 2);
+            const cellSize = drawingSize / state.maxN;
+            const gap = cellSize < 4 ? 0 : 1; // Remove gap if cells too small
+
+            // Background
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, size, size);
+
+            // SCAN MODE RENDER
+            if (state.mode === 'scan') {
+                // Grid Lines
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                for(let i=0; i<=state.maxN; i++) {
+                    const p = padding + i*cellSize;
+                    ctx.moveTo(p, padding); ctx.lineTo(p, padding + drawingSize);
+                    ctx.moveTo(padding, p); ctx.lineTo(padding + drawingSize, p);
+                }
+                ctx.stroke();
+
+                // Path
+                const totalCells = state.maxN * state.maxN;
+                const visibleCount = Math.floor(totalCells * state.scanProgress);
+                
+                if (state.pathData && state.pathData.length > 0) {
+                    // Batch draw optimization
+                    for(let i=0; i<visibleCount && i<state.pathData.length; i++) {
+                        const pt = state.pathData[i];
+                        const x = padding + pt.x * cellSize + gap;
+                        const y = padding + pt.y * cellSize + gap;
+                        
+                        const isHead = i > visibleCount - 8;
+                        ctx.fillStyle = isHead ? '#818cf8' : '#312e81';
+                        ctx.fillRect(x, y, cellSize-gap*2, cellSize-gap*2);
+                    }
+                }
+                return;
+            }
+
+            // EXPLORE / PYTHAGOREAN MODE
+            for (let n = 1; n <= state.maxN; n++) {
+                const isSelected = state.hoveredIndex === n;
+                const isTriple = state.triples.some(t => t.n === n);
+                
+                let hue, sat, light, alpha;
+                
+                if (state.mode === 'pythagorean') {
+                    if (isTriple) {
+                        hue = 150; sat = '100%'; light = '40%'; alpha = 1; 
+                    } else {
+                        hue = 0; sat = '0%'; light = '20%'; alpha = 0.3; 
+                    }
+                    if (isSelected) alpha = 1;
+                } else {
+                    hue = (n * 25) % 360;
+                    sat = '75%';
+                    light = '60%';
+                    alpha = (state.hoveredIndex && state.hoveredIndex !== n) ? 0.3 : 1;
+                }
+
+                ctx.fillStyle = `hsla(${hue}, ${sat}, ${light}, ${alpha})`;
+
+                // Optimization: Draw 2 rectangles per gnomon instead of loop
+                // Vertical part
+                ctx.fillRect(
+                    padding + (n-1)*cellSize + gap, 
+                    padding, 
+                    cellSize - gap*2, 
+                    (n*cellSize) - gap*2
+                );
+                // Horizontal part
+                ctx.fillRect(
+                    padding, 
+                    padding + (n-1)*cellSize + gap, 
+                    ((n-1)*cellSize), 
+                    cellSize - gap*2
+                );
+
+                // Highlight Outline
+                if (isSelected) {
+                    const x = padding;
+                    const y = padding;
+                    const dim = n * cellSize;
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, dim, dim);
+                }
+            }
+        }
+
+        function renderMath() {
+            if (state.mode === 'scan') {
+                mathCard.innerHTML = `<div class="empty-state">Visualizing Memory Traversal</div>`;
+                return;
+            }
+
+            if (!state.hoveredIndex) {
+                mathCard.innerHTML = `<div class="empty-state">Touch & drag grid to inspect</div>`;
+                return;
+            }
+
+            const n = state.hoveredIndex;
+            const gnomon = 2 * n - 1;
+            const prevSq = (n - 1) ** 2;
+            const totalSq = n ** 2;
+            const triple = state.triples.find(t => t.n === n);
+
+            let html = `
+                <div class="stat-grid">
+                    <div>
+                        <span class="stat-label">Square ${n-1}</span>
+                        <span class="stat-val">${prevSq}</span>
+                    </div>
+                    <div style="font-size: 1.2rem; color: var(--text-muted);">+</div>
+                    <div>
+                        <span class="stat-label" style="color:var(--accent-blue)">Gnomon</span>
+                        <span class="stat-val highlight">${gnomon}</span>
+                    </div>
+                </div>
+                <div style="margin: 0.5rem 0; height: 1px; background: var(--border);"></div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="stat-label" style="text-align:left;">NEW TOTAL (n²)</span>
+                    <span class="stat-val">${totalSq}</span>
+                </div>
+            `;
+
+            if (triple) {
+                html += `
+                    <div class="triple-banner">
+                        <span style="display:block; font-size: 0.7rem; text-transform:uppercase; color: var(--accent-green); font-weight:700;">Pythagorean Triple</span>
+                        <span style="font-family:monospace; font-size:1.1rem; color: #fff;">${triple.prev}² + <span style="color:var(--accent-green)">${triple.root}²</span> = ${triple.n}²</span>
+                    </div>
+                `;
+            }
+
+            mathCard.innerHTML = html;
+        }
+
+        function renderControls() {
+            let html = '';
+            
+            if (state.mode === 'explore') {
+                html = `
+                    <p style="font-size:0.85rem; color: var(--text-muted); line-height: 1.5;">
+                        <strong style="color: white;">Concept:</strong> Every odd number is a "Gnomon" (L-shape). 
+                        Adding gnomons sequentially builds perfect squares. 
+                        Drag your finger over the grid to see how the sequence grows.
+                    </p>
+                `;
+            } else if (state.mode === 'pythagorean') {
+                const list = state.triples
+                    .filter(t => t.n <= 60)
+                    .map(t => `<button class="list-btn" onclick="jumpTo(${t.n})">
+                        <span>${t.prev}² + ${t.root}² = ${t.n}²</span>
+                        <span class="tag">Gnomon ${t.gnomon}</span>
+                    </button>`)
+                    .join('');
+                
+                html = `
+                    <p style="font-size:0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">Detected Triples (Tap to View):</p>
+                    <div class="scroll-list">${list}</div>
+                `;
+            } else if (state.mode === 'scan') {
+                html = `
+                    <div class="scan-grid">
+                        <button class="btn-action ${state.scanType === 'raster' ? 'selected' : ''}" onclick="setScanType('raster')">Raster (Row)</button>
+                        <button class="btn-action ${state.scanType === 'gnomonic' ? 'selected' : ''}" onclick="setScanType('gnomonic')">Gnomon (Shell)</button>
+                    </div>
+                    <button class="btn-primary" onclick="runScan()" ${state.isScanning ? 'disabled' : ''}>
+                        ${state.isScanning ? 'Scanning...' : 'Visualize Path'}
+                    </button>
+                    <p style="font-size:0.8rem; color: var(--text-muted); margin-top: 1rem;">
+                        Shell traversal (Gnomonic) is "Cache Oblivious", meaning it optimizes memory access for matrix operations regardless of CPU cache size.
+                    </p>
+                `;
+            }
+
+            controlsContent.innerHTML = html;
+        }
+
+        // --- ANIMATION LOOP (Scan) ---
+        let startTime = null;
+        function animateScan(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const progress = Math.min((timestamp - startTime) / 2000, 1);
+            
+            state.scanProgress = progress;
+            render();
+
+            if (progress < 1) {
+                requestAnimationFrame(animateScan);
+            } else {
+                state.isScanning = false;
+                renderControls(); // Re-enable button
+            }
+        }
+
+        // --- INTERACTION LOGIC ---
+        function setMode(mode) {
+            state.mode = mode;
+            state.hoveredIndex = null;
+            state.isScanning = false;
+            
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+
+            if(mode === 'scan') {
+                worker.postMessage({ action: 'generate_path', maxIndex: state.maxN, scanType: state.scanType });
+            }
+
+            renderMath();
+            renderControls();
+            render();
+        }
+
+        function setScanType(type) {
+            state.scanType = type;
+            state.scanProgress = 0;
+            worker.postMessage({ action: 'generate_path', maxIndex: state.maxN, scanType: state.scanType });
+            renderControls();
+            render();
+        }
+
+        function runScan() {
+            state.isScanning = true;
+            startTime = null;
+            renderControls();
+            requestAnimationFrame(animateScan);
+        }
+
+        function jumpTo(n) {
+            state.maxN = n;
+            state.hoveredIndex = n;
+            slider.value = n;
+            labelSize.innerText = n;
+            renderMath();
+            render();
+        }
+
+        // --- TOUCH / INPUT EVENTS ---
+
+        function handleInput(x, y) {
+            if (state.mode === 'scan') return;
+
+            const size = parseFloat(canvas.style.width);
+            const padding = 10;
+            const drawingSize = size - (padding * 2);
+            const cellSize = drawingSize / state.maxN;
+
+            const c = Math.floor((x - padding) / cellSize);
+            const r = Math.floor((y - padding) / cellSize);
+
+            let newIndex = null;
+            if (c >= 0 && c < state.maxN && r >= 0 && r < state.maxN) {
+                newIndex = Math.max(c, r) + 1;
+            }
+
+            if (state.hoveredIndex !== newIndex && newIndex !== null) {
+                state.hoveredIndex = newIndex;
+                render();
+                renderMath();
+            }
+        }
+
+        // Touch Handlers (Primary for Mobile)
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Stop scroll
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            handleInput(touch.clientX - rect.left, touch.clientY - rect.top);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Stop scroll while scrubbing
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            handleInput(touch.clientX - rect.left, touch.clientY - rect.top);
+        }, { passive: false });
+
+        // Mouse Handlers (Fallback/Desktop)
+        canvas.addEventListener('mousemove', (e) => {
+            if(e.buttons !== 1) return; // Only if clicking
+            const rect = canvas.getBoundingClientRect();
+            handleInput(e.clientX - rect.left, e.clientY - rect.top);
+        });
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            handleInput(e.clientX - rect.left, e.clientY - rect.top);
+        });
+
+        // Slider
+        slider.addEventListener('input', (e) => {
+            state.maxN = parseInt(e.target.value);
+            labelSize.innerText = state.maxN;
+            if(state.mode === 'scan') {
+                state.scanProgress = 0;
+                worker.postMessage({ action: 'generate_path', maxIndex: state.maxN, scanType: state.scanType });
+            }
+            render();
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Init
+        renderControls();
+        resizeCanvas();
+
+    </script>
+</body>
+</html>
+

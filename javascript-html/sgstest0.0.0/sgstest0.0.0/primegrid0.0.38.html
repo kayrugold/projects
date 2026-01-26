@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logarithmic Prime Grid: Column Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #e5e7eb;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+      min-height: 100vh;
+      overflow-y: auto;
+    }
+
+    .grid-container {
+      display: grid;
+      border: 1px solid #333;
+      background-color: #222;
+      cursor: grab;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 1px;
+      transform-origin: 0 0;
+      touch-action: none;
+      min-height: 200px;
+      margin-top: 1rem;
+    }
+
+    .grid-cell {
+      height: 60px;
+      background-color: #2c2c2c;
+      border: 1px solid #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+      transition: background-color 0.5s ease-in-out;
+      word-break: break-all;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    .grid-cell.prime { background-color: #34d399; }
+    .grid-cell.composite { background-color: #ef4444; }
+    .grid-cell.is-target { background-color: #0ea5e9; box-shadow: 0 0 0 4px #0ea5e9 inset; }
+    .grid-cell.processing { background-color: #374151; animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.7; }
+      100% { opacity: 1; }
+    }
+
+    .input-field {
+        width: 100%;
+        padding: 0.5rem;
+        background-color: #4b5563; /* Gray-600 */
+        border: 1px solid #374151; /* Gray-700 */
+        border-radius: 0.375rem;
+        color: #f9fafb;
+    }
+
+    .select-field {
+        appearance: none; /* Remove default arrow */
+        padding-right: 2rem; /* Make space for custom arrow if needed */
+    }
+  </style>
+</head>
+<body class="p-4 sm:p-6">
+  <div class="max-w-7xl mx-auto space-y-6">
+    <header class="text-center">
+      <h1 class="text-2xl font-bold text-blue-400">Logarithmic Prime Grid</h1>
+      <p id="targetDisplay" class="text-gray-400 text-sm">Range around N = aⁿ + c</p>
+    </header>
+
+    <!-- INPUT CONTROLS -->
+    <section class="bg-gray-800 p-4 rounded-lg shadow space-y-4">
+      <h2 class="text-xl font-semibold text-gray-300">Target Base Number (aⁿ + c)</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <!-- Input Fields -->
+        <div class="input-group">
+          <label for="baseInput" class="block text-sm text-gray-400">Base (a)</label>
+          <input type="text" id="baseInput" value="10" class="input-field">
+        </div>
+        <div class="input-group">
+          <label for="exponentInput" class="block text-sm text-gray-400">Exponent (n)</label>
+          <input type="text" id="exponentInput" value="1000000000" class="input-field">
+        </div>
+        <div class="input-group">
+          <label for="addendInput" class="block text-sm text-gray-400">Addend (c)</label>
+          <input type="text" id="addendInput" value="19" class="input-field">
+        </div>
+        <div class="input-group">
+          <label for="rangeInput" class="block text-sm text-gray-400">Range (Size)</label>
+          <input type="text" id="rangeInput" value="200" class="input-field">
+        </div>
+        
+        <!-- NEW: Columns Control -->
+        <div class="input-group">
+          <label for="columnsSelect" class="block text-sm text-gray-400">Columns</label>
+          <select id="columnsSelect" class="input-field select-field">
+            <option value="auto">Auto</option>
+            <option value="6">6 (Prime Pattern)</option>
+            <option value="10">10</option>
+            <option value="12">12</option>
+            <option value="24">24</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        <button id="drawButton" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors">Draw/Check Primality</button>
+      </div>
+
+      <div id="statusMessage" class="text-gray-300 text-sm font-mono">Status: Ready.</div>
+    </section>
+
+    <!-- GRID & LEGEND -->
+    <section>
+      <div id="grid-container" class="grid-container"></div>
+      <div class="mt-4 flex flex-wrap justify-center gap-4 text-xs text-gray-300">
+        <span class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-gray-600"></div> Processing</span>
+        <span class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-red-500"></div> Composite</span>
+        <span class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-green-500"></div> Prime</span>
+        <span class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-blue-500 shadow-md"></div> Target N</span>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // --- UTILITY FUNCTIONS ---
+    function parseBigInt(str) {
+      if (!str) return 0n;
+      str = String(str).replace(/,/g, '').replace(/\s/g, '');
+      if (str.includes('e') || str.includes('E')) {
+        const parts = str.toLowerCase().split('e');
+        return BigInt(parts[0]) * 10n ** BigInt(parts[1]);
+      }
+      return BigInt(str);
+    }
+
+    function formatNumberWithCommas(n) {
+        if (!n) return '0';
+        return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    // --- DOM REFERENCES ---
+    const gridContainer = document.getElementById('grid-container');
+    const baseInput = document.getElementById('baseInput');
+    const exponentInput = document.getElementById('exponentInput');
+    const addendInput = document.getElementById('addendInput');
+    const rangeInput = document.getElementById('rangeInput');
+    const columnsSelect = document.getElementById('columnsSelect'); // NEW
+    const drawButton = document.getElementById('drawButton');
+    const statusMessage = document.getElementById('statusMessage');
+    const targetDisplay = document.getElementById('targetDisplay');
+
+    // --- GLOBAL STATE ---
+    const MAX_GRID_SIZE = 400; 
+    const MAIN_THREAD_EXP_LIMIT = 100n; 
+    
+    let N_is_massive = false; 
+    let primalityWorker = null;
+    let itemsProcessing = 0;
+
+    // --- WEB WORKER 1: PURE PRIMALITY CHECKER ---
+    const primalityWorkerCode = `
+      // Modular exponentiation is required for Miller-Rabin test
+      function powMod(base, exp, mod) {
+        let result = 1n;
+        base %= mod;
+        while (exp > 0n) {
+          if ((exp & 1n) === 1n) result = (result * base) % mod;
+          exp >>= 1n;
+          base = (base * base) % mod;
+        }
+        return result;
+      }
+
+      function millerRabinTest(n, k = 20) {
+        if (n <= 1n) return false;
+        if (n <= 3n) return true;
+        if ((n & 1n) === 0n) return false;
+
+        let d = n - 1n;
+        let s = 0n;
+        while ((d & 1n) === 0n) {
+          d >>= 1n;
+          s++;
+        }
+
+        const witnesses = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n];
+        if (k > witnesses.length) k = witnesses.length;
+
+        for (let i = 0; i < k; i++) {
+          const a = witnesses[i];
+          if (a >= n - 1n) continue;
+
+          let x = powMod(a, d, n);
+          if (x === 1n || x === n - 1n) continue;
+
+          let composite = true;
+          for (let j = 1n; j < s; j++) {
+            x = powMod(x, 2n, n);
+            if (x === n - 1n) {
+              composite = false;
+              break;
+            }
+            if (x === 1n) break;
+          }
+          if (composite) return false;
+        }
+        return true;
+      }
+
+      self.onmessage = (e) => {
+        const { type, number } = e.data;
+        const p = BigInt(number);
+
+        if (type === 'check_primality') {
+          const isPrime = millerRabinTest(p);
+
+          self.postMessage({
+            type: 'result_primality',
+            number: number,
+            isPrime: isPrime,
+          });
+        }
+      };
+    `;
+
+    // Initialize worker on load
+    document.addEventListener('DOMContentLoaded', () => {
+        primalityWorker = new Worker(URL.createObjectURL(new Blob([primalityWorkerCode], { type: 'application/javascript' })));
+        primalityWorker.onmessage = handleWorkerMessage;
+        drawButton.addEventListener('click', () => createGrid(true));
+        createGrid(false); // Draw initial grid (placeholder)
+    });
+
+    function setStatus(text, isError = false) {
+      statusMessage.textContent = `Status: ${text}`;
+      statusMessage.classList.toggle('text-red-500', isError);
+      statusMessage.classList.toggle('font-mono', !isError);
+    }
+
+    function calculateAutoColumns() {
+      const containerWidth = gridContainer.offsetWidth;
+      const cellWidth = 62; // 60px width + 1px border on each side
+      let cols = Math.floor(containerWidth / cellWidth);
+      return Math.max(cols, 6); // Ensure a minimum of 6 columns
+    }
+
+    // --- MAIN GRID LOGIC ---
+    function createGrid(shouldProcess) {
+      try {
+        const a = parseBigInt(baseInput.value);
+        const b = parseBigInt(exponentInput.value);
+        const c = parseBigInt(addendInput.value);
+        const rangeSize = parseInt(rangeInput.value, 10);
+        const selectedColumns = columnsSelect.value; // NEW
+
+        if (rangeSize <= 0 || rangeSize > MAX_GRID_SIZE) {
+          setStatus(`Invalid range size (max ${MAX_GRID_SIZE}).`, true);
+          return;
+        }
+
+        // --- Determine if N is too large for main thread ---
+        N_is_massive = b > MAIN_THREAD_EXP_LIMIT;
+        
+        // --- Calculate Columns ---
+        let columns;
+        if (selectedColumns === 'auto') {
+            // Calculate columns dynamically if auto is selected
+            columns = calculateAutoColumns();
+        } else {
+            // Use the selected fixed number of columns
+            columns = parseInt(selectedColumns, 10);
+        }
+
+        // --- Determine Start Value for Grid ---
+        const startBase = 10n ** MAIN_THREAD_EXP_LIMIT; // Placeholder for grid layout logic
+        let startNValue;
+        
+        if (N_is_massive) {
+            // N = a^b + c. Start the grid at a reliable BigInt placeholder + c.
+            startNValue = startBase + c; 
+            targetDisplay.innerHTML = `Range around $\\text{N} = {a}^n + {c}$ (${formatNumberWithCommas(b)} digits)`;
+            setStatus(`Massive exponent: Visualizing numbers around ${formatNumberWithCommas(a)}^${formatNumberWithCommas(b)}...`);
+        } else {
+            // Small enough to calculate exactly on the main thread
+            const currentN_exact = a ** b + c;
+            startNValue = currentN_exact;
+            targetDisplay.innerHTML = `Target $\\text{N} = ${formatNumberWithCommas(currentN_exact)}$`;
+        }
+        
+        const start = startNValue;
+
+        // --- Draw Grid Structure ---
+        gridContainer.innerHTML = '';
+        gridContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`; // Apply chosen columns
+        itemsProcessing = 0;
+        
+        for (let i = 0n; i < BigInt(rangeSize); i++) {
+          const number = start + i;
+          const cell = document.createElement('div');
+          
+          // --- Cell Display Logic ---
+          cell.className = 'grid-cell';
+          if (N_is_massive) {
+             // For massive numbers, N is the first cell (i=0n)
+             cell.textContent = i === 0n ? 'N' : `+${i.toLocaleString()}`;
+             cell.title = i === 0n ? "Massive N" : `N + ${i.toLocaleString()}`;
+          } else {
+             // For small numbers, show the actual value
+             cell.textContent = formatNumberWithCommas(number);
+          }
+
+          cell.dataset.number = number.toString();
+          
+          if (i === 0n) {
+             cell.classList.add('is-target');
+          }
+          
+          if (shouldProcess) {
+            itemsProcessing++;
+            cell.classList.add('processing');
+            // Dispatch pure primality check work to the worker
+            primalityWorker.postMessage({
+              type: 'check_primality',
+              number: number.toString(),
+            });
+          }
+
+          gridContainer.appendChild(cell);
+        }
+
+        if (shouldProcess) {
+          setStatus(`Grid drawn with ${columns} columns. Checking primality...`);
+        } else {
+          setStatus(`Grid for N drawn with ${columns} columns. Click 'Draw Grid' to analyze primality.`);
+        }
+      } catch (e) {
+        setStatus(`Invalid input: ${e.message}`, true);
+        console.error(e);
+      }
+    }
+
+    // --- WORKER MESSAGE HANDLER ---
+    function handleWorkerMessage(e) {
+      const data = e.data;
+
+      if (data.type === 'result_primality') {
+        const number = data.number;
+        const cell = document.querySelector(`[data-number="${number}"]`);
+        if (!cell) return;
+
+        itemsProcessing--;
+        cell.classList.remove('processing');
+
+        // Apply visual classes
+        if (data.isPrime) {
+          cell.classList.add('prime');
+        } else {
+          cell.classList.add('composite');
+        }
+        
+        if (itemsProcessing === 0) {
+            setStatus('All primality checks complete.');
+        } else {
+            setStatus(`Checking primality... (${itemsProcessing} remaining)`);
+        }
+      }
+    }
+
+    // --- MOBILE PAN/ZOOM LOGIC (Copied from original file) ---
+    let isDragging = false, startX, startY, transformX = 0, transformY = 0, scale = 1;
+    let lastTouchDist = null;
+
+    gridContainer.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      gridContainer.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+      gridContainer.style.cursor = 'grab';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      transformX += e.clientX - startX;
+      transformY += e.clientY - startY;
+      gridContainer.style.transform = `translate(${transformX}px, ${transformY}px) scale(${scale})`;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    gridContainer.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+      }
+    });
+
+    gridContainer.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        transformX += e.touches[0].clientX - startX;
+        transformY += e.touches[0].clientY - startY;
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+        gridContainer.style.transform = `translate(${transformX}px, ${transformY}px) scale(${scale})`;
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (lastTouchDist !== null) {
+          const diff = dist - lastTouchDist;
+          scale += diff * 0.005;
+          scale = Math.max(0.1, Math.min(scale, 3));
+          gridContainer.style.transform = `translate(${transformX}px, ${transformY}px) scale(${scale})`;
+        }
+        lastTouchDist = dist;
+      }
+    });
+
+    gridContainer.addEventListener('touchend', () => { lastTouchDist = null; });
+    gridContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const factor = Math.pow(1.001, -e.deltaY);
+        scale *= factor;
+        scale = Math.max(0.1, Math.min(scale, 3));
+        gridContainer.style.transform = `translate(${transformX}px, ${transformY}px) scale(${scale})`;
+    });
+
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghost Constructor (Direct-to-Disk)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #050505; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 20px; }
+    .card { max-width: 700px; margin: 0 auto; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 25px; box-shadow: 0 0 50px rgba(59, 130, 246, 0.1); }
+    
+    label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; }
+    input { width: 100%; background: #1e293b; border: 1px solid #334155; color: #60a5fa; padding: 12px; border-radius: 6px; font-weight: bold; font-family: monospace; text-align: center; margin-bottom: 15px; font-size: 1.1rem; }
+    input:focus { outline: none; border-color: #3b82f6; }
+    
+    .btn { width: 100%; padding: 16px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 10px; transition: 0.2s; }
+    .btn-build { background: #2563eb; color: #fff; border: 1px solid #1d4ed8; }
+    .btn-build:hover { background: #3b82f6; }
+    .btn-stop { background: #be123c; color: #fff; display: none; }
+    
+    .status-box { margin-top: 20px; background: #020617; padding: 15px; border-radius: 8px; border: 1px solid #1e293b; }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.85rem; color: #94a3b8; }
+    .stat-val { color: #e2e8f0; font-weight: bold; }
+    .progress-container { height: 6px; background: #1e293b; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+    .progress-bar { height: 100%; background: #3b82f6; width: 0%; }
+    
+    .warning { color: #f59e0b; font-size: 0.75rem; margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-black text-center text-blue-500 mb-2">GHOST CONSTRUCTOR</h1>
+    <p class="text-center text-xs text-gray-500 mb-6">O(1) RAM • DIRECT DISK STREAMING</p>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div><label>EXPONENT (10^N)</label><input id="inpExp" value="1000000000"></div>
+        <div><label>ADD (+C)</label><input id="inpAdd" value="61"></div>
+    </div>
+
+    <div class="warning">
+        ⚠️ Requires Chrome/Edge on Desktop.<br>Writes massive files directly to your drive.
+    </div>
+
+    <button id="btnStart" class="btn btn-build" onclick="startConstruction()">SELECT FILE & BUILD</button>
+    <button id="btnStop" class="btn btn-stop" onclick="abortConstruction()">ABORT WRITE</button>
+    
+    <div class="status-box">
+        <div class="stat-row"><span>Status:</span><span id="sStatus" class="stat-val text-blue-400">IDLE</span></div>
+        <div class="stat-row"><span>File Size (Est):</span><span id="sSize" class="stat-val">--</span></div>
+        <div class="stat-row"><span>Write Speed:</span><span id="sSpeed" class="stat-val">0 MB/s</span></div>
+        <div class="progress-container"><div id="progBar" class="progress-bar"></div></div>
+    </div>
+</div>
+
+<script>
+let writable = null;
+let abortController = null;
+
+async function startConstruction() {
+    const expStr = document.getElementById('inpExp').value;
+    const addStr = document.getElementById('inpAdd').value;
+    const E = BigInt(expStr);
+    const C = BigInt(addStr);
+    
+    // 1. Calculate Terms
+    const C_sq = (C * C).toString();
+    const Two_C = (2n * C).toString();
+    const One = "1";
+    
+    // 2. Calculate Zeros needed
+    // Form: 1 [zeros] 2C [zeros] C^2
+    // Total Length = 2*E + 1 (roughly)
+    
+    // Gap 1 (High Zeros): Between '1' and '2C'
+    // Position of 1 is 10^(2E). Position of 2C is roughly 10^E.
+    // Specifically:
+    // 1 is at index 0 (if writing left to right)
+    // 2C starts at index: E - len(2C) (from right) -> No.
+    
+    // Let's model digit positions (Power of 10):
+    // 2E .......... E ........... 0
+    // 1  [zeros]   2C  [zeros]   C^2
+    
+    // Number of digits total = 2E + 1
+    // We write "1" (1 digit). Remaining: 2E.
+    // We need '2C' to end such that its last digit represents 10^E.
+    // We need 'C^2' to be at the very end.
+    
+    const len_2C = BigInt(Two_C.length);
+    const len_Csq = BigInt(C_sq.length);
+    
+    // Zeros Gap 1 (Between '1' and '2C')
+    // The '1' is at 10^2E. The '2C' is at 10^E.
+    // Zeros count = E - len(2C).
+    // Wait, let's trace: 
+    // (10^4 + 2)^2 = 100040004. (E=4, C=2).
+    // 1 (1 digit)
+    // 000 (3 zeros) -> E - 1
+    // 4 (2C, 1 digit)
+    // 000 (3 zeros) -> E - 1
+    // 4 (C^2, 1 digit)
+    
+    // Correct Formula:
+    // Gap 1 Zeros = E - len(2C)
+    // Gap 2 Zeros = E - len(C^2)
+    
+    const gap1_count = E - len_2C;
+    const gap2_count = E - len_Csq;
+    
+    const totalBytes = 1n + gap1_count + len_2C + gap2_count + len_Csq; // Total chars
+    const sizeGB = Number(totalBytes) / 1e9;
+    
+    document.getElementById('sSize').innerText = `${sizeGB.toFixed(2)} GB`;
+    
+    if (!window.showSaveFilePicker) {
+        alert("Your browser does not support Direct-Disk Writing. Please use Chrome or Edge on Desktop.");
+        return;
+    }
+
+    try {
+        const handle = await window.showSaveFilePicker({
+            suggestedName: `Square_10^${expStr}_plus_${addStr}.txt`,
+        });
+        writable = await handle.createWritable();
+        
+        // UI Update
+        document.getElementById('btnStart').style.display = 'none';
+        document.getElementById('btnStop').style.display = 'block';
+        document.getElementById('sStatus').innerText = "STREAMING TO DISK...";
+        
+        // Start Stream
+        await streamWrite(One, gap1_count, Two_C, gap2_count, C_sq, totalBytes);
+        
+        // Finish
+        await writable.close();
+        document.getElementById('sStatus').innerText = "WRITE COMPLETE";
+        document.getElementById('sStatus').className = "stat-val text-green-500";
+        document.getElementById('progBar').style.background = "#10b981";
+        resetUI();
+        
+    } catch (err) {
+        console.error(err);
+        document.getElementById('sStatus').innerText = "ERROR: " + err.message;
+        resetUI();
+    }
+}
+
+async function streamWrite(p1, g1, p2, g2, p3, total) {
+    const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB chunks
+    const zeros = "0".repeat(CHUNK_SIZE);
+    let written = 0n;
+    let startT = Date.now();
+    
+    // 1. Write "1"
+    await writable.write("1");
+    written += 1n;
+    
+    // 2. Write Gap 1 Zeros
+    let remaining = g1;
+    while (remaining > 0n) {
+        const chunkLen = (remaining > BigInt(CHUNK_SIZE)) ? BigInt(CHUNK_SIZE) : remaining;
+        const chunk = (chunkLen === BigInt(CHUNK_SIZE)) ? zeros : "0".repeat(Number(chunkLen));
+        await writable.write(chunk);
+        remaining -= chunkLen;
+        written += chunkLen;
+        updateStats(written, total, startT);
+    }
+    
+    // 3. Write "2C"
+    await writable.write(p2);
+    written += BigInt(p2.length);
+    
+    // 4. Write Gap 2 Zeros
+    remaining = g2;
+    while (remaining > 0n) {
+        const chunkLen = (remaining > BigInt(CHUNK_SIZE)) ? BigInt(CHUNK_SIZE) : remaining;
+        const chunk = (chunkLen === BigInt(CHUNK_SIZE)) ? zeros : "0".repeat(Number(chunkLen));
+        await writable.write(chunk);
+        remaining -= chunkLen;
+        written += chunkLen;
+        updateStats(written, total, startT);
+    }
+    
+    // 5. Write "C^2"
+    await writable.write(p3);
+    written += BigInt(p3.length);
+    updateStats(written, total, startT);
+}
+
+function updateStats(written, total, startT) {
+    const pct = Number((written * 100n) / total);
+    document.getElementById('progBar').style.width = pct + "%";
+    
+    const elapsed = (Date.now() - startT) / 1000;
+    if (elapsed > 1) {
+        const bytes = Number(written);
+        const speed = (bytes / 1024 / 1024) / elapsed;
+        document.getElementById('sSpeed').innerText = `${speed.toFixed(1)} MB/s`;
+    }
+}
+
+function resetUI() {
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+}
+
+async function abortConstruction() {
+    if (writable) {
+        await writable.close(); // Close unfinished file
+    }
+    document.getElementById('sStatus').innerText = "ABORTED";
+    document.getElementById('sStatus').className = "stat-val text-red-500";
+    resetUI();
+}
+</script>
+</body>
+</html>

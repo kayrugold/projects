@@ -1,0 +1,10 @@
+[
+  {
+    "id": "entry_003",
+    "date": "Dec 12, 2025",
+    "title": "Newton's Dice",
+    "image": "./thechronicles/entries/dice_diagram.jpg", 
+    "summary": "Early tests of the 2D physics engine. Collision detection is stable, but the bounce damping needs tuning.",
+    "file": "./thechronicles/entries/dice_physics.html"
+  }
+]

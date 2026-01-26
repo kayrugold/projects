@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stride Hunter v1.4 (Manual Edition)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #050505; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; }
+    
+    /* MAIN CARD */
+    .card { background: #111; border: 1px solid #333; border-radius: 12px; padding: 20px; max-width: 600px; margin: 0 auto; position: relative; z-index: 10; }
+    
+    /* INPUTS */
+    label { display: block; font-size: 0.7rem; color: #888; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; }
+    input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; font-weight: bold; font-family: monospace; text-align: center; margin-bottom: 10px; }
+    input:focus { outline: none; border-color: #7c3aed; }
+    
+    /* BUTTONS */
+    .btn { width: 100%; padding: 15px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 5px; transition: all 0.2s; }
+    .btn-run { background: #7c3aed; color: #fff; box-shadow: 0 0 15px #7c3aed44; }
+    .btn-run:hover { background: #6d28d9; }
+    .btn-stop { background: #ef4444; color: #fff; display: none; }
+    .btn-help { background: #333; color: #aaa; font-size: 0.8rem; padding: 8px; margin-top: 15px; border: 1px dashed #555; }
+    .btn-help:hover { background: #444; color: #fff; }
+    
+    /* STATUS PANEL */
+    .status-panel { margin-top: 20px; border: 1px solid #333; background: #0a0a0a; padding: 15px; border-radius: 8px; min-height: 150px; }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; border-bottom: 1px solid #222; padding-bottom: 5px; }
+    .stat-val { font-weight: bold; color: #a78bfa; }
+    .stat-time { font-weight: bold; color: #fff; text-shadow: 0 0 5px #ffffff55; }
+    
+    .log-box { height: 200px; overflow-y: auto; font-size: 0.75rem; color: #666; margin-top: 10px; font-family: monospace; border-top: 1px dashed #333; padding-top: 10px; }
+    .hit { color: #ef4444; font-weight: bold; }
+    .safe { color: #22c55e; }
+    
+    .progress-bar { height: 4px; background: #222; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #7c3aed; width: 0%; transition: width 0.2s; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* POPUP MODAL */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 50; backdrop-filter: blur(5px); }
+    .modal-content { 
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: #1a1a1a; border: 1px solid #7c3aed; border-radius: 12px;
+        width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto;
+        padding: 25px; box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+    }
+    .modal-h { color: #fff; font-size: 1.2rem; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .modal-p { color: #ccc; font-size: 0.85rem; margin-bottom: 15px; line-height: 1.5; }
+    .modal-ex { background: #222; padding: 10px; border-left: 3px solid #7c3aed; font-size: 0.8rem; color: #a78bfa; margin-bottom: 15px; font-family: monospace; }
+    .modal-close { position: absolute; top: 15px; right: 20px; color: #666; font-size: 1.5rem; cursor: pointer; }
+    .modal-close:hover { color: #fff; }
+
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-black text-center text-purple-500 mb-1">STRIDE HUNTER v1.4</h1>
+    <p class="text-center text-xs text-gray-500 mb-6">Documentation Edition</p>
+
+    <div class="grid-2">
+        <div><label>BASE</label><input id="inpBase" value="10"></div>
+        <div><label>ADD (Offset)</label><input id="inpAdd" value="61"></div>
+    </div>
+    
+    <label>EXPONENT N (Target is Base^N + Add)</label>
+    <input id="inpExp" value="1000000000">
+
+    <label>WALKER LIMIT (Check Primes up to...)</label>
+    <input id="inpLimit" value="10000000" style="color:#fbbf24; border-color:#fbbf24;">
+
+    <button id="btnStart" class="btn btn-run" onclick="startScan()">DEPLOY WALKERS</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopScan()">ABORT</button>
+    
+    <button class="btn btn-help" onclick="showHelp()">[?] HOW DOES THIS WORK?</button>
+
+    <div class="status-panel">
+        <div class="stat-row"><span>Time:</span><span id="sTime" class="stat-time">00:00:00</span></div>
+        <div class="stat-row"><span>Walkers Checked:</span><span id="sWalkers" class="stat-val">0</span></div>
+        <div class="stat-row"><span>Current Family:</span><span id="sPrime" class="stat-val">--</span></div>
+        <div class="stat-row"><span>Status:</span><span id="sStatus" class="stat-val text-gray-500">IDLE</span></div>
+        
+        <div class="progress-bar"><div id="pBar" class="progress-fill"></div></div>
+        <div id="logBox" class="log-box">System Ready.<br>Click [?] for instructions.</div>
+    </div>
+</div>
+
+<div id="helpModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeHelp()">&times;</span>
+        <div class="modal-h">OPERATOR MANUAL</div>
+        
+        <div class="modal-p">
+            <strong>PURPOSE:</strong><br>
+            To determine if a massive number (like 10^1,000,000,000 + 61) is divisible by any smaller prime numbers, without calculating the massive number itself.
+        </div>
+
+        <div class="modal-p">
+            <strong>THE METHOD (STRIDE THEORY):</strong><br>
+            We treat the number line as an infinite tape. Every Prime Number is a "Walker" with a specific stride length (3, 5, 7, etc.).
+        </div>
+
+        <div class="modal-ex">
+            <strong>EXAMPLE: Is 17 Prime?</strong><br>
+            1. Target Index: (17+1)/2 = 9.<br>
+            2. The 3-Walker starts at 5. Steps: 5 -> 8 -> 11.<br>
+            > Does it hit 9? NO.<br>
+            3. The 5-Walker starts at 13.<br>
+            > Does it hit 9? NO (Started too late).<br>
+            <strong>RESULT:</strong> Since no Walker stepped on Index 9, the number 17 is Prime.
+        </div>
+
+        <div class="modal-p">
+            <strong>HOW IT GENERATES PRIMES:</strong><br>
+            It uses a "Segmented Sieve." It assumes all odd numbers are prime, then systematically marks off multiples (3, 9, 15...). Anything not marked is a Prime Walker.
+        </div>
+
+        <div class="modal-p">
+            <strong>THE INPUTS:</strong><br>
+            - <strong>Base/Exp/Add:</strong> Defines your Candidate Number (Base^Exp + Add).<br>
+            - <strong>Walker Limit:</strong> How deep to scan. 10,000,000 checks all primes up to 10M.
+        </div>
+        
+        <div class="modal-p" style="color:#22c55e; font-weight:bold;">
+            <strong>THE RESULTS:</strong><br>
+            - SNIPED (Red): The number is Composite (divisible).<br>
+            - SURVIVED (Green): The number has NO factors in this range. It is a strong candidate.
+        </div>
+    </div>
+</div>
+
+<script>
+let isRunning = false;
+let startTime = 0;
+let timerInterval = null;
+
+function showHelp() { document.getElementById('helpModal').style.display = 'block'; }
+function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
+
+// --- WORKER CODE ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { baseStr, expStr, addStr, limitStr } = e.data;
+    
+    try {
+        const base = BigInt(baseStr);
+        const exp = BigInt(expStr);
+        const add = BigInt(addStr);
+        const limit = parseInt(limitStr);
+        
+        function powMod(b, e, m) {
+            let res = 1n;
+            b = b % m;
+            while (e > 0n) {
+                if (e & 1n) res = (res * b) % m;
+                b = (b * b) % m;
+                e >>= 1n;
+            }
+            return res;
+        }
+
+        const sqrtLim = Math.floor(Math.sqrt(limit));
+        const baseSieve = new Uint8Array(sqrtLim + 1);
+        const basePrimes = [];
+        for(let i=2; i<=sqrtLim; i++) {
+            if(baseSieve[i] === 0) {
+                basePrimes.push(i);
+                for(let j=i*i; j<=sqrtLim; j+=i) baseSieve[j] = 1;
+            }
+        }
+
+        const SEGMENT_SIZE = 262144; 
+        const segment = new Uint8Array(SEGMENT_SIZE);
+        
+        let low = 0;
+        let walkerCount = 0;
+        
+        while(low < limit) {
+            const high = Math.min(low + SEGMENT_SIZE, limit);
+            segment.fill(0);
+            
+            for(let i = 0; i < basePrimes.length; i++) {
+                const p = basePrimes[i];
+                let start = Math.floor((low + p - 1) / p) * p;
+                if(start < p*p) start = p*p; 
+                let idx = start - low;
+                for(let j = idx; j < (high - low); j += p) {
+                    segment[j] = 1; // Mark as Composite
+                }
+            }
+            
+            for(let i = 0; i < (high - low); i++) {
+                const p = low + i;
+                if(p < 3) continue; 
+                
+                if(segment[i] === 0) { // If 0, it is PRIME
+                    if((p & 1) !== 0) {
+                        walkerCount++;
+                        const P = BigInt(p);
+                        
+                        // STRIDE CHECK
+                        const startMod = (P + 1n) / 2n;
+                        const baseMod = powMod(base, exp, P);
+                        const numMod = (baseMod + (add % P)) % P;
+                        const inv2 = (P + 1n) / 2n;
+                        const targetMod = ( (numMod + 1n) * inv2 ) % P;
+                        
+                        if (targetMod === startMod) {
+                            postMessage({ type: 'hit', p: p, idx: walkerCount });
+                            return; 
+                        }
+                    }
+                }
+            }
+            low += SEGMENT_SIZE;
+            postMessage({ type: 'progress', curr: Math.min(low, limit), limit: limit, count: walkerCount });
+        }
+        postMessage({ type: 'done', count: walkerCount, limit: limit });
+    } catch(err) {
+        postMessage({ type: 'error', msg: err.message });
+    }
+};
+`;
+
+let worker = null;
+
+function log(msg, type='') {
+    const box = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.textContent = `> ${msg}`;
+    if(type === 'hit') div.className = 'hit';
+    if(type === 'safe') div.className = 'safe';
+    box.prepend(div);
+}
+
+function updateTimer() {
+    const now = Date.now();
+    const diff = Math.floor((now - startTime) / 1000);
+    const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    document.getElementById('sTime').textContent = `${h}:${m}:${s}`;
+}
+
+function startScan() {
+    if(isRunning) return;
+    isRunning = true;
+    
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'block';
+    document.getElementById('logBox').innerHTML = '';
+    document.getElementById('pBar').style.width = '0%';
+    document.getElementById('sTime').textContent = "00:00:00";
+    
+    const base = document.getElementById('inpBase').value;
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    const limit = document.getElementById('inpLimit').value; 
+    
+    document.getElementById('sStatus').textContent = "INITIALIZING...";
+    document.getElementById('sStatus').style.color = "#a78bfa";
+    
+    log(`Allocating Segmented Sieve for range ${parseInt(limit).toLocaleString()}...`);
+    
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+    
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    worker.postMessage({ baseStr: base, expStr: exp, addStr: add, limitStr: limit });
+    
+    worker.onmessage = function(e) {
+        const d = e.data;
+        if(d.type === 'progress') {
+            document.getElementById('sStatus').textContent = "SCANNING...";
+            document.getElementById('sPrime').textContent = d.curr.toLocaleString();
+            document.getElementById('sWalkers').textContent = d.count.toLocaleString();
+            const pct = (d.curr / d.limit) * 100;
+            document.getElementById('pBar').style.width = pct + '%';
+        }
+        else if(d.type === 'hit') {
+            document.getElementById('sStatus').textContent = "SNIPED!";
+            document.getElementById('sStatus').style.color = "#ef4444";
+            document.getElementById('sPrime').textContent = d.p;
+            log(`FATAL HIT by Prime: ${d.p}`, 'hit');
+            log(`Candidate is divisible by ${d.p}.`);
+            stopScan();
+        }
+        else if(d.type === 'done') {
+            document.getElementById('sStatus').textContent = "SURVIVED";
+            document.getElementById('sStatus').style.color = "#22c55e";
+            document.getElementById('pBar').style.width = '100%';
+            log(`Success! No factors found up to ${d.limit.toLocaleString()}.`, 'safe');
+            const dur = (Date.now() - startTime) / 1000;
+            const speed = Math.floor(d.count / dur);
+            log(`Speed: ${speed.toLocaleString()} walkers/sec`);
+            stopScan();
+        }
+        else if(d.type === 'error') {
+            log("Error: " + d.msg);
+            stopScan();
+        }
+    };
+}
+
+function stopScan() {
+    if(worker) worker.terminate();
+    worker = null;
+    isRunning = false;
+    clearInterval(timerInterval);
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+}
+</script>
+</body>
+</html>

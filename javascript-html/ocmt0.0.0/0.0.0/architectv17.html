@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architect v17 (Iron Block)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #020617; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 10px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    
+    .hud { background: #0f172a; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; flex-shrink: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    .lbl { font-size: 0.65rem; color: #64748b; font-weight: 900; letter-spacing: 1px; }
+    .val { font-size: 1rem; color: #fff; font-weight: 900; }
+    
+    .bar-con { background: #000; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 2px; border: 1px solid #334155; }
+    .fill { height: 100%; width: 0%; transition: width 0.2s; }
+    .f-red { background: #ef4444; }
+    .f-gold { background: #f59e0b; }
+    .f-green { background: #22c55e; }
+
+    .grid-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 10px; }
+    .core { background: #1e293b; padding: 5px; border-radius: 4px; text-align: center; border: 1px solid #334155; }
+    .c-act { border-color: #ef4444; background: #450a0a; }
+    .c-lbl { font-size: 0.5rem; color: #94a3b8; font-weight: bold; }
+    .c-val { font-size: 0.7rem; color: #e2e8f0; font-weight: bold; }
+
+    .log { flex-grow: 1; background: #000; border: 1px solid #1e293b; margin: 10px 0; padding: 10px; overflow-y: auto; font-size: 0.75rem; color: #94a3b8; border-radius: 6px; }
+    .l-sys { color: #38bdf8; }
+    .l-err { color: #ef4444; }
+    .l-win { color: #22c55e; font-weight: bold; border: 1px solid #22c55e; padding: 10px; background: rgba(34,197,94,0.1); margin: 5px 0; text-align: center; }
+
+    .inp-box { display: flex; gap: 8px; }
+    input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 12px; flex-grow: 1; border-radius: 6px; font-weight: bold; font-family: monospace; outline: none; }
+    button { padding: 0 25px; border-radius: 6px; font-weight: 900; text-transform: uppercase; cursor: pointer; border: none; }
+    .b-run { background: #ef4444; color: #000; }
+    .b-stop { background: #334155; color: #fff; display: none; }
+</style>
+</head>
+<body>
+
+<div class="hud">
+    <div class="row">
+        <div><span class="lbl">TARGET N</span><div id="dN" class="val" style="font-size:0.8rem; word-break:break-all;">READY</div></div>
+        <div style="text-align:right"><span class="lbl">FACTOR BASE</span><div id="dFB" class="val" style="color:#f59e0b">0</div></div>
+    </div>
+    
+    <div style="margin-top:5px;">
+        <div class="row" style="margin:0"><span class="lbl">MINING SHARDS</span><span id="tRel" class="lbl" style="color:#fca5a5">0 / 0</span></div>
+        <div class="bar-con"><div id="bRel" class="fill f-red"></div></div>
+    </div>
+
+    <div style="margin-top:8px;">
+        <div class="row" style="margin:0"><span class="lbl">MATRIX SOLVER</span><span id="tSol" class="lbl" style="color:#fcd34d">OFFLINE</span></div>
+        <div class="bar-con"><div id="bSol" class="fill f-gold"></div></div>
+    </div>
+
+    <div id="cGrid" class="grid-box"></div>
+</div>
+
+<div id="log" class="log">
+    <div>> Architect v17 (Iron Block) Loaded.</div>
+    <div>> Integer-Safe Math Enabled.</div>
+</div>
+
+<div class="inp-box">
+    <input id="inp" value="71641520761751435455133616475667090434063332228247871795429">
+    <button id="go" class="b-run" onclick="ignite()">IGNITE</button>
+    <button id="no" class="b-stop" onclick="abort()">ABORT</button>
+</div>
+
+<script>
+/* ================= WORKER: MINER (The Drill) ================= */
+const minerCode = `
+self.onmessage = function(e) {
+    const { cmd, N_str, startX, range, fb, primes, threshold } = e.data;
+    if(cmd !== 'mine') return;
+
+    const N = BigInt(N_str);
+    // Integer Sqrt (Newton)
+    function isqrt(n) { if(n<2n)return n; let x=n,y=(x+1n)/2n; while(y<x){x=y;y=(x+n/x)/2n;} return x; }
+    const rootN = isqrt(N);
+
+    // Polynomial Q(x) = (rootN + x)^2 - N
+    // Q(0) = rootN^2 - N (Small negative)
+    // We scan x from startX to startX + range
+    
+    // We used a sieve array. Float32 is fast.
+    const sieve = new Float32Array(range);
+    
+    let base = rootN + BigInt(startX);
+    let Q = base*base - N;
+    let Slope = 2n * base + 1n;
+
+    // Initialize Log values
+    for(let i=0; i<range; i++) {
+        let abs = Q < 0n ? -Q : Q;
+        sieve[i] = Math.log2(Number(abs) || 1); // Approx log
+        Q += Slope;
+        Slope += 2n;
+    }
+
+    // Sieve by Primes
+    for(let i=0; i<primes.length; i++) {
+        const p = BigInt(primes[i]);
+        const logP = Math.log2(Number(p));
+        const roots = fb[i];
+        
+        for(let r of roots) {
+            // Solve (base + offset)^2 = N mod p
+            // We know r^2 = N mod p
+            // We need base + offset = r mod p
+            let curr = base % p;
+            let off = Number((BigInt(r) - curr) % p);
+            if (off < 0) off += Number(p);
+            
+            for(let j=off; j<range; j+=Number(p)) {
+                sieve[j] -= logP;
+            }
+        }
+    }
+
+    // Collect Candidates
+    const hits = [];
+    for(let i=0; i<range; i++) {
+        if(sieve[i] < threshold) {
+            const xVal = BigInt(startX + i);
+            const X = rootN + xVal;
+            let Qval = X*X - N;
+            
+            // Factor Qval
+            let sign = 0; 
+            if (Qval < 0n) { Qval = -Qval; sign = 1; }
+            
+            // We need bitvectors for matrix. 
+            // Col 0 = Sign (-1). Cols 1..K = Primes.
+            const vec = new Uint8Array(primes.length + 1);
+            const exps = new Uint32Array(primes.length + 1);
+            
+            if(sign) { vec[0] = 1; exps[0] = 1; }
+            
+            let temp = Qval;
+            for(let k=0; k<primes.length; k++) {
+                const p = BigInt(primes[k]);
+                while(temp % p === 0n) {
+                    temp /= p;
+                    vec[k+1] ^= 1; // Toggle bit
+                    exps[k+1]++;
+                }
+                if(temp === 1n) break;
+            }
+            
+            // If fully factored (smooth)
+            if(temp === 1n) {
+                hits.push({ x: xVal.toString(), v: vec.buffer, e: exps.buffer });
+            }
+        }
+    }
+    
+    // Transfer buffers to avoid copy overhead
+    const transfers = [];
+    hits.forEach(h => { transfers.push(h.v); transfers.push(h.e); });
+    self.postMessage({ type: 'res', hits }, transfers);
+};
+`;
+
+/* ================= WORKER: SOLVER (The Matrix) ================= */
+const solverCode = `
+self.onmessage = function(e) {
+    const d = e.data;
+    if(d.cmd !== 'solve') return;
+    
+    const { rels, N_str, primes } = d;
+    const N = BigInt(N_str);
+    const M = rels.length;
+    const K = primes.length + 1; // +1 for Sign column
+    
+    self.postMessage({type:'stat', msg:'BUILDING MATRIX ('+M+'x'+K+')'});
+
+    // Gaussian Elimination (Bitsets)
+    const pivots = new Map(); // col -> row
+    // Track history of row indices combined
+    const history = Array.from({length: M}, (_, i) => [i]);
+    
+    // Process Rows
+    for(let r=0; r<M; r++) {
+        let vec = new Uint8Array(rels[r].v);
+        // Convert Uint8Array to BigInt mask(s) for speed?
+        // JS BigInt is perfect for bitsets.
+        let mask = 0n;
+        for(let i=0; i<vec.length; i++) {
+            if(vec[i]) mask |= (1n << BigInt(i));
+        }
+        
+        let rowHist = history[r];
+        
+        // Eliminate
+        // Scan for set bits
+        // Optimisation: We only need to reduce against existing pivots
+        // We iterate columns from 0 to K
+        for(let c=0; c<K; c++) {
+            if ( (mask & (1n << BigInt(c))) !== 0n ) {
+                if (pivots.has(c)) {
+                    // XOR with pivot
+                    const piv = pivots.get(c);
+                    mask ^= piv.mask;
+                    rowHist = rowHist.concat(piv.hist);
+                } else {
+                    // New pivot found
+                    pivots.set(c, { mask: mask, hist: rowHist });
+                    mask = 0n; // Row is now part of basis
+                    break;
+                }
+            }
+        }
+        
+        // If mask is 0, we found a dependency (perfect square subset)
+        if (mask === 0n && rowHist.length > 0) {
+            self.postMessage({type:'stat', msg:'DEPENDENCY FOUND. CRACKING...'});
+            
+            // Reconstruct X and Y
+            // X = product( (rootN + x) )
+            // Y = sqrt( product( Q ) )
+            
+            function isqrt(n) { if(n<2n)return n; let x=n,y=(x+1n)/2n; while(y<x){x=y;y=(x+n/x)/2n;} return x; }
+            const rootN = isqrt(N);
+            
+            let X = 1n;
+            const totalExps = new Array(K).fill(0);
+            
+            for(let idx of rowHist) {
+                const rel = rels[idx];
+                const xVal = BigInt(rel.x);
+                const absX = rootN + xVal;
+                X = (X * absX) % N;
+                
+                const exps = new Uint32Array(rel.e);
+                for(let i=0; i<K; i++) totalExps[i] += exps[i];
+            }
+            
+            let Y = 1n;
+            // Column 0 is Sign (-1). Total count must be even.
+            // (-1)^(2k) = 1. So we ignore it for Y calculation.
+            
+            for(let i=1; i<K; i++) {
+                if(totalExps[i] > 0) {
+                    const p = BigInt(primes[i-1]);
+                    // FIX: Bitwise shift for integer division. 21.5 -> 21.
+                    // If logic is correct, it should be even. If not, floor it to prevent crash.
+                    const exp = BigInt(totalExps[i] >>> 1); 
+                    
+                    // Modular Exponentiation for Y
+                    let base = p;
+                    let e = exp;
+                    let res = 1n;
+                    while(e > 0n) {
+                        if(e & 1n) res = (res * base) % N;
+                        base = (base * base) % N;
+                        e >>= 1n;
+                    }
+                    Y = (Y * res) % N;
+                }
+            }
+            
+            function gcd(a,b){while(b>0n){let t=b;b=a%b;a=t;}return a;}
+            
+            const val1 = X > Y ? X - Y : Y - X;
+            const f1 = gcd(val1, N);
+            
+            if(f1 > 1n && f1 < N) {
+                self.postMessage({type:'done', f1: f1.toString(), f2: (N/f1).toString()});
+                return;
+            } else {
+                self.postMessage({type:'stat', msg:'TRIVIAL FACTOR. CONTINUING...'});
+            }
+        }
+        
+        if(r % 100 === 0) self.postMessage({type:'prog', val:r, max:M});
+    }
+    self.postMessage({type:'fail'});
+};
+`;
+
+// --- MAIN THREAD ---
+const minerUrl = URL.createObjectURL(new Blob([minerCode], {type:'application/javascript'}));
+const solverUrl = URL.createObjectURL(new Blob([solverCode], {type:'application/javascript'}));
+
+let miners = [], solver = null;
+let factorBase = [], rootsFB = [];
+let relations = [];
+let targetN = 0n;
+let globalX = 0;
+let isRunning = false;
+let needed = 0;
+const CORES = navigator.hardwareConcurrency || 8;
+const FB_SIZE = 5000; // 5k Primes for 60 digits
+const CHUNK = 30000;
+
+function log(msg, cls) {
+    const b = document.getElementById('log');
+    const d = document.createElement('div');
+    d.innerHTML = `> ${msg}`;
+    if(cls) d.className = cls;
+    b.prepend(d);
+}
+
+function initGrid() {
+    const g = document.getElementById('cGrid');
+    g.innerHTML = '';
+    for(let i=0; i<CORES; i++) {
+        g.innerHTML += `<div class="core" id="c${i}"><div class="c-lbl">CORE ${i+1}</div><div class="c-val" id="s${i}">IDLE</div></div>`;
+    }
+}
+
+function buildFB(n) {
+    const fb = [], roots = [];
+    const limit = 60000; // Search space for primes
+    const sieve = new Uint8Array(limit).fill(1);
+    
+    for(let p=2; p<limit && fb.length < FB_SIZE; p++) {
+        if(sieve[p]) {
+            for(let j=p*p; j<limit; j+=p) sieve[j]=0;
+            
+            const bigP = BigInt(p);
+            const rem = n % bigP;
+            // Simple Quadratic Residue Check: x^2 = n mod p
+            // Brute force is fast enough for small p
+            let r_sol = [];
+            for(let x=0n; x<bigP; x++) {
+                if((x*x)%bigP === rem) r_sol.push(Number(x));
+            }
+            
+            if(r_sol.length > 0) {
+                fb.push(p);
+                roots.push(r_sol);
+            }
+        }
+    }
+    return { p: fb, r: roots };
+}
+
+function ignite() {
+    const val = document.getElementById('inp').value.trim();
+    try { targetN = BigInt(val); } catch(e) { log("Invalid N", "l-err"); return; }
+    
+    isRunning = true;
+    relations = [];
+    globalX = 0;
+    
+    document.getElementById('go').style.display = 'none';
+    document.getElementById('no').style.display = 'block';
+    document.getElementById('dN').innerText = val;
+    document.getElementById('bSol').style.width = "0%";
+    
+    log("BUILDING FACTOR BASE...", "l-sys");
+    
+    setTimeout(() => {
+        const data = buildFB(targetN);
+        factorBase = data.p; rootsFB = data.r;
+        needed = factorBase.length + 50;
+        
+        document.getElementById('dFB').innerText = factorBase.length;
+        document.getElementById('tRel').innerText = "0 / " + needed;
+        log(`FB READY: ${factorBase.length} PRIMES.`, "l-sys");
+        
+        startMiners();
+    }, 50);
+}
+
+function startMiners() {
+    miners.forEach(w => w.terminate()); miners = [];
+    for(let i=0; i<CORES; i++) {
+        const w = new Worker(minerUrl);
+        w.onmessage = e => handleMiner(e, i);
+        miners.push(w);
+        assignJob(w, i);
+    }
+}
+
+function assignJob(w, idx) {
+    if(!isRunning || relations.length >= needed) return;
+    const start = globalX;
+    globalX += CHUNK;
+    
+    document.getElementById(`c${idx}`).className = "core c-act";
+    document.getElementById(`s${idx}`).innerText = (start/1000).toFixed(0) + "k";
+    
+    w.postMessage({
+        cmd: 'mine', N_str: targetN.toString(),
+        startX: start, range: CHUNK,
+        fb: rootsFB, primes: factorBase,
+        threshold: 2.0 // Fudge factor for log sieve
+    });
+}
+
+function handleMiner(e, idx) {
+    if(e.data.type === 'res') {
+        const hits = e.data.hits;
+        if(hits.length > 0) {
+            relations.push(...hits);
+            const pct = Math.min(100, (relations.length / needed) * 100);
+            document.getElementById('bRel').style.width = pct + "%";
+            document.getElementById('tRel').innerText = relations.length + " / " + needed;
+        }
+        document.getElementById(`c${idx}`).className = "core";
+        
+        if(relations.length >= needed) {
+            if(isRunning) launchSolver();
+        } else {
+            assignJob(miners[idx], idx);
+        }
+    }
+}
+
+function launchSolver() {
+    if(!isRunning) return;
+    isRunning = false; // Stop mining
+    miners.forEach(w => w.terminate());
+    
+    log("SHARDS COLLECTED. SOLVING...", "l-sys");
+    document.getElementById('tSol').innerText = "PROCESSING";
+    
+    solver = new Worker(solverUrl);
+    solver.onmessage = handleSolver;
+    solver.postMessage({
+        cmd: 'solve', rels: relations, N_str: targetN.toString(), primes: factorBase
+    });
+}
+
+function handleSolver(e) {
+    const d = e.data;
+    if(d.type === 'stat') log(d.msg, "l-sys");
+    if(d.type === 'prog') {
+        const pct = (d.val / d.max) * 100;
+        document.getElementById('bSol').style.width = pct + "%";
+    }
+    if(d.type === 'done') {
+        document.getElementById('bSol').style.width = "100%";
+        document.getElementById('bSol').className = "fill f-green";
+        document.getElementById('tSol').innerText = "SOLVED";
+        log("FACTOR 1: " + d.f1, "l-win");
+        log("FACTOR 2: " + d.f2, "l-win");
+        document.getElementById('go').style.display = 'block';
+        document.getElementById('no').style.display = 'none';
+    }
+    if(d.type === 'fail') {
+        log("MATRIX FAILED. RETRYING...", "l-err");
+        needed += 100;
+        isRunning = true;
+        startMiners();
+    }
+}
+
+function abort() {
+    isRunning = false;
+    miners.forEach(w => w.terminate());
+    if(solver) solver.terminate();
+    document.getElementById('go').style.display = 'block';
+    document.getElementById('no').style.display = 'none';
+    log("ABORTED.", "l-err");
+}
+
+initGrid();
+</script>
+</body>
+</html>

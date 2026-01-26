@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Geometric Pulse Engine (v0.1.2)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        :root {
+            --bg: #050505;
+            --main: #ffcc00; /* Gold */
+            --sub: #00ffff;  /* Cyan */
+            --pink: #ff00ff; /* Magenta for Wave */
+            --dim: #333;
+            --panel: #111;
+        }
+        body {
+            background: var(--bg); color: var(--main);
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0; padding: 10px;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh; overflow-y: auto; overflow-x: hidden;
+            box-sizing: border-box; -webkit-font-smoothing: antialiased;
+        }
+        
+        h1 { margin: 0 0 10px 0; font-size:1.2rem; text-align:center; border-bottom: 2px solid var(--dim); padding-bottom: 10px; width: 100%; }
+
+        /* CONTROLS */
+        .controls { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        input { 
+            padding: 12px; background: #1a1a1a; border: 1px solid var(--dim); 
+            color: #fff; font-family: inherit; font-size: 1.1rem; text-align: center;
+            border-radius: 4px; outline: none; width: 100%; box-sizing: border-box;
+        }
+        input:focus { border-color: var(--main); }
+        button {
+            padding: 12px; background: var(--main); color: #000; border: none;
+            font-weight: bold; cursor: pointer; font-size: 1rem; border-radius: 4px; width: 100%;
+        }
+
+        /* VISUALIZER */
+        #vis-container {
+            width: 100%; aspect-ratio: 1 / 1; max-width: 380px;
+            background: #000; border: 1px solid var(--sub);
+            margin-bottom: 15px; position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.05);
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+        .overlay-tag {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0,0,0,0.8); color: var(--sub);
+            padding: 4px 8px; font-size: 0.7rem; border: 1px solid var(--sub);
+            pointer-events: none;
+        }
+
+        /* SLIDER */
+        .slider-box {
+            width: 100%; padding: 10px; box-sizing: border-box;
+            border: 1px solid var(--dim); background: var(--panel);
+            margin-bottom: 15px; text-align: center; border-radius: 4px;
+        }
+        input[type=range] { width: 100%; margin: 15px 0; cursor: pointer; accent-color: var(--sub); }
+        .frame-info { display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; }
+
+        /* DUAL CORE DISPLAY */
+        .dual-core {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 15px;
+        }
+        .core-box {
+            background: #0a0a0a; border: 1px solid var(--dim); padding: 10px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .core-box.active { border-color: var(--sub); }
+        .core-title { font-size: 0.7rem; color: #888; margin-bottom: 5px; text-transform: uppercase; }
+        .core-eq { font-size: 0.9rem; color: #fff; text-align: center; line-height: 1.4; }
+        .hl-pulse { color: var(--main); font-weight: bold; }
+        .hl-wave { color: var(--pink); font-weight: bold; }
+
+        /* DNA LADDER */
+        .dna-box {
+            width: 100%; background: #080808; border: 1px solid var(--dim);
+            padding: 10px; box-sizing: border-box; margin-bottom: 15px;
+            font-family: 'Courier New', monospace; font-size: 0.8rem;
+            max-height: 150px; overflow-y: auto;
+        }
+        .dna-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #222; padding: 2px 0; color: #666; }
+        .dna-row.highlight { color: #fff; background: rgba(0, 255, 255, 0.1); }
+
+        /* STATS GRID */
+        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+        .card {
+            background: var(--panel); border: 1px solid var(--dim);
+            padding: 10px; text-align: center; border-radius: 4px;
+        }
+        .card.highlight { border-color: var(--sub); background: rgba(0, 255, 255, 0.05); }
+        .lbl { font-size: 0.6rem; color: #888; margin-bottom: 3px; text-transform: uppercase; }
+        .val { font-size: 1.4rem; font-weight: bold; color: #fff; }
+        .sub { font-size: 0.7rem; color: var(--main); }
+
+    </style>
+</head>
+<body>
+
+<h1>Geometric Pulse Engine</h1>
+
+<div class="controls">
+    <input type="number" id="inpNum" value="21" placeholder="Target N">
+    <button onclick="loadEngine()">LOAD TARGET</button>
+</div>
+
+<div id="vis-container">
+    <canvas id="canvas"></canvas>
+    <div class="overlay-tag">GNOMON SCOPE</div>
+</div>
+
+<div class="slider-box">
+    <div class="frame-info">
+        <span>TIMELINE</span>
+        <span id="pulseLabel" style="color:var(--main)">SEED</span>
+    </div>
+    <input type="range" id="timeSlider" min="1" max="1" value="1" oninput="updateState()">
+    <div class="frame-info">
+        <span>FRAME <span id="frameVal" style="color:#fff;">1</span></span>
+        <span>INDEX <span id="idxVal" style="color:#fff;">1</span></span>
+    </div>
+</div>
+
+<div class="dual-core">
+    <div class="core-box active">
+        <div class="core-title" style="color:var(--main)">THE CHAIN (Step)</div>
+        <div class="core-eq" id="eqChain">
+            1 = 1
+        </div>
+    </div>
+    <div class="core-box" style="border-color:var(--pink)">
+        <div class="core-title" style="color:var(--pink)">THE WAVE (Balance)</div>
+        <div class="core-eq" id="eqWave">
+            0 + 1 + 0 = 1
+        </div>
+    </div>
+</div>
+
+<div style="width:100%; text-align:left; font-size:0.7rem; color:#666; margin-bottom:2px;">GENETIC HISTORY</div>
+<div class="dna-box" id="dnaList">
+    </div>
+
+<div class="dash-grid">
+    <div class="card">
+        <div class="lbl">Total Square</div>
+        <div class="val" id="sqVal">--</div>
+    </div>
+    <div class="card highlight">
+        <div class="lbl">Active Shell</div>
+        <div class="val" id="shellVal" style="color:var(--sub)">--</div>
+        <div class="sub"><span id="shellMult">--</span> × 8</div>
+    </div>
+    <div class="card">
+        <div class="lbl">Tri Base</div>
+        <div class="val" id="triBase">--</div>
+    </div>
+    <div class="card">
+        <div class="lbl">8s Used</div>
+        <div class="val" id="triSum" style="color:var(--main)">--</div>
+    </div>
+</div>
+
+<script>
+    let canvas, ctx;
+    let maxIndex = 1;
+    let targetN = 21;
+
+    function init() {
+        canvas = document.getElementById('canvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        loadEngine();
+    }
+
+    function resizeCanvas() {
+        const rect = document.getElementById('vis-container').getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        updateState();
+    }
+
+    function loadEngine() {
+        const val = parseInt(document.getElementById('inpNum').value);
+        if(val && val % 2 !== 0) {
+            targetN = val;
+            maxIndex = Math.max(25, (targetN + 1)/2 + 5); 
+            const slider = document.getElementById('timeSlider');
+            slider.max = maxIndex;
+            slider.value = Math.min((targetN + 1) / 2, maxIndex);
+            updateState();
+        } else {
+            alert("Please enter an odd number.");
+        }
+    }
+
+    function updateState() {
+        const frame = parseInt(document.getElementById('timeSlider').value);
+        
+        // Math
+        const root = (2 * frame) - 1;
+        const square = root * root;
+        const prevRoot = Math.max(1, root - 2);
+        const prevSquare = (frame === 1) ? 0 : prevRoot * prevRoot;
+        const shellVol = square - prevSquare;
+        
+        const triBase = frame - 1;
+        const triSum = (triBase * (triBase + 1)) / 2;
+
+        // UI Updates
+        document.getElementById('frameVal').innerText = frame;
+        document.getElementById('idxVal').innerText = frame; 
+        document.getElementById('pulseLabel').innerText = (frame === 1) ? "SEED" : "EXPAND (+2)";
+        document.getElementById('sqVal').innerText = square;
+        document.getElementById('shellVal').innerText = (frame === 1) ? "1" : shellVol;
+        document.getElementById('shellMult').innerText = triBase; 
+        document.getElementById('triBase').innerText = triBase;
+        document.getElementById('triSum').innerText = triSum;
+
+        // DUAL CORE UPDATES
+        
+        // 1. THE CHAIN (a + 2 = b)
+        if (frame === 1) {
+            document.getElementById('eqChain').innerHTML = "<span class='hl-pulse'>1</span> (Start)";
+        } else {
+            document.getElementById('eqChain').innerHTML = 
+                `${prevRoot} + <span class='hl-pulse'>2</span> = <span class='hl-pulse'>${root}</span>`;
+        }
+
+        // 2. THE WAVE (Wing + Spine + Wing)
+        // Wing sum = Sum of 1..triBase (if frame=3 (root 5), triBase=2? No)
+        // Root 5 (Frame 3). Sequence 1 2 3 2 1. Sum = 9? No, square is 25.
+        // Sequence for Square 25 is 1..something..1
+        // Actually, user wants "36 + 9 + 36 = 81" for Root 9.
+        // Root 9 is Frame 5. (Index 5).
+        // Left Wing = Sum(1..(Index-1)*2 ?) 
+        // Wait, Pyramid for N^2 is Sum(1..N) + Sum(N-1..1)? No.
+        // Sum(1..N) + Sum(N-1..1) = N^2.
+        // Example N=3. 1+2+3+2+1 = 9.
+        // Example N=9. 1+..+9+..+1 = 81.
+        // The "Spine" is N (the Root).
+        // The "Wing" is Sum(1..(N-1)).
+        const wingVal = (root * (root - 1)) / 2;
+        
+        document.getElementById('eqWave').innerHTML = 
+            `${wingVal} + <span class='hl-wave'>${root}</span> + ${wingVal} = ${square}`;
+
+        // DNA LADDER
+        updateDNA(frame);
+        
+        drawVisualizer(frame, root);
+    }
+
+    function updateDNA(frame) {
+        const dnaList = document.getElementById('dnaList');
+        dnaList.innerHTML = "";
+        
+        for (let i = 1; i <= frame; i++) {
+            let r = (2 * i) - 1;
+            let pr = Math.max(1, r - 2);
+            let div = document.createElement('div');
+            div.className = "dna-row";
+            if(i === frame) div.classList.add('highlight');
+            
+            // "1x1 + 2x1 = 3x1" style
+            // Actually, based on logic: "PrevRoot x 1 + 2 x 1 = CurrRoot x 1"
+            if (i === 1) {
+                div.innerHTML = `<span>SEED</span> <span>1 x 1</span>`;
+            } else {
+                div.innerHTML = `<span>${pr}x1 + 2x1</span> <span>= ${r}x1</span>`;
+            }
+            dnaList.prepend(div);
+        }
+    }
+
+    function drawVisualizer(k, root) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const padding = 20;
+        const availableSize = Math.min(canvas.width, canvas.height) - padding;
+        const cellSize = availableSize / root;
+
+        for(let i = 1; i <= k; i++) {
+            let loopRoot = (2 * i) - 1;
+            let loopSize = loopRoot * cellSize;
+            let isCurrent = (i === k);
+            
+            if (i === 1) {
+                ctx.fillStyle = "#ffcc00"; 
+                ctx.fillRect(cx - cellSize/2, cy - cellSize/2, cellSize-1, cellSize-1);
+            } else {
+                ctx.strokeStyle = isCurrent ? "#00ffff" : "#333"; 
+                ctx.lineWidth = isCurrent ? cellSize : (cellSize - 1); 
+                
+                let strokeSize = loopSize - cellSize; 
+                ctx.strokeRect(cx - strokeSize/2, cy - strokeSize/2, strokeSize, strokeSize);
+            }
+        }
+    }
+
+    setTimeout(init, 100);
+
+</script>
+</body>
+</html>

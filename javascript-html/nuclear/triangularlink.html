@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triangular Number Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: monospace; }
+        .block { transition: all 0.2s ease; }
+        .highlight-line { box-shadow: 0 0 10px #3b82f6; z-index: 10; }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+
+const App = () => {
+    const [n, setN] = React.useState(5); // Default to the user's number 5
+    
+    // Calculate the Triangular Number
+    const triangleSum = (n * (n + 1)) / 2;
+
+    const renderPyramid = () => {
+        let columns = [];
+        // We render 'n' columns, where column 'i' has height 'i'
+        // However, to show the "Total" effect, we usually visualize this as a staircase.
+        
+        // Let's render a grid that is N x N to show the empty space vs filled space
+        const gridSize = 10; // Fixed canvas size for consistency
+        
+        let grid = [];
+        
+        for (let y = 0; y < gridSize; y++) {
+            let row = [];
+            for (let x = 0; x < gridSize; x++) {
+                // Flip Y so 0 is bottom
+                const flippedY = (gridSize - 1) - y;
+                
+                // Logic for Staircase:
+                // Col 0 has height 1
+                // Col 1 has height 2
+                // ...
+                // Col x has height x+1
+                
+                const colHeight = x + 1;
+                const isBlock = flippedY < colHeight;
+                
+                // Is this block part of the current Triangular Number 'n'?
+                // We only fill columns up to index n-1
+                const isActiveColumn = x < n;
+                
+                // Is this block ON the "Diagonal Line"?
+                // The diagonal line is the top-most block of each active column?
+                // Or is it the hypotenuse?
+                // In a stepped pyramid, the "Line" connects the corners.
+                // Let's highlight the 'active' set.
+                
+                let bg = "bg-slate-800";
+                let border = "border-slate-900";
+                let text = "";
+                
+                if (isBlock && isActiveColumn) {
+                    bg = "bg-blue-900";
+                    border = "border-blue-800";
+                    
+                    // Highlight the "Edge" (The 5 in the user's example)
+                    // The 'edge' is often visualized as the longest column or the diagonal.
+                    // Let's highlight the Nth column specifically as the "Line of 5"
+                    if (x === n - 1) {
+                        bg = "bg-blue-500 highlight-line";
+                        border = "border-white/50";
+                        text = flippedY + 1; // Number the blocks 1,2,3,4,5
+                    }
+                }
+                
+                row.push(
+                    <div 
+                        key={`${x}-${y}`}
+                        className={`w-8 h-8 ${bg} border ${border} flex items-center justify-center text-[10px] block`}
+                    >
+                        {text}
+                    </div>
+                );
+            }
+            grid.push(<div key={y} className="flex">{row}</div>);
+        }
+        return grid;
+    };
+
+    return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+            
+            <div className="mb-6 text-center">
+                <h1 className="text-3xl font-bold mb-1">TRIANGULAR <span className="text-blue-500">LINK</span></h1>
+                <p className="text-xs text-slate-400">
+                    How <span className="text-blue-400 font-bold">{n}</span> creates <span className="text-white font-bold">{triangleSum}</span>
+                </p>
+            </div>
+
+            <div className="flex gap-8 items-end">
+                
+                {/* The Visualization */}
+                <div className="bg-slate-900 p-4 rounded-lg border border-slate-800 relative">
+                    <div className="flex flex-col">
+                        {renderPyramid()}
+                    </div>
+                    
+                    {/* Mathematical Label Overlay */}
+                    <div className="absolute bottom-4 right-4 text-right pointer-events-none">
+                        <div className="text-4xl font-bold text-white/10">{triangleSum}</div>
+                    </div>
+                </div>
+
+                {/* Controls & Stats */}
+                <div className="w-48 space-y-6">
+                    
+                    <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">On The Line</div>
+                        <div className="text-3xl font-bold text-blue-400">{n}</div>
+                        <div className="text-[9px] text-slate-500">The count of blocks on the edge.</div>
+                    </div>
+
+                    <div className="bg-slate-800 p-4 rounded border border-slate-700">
+                        <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Total Area</div>
+                        <div className="text-3xl font-bold text-white">{triangleSum}</div>
+                        <div className="text-[9px] text-slate-500">Sum of 1 to {n}</div>
+                    </div>
+                    
+                    <div>
+                        <input 
+                            type="range" min="1" max="10" value={n} 
+                            onChange={(e) => setN(parseInt(e.target.value))}
+                            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>1</span>
+                            <span>10</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <div className="mt-8 max-w-md text-center text-xs text-slate-500">
+                <p>Slide to <strong>5</strong>. Notice how the edge has 5 blocks, but the total structure contains 15.</p>
+            </div>
+
+        </div>
+    );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+</script>
+</body>
+</html>
+

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAPE RUNNER v2.2 (Wall Skip + Gauntlet)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root { --bg: #020617; --panel: #0f172a; --accent: #8b5cf6; --hit: #f43f5e; --text: #e2e8f0; --dim: #64748b; }
+    body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; }
+    .card { background: var(--panel); border: 1px solid #1e293b; max-width: 800px; margin: 0 auto; padding: 20px; border-radius: 12px; box-shadow: 0 0 50px rgba(139, 92, 246, 0.1); }
+    label { font-size: 0.7rem; color: var(--dim); font-weight: bold; letter-spacing: 1px; }
+    input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 10px; width: 100%; border-radius: 6px; font-family: monospace; font-size: 1.1rem; margin-bottom: 10px; text-align: center; }
+    .btn { width: 100%; padding: 15px; font-weight: 900; border-radius: 6px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+    .btn-run { background: var(--accent); color: #fff; }
+    .btn-stop { background: var(--hit); color: #fff; display: none; }
+    .gps-panel { background: #0f172a; border: 1px dashed #334155; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9rem; }
+    .worker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+    .worker-card { background: #1e293b; border: 1px solid #334155; padding: 10px; border-radius: 6px; text-align: center; font-size: 0.75rem; transition: background 0.3s; }
+    .log-box { margin-top: 20px; height: 180px; overflow-y: auto; background: #000; border: 1px solid #334155; padding: 10px; font-size: 0.8rem; color: var(--dim); border-radius: 6px; }
+    .success { color: #10b981; font-weight: bold; }
+    .sys { color: var(--accent); }
+    .running { border-color: var(--accent); box-shadow: 0 0 10px rgba(139, 92, 246, 0.2); }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-3xl font-black text-center text-purple-400 mb-2">TAPE RUNNER v2.2</h1>
+    <p class="text-center text-xs text-slate-500 mb-6">GAUNTLET + WALL SKIP + PURE ID</p>
+
+    <label>TARGET NUMBER (N)</label>
+    <input id="inpTarget" placeholder="Enter N..." value="1007">
+
+    <div id="gpsBox" class="gps-panel">
+        <div class="flex justify-between"><span>ODDS INDEX:</span> <span id="valOdds" class="text-purple-400">0</span></div>
+        <div class="flex justify-between"><span>EST. PRIMES:</span> <span id="valPrimes" class="text-purple-400">0</span></div>
+        <div class="flex justify-between font-bold"><span>START TAPE ID:</span> <span id="valRank" class="text-white">0</span></div>
+    </div>
+
+    <div class="flex gap-2">
+        <button id="btnRun" class="btn btn-run" onclick="deployRunners()">DEPLOY FLEET</button>
+        <button id="btnStop" class="btn btn-stop" onclick="stopAll()">STOP SCAN</button>
+    </div>
+
+    <div id="workerGrid" class="worker-grid"></div>
+    <div id="logBox" class="log-box">> System Idle. Ready for heavy haul.</div>
+</div>
+
+<script>
+/* --- THE ENGINE: PURE COMPOSITE + MOD 3 SKIP --- */
+const runnerCode = `
+self.onmessage = function(e) {
+    const { startL_str, chunkSize, targetN_str, skipMod3 } = e.data;
+    let L = BigInt(startL_str);
+    const targetN = BigInt(targetN_str);
+    const count = BigInt(chunkSize);
+    
+    function sqrtBigInt(n) {
+        if (n < 2n) return n;
+        let x = n; let y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    }
+
+    for(let i = 0n; i < count; i++) {
+        // 1. UNPACK GEOMETRY
+        let val = L * 8n + 1n;
+        let root = sqrtBigInt(val);
+        let k = (root - 1n) / 2n;
+        let triK = (k * (k + 1n)) / 2n;
+        if (L > triK) { k++; triK = (k * (k + 1n)) / 2n; }
+        
+        let triPrev = (k * (k - 1n)) / 2n;
+        let colIndex = L - triPrev; 
+        
+        let P2 = k * 2n + 1n;
+        let b_geo = colIndex - 1n;
+        let P1 = P2 - (b_geo * 2n);
+        
+        // 2. MOD 3 WALL SKIP
+        // If Target isn't multiple of 3, factors can't be multiples of 3.
+        if (skipMod3 && (P2 % 3n === 0n || P1 % 3n === 0n)) {
+            L++; continue;
+        }
+
+        // 3. TARGET CHECK
+        if (P2 * P1 === targetN) {
+            self.postMessage({
+                type: 'found',
+                L: L.toString(),
+                a: ((P2 + P1) / 2n).toString(),
+                b: b_geo.toString(),
+                P1: P1.toString(),
+                P2: P2.toString()
+            });
+            return;
+        }
+
+        if(i % 100000n === 0n) self.postMessage({type:'progress', L: L.toString()});
+        L++;
+    }
+    self.postMessage({type:'done', lastL: L.toString()});
+};
+`;
+
+/* --- MAIN APP --- */
+let workers = [];
+let targetN = 0n;
+let isRunning = false;
+const NUM_CORES = navigator.hardwareConcurrency || 8;
+
+function log(msg, type='') {
+    const box = document.getElementById('logBox');
+    const line = document.createElement('div');
+    line.className = type;
+    line.innerHTML = `> ${msg}`;
+    box.prepend(line);
+}
+
+function calculateGPS(n) {
+    const odds = (n - 1n) / 2n;
+    const lnN = Math.log(Number(n));
+    // PESSIMISTIC ESTIMATE: Uses (ln N - 1.1) to avoid overshooting
+    const estPrimes = BigInt(Math.floor(Number(n) / (lnN - 1.1)));
+    let startID = odds - estPrimes;
+    const buffer = startID / 100n; // 1% Safety
+    startID -= buffer;
+    if(startID < 1n) startID = 1n;
+
+    document.getElementById('valOdds').innerText = odds.toLocaleString();
+    document.getElementById('valPrimes').innerText = "~" + estPrimes.toLocaleString();
+    document.getElementById('valRank').innerText = startID.toLocaleString();
+    return startID;
+}
+
+async function deployRunners() {
+    const raw = document.getElementById('inpTarget').value.replace(/,/g,'').trim();
+    try { targetN = BigInt(raw); } catch(e) { log("Invalid N"); return; }
+    
+    isRunning = true;
+    document.getElementById('btnRun').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'block';
+    document.getElementById('workerGrid').innerHTML = '';
+
+    // 1. THE GAUNTLET (Pre-Filter up to 2M)
+    log(`GAUNTLET: Scanning factors up to 2,000,000...`, "sys");
+    for(let p = 3n; p < 2000000n; p += 2n) {
+        if(targetN % p === 0n && targetN !== p) {
+            log(`GAUNTLET HIT! Factor found: ${p}`, "success");
+            log(`FACTORS: ${p} x ${targetN/p}`, "success");
+            stopAll(); return;
+        }
+        if(p === 1000001n) await new Promise(r => setTimeout(r, 10)); // Prevent freeze
+    }
+    log("GAUNTLET CLEAR. Deploying Unpackers.");
+
+    const startID = calculateGPS(targetN);
+    const skipMod3 = (targetN % 3n !== 0n);
+    if(skipMod3) log("MOD 3 WALL SKIP: Active (Ignoring Lane 3)", "sys");
+
+    const blob = new Blob([runnerCode], {type:'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    const batchSize = 1000000n;
+
+    for(let i=0; i<NUM_CORES; i++) {
+        const w = new Worker(url);
+        const card = document.createElement('div');
+        card.className = 'worker-card running';
+        card.id = `w-${i}`;
+        card.innerHTML = `Core ${i+1}<br><span id="stat-${i}">Ready</span>`;
+        document.getElementById('workerGrid').appendChild(card);
+        
+        const myStart = startID + (BigInt(i) * batchSize);
+        w.postMessage({
+            startL_str: myStart.toString(),
+            chunkSize: batchSize.toString(),
+            targetN_str: targetN.toString(),
+            skipMod3: skipMod3
+        });
+        w.onmessage = (e) => handleMsg(e, i);
+        workers.push(w);
+    }
+}
+
+function handleMsg(e, idx) {
+    const d = e.data;
+    if(d.type === 'progress') document.getElementById(`stat-${idx}`).innerText = `ID: ${BigInt(d.L).toLocaleString()}`;
+    if(d.type === 'found') {
+        stopAll();
+        log(`>>> TARGET ACQUIRED <<<`, "success");
+        log(`TAPE ID: ${d.L}`, "success");
+        log(`FACTORS: ${d.P2} x ${d.P1}`, "success");
+        log(`GEOMETRY: ${d.a}.${d.b}`, "success");
+    }
+}
+
+function stopAll() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    isRunning = false;
+    document.getElementById('btnRun').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+}
+</script>
+</body>
+</html>

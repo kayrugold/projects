@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Gnomon Indexing Hunter v10 (Final Address Focus)</title>
+<style>
+  :root{
+    --bg:#05121b; --panel:#071822; --fg:#e6eef8; --muted:#9fb3c2; 
+    --accent:#6ee7b7; /* Green for Gnomon */
+    --sq-glow:#4299e1; /* Blue for Outer Square */
+    --wall-bg: #1a1005; /* Mod 3 Wall */
+    --wall-fg: #78350f;
+    --cell:64px; --hdr:64px;
+  }
+  html,body{height:100%; margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:Inter, Roboto, Arial, monospace; -webkit-user-select:none; -ms-user-select:none;}
+  .app {height:100dvh; display:flex; flex-direction:column; overflow:hidden}
+  /* topbar is small and minimal to maximize canvas */
+  .topbar {height:48px; display:flex; align-items:center; padding:8px 12px; gap:10px;}
+  .brand {font-weight:700; color:var(--accent); font-size:16px}
+  .muted {color:var(--muted); font-size:13px}
+  /* canvas area */
+  .canvas-wrap {flex:1; position:relative; background:linear-gradient(180deg,#041019,#051822); touch-action:none;}
+  canvas {display:block; width:100%; height:100%;}
+  /* floating FAB */
+  .fab {
+    position:fixed;
+    right:18px;
+    bottom:18px;
+    width:62px; height:62px;
+    border-radius:50%;
+    background:linear-gradient(180deg,#14806e,#0f5a4b);
+    color:white; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 12px 30px rgba(0,0,0,0.5);
+    z-index:9999;
+    font-weight:700;
+    font-size:20px;
+  }
+  /* full-screen modal for controls (Holographic Help) */
+  .modal {
+    position:fixed; inset:0; background:linear-gradient(180deg,rgba(2,6,8,0.95),rgba(2,6,8,0.96));
+    z-index:9998; display:none; flex-direction:column; padding:16px; -webkit-overflow-scrolling:touch;
+  }
+  .modal-title {color:var(--accent); font-size:18px; font-weight:700}
+  .modal-subtitle {color:var(--muted); font-size:13px; margin-bottom: 10px;}
+  .modal .controls {display:flex; flex-direction:column; gap:10px; overflow:auto; padding-bottom:40px}
+  .modal p, .modal li {font-size: 14px; color: var(--fg); line-height: 1.5;}
+  .modal h3 {color: var(--sq-glow); margin-top: 15px; margin-bottom: 5px; font-size: 16px;}
+  .modal code {background: #020617; padding: 2px 5px; border-radius: 4px; font-family: monospace; color: #fbbf24;}
+  .modal ul {padding-left: 20px;}
+
+  .row {display:flex; gap:8px; align-items:center}
+  input[type=number], input[type=text], select {flex:1; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); background:#071822; color:var(--fg); font-size:14px}
+  button {padding:10px 12px; border-radius:10px; border:0; background:#0f2930; color:var(--fg);}
+  button.primary {background:linear-gradient(180deg,#0f8b6f,#0a5b44)}
+  .tog {display:flex; gap:8px; align-items:center; color:var(--muted)}
+  .info {font-size:13px; color:var(--muted); margin-top:8px}
+
+  /* POPUP FOR INDEXING */
+  .cell-pop {
+    position:fixed; left:12px; right:12px; bottom:92px; background:#071620; color:var(--fg); 
+    border-radius:12px; padding:10px; box-shadow:0 10px 40px rgba(0,0,0,0.6); z-index:9997; 
+    display:none; border: 1px solid var(--accent);
+  }
+  .small-mono {font-family:monospace; font-size:12px; color:var(--muted)}
+  .index-val {font-weight:700; color:var(--fg); font-size: 1.1em;}
+
+  .cell-square { background: rgba(59, 130, 246, 0.15); border: 1px solid var(--sq-glow); }
+  .cell-wall { background: var(--wall-bg); color: var(--wall-fg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">Gnomon Indexing Hunter v10</div>
+    <div style="flex:1"></div>
+    <div class="muted">Final Address Focus • Virtual Grid</div>
+  </div>
+
+  <div id="canvasWrap" class="canvas-wrap" tabindex="0">
+    <canvas id="gridCanvas" aria-label="Gnomon grid"></canvas>
+  </div>
+
+  <div id="cellPop" class="cell-pop" role="status" aria-live="polite"></div>
+
+  <button id="fab" class="fab" aria-haspopup="true" aria-controls="controlsModal">☰</button>
+
+  <div id="controlsModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
+      <div>
+        <div class="modal-title">Factoring by Index Reduction</div>
+        <div class="modal-subtitle">The coordinates define the factors, not the calculation.</div>
+      </div>
+      <div>
+        <button id="closeModal">Close</button>
+      </div>
+    </div>
+
+    <div class="controls" id="controlsPane">
+      
+      <div class="modal-header">
+        <div class="modal-title" style="font-size:15px; color:var(--sq-glow)">Navigate Coordinates (k, b)</div>
+      </div>
+      <div class="row">
+        <label class="small-mono" style="width:60px">k (Row Index)</label>
+        <input id="inpK" type="number" inputmode="numeric" min="0" value="7687" />
+      </div>
+      <div class="row">
+        <label class="small-mono" style="width:60px">b (Inner Gap)</label>
+        <input id="inpB" type="number" inputmode="numeric" min="0" value="1" />
+      </div>
+      <div class="row">
+        <button id="btnJump" class="primary">Jump to (k,b)</button>
+        <button id="btnCenter">Center & Select</button>
+      </div>
+      <div class="row">
+        <label class="small-mono" style="width:60px">Max k</label>
+        <input id="inpMaxK" type="number" inputmode="numeric" min="1000" step="1000" value="200000" />
+      </div>
+
+      <div class="modal-header" style="margin-top:20px">
+        <div class="modal-title" style="font-size:15px; color:var(--sq-glow)">Grid View</div>
+      </div>
+      <div class="row">
+        <label class="small-mono" style="width:60px">Cell px</label>
+        <input id="inpCellPx" type="number" min="20" step="2" value="64" />
+      </div>
+      <div style="display:flex; gap:8px; flex-direction:column">
+        <label class="tog"><input id="chkOnlyOff" type="checkbox"> show only off-diagonal (hide squares)</label>
+        <label class="tog"><input id="chkMarkWalls" type="checkbox" checked> mark Mod 3 walls</label>
+      </div>
+
+      <h3 style="margin-top:30px">Holographic Indexing Panel</h3>
+      <p>This grid is the **Odd Composites Multiplication Table**. Factoring a number $N$ is reduced to finding its unique address $(k, b)$ on this table.</p>
+      
+      <h3>The Gnomon Key (k, b)</h3>
+      <p>The coordinates instantly reveal the factors $P_1$ and $P_2$ without needing to search the value $N$.</p>
+      <ul>
+        <li>**Row Index $k$**: This is the **Gnomon Key**. It determines the larger factor $P_2 = 2k + 1$.</li>
+        <li>**Inner Gap $b$**: This is the steps left from the diagonal. It determines the smaller factor $P_1 = P_2 - 2b$.</li>
+        <li>**Example**: Row $k=62$ (the Gnomon Key) gives $P_2 = 125$. Inner $b=1$ gives $P_1 = 123$.</li>
+      </ul>
+
+      <h3>Compression Indexing ($a - b$)</h3>
+      <p>Every cell is a difference of two squares. The index **$a - b$** displayed in the cell tells you the factors are $a+b$ and $a-b$. This shows the distance from the nearest square.</p>
+      <ul>
+        <li>**Outer Square $a$**: The center point: $a = (P_1 + P_2) / 2$.</li>
+        <li>**Inner Gap $b$**: The gap: $b = |P_2 - P_1| / 2$. You only need to increment $b$ to find the next factorization.</li>
+      </ul>
+      
+      <div class="row" style="margin-top:20px">
+        <button id="btnCopy" class="primary">Copy selected Index</button>
+        <button id="btnExport">Export viewport CSV</button>
+      </div>
+
+      <div class="info">Tips: Pinch to zoom (change Cell px). Drag to pan (change k, b). Double-tap to zoom in and re-center.</div>
+      <div style="height:40px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Gnomon Indexing Hunter v10 (Final Address Focus) */
+
+// ---- DOM ----
+const wrap = document.getElementById('canvasWrap');
+const canvas = document.getElementById('gridCanvas');
+const pop = document.getElementById('cellPop');
+const fab = document.getElementById('fab');
+const modal = document.getElementById('controlsModal');
+const closeModal = document.getElementById('closeModal');
+
+const inpK = document.getElementById('inpK');
+const inpB = document.getElementById('inpB');
+const btnJump = document.getElementById('btnJump');
+const btnCenter = document.getElementById('btnCenter');
+const inpCellPx = document.getElementById('inpCellPx');
+const inpMaxK = document.getElementById('inpMaxK');
+const chkOnlyOff = document.getElementById('chkOnlyOff');
+const chkMarkWalls = document.getElementById('chkMarkWalls');
+const btnCopy = document.getElementById('btnCopy');
+const btnExport = document.getElementById('btnExport');
+
+const ctx = canvas.getContext('2d', {alpha:true});
+
+// ---- state ----
+let DPR = window.devicePixelRatio || 1;
+let CELL_PX = parseInt(inpCellPx.value,10) || 64;
+let VIRT_K_MAX = BigInt(parseInt(inpMaxK.value,10) || 200000);
+let selected = null; // {k,b, payload}
+let view = { topK: 0, leftB: 0 }; // logical coordinates shown at top-left corner of grid (cells area)
+let cellCache = new Map(); // "k|b" -> payload
+let lastTap = 0;
+let lastTapX=0, lastTapY=0;
+
+// ---- worker blob (BigInt math) ----
+const workerCode = `
+  self.addEventListener('message', (ev)=>{
+    const msg = ev.data;
+    
+    const P2_from_k = (k) => k * 2n + 1n;
+
+    const processCell = (k_num, b_num) => {
+        const k = BigInt(k_num), b = BigInt(b_num);
+        const P2 = P2_from_k(k);
+        const P1 = P2 - b * 2n;
+        
+        let out = {k: k_num, b: b_num, P2: P2.toString(), P1: P1.toString()};
+        
+        if (P1 > 0n) {
+            const value = P2 * P1;
+            const outer = (P2 + P1) / 2n;
+            const inner = (P2 - P1) / 2n;
+            
+            out.value = value.toString();
+            out.outer = outer.toString();
+            out.inner = inner.toString();
+            out.mod3 = (value % 3n).toString();
+            out.isSq = (b === 0n);
+        } else {
+            out.value = null;
+        }
+        return out;
+    };
+
+    if(msg.cmd === 'cell'){
+      const p = processCell(msg.k, msg.b);
+      self.postMessage({type:'cell', payload: p});
+    } else if(msg.cmd === 'batch'){
+      const items = msg.items; const res=[];
+      for(let i=0;i<items.length;i++){
+        const p = processCell(items[i].k, items[i].b);
+        res.push(p);
+      }
+      self.postMessage({type:'batch', payload:res});
+    }
+  });
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+worker.onmessage = (ev) => {
+  const msg = ev.data;
+  const keyFor = (k,b) => `${k}|${b}`;
+  if(msg.type === 'cell'){
+    const p = msg.payload; cellCache.set(keyFor(p.k,p.b), p);
+    if(selected && selected.k==p.k && selected.b==p.b){ showSelected(p); drawImmediate(); }
+  } else if(msg.type === 'batch'){
+    msg.payload.forEach(p => cellCache.set(keyFor(p.k,p.b), p));
+    drawImmediate();
+  }
+};
+
+// ---- helpers ----
+function keyFor(k,b){ return `${k}|${b}`; }
+
+// resize canvas for mobile
+function resizeCanvas(){
+  DPR = window.devicePixelRatio || 1;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  const minW = Math.max(300, w);
+  const minH = Math.max(300, h);
+  canvas.width = Math.floor(minW * DPR);
+  canvas.height = Math.floor(minH * DPR);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawImmediate();
+  requestBatchForViewport();
+}
+
+// small utility to display truncated BigInt strings
+function shortVal(s, max=10){
+  if(!s) return '—';
+  if(s.length <= max) return s;
+  return '…' + s.slice(-Math.min(8,max-2));
+}
+
+// ---- draw (virtualized) ----
+function clearBG(){
+  ctx.fillStyle = '#041217';
+  ctx.fillRect(0,0, canvas.clientWidth, canvas.clientHeight);
+}
+
+function drawImmediate(){
+  clearBG();
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const colsVisible = Math.ceil(cw / CELL_PX) + 1;
+  const rowsVisible = Math.ceil(ch / CELL_PX) + 1;
+
+  ctx.font = '11px monospace';
+  ctx.textBaseline = 'middle';
+  
+  // draw cells
+  for(let r=0;r<rowsVisible;r++){
+    for(let c=0;c<colsVisible;c++){
+      const k = view.topK + r;
+      const b = view.leftB + c;
+      if(BigInt(k) > VIRT_K_MAX) continue;
+
+      const x = c * CELL_PX;
+      const y = r * CELL_PX;
+      const key = keyFor(k,b);
+      const cached = cellCache.get(key);
+      
+      // Filter check
+      if(cached && cached.value === null) continue;
+      if(chkOnlyOff.checked && b === 0) continue;
+
+      let cellBg = '#072428';
+      let textFg = '#bfece0';
+      
+      // Determine Cell Style
+      if(cached){
+        if(cached.isSq){ 
+          cellBg = '#153b36';
+          textFg = '#a7e4d8';
+        }
+        if(chkMarkWalls.checked && cached.mod3 === '0'){ 
+          cellBg = 'var(--wall-bg)';
+          textFg = 'var(--wall-fg)';
+        }
+      }
+
+      // Draw background
+      ctx.fillStyle = cellBg;
+      ctx.fillRect(x+1, y+1, CELL_PX-2, CELL_PX-2);
+
+      if(cached && cached.value){
+        // Show Compression Index (a-b) 
+        ctx.fillStyle = textFg;
+        
+        let compressionIndex = `${cached.outer} - ${cached.inner}`;
+        
+        ctx.font = '14px monospace'; 
+        ctx.fillText(compressionIndex, x+6, y + CELL_PX/2 - 5);
+        
+        // Show k,b coordinate label (the Gnomon Key)
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '8px monospace';
+        ctx.fillText(`k:${k} b:${b}`, x+6, y + CELL_PX/2 + 10);
+
+      } else {
+        // Not cached yet: draw k,b short (loading state)
+        ctx.fillStyle = '#7fbfb6';
+        ctx.fillText(`k:${k},b:${b}`, x+6, y + CELL_PX/2);
+      }
+
+      // selection highlight
+      if(selected && selected.k === k && selected.b === b){
+        ctx.strokeStyle = '#ffd07a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x+1.5, y+1.5, CELL_PX-3, CELL_PX-3);
+      }
+    }
+  }
+}
+
+// request worker batch for viewport
+function requestBatchForViewport(){
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const colsVisible = Math.ceil(cw / CELL_PX) + 2;
+  const rowsVisible = Math.ceil(ch / CELL_PX) + 2;
+  const startK = view.topK, startB = view.leftB;
+  const items = [];
+  for(let r=0;r<rowsVisible;r++){
+    for(let c=0;c<colsVisible;c++){
+      const k = startK + r;
+      const b = startB + c;
+      if(BigInt(k) > VIRT_K_MAX) continue;
+      const key = keyFor(k,b);
+      if(!cellCache.has(key)) items.push({k:k,b:b});
+    }
+  }
+  if(items.length) worker.postMessage({cmd:'batch', items: items});
+}
+
+// ---- selection and UI pop (Indexing display) ----
+function selectCell(k,b){
+  const key = keyFor(k,b);
+  const cached = cellCache.get(key);
+  selected = {k:k,b:b, payload: cached || null};
+  
+  if(!cached) worker.postMessage({cmd:'cell', k:k, b:b});
+  showSelected(cellCache.get(key) || {k:k,b:b});
+  drawImmediate();
+}
+
+function showSelected(payload){
+  if(!payload){ pop.style.display='none'; return; }
+  
+  if(!payload.value){ // placeholder or invalid
+    pop.innerHTML = `<div class="small-mono" style="font-size:14px">k:${payload.k} b:${payload.b} — ${payload.P1 && BigInt(payload.P1) <= 0n ? 'INVALID INDEX (P1 ≤ 0)' : 'LOADING...'}</div>`;
+    pop.style.display = 'block';
+    return;
+  }
+
+  // Display the full indexing chain prominently
+  pop.innerHTML = `
+    <div style="font-size:18px; color:var(--accent); font-weight:900; margin-bottom:4px;">
+      Address (k, b) = (${payload.k}, ${payload.b})
+    </div>
+    <div class="index-val">${shortVal(payload.value, 20)}</div>
+    <div class="small-mono">N = ${payload.P2} × ${payload.P1}</div>
+    <div class="small-mono" style="margin-top:5px;">
+        <span style="color:var(--sq-glow)">COMPRESSION:</span> ${payload.outer}² - ${payload.inner}²
+    </div>`;
+  pop.style.display = 'block';
+}
+
+// ---- gestures: pan, pinch, double-tap, tap (same as v9) ----
+let pan = {down:false, startX:0, startY:0, startTopK:0, startLeftB:0};
+let pinch = {active:false, startDist:0, startCellPx:CELL_PX};
+let pointers = new Map();
+
+function getTouchDist(t0, t1){
+  const dx = t1.clientX - t0.clientX;
+  const dy = t1.clientY - t0.clientY;
+  return Math.hypot(dx,dy);
+}
+
+canvas.addEventListener('pointerdown', (ev)=>{
+  canvas.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, ev);
+  if(pointers.size === 1){
+    pan.down = true; pan.startX = ev.clientX; pan.startY = ev.clientY;
+    pan.startTopK = view.topK; pan.startLeftB = view.leftB;
+  } else if(pointers.size === 2){
+    const arr = Array.from(pointers.values());
+    const d = getTouchDist(arr[0], arr[1]);
+    pinch.active = true; pinch.startDist = d; pinch.startCellPx = CELL_PX;
+  }
+  const now = Date.now();
+  if(now - lastTap < 320 && Math.abs(ev.clientX-lastTapX) < 30 && Math.abs(ev.clientY-lastTapY) < 30){
+    handleDoubleTap(ev.clientX, ev.clientY);
+    lastTap = 0;
+  } else {
+    lastTap = now; lastTapX = ev.clientX; lastTapY = ev.clientY;
+  }
+});
+
+canvas.addEventListener('pointermove', (ev)=>{
+  if(pointers.has(ev.pointerId)) pointers.set(ev.pointerId, ev);
+  if(pinch.active && pointers.size >= 2){
+    const arr = Array.from(pointers.values());
+    const d = getTouchDist(arr[0], arr[1]);
+    const ratio = d / pinch.startDist;
+    CELL_PX = Math.max(20, Math.min(160, Math.round(pinch.startCellPx * ratio)));
+    inpCellPx.value = CELL_PX;
+    drawImmediate();
+    requestBatchForViewport();
+  } else if(pan.down){
+    const dx = ev.clientX - pan.startX;
+    const dy = ev.clientY - pan.startY;
+    const deltaB = Math.round(-dx / CELL_PX);
+    const deltaK = Math.round(-dy / CELL_PX);
+    view.leftB = Math.max(0, pan.startLeftB + deltaB);
+    view.topK = Math.max(0, pan.startTopK + deltaK);
+    drawImmediate();
+  }
+});
+
+canvas.addEventListener('pointerup', (ev)=>{
+  canvas.releasePointerCapture(ev.pointerId);
+  pointers.delete(ev.pointerId);
+  if(pointers.size < 2) pinch.active = false;
+  if(pointers.size === 0) pan.down = false;
+  requestBatchForViewport();
+
+  const rect = canvas.getBoundingClientRect();
+  const cx = ev.clientX - rect.left;
+  const cy = ev.clientY - rect.top;
+  const col = Math.floor(cx / CELL_PX);
+  const row = Math.floor(cy / CELL_PX);
+  const k = view.topK + row;
+  const b = view.leftB + col;
+  
+  if(k >= 0 && b >= 0){ 
+    selectCell(k,b);
+  }
+});
+
+canvas.addEventListener('pointercancel', (ev)=>{ pointers.delete(ev.pointerId); pinch.active=false; pan.down=false; });
+
+function handleDoubleTap(cx, cy){
+  const rect = canvas.getBoundingClientRect();
+  const x = cx - rect.left;
+  const y = cy - rect.top;
+  const col = Math.floor(x / CELL_PX);
+  const row = Math.floor(y / CELL_PX);
+  CELL_PX = Math.min(160, Math.round(CELL_PX * 1.8));
+  inpCellPx.value = CELL_PX;
+  view.leftB = Math.max(0, view.leftB + col - Math.floor((canvas.clientWidth/CELL_PX)/2));
+  view.topK = Math.max(0, view.topK + row - Math.floor((canvas.clientHeight/CELL_PX)/2));
+  drawImmediate();
+  requestBatchForViewport();
+}
+
+// ---- controls behavior ----
+fab.addEventListener('click', ()=>{ modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false'); });
+closeModal.addEventListener('click', ()=>{ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); });
+
+btnJump.addEventListener('click', ()=>{
+  const k = Math.max(0, parseInt(inpK.value||'0',10));
+  const b = Math.max(0, parseInt(inpB.value||'0',10));
+  jumpTo(k,b);
+  modal.style.display='none';
+});
+btnCenter.addEventListener('click', ()=>{
+  const k = Math.max(0, parseInt(inpK.value||'0',10));
+  const b = Math.max(0, parseInt(inpB.value||'0',10));
+  centerOn(k,b);
+  modal.style.display='none';
+});
+
+inpCellPx.addEventListener('change', ()=>{
+  CELL_PX = Math.max(20, parseInt(inpCellPx.value||64,10));
+  drawImmediate(); requestBatchForViewport();
+});
+inpMaxK.addEventListener('change', ()=>{
+  VIRT_K_MAX = BigInt(Math.max(1000, parseInt(inpMaxK.value||'200000',10)));
+  view.topK = Math.min(Number(VIRT_K_MAX), view.topK);
+  drawImmediate(); requestBatchForViewport();
+});
+
+chkOnlyOff.addEventListener('change', ()=>{ drawImmediate(); requestBatchForViewport(); });
+chkMarkWalls.addEventListener('change', ()=>{ drawImmediate(); });
+
+btnCopy.addEventListener('click', async ()=>{
+  if(!selected || !selected.payload || !selected.payload.value){ 
+    alert('Select a cell and wait for its value to load'); return; 
+  }
+  const p = selected.payload;
+  const s = `k=${p.k}, b=${p.b}, P2=${p.P2}, P1=${p.P1}, N=${p.value}, Comp: ${p.outer}^2 - ${p.inner}^2`;
+  try{ await navigator.clipboard.writeText(s); alert('Copied'); }catch(e){ alert('Cannot copy: ' + e); }
+});
+
+btnExport.addEventListener('click', ()=>{
+  // export small block around viewport
+  const rows = 40, cols = 20;
+  const startK = view.topK, startB = view.leftB;
+  const lines = ['k,b,P2,P1,Outer,Inner,N'];
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const k = startK + r; const b = startB + c;
+      const key = keyFor(k,b);
+      const p = cellCache.get(key);
+      const val = p && p.value ? p.value : '';
+      const P2 = p && p.P2 ? p.P2 : '';
+      const P1 = p && p.P1 ? p.P1 : '';
+      const outer = p && p.outer ? p.outer : '';
+      const inner = p && p.inner ? p.inner : '';
+      lines.push(`${k},${b},${P2},${P1},${outer},${inner},${val}`);
+    }
+  }
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'gnomon_indexing_viewport.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---- navigation helpers ----
+function centerOn(k,b){
+  const wcols = Math.floor(canvas.clientWidth / CELL_PX);
+  const hrows = Math.floor(canvas.clientHeight / CELL_PX);
+  view.topK = Math.max(0, Math.floor(k - Math.floor(hrows/2)));
+  view.leftB = Math.max(0, Math.floor(b - Math.floor(wcols/2)));
+  drawImmediate(); requestBatchForViewport();
+  selectCell(k,b);
+}
+
+function jumpTo(k,b){
+  view.topK = Math.max(0, k);
+  view.leftB = Math.max(0, b);
+  drawImmediate(); requestBatchForViewport();
+  worker.postMessage({cmd:'cell', k:k, b:b});
+}
+
+// ---- initial boot & resize ----
+function boot(){
+  resizeCanvas();
+  const k0 = Math.max(0, parseInt(inpK.value||'0',10));
+  const b0 = Math.max(0, parseInt(inpB.value||'0',10));
+  centerOn(k0,b0);
+}
+
+window.addEventListener('resize', ()=>{ resizeCanvas(); });
+
+// -- initial request --
+function requestInitial(){
+  setTimeout(()=>{ requestBatchForViewport(); }, 200);
+}
+
+boot();
+requestInitial();
+
+</script>
+</body>
+</html>

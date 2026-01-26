@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Gnomon Grid — Mobile-First (FAB + Gestures)</title>
+<style>
+  :root{
+    --bg:#05121b; --panel:#071822; --fg:#e6eef8; --muted:#9fb3c2; --accent:#6ee7b7;
+    --cell:64px; --hdr:64px;
+  }
+  html,body{height:100%; margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:Inter, Roboto, Arial, monospace; -webkit-user-select:none; -ms-user-select:none;}
+  .app {height:100vh; display:flex; flex-direction:column; overflow:hidden}
+  /* topbar is small and minimal to maximize canvas */
+  .topbar {height:48px; display:flex; align-items:center; padding:8px 12px; gap:10px;}
+  .brand {font-weight:700; color:var(--accent); font-size:16px}
+  .muted {color:var(--muted); font-size:13px}
+  /* canvas area */
+  .canvas-wrap {flex:1; position:relative; background:linear-gradient(180deg,#041019,#051822); touch-action:none;}
+  canvas {display:block; width:100%; height:100%;}
+  /* floating FAB */
+  .fab {
+    position:fixed;
+    right:18px;
+    bottom:18px;
+    width:62px; height:62px;
+    border-radius:50%;
+    background:linear-gradient(180deg,#14806e,#0f5a4b);
+    color:white; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 12px 30px rgba(0,0,0,0.5);
+    z-index:9999;
+    font-weight:700;
+    font-size:20px;
+  }
+  /* full-screen modal for controls */
+  .modal {
+    position:fixed; inset:0; background:linear-gradient(180deg,rgba(2,6,8,0.95),rgba(2,6,8,0.96));
+    z-index:9998; display:none; flex-direction:column; padding:16px; -webkit-overflow-scrolling:touch;
+  }
+  .modal .modal-header {display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+  .modal .modal-title {color:var(--accent); font-size:18px; font-weight:700}
+  .modal .controls {display:flex; flex-direction:column; gap:10px; overflow:auto; padding-bottom:40px}
+  .row {display:flex; gap:8px; align-items:center}
+  input[type=number], input[type=text], select {flex:1; padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.03); background:#071822; color:var(--fg); font-size:14px}
+  button {padding:10px 12px; border-radius:10px; border:0; background:#0f2930; color:var(--fg);}
+  button.primary {background:linear-gradient(180deg,#0f8b6f,#0a5b44)}
+  .tog {display:flex; gap:8px; align-items:center; color:var(--muted)}
+  .info {font-size:13px; color:var(--muted); margin-top:8px}
+  .cell-pop {position:fixed; left:12px; right:12px; bottom:92px; background:#071620; color:var(--fg); border-radius:12px; padding:10px; box-shadow:0 10px 40px rgba(0,0,0,0.6); z-index:9997; display:none}
+  .small-mono {font-family:monospace; font-size:12px; color:var(--muted)}
+  /* small-screen adjustments */
+  @media (min-width:420px){ :root{--cell:72px;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">Gnomon Grid</div>
+    <div style="flex:1"></div>
+    <div class="muted">Mobile-first • FAB controls</div>
+  </div>
+
+  <div id="canvasWrap" class="canvas-wrap" tabindex="0">
+    <canvas id="gridCanvas" aria-label="Gnomon grid"></canvas>
+  </div>
+
+  <div id="cellPop" class="cell-pop" role="status" aria-live="polite"></div>
+
+  <button id="fab" class="fab" aria-haspopup="true" aria-controls="controlsModal">☰</button>
+
+  <div id="controlsModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Controls — Index-first</div>
+        <div class="small-mono">Row k → P₂=2k+1. Move left b → P₁=P₂−2b. N=P₂×P₁ = outer²−inner²</div>
+      </div>
+      <div>
+        <button id="closeModal">Close</button>
+      </div>
+    </div>
+
+    <div class="controls" id="controlsPane">
+      <div class="row">
+        <label class="small-mono" style="width:60px">k</label>
+        <input id="inpK" type="number" inputmode="numeric" min="0" value="62" />
+      </div>
+      <div class="row">
+        <label class="small-mono" style="width:60px">b</label>
+        <input id="inpB" type="number" inputmode="numeric" min="0" value="1" />
+      </div>
+
+      <div class="row">
+        <button id="btnJump" class="primary">Jump (k,b)</button>
+        <button id="btnCenter">Center & Select</button>
+      </div>
+
+      <div class="row">
+        <label class="small-mono" style="width:60px">Cell px</label>
+        <input id="inpCellPx" type="number" min="20" step="2" value="64" />
+      </div>
+
+      <div class="row">
+        <label class="small-mono" style="width:60px">Virtual max k</label>
+        <input id="inpMaxK" type="number" inputmode="numeric" min="1000" step="1000" value="200000" />
+      </div>
+
+      <div style="display:flex; gap:8px; flex-direction:column">
+        <label class="tog"><input id="chkOnlyOff" type="checkbox"> show only off-diagonal (hide b==0)</label>
+        <label class="tog"><input id="chkMarkWalls" type="checkbox" checked> mark small mod walls (3/5)</label>
+      </div>
+
+      <div class="row">
+        <button id="btnCopy">Copy selected</button>
+        <button id="btnExport">Export viewport CSV</button>
+      </div>
+
+      <div class="info">Tips: Double-tap to zoom in. Pinch to zoom. Drag with one finger to pan. Tap a cell to select. Use the FAB to toggle controls.</div>
+      <div style="height:40px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* MOBILE-FIRST GNOMON GRID
+   - Canvas rendering
+   - Worker (Blob) for BigInt math
+   - FAB modal controls
+   - Touch gestures: pan, pinch, double-tap, tap select
+   - Virtualized viewport with worker batch requests
+*/
+
+// ---- DOM ----
+const wrap = document.getElementById('canvasWrap');
+const canvas = document.getElementById('gridCanvas');
+const pop = document.getElementById('cellPop');
+const fab = document.getElementById('fab');
+const modal = document.getElementById('controlsModal');
+const closeModal = document.getElementById('closeModal');
+
+const inpK = document.getElementById('inpK');
+const inpB = document.getElementById('inpB');
+const btnJump = document.getElementById('btnJump');
+const btnCenter = document.getElementById('btnCenter');
+const inpCellPx = document.getElementById('inpCellPx');
+const inpMaxK = document.getElementById('inpMaxK');
+const chkOnlyOff = document.getElementById('chkOnlyOff');
+const chkMarkWalls = document.getElementById('chkMarkWalls');
+const btnCopy = document.getElementById('btnCopy');
+const btnExport = document.getElementById('btnExport');
+
+const ctx = canvas.getContext('2d', {alpha:true});
+
+// ---- state ----
+let DPR = window.devicePixelRatio || 1;
+let CELL_PX = parseInt(inpCellPx.value,10) || 64;
+let VIRT_K_MAX = BigInt(parseInt(inpMaxK.value,10) || 200000);
+let selected = null; // {k,b, payload}
+let view = { topK: 0, leftB: 0 }; // logical coordinates shown at top-left corner of grid (cells area)
+let cellCache = new Map(); // "k|b" -> payload
+let resizing = false;
+let lastTap = 0;
+let lastTapX=0, lastTapY=0;
+
+// ---- worker blob (BigInt math) ----
+const workerCode = `
+  self.addEventListener('message', (ev)=>{
+    const msg = ev.data;
+    if(msg.cmd === 'cell'){
+      const k = BigInt(msg.k), b = BigInt(msg.b);
+      const P2 = k*2n + 1n;
+      const P1 = P2 - b*2n;
+      let out = {k: msg.k, b: msg.b, P2: P2.toString(), P1: P1.toString()};
+      if(P1 > 0n){
+        const value = P2 * P1;
+        const outer = (P2 + P1) / 2n;
+        const inner = (P2 - P1) / 2n;
+        out.value = value.toString();
+        out.outer = outer.toString();
+        out.inner = inner.toString();
+        out.mod3 = (value % 3n).toString();
+        out.mod5 = (value % 5n).toString();
+      } else {
+        out.value = null;
+      }
+      self.postMessage({type:'cell', payload: out});
+    } else if(msg.cmd === 'batch'){
+      const items = msg.items; const res=[];
+      for(let i=0;i<items.length;i++){
+        const k = BigInt(items[i].k), b = BigInt(items[i].b);
+        const P2 = k*2n + 1n; const P1 = P2 - b*2n;
+        if(P1 > 0n){
+          const val = P2 * P1;
+          const outer = (P2 + P1) / 2n;
+          const inner = (P2 - P1) / 2n;
+          res.push({k: Number(items[i].k), b:Number(items[i].b), P2:P2.toString(), P1:P1.toString(), value:val.toString(), outer:outer.toString(), inner:inner.toString(), mod3:(val%3n).toString(), mod5:(val%5n).toString()});
+        } else {
+          res.push({k:Number(items[i].k), b:Number(items[i].b), value:null});
+        }
+      }
+      self.postMessage({type:'batch', payload:res});
+    }
+  });
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+worker.onmessage = (ev) => {
+  const msg = ev.data;
+  if(msg.type === 'cell'){
+    const p = msg.payload; cellCache.set(keyFor(p.k,p.b), p);
+    if(selected && selected.k==p.k && selected.b==p.b){ showSelected(p); drawImmediate(); }
+  } else if(msg.type === 'batch'){
+    msg.payload.forEach(p => cellCache.set(keyFor(p.k,p.b), p));
+    drawImmediate();
+  }
+};
+
+// ---- helpers ----
+function keyFor(k,b){ return `${k}|${b}`; }
+function P2_from_k(k){ return BigInt(k)*2n + 1n; }
+function P1_from_k_b(k,b){ return P2_from_k(k) - BigInt(b)*2n; }
+
+// resize canvas for mobile
+function resizeCanvas(){
+  DPR = window.devicePixelRatio || 1;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  canvas.width = Math.max(600, Math.floor(w * DPR));
+  canvas.height = Math.max(400, Math.floor(h * DPR));
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawImmediate();
+  requestBatchForViewport();
+}
+
+// small utility to display truncated BigInt strings
+function shortVal(s, max=10){
+  if(!s) return '—';
+  if(s.length <= max) return s;
+  return '…' + s.slice(-Math.min(8,max-2));
+}
+
+// ---- draw (virtualized) ----
+function clearBG(){
+  ctx.fillStyle = '#041217';
+  ctx.fillRect(0,0, canvas.clientWidth, canvas.clientHeight);
+}
+
+function drawImmediate(){
+  clearBG();
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const colsVisible = Math.ceil(cw / CELL_PX) + 1;
+  const rowsVisible = Math.ceil(ch / CELL_PX) + 1;
+
+  // header row background area
+  // draw grid area starting at offset cell (we keep a top-left header cell)
+  ctx.font = '11px monospace';
+  ctx.textBaseline = 'middle';
+
+  // draw cells
+  for(let r=0;r<rowsVisible;r++){
+    for(let c=0;c<colsVisible;c++){
+      const k = view.topK + r;
+      const b = view.leftB + c;
+      if(BigInt(k) > VIRT_K_MAX) continue;
+      const P1 = P1_from_k_b(k,b);
+      if(P1 <= 0n) continue;
+      if(chkOnlyOff.checked && b === 0) continue;
+
+      const x = c * CELL_PX;
+      const y = r * CELL_PX;
+
+      // background
+      ctx.fillStyle = '#072428';
+      ctx.fillRect(x+1, y+1, CELL_PX-2, CELL_PX-2);
+
+      // fetch cache
+      const key = keyFor(k,b);
+      const cached = cellCache.get(key);
+      if(cached && cached.value){
+        // for b==0 indicate square
+        if(b===0){
+          ctx.fillStyle = '#153b36';
+          ctx.fillRect(x+2, y+2, CELL_PX-4, CELL_PX-4);
+        }
+        // small text: show truncated value (last digits)
+        ctx.fillStyle = '#bfece0';
+        let txt = shortVal(String(cached.value), 12);
+        ctx.fillText(txt, x+6, y + CELL_PX/2);
+        // mod walls
+        if(chkMarkWalls.checked && cached.mod3 === '0'){
+          ctx.fillStyle = 'rgba(255,100,90,0.12)';
+          ctx.fillRect(x+2, y+2, CELL_PX-4, CELL_PX-4);
+        }
+      } else {
+        // not cached yet: draw k,b short
+        ctx.fillStyle = '#7fbfb6';
+        ctx.fillText(`${k},${b}`, x+6, y + CELL_PX/2);
+      }
+
+      // selection highlight
+      if(selected && selected.k === k && selected.b === b){
+        ctx.strokeStyle = '#ffd07a';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x+1.5, y+1.5, CELL_PX-3, CELL_PX-3);
+      }
+    }
+  }
+}
+
+// request worker batch for viewport
+function requestBatchForViewport(){
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  const colsVisible = Math.ceil(cw / CELL_PX) + 2;
+  const rowsVisible = Math.ceil(ch / CELL_PX) + 2;
+  const startK = view.topK, startB = view.leftB;
+  const items = [];
+  for(let r=0;r<rowsVisible;r++){
+    for(let c=0;c<colsVisible;c++){
+      const k = startK + r;
+      const b = startB + c;
+      if(BigInt(k) > VIRT_K_MAX) continue;
+      const P1 = P1_from_k_b(k,b);
+      if(P1 <= 0n) continue;
+      if(chkOnlyOff.checked && b===0) continue;
+      const key = keyFor(k,b);
+      if(!cellCache.has(key)) items.push({k:k,b:b});
+    }
+  }
+  if(items.length) worker.postMessage({cmd:'batch', items: items});
+}
+
+// ---- selection and UI pop ----
+function selectCell(k,b){
+  const key = keyFor(k,b);
+  const cached = cellCache.get(key);
+  selected = {k:k,b:b, payload: cached || null};
+  // request single cell if not cached
+  if(!cached) worker.postMessage({cmd:'cell', k:k, b:b});
+  showSelected(cellCache.get(key) || {k:k,b:b});
+  drawImmediate();
+}
+
+function showSelected(payload){
+  if(!payload){ pop.style.display='none'; return; }
+  if(!payload.value){ // placeholder
+    pop.innerHTML = `<div class="small-mono">k:${payload.k} b:${payload.b} — loading...</div>`;
+    pop.style.display = 'block';
+    return;
+  }
+  pop.innerHTML = `<div style="font-weight:700;color:var(--accent)">${shortVal(payload.value,20)}</div>
+    <div class="small-mono">k:${payload.k} b:${payload.b}</div>
+    <div class="small-mono">P₂:${payload.P2}  P₁:${payload.P1}</div>
+    <div class="small-mono">outer:${payload.outer} inner:${payload.inner}</div>`;
+  pop.style.display = 'block';
+}
+
+// ---- gestures: pan, pinch, double-tap, tap ----
+let pan = {down:false, startX:0, startY:0, startTopK:0, startLeftB:0};
+let pinch = {active:false, startDist:0, startCellPx:CELL_PX};
+let pointers = new Map();
+
+function getTouchDist(t0, t1){
+  const dx = t1.clientX - t0.clientX;
+  const dy = t1.clientY - t0.clientY;
+  return Math.hypot(dx,dy);
+}
+
+// pointer events (works better than touch on many Android versions)
+canvas.addEventListener('pointerdown', (ev)=>{
+  canvas.setPointerCapture(ev.pointerId);
+  pointers.set(ev.pointerId, ev);
+  if(pointers.size === 1){
+    // single pointer -> start pan
+    pan.down = true; pan.startX = ev.clientX; pan.startY = ev.clientY;
+    pan.startTopK = view.topK; pan.startLeftB = view.leftB;
+  } else if(pointers.size === 2){
+    // start pinch
+    const arr = Array.from(pointers.values());
+    const d = getTouchDist(arr[0], arr[1]);
+    pinch.active = true; pinch.startDist = d; pinch.startCellPx = CELL_PX;
+  }
+  // double-tap detection
+  const now = Date.now();
+  if(now - lastTap < 320 && Math.abs(ev.clientX-lastTapX) < 30 && Math.abs(ev.clientY-lastTapY) < 30){
+    // double-tap!
+    handleDoubleTap(ev.clientX, ev.clientY);
+    lastTap = 0;
+  } else {
+    lastTap = now; lastTapX = ev.clientX; lastTapY = ev.clientY;
+  }
+});
+
+canvas.addEventListener('pointermove', (ev)=>{
+  if(pointers.has(ev.pointerId)) pointers.set(ev.pointerId, ev);
+  if(pinch.active && pointers.size >= 2){
+    const arr = Array.from(pointers.values());
+    const d = getTouchDist(arr[0], arr[1]);
+    const ratio = d / pinch.startDist;
+    CELL_PX = Math.max(20, Math.min(160, Math.round(pinch.startCellPx * ratio)));
+    inpCellPx.value = CELL_PX;
+    drawImmediate();
+    requestBatchForViewport();
+  } else if(pan.down){
+    const dx = ev.clientX - pan.startX;
+    const dy = ev.clientY - pan.startY;
+    const deltaB = Math.round(-dx / CELL_PX);
+    const deltaK = Math.round(-dy / CELL_PX);
+    view.leftB = Math.max(0, pan.startLeftB + deltaB);
+    view.topK = Math.max(0, pan.startTopK + deltaK);
+    drawImmediate();
+  }
+});
+
+canvas.addEventListener('pointerup', (ev)=>{
+  canvas.releasePointerCapture(ev.pointerId);
+  pointers.delete(ev.pointerId);
+  if(pointers.size < 2) pinch.active = false;
+  if(pointers.size === 0) pan.down = false;
+  requestBatchForViewport();
+  // treat as a tap if pointer moved little (finger tap)
+  // we detect on pointerup: if small movement and short time then treat as tap
+  // but already handled double-tap separately.
+  // compute logical cell coordinate of the up event
+  const rect = canvas.getBoundingClientRect();
+  const cx = ev.clientX - rect.left;
+  const cy = ev.clientY - rect.top;
+  const col = Math.floor(cx / CELL_PX);
+  const row = Math.floor(cy / CELL_PX);
+  const k = view.topK + row;
+  const b = view.leftB + col;
+  const P1 = P1_from_k_b(k,b);
+  if(P1 > 0n && (!chkOnlyOff.checked || b !== 0)){
+    // small movement threshold could be added but pointerup already indicates end
+    selectCell(k,b);
+  }
+});
+
+// handle pointercancel
+canvas.addEventListener('pointercancel', (ev)=>{ pointers.delete(ev.pointerId); pinch.active=false; pan.down=false; });
+
+// double-tap: zoom in about that point (increase CELL_PX and recenter)
+function handleDoubleTap(cx, cy){
+  const rect = canvas.getBoundingClientRect();
+  const x = cx - rect.left;
+  const y = cy - rect.top;
+  const col = Math.floor(x / CELL_PX);
+  const row = Math.floor(y / CELL_PX);
+  // zoom
+  CELL_PX = Math.min(160, Math.round(CELL_PX * 1.8));
+  inpCellPx.value = CELL_PX;
+  // keep the tapped cell roughly under the finger: adjust view.leftB, topK
+  view.leftB = Math.max(0, view.leftB + col - Math.floor((canvas.clientWidth/CELL_PX)/2));
+  view.topK = Math.max(0, view.topK + row - Math.floor((canvas.clientHeight/CELL_PX)/2));
+  drawImmediate();
+  requestBatchForViewport();
+}
+
+// pinch fallback for devices that don't support pointer events properly
+let touchCache = {};
+wrap.addEventListener('touchstart',(ev)=>{
+  if(ev.touches.length === 2){
+    const d = getTouchDist(ev.touches[0], ev.touches[1]);
+    pinch.active = true; pinch.startDist = d; pinch.startCellPx = CELL_PX;
+  }
+}, {passive:true});
+wrap.addEventListener('touchmove',(ev)=>{
+  if(pinch.active && ev.touches.length === 2){
+    const d = getTouchDist(ev.touches[0], ev.touches[1]);
+    const ratio = d / pinch.startDist;
+    CELL_PX = Math.max(20, Math.min(160, Math.round(pinch.startCellPx * ratio)));
+    inpCellPx.value = CELL_PX;
+    drawImmediate();
+    requestBatchForViewport();
+    ev.preventDefault();
+  }
+}, {passive:false});
+wrap.addEventListener('touchend',(ev)=>{ if(ev.touches.length < 2) pinch.active=false; });
+
+// ---- controls behavior ----
+fab.addEventListener('click', ()=>{ modal.style.display = 'flex'; modal.setAttribute('aria-hidden','false'); });
+closeModal.addEventListener('click', ()=>{ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); });
+
+btnJump.addEventListener('click', ()=>{
+  const k = Math.max(0, parseInt(inpK.value||'0',10));
+  const b = Math.max(0, parseInt(inpB.value||'0',10));
+  jumpTo(k,b);
+  modal.style.display='none';
+});
+btnCenter.addEventListener('click', ()=>{
+  const k = Math.max(0, parseInt(inpK.value||'0',10));
+  const b = Math.max(0, parseInt(inpB.value||'0',10));
+  centerOn(k,b);
+  modal.style.display='none';
+});
+
+inpCellPx.addEventListener('change', ()=>{
+  CELL_PX = Math.max(20, parseInt(inpCellPx.value||64,10));
+  drawImmediate(); requestBatchForViewport();
+});
+inpMaxK.addEventListener('change', ()=>{
+  VIRT_K_MAX = BigInt(Math.max(1000, parseInt(inpMaxK.value||'200000',10)));
+  view.topK = Math.min(Number(VIRT_K_MAX), view.topK);
+  drawImmediate(); requestBatchForViewport();
+});
+
+btnCopy.addEventListener('click', async ()=>{
+  if(!selected || !selected.payload || !selected.payload.value){ alert('Select a cell and wait for its value to load'); return; }
+  const p = selected.payload;
+  const s = `k=${p.k}, b=${p.b}, P2=${p.P2}, P1=${p.P1}, N=${p.value}`;
+  try{ await navigator.clipboard.writeText(s); alert('Copied'); }catch(e){ alert('Cannot copy: ' + e); }
+});
+
+btnExport.addEventListener('click', ()=>{
+  // export small block around viewport
+  const rows = 40, cols = 20;
+  const startK = view.topK, startB = view.leftB;
+  const lines = ['k,b,P2,P1,N'];
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const k = startK + r; const b = startB + c;
+      const key = keyFor(k,b);
+      const p = cellCache.get(key);
+      const val = p && p.value ? p.value : '';
+      const P2 = p && p.P2 ? p.P2 : '';
+      const P1 = p && p.P1 ? p.P1 : '';
+      lines.push(`${k},${b},${P2},${P1},${val}`);
+    }
+  }
+  const blob = new Blob([lines.join('\\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'gnomon_viewport.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ---- navigation helpers ----
+function centerOn(k,b){
+  const wcols = Math.floor(canvas.clientWidth / CELL_PX);
+  const hrows = Math.floor(canvas.clientHeight / CELL_PX);
+  view.topK = Math.max(0, Math.floor(k - Math.floor(hrows/2)));
+  view.leftB = Math.max(0, Math.floor(b - Math.floor(wcols/2)));
+  drawImmediate(); requestBatchForViewport();
+  selectCell(k,b);
+}
+
+function jumpTo(k,b){
+  view.topK = Math.max(0, k);
+  view.leftB = Math.max(0, b);
+  drawImmediate(); requestBatchForViewport();
+  // prefetch cell
+  worker.postMessage({cmd:'cell', k:k, b:b});
+}
+
+// ---- initial boot & resize ----
+function boot(){
+  resizeCanvas();
+  // center on initial inputs
+  const k0 = Math.max(0, parseInt(inpK.value||'0',10));
+  const b0 = Math.max(0, parseInt(inpB.value||'0',10));
+  centerOn(k0,b0);
+}
+
+window.addEventListener('resize', ()=>{ resizeCanvas(); });
+function resizeCanvas(){
+  DPR = window.devicePixelRatio || 1;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  const minW = Math.max(300, w);
+  const minH = Math.max(300, h);
+  canvas.width = Math.floor(minW * DPR);
+  canvas.height = Math.floor(minH * DPR);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  drawImmediate();
+  requestBatchForViewport();
+}
+
+// -- initial drawing loop (keeps small updates smooth) --
+let redrawTimer = null;
+function scheduleDraw(){
+  if(redrawTimer) cancelAnimationFrame(redrawTimer);
+  redrawTimer = requestAnimationFrame(()=>{ drawImmediate(); });
+}
+
+// request initial batch after small delay
+function requestInitial(){
+  setTimeout(()=>{ requestBatchForViewport(); }, 200);
+}
+
+// select initial cell after worker has chance to respond
+function selectCell(k,b){
+  const key = keyFor(k,b);
+  const cached = cellCache.get(key);
+  selected = {k:k, b:b, payload: cached || null};
+  if(!cached) worker.postMessage({cmd:'cell', k:k, b:b});
+  showSelected(cellCache.get(key) || {k:k,b:b});
+  drawImmediate();
+}
+
+// utils
+function shortVal(s, len=10){ if(!s) return '—'; if(s.length <= len) return s; return '…'+s.slice(-8); }
+
+// boot
+boot();
+requestInitial();
+
+</script>
+</body>
+</html>

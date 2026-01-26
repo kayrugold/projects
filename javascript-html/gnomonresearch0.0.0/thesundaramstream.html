@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Sundaram Stream</title>
+    <style>
+        :root {
+            --bg: #111;
+            --stream-bg: #1a1a1a;
+            --border: #333;
+            --prime: #10b981;
+            --comp: #ef4444;
+            --text-muted: #666;
+            --text-main: #eee;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            background: #000;
+            z-index: 10;
+        }
+        h1 { margin: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 2px; color: var(--prime); }
+        .subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 5px; }
+
+        /* THE STREAM LAYOUT */
+        .stream-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px; /* Tight gap for stream look */
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 60px 1fr 80px;
+            align-items: center;
+            background: var(--stream-bg);
+            padding: 10px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        /* COLUMNS */
+        .col-k { font-family: monospace; font-weight: bold; color: #888; text-align: center; }
+        
+        .col-logic { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; /* Centered Logic */
+            font-size: 0.8rem;
+        }
+
+        .col-result { 
+            text-align: right; 
+            font-weight: bold; 
+            font-size: 1.1rem;
+            padding-right: 10px;
+        }
+
+        /* STATES */
+        .row.discarded {
+            opacity: 0.5;
+            background: #221a1a;
+            border-left-color: var(--comp);
+        }
+        .row.discarded .col-logic { color: var(--comp); }
+        .row.discarded .col-result { text-decoration: line-through; color: var(--text-muted); }
+
+        .row.kept {
+            background: #1a2220;
+            border-left-color: var(--prime);
+            box-shadow: 0 2px 10px rgba(16,185,129,0.05);
+            transform: scale(1.01);
+            z-index: 2;
+        }
+        .row.kept .col-logic { color: var(--text-muted); opacity: 0.5; }
+        .row.kept .col-result { color: var(--prime); font-size: 1.3rem; }
+
+        /* BRICK VISUALS FOR DISCARDED */
+        .brick-tag {
+            background: rgba(239,68,68,0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 0 4px;
+            font-family: monospace;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>The Sundaram Stream</h1>
+        <div class="subtitle">Processing Indices k=1 to 100...</div>
+    </header>
+
+    <div class="stream-container" id="stream">
+        <!-- JS Generates Stream -->
+    </div>
+
+    <script>
+        const stream = document.getElementById('stream');
+        const MAX_K = 100;
+        
+        // --- SUNDARAM SIEVE LOGIC ---
+        // We map k -> proof object {found: bool, i, j}
+        function getProof(k) {
+            for (let i = 1; i <= k; i++) {
+                const num = k - i;
+                const den = 2 * i + 1;
+                
+                // Optimization: if den * i > k * 2 roughly break
+                if (2*i*i + i > k) break;
+
+                if (num >= 0 && num % den === 0) {
+                    const j = num / den;
+                    if (j >= i) {
+                        return { found: true, i, j };
+                    }
+                }
+            }
+            return { found: false };
+        }
+
+        function init() {
+            let html = '';
+            
+            for (let k = 1; k <= MAX_K; k++) {
+                const proof = getProof(k);
+                const gnomon = 2 * k + 1;
+
+                if (proof.found) {
+                    // COMPOSITE (DISCARD)
+                    // Factors
+                    const f1 = 2 * proof.i + 1;
+                    const f2 = 2 * proof.j + 1;
+                    
+                    html += `
+                        <div class="row discarded">
+                            <div class="col-k">k=${k}</div>
+                            <div class="col-logic">
+                                Discard: <span class="brick-tag">${f1}</span> × <span class="brick-tag">${f2}</span>
+                            </div>
+                            <div class="col-result">${gnomon}</div>
+                        </div>
+                    `;
+                } else {
+                    // PRIME (KEEP)
+                    html += `
+                        <div class="row kept">
+                            <div class="col-k">k=${k}</div>
+                            <div class="col-logic">
+                                — Passing —
+                            </div>
+                            <div class="col-result">${gnomon}</div>
+                        </div>
+                    `;
+                }
+            }
+            stream.innerHTML = html;
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
+

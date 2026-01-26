@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pattern Stress Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: 'Courier New', monospace; }
+        .impostor-anim { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+
+const App = () => {
+    const [limit, setLimit] = React.useState(50);
+    
+    const checkPrime = (num) => {
+        if (num <= 1) return false;
+        if (num <= 3) return true;
+        if (num % 2 === 0 || num % 3 === 0) return false;
+        for (let i = 5; i * i <= num; i += 6) {
+            if (num % i === 0 || num % (i + 2) === 0) return false;
+        }
+        return true;
+    };
+
+    const layers = React.useMemo(() => {
+        let data = [];
+        for (let i = 1; i <= limit; i++) {
+            const num = 2 * i - 1;
+            
+            // Determine Type
+            let type = 'prime';
+            let description = 'Prime';
+            
+            const isPrimeVal = checkPrime(num);
+            const isDiv3 = (num % 3 === 0 && num > 3);
+            
+            // Check the "6k Rule"
+            // A number is a "Candidate" if it is not divisible by 2 or 3.
+            // In our grid of odd numbers, we just check mod 3.
+            const isCandidate = (num % 3 !== 0); 
+
+            if (num === 1) {
+                type = 'unit';
+                description = 'Unit';
+            } else if (isDiv3) {
+                type = 'dead';
+                description = 'Multiple of 3';
+            } else if (isPrimeVal) {
+                type = 'prime';
+                description = 'True Prime';
+            } else {
+                // Ideally a candidate but NOT prime = IMPOSTOR
+                type = 'impostor';
+                description = `Composite (${findSmallestFactor(num)}×...)`;
+            }
+            
+            data.push({ i, num, type, description });
+        }
+        return data;
+    }, [limit]);
+
+    function findSmallestFactor(n) {
+        if (n%3===0) return 3;
+        for (let i=5; i*i<=n; i+=6) {
+            if (n%i===0) return i;
+            if (n%(i+2)===0) return i+2;
+        }
+        return n;
+    }
+
+    return (
+        <div className="min-h-screen bg-slate-950 p-6 flex flex-col items-center">
+            
+            <div className="max-w-2xl w-full mb-8 text-center">
+                <h1 className="text-3xl font-bold text-orange-500 mb-2">THE IMPOSTOR HUNT</h1>
+                <p className="text-slate-400 text-sm">
+                    The "Gold Line" pattern identifies <span className="text-blue-400">candidates</span>.
+                    <br/>But look what happens at <strong>25, 35, 49</strong>...
+                </p>
+            </div>
+
+            <div className="max-w-3xl w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {layers.map((layer) => {
+                    // Style Logic
+                    let border = "border-slate-800";
+                    let bg = "bg-slate-900";
+                    let text = "text-slate-500";
+                    let glow = "";
+
+                    if (layer.type === 'dead') {
+                        bg = "bg-slate-900/50";
+                        text = "text-slate-700";
+                        border = "border-transparent";
+                    } else if (layer.type === 'prime') {
+                        bg = "bg-blue-900/30";
+                        border = "border-blue-500/50";
+                        text = "text-blue-400 font-bold";
+                    } else if (layer.type === 'impostor') {
+                        bg = "bg-orange-900/20";
+                        border = "border-orange-500";
+                        text = "text-orange-500 font-bold";
+                        glow = "shadow-[0_0_15px_rgba(249,115,22,0.3)] impostor-anim";
+                    }
+
+                    return (
+                        <div key={layer.num} className={`p-3 rounded border ${border} ${bg} ${glow} relative overflow-hidden`}>
+                            <div className="flex justify-between items-start mb-1">
+                                <span className="text-[10px] uppercase opacity-50">Layer {layer.i}</span>
+                                {layer.type === 'impostor' && <span className="text-[10px] bg-orange-500 text-black font-bold px-1 rounded">FAIL</span>}
+                            </div>
+                            <div className={`text-3xl font-mono ${text}`}>{layer.num}</div>
+                            <div className="text-[10px] text-slate-500 mt-1 truncate">{layer.description}</div>
+                            
+                            {/* Visualizer for the "Gold Line" concept */}
+                            {layer.type !== 'dead' && layer.type !== 'unit' && (
+                                <div className="absolute bottom-0 left-0 w-full h-1 bg-yellow-500/20"></div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="mt-8 w-full max-w-md">
+                <input 
+                    type="range" min="20" max="100" value={limit} 
+                    onChange={(e) => setLimit(parseInt(e.target.value))}
+                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                />
+                <div className="text-center text-xs text-slate-500 mt-2">
+                    Drag to check higher numbers (Up to Layer 100 / Number 199)
+                </div>
+            </div>
+
+        </div>
+    );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+</script>
+</body>
+</html>
+

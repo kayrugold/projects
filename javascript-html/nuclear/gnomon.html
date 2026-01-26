@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter: Gnomon View</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        h1 { color: #00e676; margin-bottom: 10px; text-align: center; }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+
+        input {
+            padding: 10px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 8px;
+            width: 80px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #00e676;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        #canvas-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            overflow: auto;
+            max-width: 100%;
+        }
+
+        canvas {
+            border: 1px solid #333;
+            background: #181818;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .info {
+            margin-top: 15px;
+            color: #888;
+            text-align: center;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .highlight { color: #00e676; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Gnomon Wrapper</h1>
+
+    <div class="controls">
+        <button onclick="prev()">-</button>
+        <input type="number" id="numInput" value="7" inputmode="numeric">
+        <button onclick="next()">+</button>
+        <button onclick="drawGnomon()">VIEW</button>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="info" id="infoText"></div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('numInput');
+        const info = document.getElementById('infoText');
+
+        function next() { input.value = parseInt(input.value) + 1; drawGnomon(); }
+        function prev() { input.value = Math.max(1, parseInt(input.value) - 1); drawGnomon(); }
+
+        function drawGnomon() {
+            const n = parseInt(input.value);
+            if (!n || n < 1) return;
+
+            // 1. Gnomon Math
+            // Only Odd numbers make a perfect single-layer Gnomon (L-shape)
+            // n = 2x + 1  ->  x = (n-1)/2
+            // x is the size of the inner square.
+            
+            const isOdd = (n % 2 !== 0);
+            let innerSize = 0;
+            let outerSize = 0;
+            let validGnomon = false;
+
+            if (isOdd) {
+                innerSize = (n - 1) / 2;
+                outerSize = innerSize + 1;
+                validGnomon = true;
+            } else {
+                // Even numbers cannot be a difference of two consecutive squares
+                // But let's visualize them anyway as a failed wrapper or double stack?
+                // For now, let's just show the math why it fails or show it wrapping a half-grid?
+                validGnomon = false;
+            }
+
+            // 2. Setup Canvas
+            const blockSize = 30;
+            const gap = 2;
+            const padding = 40;
+            
+            // If even, we just draw a grid to show it doesn't fit?
+            // Or we try to wrap 0?
+            const displaySize = validGnomon ? outerSize : Math.ceil(Math.sqrt(n));
+            
+            const totalSizePx = (displaySize * (blockSize + gap)) + (padding * 2);
+            
+            // DPI Scale
+            const dpr = window.devicePixelRatio || 1;
+            canvas.style.width = totalSizePx + 'px';
+            canvas.style.height = totalSizePx + 'px';
+            canvas.width = totalSizePx * dpr;
+            canvas.height = totalSizePx * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.clearRect(0, 0, totalSizePx, totalSizePx);
+
+            // 3. Draw
+            
+            if (!validGnomon) {
+                // Handle Evens
+                info.innerHTML = `
+                    <span class="highlight">${n}</span> is Even.<br>
+                    It cannot wrap a square perfectly as a single line.<br>
+                    (Gnomons must be Odd: Odd - Even = Odd)
+                `;
+                
+                // Just draw blocks in a pile?
+                let x = padding;
+                let y = padding;
+                let count = 0;
+                const grid = Math.ceil(Math.sqrt(n));
+                
+                for(let i=0; i<n; i++) {
+                    ctx.fillStyle = '#444';
+                    ctx.fillRect(x, y, blockSize, blockSize);
+                    count++;
+                    x += blockSize + gap;
+                    if (count % grid === 0) {
+                        x = padding;
+                        y += blockSize + gap;
+                    }
+                }
+                return;
+            }
+
+            // Handle Odds (Gnomons)
+            info.innerHTML = `
+                <span class="highlight">${n}</span> wraps a <span class="highlight">${innerSize}&times;${innerSize}</span> square.<br>
+                Core Area: ${innerSize*innerSize} | Total Area: ${outerSize*outerSize}<br>
+                (${outerSize}² - ${innerSize}² = ${n})
+            `;
+
+            const startX = padding;
+            const startY = padding;
+
+            // DRAW CORE (The square being wrapped)
+            ctx.fillStyle = '#333'; // Dark grey for the "old" square
+            for (let r = 0; r < innerSize; r++) {
+                for (let c = 0; c < innerSize; c++) {
+                    // Shifted right and down by 1 block to let Gnomon wrap Top/Left (or Bottom/Right)
+                    // Let's wrap Bottom/Right as is standard
+                    ctx.fillRect(
+                        startX + c * (blockSize + gap), 
+                        startY + r * (blockSize + gap), 
+                        blockSize, blockSize
+                    );
+                }
+            }
+
+            // DRAW GNOMON (The Number N)
+            // It fills the rightmost column and bottommost row
+            ctx.fillStyle = '#00e676'; // Bright green
+            
+            // Draw Right Column
+            for (let r = 0; r < outerSize - 1; r++) {
+                ctx.fillRect(
+                    startX + innerSize * (blockSize + gap), 
+                    startY + r * (blockSize + gap),
+                    blockSize, blockSize
+                );
+            }
+            
+            // Draw Bottom Row (including corner)
+            for (let c = 0; c < outerSize; c++) {
+                ctx.fillRect(
+                    startX + c * (blockSize + gap), 
+                    startY + innerSize * (blockSize + gap),
+                    blockSize, blockSize
+                );
+            }
+            
+            // Draw Index numbers?
+            // Optional
+        }
+
+        // Init
+        drawGnomon();
+
+        // Listen for enter key
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                drawGnomon();
+            }
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gnomon Correlator v8 (Indexing Edition)</title>
+<style>
+    :root {
+        --bg: #020617;
+        --panel: #0f172a;
+        --border: #1e293b;
+        --cyan: #22d3ee;
+        --wall-bg: #1a1005;
+        --wall-fg: #78350f;
+        --text: #e2e8f0;
+        --sq-glow: #3b82f6;   
+        --header-bg: #1e293b;
+    }
+    
+    * { box-sizing: border-box; }
+
+    body { 
+        background: var(--bg); color: var(--text); 
+        font-family: 'Courier New', monospace; 
+        height: 100dvh; width: 100vw;
+        margin: 0; padding: 0;
+        display: flex; flex-direction: column; 
+        overflow: hidden;
+    }
+
+    /* CONTROLS */
+    .controls { 
+        padding: 5px 10px; background: #0f172a; border-bottom: 1px solid var(--border); 
+        display: flex; gap: 4px; align-items: center; justify-content: space-between;
+        flex-shrink: 0; z-index: 200; height: 50px; width: 100%;
+    }
+    .brand { font-weight: 900; color: #fff; font-size: 0.85rem; letter-spacing: 1px; }
+    
+    .input-group { display: flex; gap: 6px; align-items: center; }
+    .head-input { 
+        background: #1e293b; border: 1px solid #334155; 
+        color: var(--cyan); padding: 6px; width: 90px; text-align: center; 
+        border-radius: 4px; font-weight: bold; font-family: monospace; font-size: 0.9rem;
+    }
+    .lbl { font-size:0.7rem; color:#94a3b8; font-weight:bold; }
+    
+    button { 
+        background: var(--cyan); border: none; padding: 6px 12px; 
+        border-radius: 4px; font-weight: bold; cursor: pointer; color: #000; font-size: 0.75rem;
+    }
+
+    /* CANVAS WRAPPER */
+    .layout { display: flex; flex-direction: column; flex: 1; overflow: hidden; position: relative; width: 100%; }
+    .canvas-wrapper { flex: 1; position: relative; background: #000; overflow: hidden; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* DECODER PANEL (Bottom Fixed) */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--cyan); 
+        display: flex; flex-direction: column; flex-shrink: 0; 
+        height: auto; min-height: 220px;
+        overflow-y: auto; 
+        box-shadow: 0 -10px 50px rgba(0,0,0,0.8); z-index: 150;
+    }
+
+    .panel-section { padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-title { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+
+    /* MATH DISPLAY */
+    .big-math { background: #0b1120; }
+    .bm-val { font-size: 1.6rem; font-weight: 900; color: #fff; }
+    .bm-eq { font-size: 0.85rem; color: var(--cyan); font-weight: bold; margin-top: 4px; }
+
+    /* INFO GRID */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 8px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.6rem; color: #94a3b8; font-weight: bold; margin-bottom: 2px; }
+    .info-val { font-size: 1.1rem; color: #fff; font-weight: bold; }
+    
+    /* Colors for indices */
+    .txt-k { color: #34d399; } /* Green */
+    .txt-g { color: #f472b6; } /* Pink */
+    .txt-a { color: #3b82f6; } /* Blue */
+</style>
+</head>
+<body>
+
+<div class="controls">
+    <span class="brand">GNOMON CORRELATOR v8</span>
+    <div class="input-group">
+        <span class="lbl">JUMP TO ROW (k):</span>
+        <input id="inpK" class="head-input" type="number" value="0" min="0">
+        <button id="btnGo">GO</button>
+    </div>
+</div>
+
+<div class="layout">
+    <div class="canvas-wrapper" id="canvasWrap">
+        <canvas id="gridCanvas"></canvas>
+    </div>
+
+    <div class="decoder">
+        <div class="panel-section big-math">
+            <div>
+                <div class="sec-title">COMPRESSION INDEX (a - b)</div>
+                <div id="dispComp" class="bm-val">--</div>
+            </div>
+            <div style="text-align:right">
+                <div class="sec-title">VALUE (N)</div>
+                <div id="dispVal" class="bm-eq" style="font-size:1.2rem; color:white">--</div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-item" style="border-color: rgba(52, 211, 153, 0.3);">
+                <div class="info-lbl">SUNDARAM INDEX (k)</div>
+                <div id="dispK" class="info-val txt-k">--</div>
+            </div>
+            <div class="info-item" style="border-color: rgba(244, 114, 182, 0.3);">
+                <div class="info-lbl">GNOMON INDEX (2a-1)</div>
+                <div id="dispG" class="info-val txt-g">--</div>
+            </div>
+            <div class="info-item" style="border-color: rgba(59, 130, 246, 0.3);">
+                <div class="info-lbl">OUTER SQUARE (a)</div>
+                <div id="dispA" class="info-val txt-a">--</div>
+            </div>
+            <div class="info-item">
+                <div class="info-lbl">INNER GAP (b)</div>
+                <div id="dispB" class="info-val">--</div>
+            </div>
+        </div>
+        
+        <div style="padding:10px; text-align:center; font-size:0.7rem; color:#64748b;">
+            Factorization: P₂ = a + b &nbsp;|&nbsp; P₁ = a - b
+        </div>
+    </div>
+</div>
+
+<script>
+/* GNOMON CORRELATOR v8 (Indexing Edition)
+   - Interface: Correlator Style (Headers + Bottom Panel)
+   - Engine: Infinite Virtual Canvas
+   - Logic: Indexing Only (k, b -> a-b)
+*/
+
+// --- DOM & CONFIG ---
+const canvas = document.getElementById('gridCanvas');
+const wrap = document.getElementById('canvasWrap');
+const ctx = canvas.getContext('2d', {alpha: false});
+const inpK = document.getElementById('inpK');
+const btnGo = document.getElementById('btnGo');
+
+let DPR = window.devicePixelRatio || 1;
+const CELL_W = 60;
+const CELL_H = 50;
+const HEADER_SIZE = 40; // Fixed size for sticky headers
+
+let view = { topK: 0, leftB: 0 }; 
+let selected = { k: 0, b: 0 };
+let cellCache = new Map();
+
+// --- WORKER: BIGINT INDEXING ---
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const P2_from_k = (k) => k * 2n + 1n;
+
+    const process = (k_in, b_in) => {
+        const k = BigInt(k_in);
+        const b = BigInt(b_in);
+        
+        // 1. Definition: k defines P2, b defines P1
+        const P2 = P2_from_k(k); 
+        const P1 = P2 - (b * 2n);
+
+        if (P1 <= 0n) return null; 
+
+        // 2. Calculate Compression Indices
+        const a = (P2 + P1) / 2n;
+        
+        // 3. Gnomon Index = 2a - 1
+        const gnomon = (a * 2n) - 1n;
+        const val = P2 * P1;
+
+        return {
+            k: k_in, b: b_in,
+            a: a.toString(),
+            b: b.toString(),
+            g: gnomon.toString(),
+            val: val.toString(),
+            isSq: (b === 0n),
+            isWall: (val % 3n === 0n)
+        };
+    };
+
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.k, it.b)).filter(x => x);
+        self.postMessage({ type: 'batch', payload: res });
+    } else if (msg.cmd === 'cell') {
+        const res = process(msg.k, msg.b);
+        self.postMessage({ type: 'cell', payload: res });
+    }
+});
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+
+worker.onmessage = (ev) => {
+    const msg = ev.data;
+    if (msg.type === 'batch') {
+        msg.payload.forEach(p => cellCache.set(`${p.k}|${p.b}`, p));
+        draw();
+    } else if (msg.type === 'cell' && msg.payload) {
+        const p = msg.payload;
+        cellCache.set(`${p.k}|${p.b}`, p);
+        if(selected.k === p.k && selected.b === p.b) updateDecoder(p);
+        draw();
+    }
+};
+
+// --- DRAWING ENGINE (Sticky Header Simulation) ---
+function draw() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    
+    // Background
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, w, h);
+
+    // Grid Dimensions (excluding headers)
+    const gridW = w - HEADER_SIZE;
+    const gridH = h - HEADER_SIZE;
+    const cols = Math.ceil(gridW / CELL_W) + 1;
+    const rows = Math.ceil(gridH / CELL_H) + 1;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 1. Draw MAIN GRID Cells
+    // We offset drawing by HEADER_SIZE
+    ctx.save();
+    ctx.translate(HEADER_SIZE, HEADER_SIZE);
+    
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const k = view.topK + r;
+            const b = view.leftB + c;
+            
+            if (k < 0 || b < 0) continue; 
+
+            const x = c * CELL_W;
+            const y = r * CELL_H;
+            const key = `${k}|${b}`;
+            const cell = cellCache.get(key);
+
+            let bg = '#111827';
+            let txtColor = '#e2e8f0';
+
+            if (cell) {
+                if (cell.isSq) { 
+                    bg = 'rgba(59, 130, 246, 0.15)'; 
+                    txtColor = '#fff'; 
+                } else if (cell.isWall) {
+                    bg = '#1a1005';
+                    txtColor = '#92400e';
+                }
+            }
+
+            // Selection
+            if (k === selected.k && b === selected.b) {
+                bg = '#fff';
+                txtColor = '#000';
+            }
+
+            // Cell Body
+            ctx.fillStyle = bg;
+            ctx.fillRect(x, y, CELL_W - 1, CELL_H - 1); // -1 for gap
+            
+            // Selection Border
+            if (k === selected.k && b === selected.b) {
+                ctx.strokeStyle = '#22d3ee';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x, y, CELL_W - 1, CELL_H - 1);
+            }
+
+            // Text: Compression Index (a - b)
+            if (cell) {
+                ctx.font = 'bold 13px monospace';
+                ctx.fillStyle = txtColor;
+                ctx.fillText(`${cell.a}-${cell.b}`, x + CELL_W/2, y + CELL_H/2);
+            } else {
+                ctx.font = '10px monospace';
+                ctx.fillStyle = '#334155';
+                ctx.fillText('...', x + CELL_W/2, y + CELL_H/2);
+            }
+        }
+    }
+    ctx.restore();
+
+    // 2. Draw STICKY HEADERS
+    // Top Row (Gap Index b)
+    ctx.save();
+    ctx.translate(HEADER_SIZE, 0);
+    for (let c = 0; c < cols; c++) {
+        const b = view.leftB + c;
+        const x = c * CELL_W;
+        
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(x, 0, CELL_W - 1, HEADER_SIZE - 2);
+        
+        // Bottom border for header
+        ctx.fillStyle = '#22d3ee'; 
+        ctx.fillRect(x, HEADER_SIZE - 2, CELL_W - 1, 2);
+
+        ctx.font = 'bold 12px monospace';
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillText(b, x + CELL_W/2, HEADER_SIZE/2);
+    }
+    ctx.restore();
+
+    // Left Column (Row Index k)
+    ctx.save();
+    ctx.translate(0, HEADER_SIZE);
+    for (let r = 0; r < rows; r++) {
+        const k = view.topK + r;
+        const y = r * CELL_H;
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, y, HEADER_SIZE - 1, CELL_H - 1);
+
+        // Right border for header
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillRect(HEADER_SIZE - 2, y, 2, CELL_H - 1);
+
+        ctx.font = 'bold 11px monospace';
+        ctx.fillStyle = '#34d399'; // Green for K
+        ctx.fillText(k, HEADER_SIZE/2, y + CELL_H/2);
+    }
+    ctx.restore();
+
+    // Corner Block
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, HEADER_SIZE, HEADER_SIZE);
+    ctx.strokeStyle = '#22d3ee';
+    ctx.strokeRect(0, 0, HEADER_SIZE, HEADER_SIZE);
+    ctx.font = 'bold 10px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('k \\ b', HEADER_SIZE/2, HEADER_SIZE/2);
+}
+
+// --- LOGIC & INTERACTION ---
+function requestBatch() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    const gridW = w - HEADER_SIZE;
+    const gridH = h - HEADER_SIZE;
+    
+    const cols = Math.ceil(gridW / CELL_W) + 2;
+    const rows = Math.ceil(gridH / CELL_H) + 2;
+    const items = [];
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const k = view.topK + r;
+            const b = view.leftB + c;
+            const key = `${k}|${b}`;
+            if (!cellCache.has(key)) items.push({k, b});
+        }
+    }
+    if (items.length) worker.postMessage({cmd: 'batch', items});
+}
+
+function updateDecoder(p) {
+    if(!p) return;
+    document.getElementById('dispComp').innerText = `${p.a} - ${p.b}`;
+    document.getElementById('dispVal').innerText = p.val;
+    document.getElementById('dispK').innerText = p.k;
+    document.getElementById('dispG').innerText = p.g;
+    document.getElementById('dispA').innerText = p.a;
+    document.getElementById('dispB').innerText = p.b;
+}
+
+function select(k, b) {
+    selected = { k, b };
+    const key = `${k}|${b}`;
+    const p = cellCache.get(key);
+    if(p) updateDecoder(p);
+    else worker.postMessage({cmd: 'cell', k, b});
+    draw();
+}
+
+let isDragging = false;
+let lastX = 0, lastY = 0;
+
+wrap.addEventListener('pointerdown', e => {
+    isDragging = true; lastX = e.clientX; lastY = e.clientY;
+    wrap.setPointerCapture(e.pointerId);
+});
+
+wrap.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        const dCols = Math.round(dx / CELL_W);
+        const dRows = Math.round(dy / CELL_H);
+        if (dCols !== 0 || dRows !== 0) {
+            view.leftB -= dCols;
+            view.topK -= dRows;
+            if(view.leftB < 0) view.leftB = 0;
+            if(view.topK < 0) view.topK = 0;
+            lastX = e.clientX; lastY = e.clientY;
+            requestBatch(); draw();
+        }
+    }
+});
+
+wrap.addEventListener('pointerup', e => {
+    isDragging = false;
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * DPR;
+    const cy = (e.clientY - rect.top) * DPR;
+    
+    // Check if clicked in grid area (not headers)
+    if (cx > HEADER_SIZE && cy > HEADER_SIZE) {
+        const c = Math.floor((cx - HEADER_SIZE) / CELL_W);
+        const r = Math.floor((cy - HEADER_SIZE) / CELL_H);
+        // Only select if small movement (click)
+        const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
+        if(dist < 10) select(view.topK + r, view.leftB + c);
+    }
+});
+
+// Jump Controls
+btnGo.addEventListener('click', () => {
+    const k = parseInt(inpK.value) || 0;
+    view.topK = k; view.leftB = 0;
+    cellCache.clear(); requestBatch(); select(k, 0);
+});
+
+function resize() {
+    DPR = window.devicePixelRatio || 1;
+    canvas.width = wrap.clientWidth * DPR;
+    canvas.height = wrap.clientHeight * DPR;
+    requestBatch(); draw();
+}
+window.addEventListener('resize', resize);
+
+// Init
+resize();
+select(0, 0);
+
+</script>
+</body>
+</html>

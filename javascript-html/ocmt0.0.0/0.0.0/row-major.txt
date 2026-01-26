@@ -1,0 +1,72 @@
+// Row-Major Unpacker for the Odd Multiplication Table
+// This enumerates the lower triangle row-by-row (full rows at a time)
+// Row m (starting from m=1) has m entries
+// Larger factor (on spine): P2 = 2*m + 1 (3,5,7,9,...)
+// Smaller factor decreases: P2, P2-2, P2-4, ..., down to P2 - 2*(m-1)
+
+// Pure position L (1-based) → full geometry
+function unpackRowMajor(L) {
+    if (L < 1n) throw new Error("L must be >= 1");
+
+    // Find the row m where the cumulative entries first exceed or equal L
+    // Cumulative up to row (m-1) = triangular(m-1) = (m-1)*m/2
+    // Solve quadratic: m(m-1)/2 < L <= m(m+1)/2
+    // m ≈ (1 + sqrt(1 + 8L))/2
+    let m = Math.ceil((1 + Math.sqrt(1 + 8 * Number(L))) / 2);
+    let mBig = BigInt(m);
+
+    // Refine exactly (in case of floating-point drift for huge L)
+    while (mBig * (mBig - 1n) / 2n >= L) mBig--;
+    while (mBig * (mBig + 1n) / 2n < L) mBig++;
+
+    const row = mBig;
+    const cumPrev = (row * (row - 1n)) / 2n;        // entries before this row
+    const posInRow = L - cumPrev;                  // 1-based position in row
+
+    const P2 = row * 2n + 1n;                       // larger factor (spine)
+    const offset = (posInRow - 1n) * 2n;
+    const P1 = P2 - offset;                        // smaller factor
+
+    if (P1 <= 0n) {
+        return { L, row, posInRow, P2, P1, note: "P1 <= 0 (invalid semiprime)" };
+    }
+
+    const N = P2 * P1;
+    const a = (P2 + P1) / 2n;
+    const b = (P2 - P1) / 2n;
+
+    return {
+        L: L.toString(),
+        row: row.toString(),
+        posInRow: posInRow.toString(),
+        P2: P2.toString(),
+        P1: P1.toString(),
+        N: N.toString(),
+        a: a.toString(),
+        b: b.toString(),
+        "a.b": `\( {a.toString()}. \){b.toString()}`
+    };
+}
+
+// Example usage and test against your list
+function test() {
+    const tests = [
+        1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n,
+        11n, 15n, 28n, 36n, 45n, 50n
+    ];
+
+    console.log("L → Geometry (Row-Major)");
+    console.log("L   row  pos  P2 × P1 = N       a.b");
+    console.log("----------------------------------------");
+
+    for (let L of tests) {
+        const r = unpackRowMajor(L);
+        console.log(
+            `\( {L.toString().padStart(2)} \){r.row.padStart(2)}  ${r.posInRow.padStart(2)}   ` +
+            `\( {r.P2} × \){r.P1.padStart(2)} = \( {r.N.padStart(6)} \){r["a.b"]}`
+        );
+    }
+}
+
+// Run test
+test();

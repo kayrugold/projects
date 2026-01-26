@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stride Hunter v1.1 (Unlocked)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #050505; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; }
+    .card { background: #111; border: 1px solid #333; border-radius: 12px; padding: 20px; max-width: 600px; margin: 0 auto; }
+    label { display: block; font-size: 0.7rem; color: #888; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; }
+    input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; font-weight: bold; font-family: monospace; text-align: center; margin-bottom: 10px; }
+    input:focus { outline: none; border-color: #7c3aed; }
+    
+    .btn { width: 100%; padding: 15px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 5px; transition: all 0.2s; }
+    .btn-run { background: #7c3aed; color: #fff; box-shadow: 0 0 15px #7c3aed44; }
+    .btn-run:hover { background: #6d28d9; }
+    .btn-stop { background: #ef4444; color: #fff; display: none; }
+    
+    .status-panel { margin-top: 20px; border: 1px solid #333; background: #0a0a0a; padding: 15px; border-radius: 8px; min-height: 150px; }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; border-bottom: 1px solid #222; padding-bottom: 5px; }
+    .stat-val { font-weight: bold; color: #a78bfa; }
+    
+    .log-box { height: 200px; overflow-y: auto; font-size: 0.75rem; color: #666; margin-top: 10px; font-family: monospace; border-top: 1px dashed #333; padding-top: 10px; }
+    .hit { color: #ef4444; font-weight: bold; }
+    .safe { color: #22c55e; }
+    
+    .progress-bar { height: 4px; background: #222; width: 100%; margin-top: 10px; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #7c3aed; width: 0%; transition: width 0.2s; }
+    
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-black text-center text-purple-500 mb-1">STRIDE HUNTER v1.1</h1>
+    <p class="text-center text-xs text-gray-500 mb-6">Unlocked Scanner</p>
+
+    <div class="grid-2">
+        <div><label>BASE</label><input id="inpBase" value="10"></div>
+        <div><label>ADD (Offset)</label><input id="inpAdd" value="61"></div>
+    </div>
+    
+    <label>EXPONENT (Index Size)</label>
+    <input id="inpExp" value="1000000000">
+
+    <label>MAX SEARCH LIMIT (Primes up to...)</label>
+    <input id="inpLimit" value="10000000" style="color:#fbbf24; border-color:#fbbf24;">
+
+    <button id="btnStart" class="btn btn-run" onclick="startScan()">DEPLOY WALKERS</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopScan()">ABORT</button>
+
+    <div class="status-panel">
+        <div class="stat-row"><span>Target Index:</span><span id="sSize" class="stat-val">--</span></div>
+        <div class="stat-row"><span>Walkers Checked:</span><span id="sWalkers" class="stat-val">0</span></div>
+        <div class="stat-row"><span>Current Family:</span><span id="sPrime" class="stat-val">--</span></div>
+        <div class="stat-row"><span>Status:</span><span id="sStatus" class="stat-val text-gray-500">IDLE</span></div>
+        
+        <div class="progress-bar"><div id="pBar" class="progress-fill"></div></div>
+        <div id="logBox" class="log-box">System Ready.<br>Enter Search Limit above.</div>
+    </div>
+</div>
+
+<script>
+let isRunning = false;
+
+// --- WORKER BLOB ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { baseStr, expStr, addStr, limitStr } = e.data;
+    
+    try {
+        const base = BigInt(baseStr);
+        const exp = BigInt(expStr);
+        const add = BigInt(addStr);
+        const limit = parseInt(limitStr);
+        
+        // SIEVE GENERATION
+        const sieve = new Uint8Array(limit + 1);
+        sieve[0] = 1; sieve[1] = 1; 
+        const sqrtLim = Math.floor(Math.sqrt(limit));
+        for(let i=2; i<=sqrtLim; i++) {
+            if(sieve[i] === 0) {
+                for(let j=i*i; j<=limit; j+=i) sieve[j] = 1;
+            }
+        }
+        
+        let walkerCount = 0;
+        const CHUNK_SIZE = 10000;
+        
+        function powMod(b, e, m) {
+            let res = 1n;
+            b = b % m;
+            while (e > 0n) {
+                if (e % 2n === 1n) res = (res * b) % m;
+                b = (b * b) % m;
+                e /= 2n;
+            }
+            return res;
+        }
+
+        // SCAN LOOP
+        for(let p=3; p<=limit; p+=2) { 
+            if(sieve[p] === 0) {
+                const P = BigInt(p);
+                walkerCount++;
+                
+                // 1. Walker Start Stride: (P+1)/2
+                const startMod = (P + 1n) / 2n;
+                
+                // 2. Target Index % P
+                const baseMod = powMod(base, exp, P);
+                const numMod = (baseMod + (add % P)) % P;
+                const inv2 = (P + 1n) / 2n;
+                const targetMod = ( (numMod + 1n) * inv2 ) % P;
+                
+                // 3. Collision Check
+                if (targetMod === startMod) {
+                    postMessage({ type: 'hit', p: p, idx: walkerCount });
+                    return; 
+                }
+                
+                if(walkerCount % CHUNK_SIZE === 0) {
+                    postMessage({ type: 'progress', count: walkerCount, curr: p });
+                }
+            }
+        }
+        
+        postMessage({ type: 'done', count: walkerCount, limit: limit });
+        
+    } catch(err) {
+        postMessage({ type: 'error', msg: err.message });
+    }
+};
+`;
+
+let worker = null;
+
+function log(msg, type='') {
+    const box = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.textContent = `> ${msg}`;
+    if(type === 'hit') div.className = 'hit';
+    if(type === 'safe') div.className = 'safe';
+    box.prepend(div);
+}
+
+function startScan() {
+    if(isRunning) return;
+    isRunning = true;
+    
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'block';
+    document.getElementById('logBox').innerHTML = '';
+    document.getElementById('pBar').style.width = '0%';
+    
+    const base = document.getElementById('inpBase').value;
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    const limit = document.getElementById('inpLimit').value; // User Defined Limit
+    
+    document.getElementById('sSize').textContent = `${exp} Digits`;
+    document.getElementById('sStatus').textContent = "INITIALIZING...";
+    document.getElementById('sStatus').style.color = "#a78bfa";
+    
+    log(`Allocating Sieve for ${parseInt(limit).toLocaleString()} integers...`);
+    
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    worker.postMessage({ baseStr: base, expStr: exp, addStr: add, limitStr: limit });
+    
+    worker.onmessage = function(e) {
+        const d = e.data;
+        if(d.type === 'progress') {
+            document.getElementById('sStatus').textContent = "SCANNING...";
+            document.getElementById('sWalkers').textContent = d.count.toLocaleString();
+            document.getElementById('sPrime').textContent = d.curr.toLocaleString();
+            const pct = (d.curr / parseInt(limit)) * 100;
+            document.getElementById('pBar').style.width = pct + '%';
+        }
+        else if(d.type === 'hit') {
+            document.getElementById('sStatus').textContent = "SNIPED!";
+            document.getElementById('sStatus').style.color = "#ef4444";
+            document.getElementById('sPrime').textContent = d.p;
+            log(`FATAL HIT by Prime: ${d.p}`, 'hit');
+            log(`Number is divisible by ${d.p}.`);
+            stopScan();
+        }
+        else if(d.type === 'done') {
+            document.getElementById('sStatus').textContent = "SURVIVED";
+            document.getElementById('sStatus').style.color = "#22c55e";
+            document.getElementById('pBar').style.width = '100%';
+            log(`Success! No factors found up to ${parseInt(limit).toLocaleString()}.`, 'safe');
+            log(`The Candidate Gap is solid so far.`);
+            stopScan();
+        }
+        else if(d.type === 'error') {
+            log("Error: " + d.msg);
+            stopScan();
+        }
+    };
+}
+
+function stopScan() {
+    if(worker) worker.terminate();
+    worker = null;
+    isRunning = false;
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+}
+</script>
+</body>
+</html>

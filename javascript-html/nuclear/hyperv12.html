@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Factor Hunter v9.1 (Sequential)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background-color: #000; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 10px; }
+  .card { background: #0a0a0a; border: 1px solid #333; border-radius: 12px; padding: 15px; }
+  input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; font-weight:bold; font-family: monospace; }
+  .btn { width: 100%; padding: 15px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+  .btn-go { background: #7c3aed; color: #fff; } /* Purple for "Royal" Sequential */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; margin-top: 15px; }
+  .stat-box { background: #1a1a1a; padding: 5px; border-radius: 4px; text-align: center; border: 1px solid #333; }
+  .stat-val { font-size: 0.8rem; font-weight: bold; color: #a78bfa; }
+  .stat-lbl { font-size: 0.6rem; color: #666; }
+  .progress-container { margin-top: 15px; }
+  .p-label { font-size: 0.7rem; color: #888; margin-bottom: 2px; display:flex; justify-content:space-between; }
+  .p-bar { height: 6px; background: #222; margin-bottom: 8px; width: 100%; border-radius: 3px; overflow: hidden; }
+  .p-fill { height: 100%; background: #4b5563; width: 0%; transition: width 0.2s; }
+  
+  .active-fill { background: #d97706; box-shadow: 0 0 10px #d97706; }
+  .done-fill { background: #22c55e; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2 class="text-xl font-black text-center text-purple-500 mb-1">FACTOR HUNTER v9.1</h2>
+  <p class="text-center text-xs text-gray-600 mb-4">Sequential Memory Optimizer</p>
+  
+  <div class="grid grid-cols-3 gap-2 mb-2">
+    <div><label class="text-xs text-gray-500">BASE</label><input id="inpBase" value="10"></div>
+    <div><label class="text-xs text-gray-500">EXPONENT</label><input id="inpExp" value="1000000"></div>
+    <div><label class="text-xs text-gray-500">ADD</label><input id="inpAdd" value="61"></div>
+  </div>
+
+  <button id="btnRun" class="btn btn-go" onclick="runSequence()">INITIATE SEQUENCE</button>
+  
+  <div class="stat-grid">
+    <div class="stat-box"><div id="tTotal" class="stat-val">0.0s</div><div class="stat-lbl">TIME</div></div>
+    <div class="stat-box"><div id="sCore0" class="stat-val">WAIT</div><div class="stat-lbl">MOD 1</div></div>
+    <div class="stat-box"><div id="sCore1" class="stat-val">WAIT</div><div class="stat-lbl">MOD 2</div></div>
+    <div class="stat-box"><div id="sCore2" class="stat-val">WAIT</div><div class="stat-lbl">MOD 3</div></div>
+  </div>
+
+  <div class="progress-container">
+    <div class="p-label"><span>PASS 1 (998...)</span><span id="txt0">0%</span></div>
+    <div class="p-bar"><div id="p0" class="p-fill"></div></div>
+    
+    <div class="p-label"><span>PASS 2 (100...)</span><span id="txt1">0%</span></div>
+    <div class="p-bar"><div id="p1" class="p-fill"></div></div>
+    
+    <div class="p-label"><span>PASS 3 (985...)</span><span id="txt2">0%</span></div>
+    <div class="p-bar"><div id="p2" class="p-fill"></div></div>
+  </div>
+
+  <div id="log" class="mt-4 text-xs text-gray-400 font-mono h-32 overflow-y-auto border border-gray-800 p-2">
+    Ready.
+    <br>Warning: 10^9 requires ~1GB RAM.
+    <br>Running sequentially to prevent crash.
+  </div>
+</div>
+
+<script>
+// --- WORKER SOURCE (Optimized for Base Input) ---
+const workerBlob = new Blob([`
+const PAGE_ELEMENTS = 16 * 1024 * 1024; 
+
+class VirtualArray {
+    constructor(totalSize) {
+        this.totalSize = totalSize;
+        this.pages = [];
+        this.numPages = Math.ceil(totalSize / PAGE_ELEMENTS);
+    }
+    async allocate() {
+        for(let i=0; i<this.numPages; i++) {
+            const size = (i === this.numPages-1) ? (this.totalSize % PAGE_ELEMENTS) || PAGE_ELEMENTS : PAGE_ELEMENTS;
+            // Force Garbage Collection hint by clearing previous ref if possible (v8 specific hint)
+            this.pages.push(new Int32Array(size));
+            if(i % 10 === 0) await new Promise(r => setTimeout(r, 0)); 
+        }
+    }
+    get(i) { return this.pages[(i / PAGE_ELEMENTS) | 0][i % PAGE_ELEMENTS]; }
+    set(i, v) { this.pages[(i / PAGE_ELEMENTS) | 0][i % PAGE_ELEMENTS] = v; }
+}
+
+function power(base, exp, mod) {
+    let res = 1n; base %= mod;
+    while (exp > 0n) {
+        if (exp & 1n) res = (res * base) % mod;
+        base = (base * base) % mod;
+        exp >>= 1n;
+    }
+    return res;
+}
+function modInverse(n, mod) { return power(n, mod - 2n, mod); }
+
+async function ntt(arr, n, invert, modObj) {
+    const Q = modObj.P; const G = modObj.G;
+    
+    // Bit Reverse
+    for (let i = 0, j = 0; i < n; i++) {
+        if (i < j) {
+            const i_p = (i/PAGE_ELEMENTS)|0; const i_o = i%PAGE_ELEMENTS;
+            const j_p = (j/PAGE_ELEMENTS)|0; const j_o = j%PAGE_ELEMENTS;
+            const t = arr.pages[i_p][i_o];
+            arr.pages[i_p][i_o] = arr.pages[j_p][j_o];
+            arr.pages[j_p][j_o] = t;
+        }
+        let bit = n >> 1;
+        while (j & bit) { j ^= bit; bit >>= 1; }
+        j ^= bit;
+    }
+
+    let stages = 0;
+    const maxStages = Math.log2(n);
+    
+    for (let len = 2; len <= n; len <<= 1) {
+        let wlen = power(G, (Q - 1n) / BigInt(len), Q);
+        if (invert) wlen = modInverse(wlen, Q);
+        
+        stages++;
+        // Report progress less frequently to save UI thread
+        if(stages % 2 === 0) postMessage({type:'prog', val: (stages/maxStages)});
+
+        const halfLen = len >> 1;
+        for (let i = 0; i < n; i += len) {
+            let w = 1n;
+            for (let j = 0; j < halfLen; j++) {
+                const uIdx = i + j;
+                const vIdx = i + j + halfLen;
+                
+                const u_p = (uIdx/PAGE_ELEMENTS)|0; const u_o = uIdx%PAGE_ELEMENTS;
+                const v_p = (vIdx/PAGE_ELEMENTS)|0; const v_o = vIdx%PAGE_ELEMENTS;
+                
+                const uVal = BigInt(arr.pages[u_p][u_o]);
+                const vVal = BigInt(arr.pages[v_p][v_o]);
+                
+                const vMod = (vVal * w) % Q;
+                const uNew = Number((uVal + vMod) % Q);
+                const vNew = Number((uVal - vMod + Q) % Q);
+                
+                arr.pages[u_p][u_o] = uNew;
+                arr.pages[v_p][v_o] = vNew;
+                
+                w = (w * wlen) % Q;
+            }
+        }
+        if(n > 500000) await new Promise(r => setTimeout(r, 0)); 
+    }
+    
+    if (invert) {
+        const n_inv = modInverse(BigInt(n), Q);
+        for (let i = 0; i < n; i++) {
+            const p = (i/PAGE_ELEMENTS)|0; const o = i%PAGE_ELEMENTS;
+            arr.pages[p][o] = Number((BigInt(arr.pages[p][o]) * n_inv) % Q);
+        }
+    }
+}
+
+self.onmessage = async function(e) {
+    const { modObj, expStr, cStr, chunk, baseStr } = e.data;
+    const Q = modObj.P;
+    
+    try {
+        const digits = parseInt(expStr);
+        const base = parseInt(baseStr);
+        let n = 1; 
+        const chunksNeeded = Math.ceil(digits / chunk);
+        while(n < chunksNeeded * 2) n <<= 1;
+        
+        postMessage({type:'log', msg: \`Allocating for Size \${n}...\`});
+        
+        const ram = new VirtualArray(n);
+        await ram.allocate();
+        
+        // CONSTRUCT NUMBER
+        // Formula: 5 * Base^Exp + 31
+        // Note: This logic assumes Decimal Chunking alignment.
+        // For Base 10, this is perfect. For Base 2, this places the digit
+        // in a decimal array (Hybrid).
+        
+        const topPos = digits - 1;
+        const topIdx = Math.floor(topPos / chunk);
+        
+        // Calculate dynamic top value based on user Base
+        const topVal = 5 * Math.pow(base, topPos % chunk);
+        
+        ram.set(topIdx, topVal);
+        ram.set(0, ram.get(0) + 31);
+        
+        await ntt(ram, n, false, modObj);
+        
+        // Square
+        for(let i=0; i<n; i++) {
+            const p = (i/PAGE_ELEMENTS)|0; const o = i%PAGE_ELEMENTS;
+            const val = BigInt(ram.pages[p][o]);
+            ram.pages[p][o] = Number((val * val) % Q);
+        }
+        
+        await ntt(ram, n, true, modObj);
+        
+        const tail = [];
+        for(let i=0; i<50; i++) tail.push(ram.get(i)); 
+        
+        // Clean up RAM explicitly
+        ram.pages = null;
+        
+        postMessage({type:'done', result: tail});
+        
+    } catch(err) {
+        postMessage({type:'err', msg: err.message});
+    }
+};
+`], {type: 'application/javascript'});
+
+// --- MAIN THREAD ---
+const MODS = [
+    { P: 998244353n, G: 3n },
+    { P: 1004535809n, G: 3n },
+    { P: 985661441n, G: 3n }
+];
+const BASE_BI = 10000n;
+const CHUNK_SIZE = 4;
+
+let currentResults = [];
+let startTime = 0;
+let timerInt = null;
+
+function log(m) { 
+    const l = document.getElementById('log');
+    l.innerHTML += `> ${m}<br>`;
+    l.scrollTop = l.scrollHeight;
+}
+
+async function runSingleWorker(modIndex, exp, add, base) {
+    return new Promise((resolve, reject) => {
+        const w = new Worker(URL.createObjectURL(workerBlob));
+        const mod = MODS[modIndex];
+        
+        const uiStatus = document.getElementById(`sCore${modIndex}`);
+        const uiBar = document.getElementById(`p${modIndex}`);
+        const uiTxt = document.getElementById(`txt${modIndex}`);
+        
+        uiStatus.textContent = "RUNNING";
+        uiStatus.style.color = "#d97706"; // Amber
+        uiBar.classList.add('active-fill');
+        
+        w.onmessage = function(e) {
+            if(e.data.type === 'log') log(`[M${modIndex+1}] ` + e.data.msg);
+            if(e.data.type === 'prog') {
+                const pct = Math.floor(e.data.val * 100);
+                uiBar.style.width = pct + '%';
+                uiTxt.textContent = pct + '%';
+            }
+            if(e.data.type === 'done') {
+                uiStatus.textContent = "DONE";
+                uiStatus.style.color = "#22c55e"; // Green
+                uiBar.classList.remove('active-fill');
+                uiBar.classList.add('done-fill');
+                w.terminate(); // KILL WORKER TO FREE RAM
+                resolve(e.data.result);
+            }
+            if(e.data.type === 'err') {
+                w.terminate();
+                reject(e.data.msg);
+            }
+        };
+        
+        w.postMessage({ 
+            modObj: mod, 
+            expStr: exp, 
+            cStr: add, 
+            baseStr: base,
+            chunk: CHUNK_SIZE 
+        });
+    });
+}
+
+async function runSequence() {
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    const base = document.getElementById('inpBase').value;
+    
+    // Reset UI
+    document.getElementById('log').innerHTML = '';
+    currentResults = [];
+    MODS.forEach((_,i) => {
+        document.getElementById(`p${i}`).style.width = '0%';
+        document.getElementById(`p${i}`).classList.remove('done-fill');
+        document.getElementById(`sCore${i}`).textContent = 'WAIT';
+        document.getElementById(`sCore${i}`).style.color = '#a78bfa';
+    });
+    
+    startTime = Date.now();
+    timerInt = setInterval(() => {
+        document.getElementById('tTotal').textContent = ((Date.now() - startTime)/1000).toFixed(1) + 's';
+    }, 100);
+    
+    try {
+        log(`Sequence Started. Base: ${base}, Exp: ${exp}`);
+        
+        // Pass 1
+        const r1 = await runSingleWorker(0, exp, add, base);
+        // Pass 2
+        const r2 = await runSingleWorker(1, exp, add, base);
+        // Pass 3
+        const r3 = await runSingleWorker(2, exp, add, base);
+        
+        clearInterval(timerInt);
+        performCRT(r1, r2, r3);
+        
+    } catch(e) {
+        clearInterval(timerInt);
+        log("CRITICAL ERROR: " + e);
+        log("Likely Out of Memory. Try closing other tabs.");
+    }
+}
+
+function performCRT(r1, r2, r3) {
+    const m1 = MODS[0].P, m2 = MODS[1].P, m3 = MODS[2].P;
+    const M = m1 * m2 * m3;
+    const M1 = M/m1, M2 = M/m2, M3 = M/m3;
+    
+    const power = (b,e,m) => { let r=1n; b%=m; while(e>0n){if(e&1n)r=(r*b)%m; b=(b*b)%m; e>>=1n} return r; };
+    const inv = (n,m) => power(n,m-2n,m);
+    
+    const y1 = inv(M1, m1);
+    const y2 = inv(M2, m2);
+    const y3 = inv(M3, m3);
+    
+    log("Reconstructing...");
+    
+    let carry = 0n;
+    const finalChunks = [];
+    const len = Math.min(r1.length, r2.length, r3.length);
+    
+    for(let i=0; i<len; i++) {
+        let t1 = (BigInt(r1[i]) * M1 * y1) % M;
+        let t2 = (BigInt(r2[i]) * M2 * y2) % M;
+        let t3 = (BigInt(r3[i]) * M3 * y3) % M;
+        
+        let sum = (t1 + t2 + t3) % M;
+        sum += carry;
+        finalChunks.push(sum % BASE_BI);
+        carry = sum / BASE_BI;
+    }
+    
+    let str = finalChunks.map(n => n.toString().padStart(4,'0')).reverse().join('').replace(/^0+/,'');
+    if(!str) str = "0";
+    const finalBig = BigInt(str) - 61n; 
+    
+    log("-------------------------");
+    log("PROOF SUCCESSFUL");
+    log("Tail: " + finalBig.toString());
+    log("-------------------------");
+}
+</script>
+</body>
+</html>

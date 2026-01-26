@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Wall Radar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #000; color: #eee; font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    
+    .radar-box { width: 100%; max-width: 600px; background: #111; border: 1px solid #333; padding: 20px; border-radius: 8px; box-shadow: 0 0 40px rgba(0,0,0,0.5); }
+    
+    .display-screen { 
+        background: #050505; border: 2px solid #222; padding: 20px; 
+        margin-top: 20px; min-height: 200px; position: relative;
+        display: flex; flex-direction: column; gap: 15px;
+    }
+
+    /* THE WALL VISUAL */
+    .wall-readout { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #333; padding-bottom: 15px; }
+    .wall-val { font-size: 1.5rem; color: #3b82f6; font-weight: bold; }
+    .gap-val { font-size: 1.5rem; color: #fff; font-weight: bold; }
+    .label { font-size: 0.6rem; color: #666; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; }
+
+    /* THE RADAR LIST */
+    .radar-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+    
+    .radar-item { 
+        display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center;
+        background: #0a0a0a; border: 1px solid #222; padding: 10px; border-radius: 4px;
+        opacity: 0.5; transition: all 0.2s;
+    }
+    .radar-item.hit { opacity: 1; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+    
+    .ruler-id { color: #888; font-weight: bold; }
+    .phase-bar { height: 6px; background: #222; border-radius: 3px; overflow: hidden; position: relative; margin: 0 10px; }
+    .phase-fill { height: 100%; background: #333; width: 0%; transition: width 0.5s; }
+    .phase-fill.snap { background: #ef4444; }
+    .phase-text { font-size: 0.7rem; color: #555; text-align: right; }
+
+    .input-group { display: flex; gap: 10px; }
+    input { background: #000; border: 1px solid #444; color: #fff; padding: 15px; flex: 1; font-size: 1.2rem; text-align: center; font-family: monospace; font-weight: bold; outline: none; }
+    button { background: #3b82f6; color: #fff; border: none; padding: 0 25px; font-weight: bold; cursor: pointer; }
+    
+</style>
+</head>
+<body>
+
+<div class="radar-box">
+    <div style="color:#444; font-size:0.8rem; margin-bottom:10px; text-align:center;">WALL ALIGNMENT RADAR</div>
+    
+    <div class="input-group">
+        <input type="number" id="inpNum" value="1007" placeholder="Enter Target">
+        <button onclick="pingRadar()">PING</button>
+    </div>
+
+    <div class="display-screen" id="screen" style="opacity:0.3">
+        
+        <div class="wall-readout">
+            <div>
+                <span class="label">Left Wall (Anchor)</span>
+                <span class="wall-val" id="wallVal">--</span>
+            </div>
+            <div style="text-align:right">
+                <span class="label">Gap Distance</span>
+                <span class="gap-val" id="gapDisplay">--</span>
+            </div>
+        </div>
+
+        <div>
+            <span class="label">Ruler Alignment Check</span>
+            <div class="radar-list" id="radarList">
+                <div style="text-align:center; padding:20px; color:#333;">Enter number to scan phase alignment</div>
+            </div>
+        </div>
+        
+        <div id="status" style="font-size:0.8rem; color:#ef4444; font-weight:bold; text-align:center; display:none;">TARGET LOCKED</div>
+
+    </div>
+</div>
+
+<script>
+function pingRadar() {
+    const raw = document.getElementById('inpNum').value;
+    if(!raw) return;
+    const target = BigInt(raw);
+    
+    // 1. Calculate Wall & Gap
+    const rem3 = target % 3n;
+    if(rem3 === 0n) {
+        alert("This is a Wall (Divisible by 3). Pick a gap number.");
+        return;
+    }
+    
+    const wall = target - rem3; // The anchor
+    const gap = Number(rem3);   // 1 or 2
+
+    // UI Setup
+    document.getElementById('screen').style.opacity = 1;
+    document.getElementById('wallVal').innerText = wall.toString();
+    document.getElementById('gapDisplay').innerText = `+${gap}`;
+    document.getElementById('gapDisplay').style.color = gap===1 ? '#fbbf24' : '#ef4444'; // Yellow for 1, Red for 2
+    
+    const list = document.getElementById('radarList');
+    list.innerHTML = '';
+    
+    // 2. The Radar Logic (Check Rulers)
+    // We only check up to sqrt(target) or a reasonable UI limit
+    // For visualization, we check the first 20 primes, then jump
+    
+    const primes = [5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79];
+    let matched = false;
+
+    primes.forEach(p => {
+        const pBI = BigInt(p);
+        
+        // --- THE ALGORITHM ---
+        // 1. Where is the ruler at the wall?
+        const wallPhase = Number(wall % pBI); 
+        
+        // 2. How much left to snap?
+        const needed = p - wallPhase;
+        
+        // 3. Does it match the gap?
+        const isSnap = (needed === gap);
+        
+        // Render
+        const item = document.createElement('div');
+        item.className = `radar-item ${isSnap ? 'hit' : ''}`;
+        
+        const pct = (wallPhase / p) * 100;
+        
+        item.innerHTML = `
+            <div class="ruler-id">R${p}</div>
+            <div>
+                <div class="phase-bar">
+                    <div class="phase-fill ${isSnap ? 'snap' : ''}" style="width:${pct}%"></div>
+                </div>
+            </div>
+            <div class="phase-text">
+                Need <b style="color:${isSnap ? '#ef4444' : '#666'}">${needed}</b>
+            </div>
+        `;
+        
+        list.appendChild(item);
+        
+        if(isSnap) {
+            matched = true;
+            // Scroll to hit
+            setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+        }
+    });
+    
+    const status = document.getElementById('status');
+    if(matched) {
+        status.style.display = 'block';
+        status.innerText = "ALIGNMENT DETECTED";
+        status.style.color = "#ef4444";
+    } else {
+        status.style.display = 'block';
+        status.innerText = "NO LOCAL ALIGNMENT (PRIME?)";
+        status.style.color = "#00cc66";
+    }
+}
+</script>
+</body>
+</html>

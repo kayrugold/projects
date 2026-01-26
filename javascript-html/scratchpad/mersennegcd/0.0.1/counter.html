@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsiveness Test</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Minimal Styling */
+        #progressBarContainer {
+            height: 1.5rem;
+            border-radius: 0.5rem;
+            background-color: #e5e7eb;
+        }
+        #progressBar {
+            transition: width 0.3s ease-in-out;
+            height: 100%;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans antialiased">
+
+    <div class="max-w-4xl mx-auto bg-white shadow-2xl rounded-xl p-6 md:p-10">
+        <h1 class="3xl sm:text-4xl font-extrabold text-indigo-700 mb-2 border-b-2 pb-2 border-indigo-100">
+            Responsiveness Test (Counting)
+        </h1>
+        <p class="text-gray-600 mb-6">
+            Testing if the environment allows cooperative multitasking.
+        </p>
+
+        <!-- Control Panel -->
+        <div class="mb-6 p-4 bg-indigo-50 rounded-lg shadow-inner">
+            <!-- CRITICAL CHANGE: The JS call is still needed here for simplicity -->
+            <button id="startButton" onclick="startCount()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-lg transition duration-150 shadow-md">
+                Start Test
+            </button>
+        </div>
+        
+        <!-- Status and Progress Bar -->
+        <div id="status" class="mb-3 p-3 font-semibold text-center rounded-lg transition duration-300 bg-gray-200 text-gray-800">
+            Click Start Test.
+        </div>
+        
+        <div id="progressBarContainer" class="mb-6 hidden" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            <div id="progressBar" class="bg-green-500 flex items-center justify-center text-xs font-medium text-white shadow-none" style="width: 0%">0%</div>
+        </div>
+    </div>
+
+    <!-- SCRIPT LOADING DEFERRED: Ensures functions are defined when needed -->
+    <script>
+        const startButton = document.getElementById('startButton');
+        const statusDiv = document.getElementById('status');
+        const progressBarContainer = document.getElementById('progressBarContainer');
+        const progressBar = document.getElementById('progressBar');
+        
+        let currentCount = 0;
+        const COUNT_MAX = 500000;
+        const CHUNK_SIZE = 10000;
+
+        function updateStatus(message, colorClass = 'bg-gray-200 text-gray-800') {
+            statusDiv.className = \`mb-3 p-3 font-semibold text-center rounded-lg transition duration-300 \${colorClass}\`;
+            statusDiv.textContent = message;
+        }
+        
+        function updateProgress(percent) {
+            progressBarContainer.classList.remove('hidden');
+            progressBar.style.width = percent.toFixed(1) + '%';
+            progressBar.setAttribute('aria-valuenow', percent.toFixed(1));
+            progressBar.textContent = `${percent.toFixed(1)}% (Count: ${currentCount})`;
+        }
+
+        function runCountChunk() {
+            try {
+                if (currentCount >= COUNT_MAX) {
+                    updateStatus('Test Complete! Cooperative loop successful.', 'bg-green-500 text-white');
+                    startButton.disabled = false;
+                    return;
+                }
+
+                // Run a simple loop chunk (no BigInt, no complex math)
+                let end = Math.min(COUNT_MAX, currentCount + CHUNK_SIZE);
+
+                // Perform trivial calculation that takes time
+                for (let i = currentCount; i < end; i++) {
+                    currentCount++;
+                }
+                
+                // --- UI Update ---
+                let percent = (currentCount / COUNT_MAX) * 100;
+                updateProgress(percent);
+                updateStatus('Running cooperative count...', 'bg-yellow-100 text-yellow-800');
+                
+                // Yield control to the UI thread
+                setTimeout(runCountChunk, 1); 
+                
+            } catch (error) {
+                updateStatus(`TEST LOOP CRASHED: ${error.message}.`, 'bg-red-500 text-white');
+                startButton.disabled = false;
+            }
+        }
+        
+        // This function must be defined globally for the onclick attribute to find it.
+        function startCount() {
+            try {
+                // --- CRITICAL IMMEDIATE FEEDBACK ---
+                startButton.disabled = true;
+                currentCount = 0;
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+                updateStatus('Starting test... Immediate status change.', 'bg-blue-200 text-blue-800');
+                
+                // 1. Force initial DOM redraw with a small delay
+                setTimeout(() => {
+                    // 2. Start the cooperative counting loop
+                    updateStatus('DOM refreshed. Starting counting...', 'bg-blue-300 text-blue-900');
+                    runCountChunk();
+                }, 50);
+
+            } catch (error) {
+                updateStatus(`CRITICAL STARTUP FAILURE: Check console.`, 'bg-red-800 text-white');
+                console.error("Synchronous Startup Crash:", error);
+                startButton.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
+
+

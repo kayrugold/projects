@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hybrid Factorizer (Raw Input & Debug Mode)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+/* Basic Mobile-First Styling */
+:root {
+  --bg-color: #f3f4f6;
+  --text-color: #1f2937;
+  --card-bg: #fff;
+  --input-border: #d1d5db;
+  --blue-primary: #3b82f6;
+  --green-start: #10b981;
+  --red-stop: #ef4444;
+  --purple-sqrt: #4f46e5;
+  --yellow-probe: #f59e0b;
+}
+body { 
+    font-family: 'Inter', system-ui, sans-serif; 
+    background: var(--bg-color); 
+    color: var(--text-color); 
+    display:flex; 
+    justify-content:center; 
+    align-items:flex-start;
+    min-height:100vh; 
+    padding: 1.5rem 1rem;
+}
+.card {
+    width: 100%;
+    max-width: 800px;
+    background: var(--card-bg);
+    box-shadow: 0 10px 25px rgba(0,0,0,.15);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    border-top: 8px solid var(--blue-primary);
+}
+.title {
+    font-size: 1.875rem;
+    font-weight: 800;
+    color: var(--blue-primary);
+    margin-bottom: 0.5rem;
+}
+.subtitle {
+    text-align: center;
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+}
+.input-group { display: flex; flex-direction: column; }
+.label { margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; color: #374151; }
+.input { 
+    padding: 0.75rem; 
+    border: 1px solid var(--input-border); 
+    border-radius: 0.5rem; 
+    font-size: 1rem; 
+    transition: border-color 0.2s;
+}
+.input:focus { outline: none; border-color: var(--blue-primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+.button { 
+    padding: 0.75rem 1.25rem; 
+    border: none; 
+    border-radius: 0.5rem; 
+    font-weight: 700; 
+    cursor: pointer; 
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.start-btn { background: var(--green-start); color: white; }
+.start-btn:hover:not(:disabled) { background: #059669; transform: translateY(-1px); }
+.stop-btn { background: var(--red-stop); color: white; }
+.stop-btn:hover:not(:disabled) { background: #dc2626; transform: translateY(-1px); }
+.disabled-btn { background: #9ca3af; color: #4b5563; cursor: not-allowed; box-shadow: none; }
+.log-output { 
+    height: 150px; 
+    overflow-y: auto; 
+    background: #1f2937; 
+    color: #4ade80; 
+    padding: 1rem; 
+    border-radius: 0.5rem; 
+    font-family: monospace; 
+    white-space: pre-wrap;
+    font-size: 0.85rem;
+}
+.progress-container { height: 1.5rem; background: #e5e7eb; border-radius: 9999px; overflow: hidden; margin-bottom: 0.5rem; }
+.progress-bar { height: 100%; text-align: center; color: white; font-weight: 600; transition: width 0.3s ease; display: flex; items-center justify-center; }
+.phase-indicator { font-size: 1.125rem; font-weight: 600; padding: 0.5rem; border-radius: 0.5rem; margin-top: 1rem; text-align: center; }
+.sqrt-phase { background: #e0f2fe; color: var(--purple-sqrt); }
+.probe-phase { background: #fef3c7; color: var(--yellow-probe); }
+.fermat-phase { background: #e0f2fe; color: var(--blue-primary); }
+.mode-switch { display: flex; gap: 1rem; margin-bottom: 1rem; background: #f3f4f6; padding: 0.5rem; border-radius: 0.5rem; }
+.mode-option { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="card">
+    <h1 class="title text-center">Hybrid Factorizer</h1>
+    <p class="subtitle">
+        Supports Formula ($a^b+c$) or Raw Integer ($N$) input.
+    </p>
+
+    <div class="mode-switch">
+        <label class="mode-option">
+            <input type="radio" name="input-mode" value="formula" checked onchange="toggleMode()"> 
+            <span>Formula (a^b+c)</span>
+        </label>
+        <label class="mode-option">
+            <input type="radio" name="input-mode" value="raw" onchange="toggleMode()"> 
+            <span>Raw Integer (N)</span>
+        </label>
+    </div>
+
+    <div class="mb-6 space-y-4">
+        <div id="formula-inputs" class="grid grid-cols-3 gap-4">
+            <div class="input-group">
+                <label for="base-input" class="label">Base ($\mathbf{a}$)</label>
+                <input id="base-input" type="text" class="input" value="987654321">
+            </div>
+            <div class="input-group">
+                <label for="exponent-input" class="label">Exponent ($\mathbf{b}$)</label>
+                <input id="exponent-input" type="text" class="input" value="2">
+            </div>
+            <div class="input-group">
+                <label for="addend-input" class="label">Addend ($\mathbf{c}$)</label>
+                <input id="addend-input" type="text" class="input" value="1">
+            </div>
+        </div>
+
+        <div id="raw-inputs" class="input-group hidden">
+            <label for="raw-n-input" class="label">Integer to Factor ($\mathbf{N}$)</label>
+            <textarea id="raw-n-input" class="input" rows="2" placeholder="Paste large number here..."></textarea>
+        </div>
+
+        <div class="input-group border-t pt-4 mt-4">
+            <label for="offset-input" class="label text-gray-500">Debug: Manual Start S (Optional)</label>
+            <input id="offset-input" type="text" class="input text-sm" placeholder="Leave empty for auto-calculate (2*sqrt(N))">
+            <p class="text-xs text-gray-400 mt-1">Paste a specific S value here to test if the algorithm works near the solution.</p>
+        </div>
+
+        <div class="flex space-x-4 mt-4">
+            <button id="start-btn" class="button start-btn">Start Search</button>
+            <button id="stop-btn" class="button stop-btn" disabled>Stop Search</button>
+        </div>
+    </div>
+
+    <div class="mt-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Search Status</h3>
+        
+        <div id="phase-indicator" class="phase-indicator sqrt-phase">Idle</div>
+        
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar bg-green-500" style="width: 0%;">0.00%</div>
+        </div>
+    </div>
+    
+    <div class="mt-8 grid grid-cols-2 gap-4">
+        <div class="bg-indigo-100 p-4 rounded-lg shadow-md">
+            <p class="text-sm font-semibold text-indigo-700">Current Cofactor $N_{\text{current}}$</p>
+            <p id="cofactor-output" class="text-xl font-bold text-indigo-900 overflow-hidden whitespace-nowrap overflow-ellipsis">N/A</p>
+        </div>
+        <div class="bg-green-100 p-4 rounded-lg shadow-md">
+            <p class="text-sm font-semibold text-green-700">All Factors Found</p>
+            <p id="factors-output" class="text-xl font-bold text-green-900">None Yet</p>
+        </div>
+        <div class="bg-gray-100 p-4 rounded-lg shadow-md col-span-2">
+            <p class="text-sm font-semibold text-gray-700">Fermat $S_{\text{min}}$ (Current Search Start)</p>
+            <p id="smin-output" class="text-xl font-bold text-gray-900">N/A</p>
+        </div>
+    </div>
+
+    <h3 class="text-xl font-semibold text-gray-800 mt-6 mb-2">Log Output</h3>
+    <pre id="log-output" class="log-output">Log: Ready. Select mode and click 'Start Search'.</pre>
+</div>
+
+<script>
+// --- Global Constants & Configuration ---
+const QR_PRIMES = [3n, 5n, 7n, 11n, 13n, 17n];
+const NUM_WORKERS = navigator.hardwareConcurrency || 4;
+const PROBE_LIMIT = 10000000n; 
+const FERMAT_RANGE = 2000000n; // Increased range slightly
+const MIN_FERMAT_DIGITS = 15; 
+
+// --- DOM Elements ---
+const baseInput = document.getElementById('base-input');
+const exponentInput = document.getElementById('exponent-input');
+const addendInput = document.getElementById('addend-input');
+const rawNInput = document.getElementById('raw-n-input');
+const offsetInput = document.getElementById('offset-input'); // New Manual Offset
+const startBtn = document.getElementById('start-btn');
+const stopBtn = document.getElementById('stop-btn');
+const sminOutput = document.getElementById('smin-output');
+const factorsOutput = document.getElementById('factors-output');
+const cofactorOutput = document.getElementById('cofactor-output');
+const logOutput = document.getElementById('log-output');
+const phaseIndicator = document.getElementById('phase-indicator');
+const progressBar = document.getElementById('progress-bar');
+const formulaInputs = document.getElementById('formula-inputs');
+const rawInputs = document.getElementById('raw-inputs');
+
+// --- Global State ---
+let isSearching = false;
+let N_current = 0n;      
+let SMin = 0n;
+let workers = [];       
+let currentChunkMin = 0n;
+let foundFactors = new Set();
+let currentPhase = 'Idle';
+let workerProgress = new Array(NUM_WORKERS).fill(-1);
+let potentialFactors = []; 
+
+// --- UI Toggles ---
+function toggleMode() {
+    const mode = document.querySelector('input[name="input-mode"]:checked').value;
+    if (mode === 'formula') {
+        formulaInputs.classList.remove('hidden');
+        rawInputs.classList.add('hidden');
+    } else {
+        formulaInputs.classList.add('hidden');
+        rawInputs.classList.remove('hidden');
+    }
+}
+
+// --- UTILITY FUNCTIONS ---
+
+function log(message) {
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    logOutput.textContent += `[${timestamp}] ${message}\n`;
+    logOutput.scrollTop = logOutput.scrollHeight;
+}
+
+function updateCofactorDisplay() {
+    const s = N_current.toString();
+    cofactorOutput.textContent = s.length > 30 ? s.substring(0, 30) + '...' : Number(N_current).toLocaleString();
+}
+
+function processFoundFactor(f) {
+    const fStr = f.toLocaleString();
+    if (!foundFactors.has(fStr)) {
+        foundFactors.add(fStr);
+        factorsOutput.textContent = Array.from(foundFactors).join(' × ');
+        log(`Factor found: ${fStr}.`);
+    }
+}
+
+function powMod(base, exp, mod) {
+    let result = 1n;
+    base %= mod;
+    while (exp > 0n) {
+        if ((exp & 1n) === 1n) result = (result * base) % mod;
+        exp >>= 1n;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+function customIntegerSqrt(n) {
+    if (n < 0n) return null;
+    if (n < 2n) return n;
+    let x = n;
+    let y = (x + 1n) / 2n;
+    while (y < x) { x = y; y = (x + n / x) / 2n; }
+    return x;
+}
+
+function finalTrialDivision(N) {
+    if (N <= 1n) return N;
+    let limit = customIntegerSqrt(N); 
+    if (limit > 100000n) limit = 100000n; // Don't freeze UI on massive primes
+    
+    if (N % 2n === 0n) {
+        while (N % 2n === 0n) { N /= 2n; processFoundFactor(2n); }
+    }
+    for (let i = 3n; i <= limit; i += 2n) {
+        if (N % i === 0n) {
+            while (N % i === 0n) { N /= i; processFoundFactor(i); }
+            if (N <= 1n) return N;
+        }
+    }
+    return N;
+}
+
+
+// --- WORKER CODE (Combined Probe + Fermat) ---
+const factorWorkerCode = `
+    function powMod(base, exp, mod) {
+        let result = 1n;
+        base %= mod;
+        while (exp > 0n) {
+            if ((exp & 1n) === 1n) result = (result * base) % mod;
+            exp >>= 1n;
+            base = (base * base) % mod;
+        }
+        return result;
+    }
+    function legendreSymbol(a, p) {
+        if (a === 0n) return 0;
+        if (p === 2n) return 1;
+        a = (a % p + p) % p;
+        const ls = powMod(a, (p - 1n) / 2n, p);
+        if (ls === p - 1n) return -1;
+        return 1;
+    }
+    function customIntegerSqrt(n) {
+        if (n < 0n) return null;
+        if (n < 2n) return n;
+        let x = n;
+        let y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    }
+    function generatePrimes(min, max) {
+        const limit = Number(max); 
+        const primes = [];
+        const isPrime = new Uint8Array(limit + 1);
+        isPrime.fill(1);
+        isPrime[0] = isPrime[1] = 0;
+        
+        for (let i = 2; i * i <= limit; i++) {
+            if (isPrime[i]) {
+                for (let j = i * i; j <= limit; j += i) isPrime[j] = 0;
+            }
+        }
+        for (let i = Number(min); i <= limit; i++) {
+            if (isPrime[i]) primes.push(BigInt(i));
+        }
+        return primes;
+    }
+
+    // --- PHASE 1: Probing ---
+    function probeForFactors(data) {
+        const { n_str, min_limit, max_limit, workerIndex } = data;
+        const N = BigInt(n_str);
+        const min = BigInt(min_limit);
+        const max = BigInt(max_limit);
+
+        const primes = generatePrimes(min, max);
+        let factors = []; 
+
+        for (let i = 0; i < primes.length; i++) {
+            const p = primes[i];
+            if (N % p === 0n) { 
+                factors.push(p.toString());
+            }
+            // Report progress occasionally
+            if (i % 5000 === 0) {
+                 self.postMessage({ type: 'progress', progress: Math.floor(((i + 1) / primes.length) * 100), workerIndex });
+            }
+        }
+        self.postMessage({ type: 'probeDone', factors: factors, workerIndex });
+    }
+
+    // --- PHASE 2: SGS Filter ---
+    function runFermat(data) {
+        const { minS, maxS, n_current_str, workerIndex, qr_primes } = data;
+        const N_bi = BigInt(n_current_str);
+        const minS_bi = BigInt(minS);
+        const maxS_bi = BigInt(maxS);
+        const primes = qr_primes.map(BigInt);
+        const fourN = N_bi * 4n;
+        
+        let candidates = [];
+        let lastProgress = -1;
+        const totalSteps = maxS_bi - minS_bi;
+
+        // 1. SGS Filter
+        for (let S = minS_bi; S <= maxS_bi; S++) {
+            // Basic condition S^2 > 4N.
+            // Optimization: Since we start at S_min, we assume S^2 > 4N is handled by the setup.
+            
+            const D_sq = S * S - fourN;
+            if (D_sq < 0n) continue; // Should not happen if setup is correct
+
+            let passes = true;
+            for (const p of primes) {
+                if (legendreSymbol(D_sq, p) === -1) {
+                    passes = false;
+                    break;
+                }
+            }
+            if (passes) { candidates.push(S.toString()); }
+
+            if (totalSteps > 0n && (S - minS_bi) % 5000n === 0n) {
+                const progress = Number((S - minS_bi) * 100n / totalSteps);
+                if (Math.floor(progress) > lastProgress) {
+                    self.postMessage({ type: 'filterProgress', progress: Math.floor(progress), workerIndex });
+                    lastProgress = progress;
+                }
+            }
+        }
+        self.postMessage({ type: 'filterDone', candidates: candidates, workerIndex });
+
+        // 2. Resolution
+        let foundFactor = null;
+        const candidateList = candidates.map(BigInt);
+
+        for (let i = 0; i < candidateList.length; i++) {
+            const S = candidateList[i];
+            const D_sq = S * S - fourN;
+            const D = customIntegerSqrt(D_sq);
+
+            if (D !== null && D * D === D_sq) {
+                 const f1 = (S + D) / 2n;
+                 const f2 = (S - D) / 2n;
+                 if (f2 > 1n && N_bi % f2 === 0n) {
+                     foundFactor = { f1: f1.toString(), f2: f2.toString(), S: S.toString() };
+                     break; 
+                 }
+            }
+            if (i % 10 === 0) {
+                self.postMessage({ type: 'resolveProgress', progress: Math.floor((i + 1) * 100 / candidateList.length), workerIndex });
+            }
+        }
+        self.postMessage({ type: 'resolveDone', factor: foundFactor, workerIndex });
+    }
+
+    self.onmessage = function(e) {
+        if (e.data.mode === 'probe') probeForFactors(e.data);
+        else if (e.data.mode === 'fermat') runFermat(e.data);
+    };
+`;
+const factorWorkerUrl = URL.createObjectURL(new Blob([factorWorkerCode], { type: 'application/javascript' }));
+
+
+// --- UI Logic & State Management ---
+
+function setPhase(phase, progress) {
+    currentPhase = phase;
+    phaseIndicator.textContent = phase;
+    progressBar.textContent = `${progress.toFixed(2)}%`;
+    progressBar.style.width = `${progress}%`;
+
+    phaseIndicator.classList.remove('sqrt-phase', 'probe-phase', 'fermat-phase');
+    if (phase.includes('Sqrt')) {
+        phaseIndicator.classList.add('sqrt-phase');
+        progressBar.style.backgroundColor = 'var(--purple-sqrt)';
+    } else if (phase.includes('Probing')) {
+        phaseIndicator.classList.add('probe-phase');
+        progressBar.style.backgroundColor = 'var(--yellow-probe)';
+    } else if (phase.includes('Fermat')) {
+        phaseIndicator.classList.add('fermat-phase');
+        progressBar.style.backgroundColor = 'var(--blue-primary)';
+    } else {
+        progressBar.style.backgroundColor = 'var(--green-start)';
+    }
+}
+
+function updateWorkerProgress(workerIndex, progress, phase) {
+    workerProgress[workerIndex] = progress;
+    let activeWorkers = workerProgress.filter(p => p !== -1 && p > 0 && p < 100);
+    if (activeWorkers.length > 0) {
+        const sum = activeWorkers.reduce((acc, p) => acc + p, 0);
+        setPhase(phase, sum / activeWorkers.length);
+    }
+}
+
+
+function handleWorkerMessage(e) {
+    const data = e.data;
+    const workerIndex = data.workerIndex;
+
+    // --- PHASE 1 Handlers (Probing) ---
+    if (data.type === 'probeDone') {
+        workers[workerIndex].terminate();
+        workers[workerIndex] = null;
+        workerProgress[workerIndex] = 100;
+
+        if (data.factors) data.factors.forEach(fStr => potentialFactors.push(BigInt(fStr)));
+        
+        if (workers.every(w => w === null)) {
+             if (potentialFactors.length > 0) {
+                 log(`Phase 1 found ${potentialFactors.length} modular factors.`);
+                 potentialFactors.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)); 
+                 for (const factor of potentialFactors) {
+                    if (N_current % factor === 0n) {
+                        while (N_current % factor === 0n) { 
+                            N_current /= factor;
+                            processFoundFactor(factor); 
+                        }
+                    }
+                 }
+                 potentialFactors = [];
+             }
+
+             if (N_current <= 1n) {
+                stopSearch();
+             } else if (N_current.toString().length >= MIN_FERMAT_DIGITS) {
+                log(`Starting Fermat Search on N=${N_current.toString().length} digits...`);
+                calculateSMinAndStart(true, true); 
+             } else {
+                log(`N is small. Finalizing...`);
+                let last = finalTrialDivision(N_current);
+                if (last > 1n) processFoundFactor(last);
+                N_current = 1n;
+                updateCofactorDisplay();
+                stopSearch();
+             }
+        }
+    } else if (data.type === 'progress' && currentPhase.includes('Probing')) {
+         updateWorkerProgress(workerIndex, data.progress, 'Phase 1: Modular Probing');
+    }
+    
+    // --- PHASE 2 Handlers (Fermat) ---
+    else if (data.type === 'filterProgress' && currentPhase.includes('Fermat')) {
+         updateWorkerProgress(workerIndex, data.progress, 'Phase 2: Fermat Filter');
+    } else if (data.type === 'resolveDone') {
+        workers[workerIndex].terminate();
+        workers[workerIndex] = null;
+        workerProgress[workerIndex] = 100;
+
+        if (data.factor) {
+             const f2 = BigInt(data.factor.f2);
+             if (isSearching) {
+                stopSearch(true); 
+                const f1 = N_current / f2;
+                processFoundFactor(f1);
+                processFoundFactor(f2);
+                log(`🎉 Fermat Factor Found!`);
+                N_current = 1n;
+                updateCofactorDisplay();
+                stopSearch();
+             }
+             return; 
+        }
+        
+        if (workers.every(w => w === null)) {
+             log('Phase 2 Range Exhausted. Factors are likely outside the search radius.');
+             stopSearch();
+        }
+    } else if (data.type === 'resolveProgress' && currentPhase.includes('Fermat')) {
+        updateWorkerProgress(workerIndex, data.progress, 'Phase 2: Fermat Resolution');
+    }
+}
+
+async function calculateSMinAndStart(isRestart = false, skipProbing = false) {
+    if (!isRestart && isSearching) return;
+    
+    if (!isRestart) {
+        stopSearch(true);
+        logOutput.textContent = '';
+        factorsOutput.textContent = 'None Yet';
+        foundFactors.clear();
+        potentialFactors = [];
+        
+        const mode = document.querySelector('input[name="input-mode"]:checked').value;
+        try {
+            if (mode === 'formula') {
+                const a = BigInt(baseInput.value);
+                const b = BigInt(exponentInput.value);
+                const c = BigInt(addendInput.value);
+                N_current = a ** b + c;
+            } else {
+                const rawVal = rawNInput.value.trim();
+                if(!rawVal) { log("Error: Input N is empty."); return; }
+                N_current = BigInt(rawVal);
+            }
+        } catch (e) {
+            log('Error: Invalid Input.');
+            return;
+        }
+
+        log('--- Starting Search ---');
+        log(`Target N Length: ${N_current.toString().length} digits`);
+    }
+
+    if (N_current <= 1n) { stopSearch(); return; }
+
+    isSearching = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    updateCofactorDisplay();
+    
+    if (!skipProbing) {
+        startProbingPhase();
+        return; 
+    }
+
+    // --- Fermat Setup ---
+    setPhase('Phase 0: Native Sqrt', 100);
+    const isqrt = customIntegerSqrt(N_current);
+    
+    // CHECK FOR MANUAL OFFSET (DEBUG MODE)
+    const manualOffset = offsetInput.value.trim();
+    if (manualOffset) {
+        try {
+            SMin = BigInt(manualOffset);
+            log(`[DEBUG] Using Manual Start S: ${SMin.toString().substring(0,20)}...`);
+        } catch(e) {
+            log("Invalid S Offset. Using standard sqrt.");
+            SMin = isqrt * 2n;
+        }
+    } else {
+        SMin = isqrt * 2n;
+        if (SMin * SMin < 4n * N_current) SMin += 1n;
+    }
+
+    sminOutput.textContent = SMin.toString().substring(0,20) + "...";
+    startFermatSearch();
+}
+
+// --- Phase 1: Probing ---
+function startProbingPhase() {
+    if (N_current <= 1n) return;
+    log(`Phase 1: Probing up to ${PROBE_LIMIT.toLocaleString()}...`);
+    setPhase('Phase 1: Modular Probing', 0);
+    
+    const rangePerWorker = Math.floor(Number(PROBE_LIMIT) / NUM_WORKERS); 
+    let currentMin = 2n;
+
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        let chunkMax = (i === NUM_WORKERS - 1) ? PROBE_LIMIT : currentMin + BigInt(rangePerWorker) - 1n;
+        
+        const worker = new Worker(factorWorkerUrl);
+        worker.onmessage = handleWorkerMessage;
+        workers[i] = worker;
+        workerProgress[i] = 0;
+
+        worker.postMessage({
+            mode: 'probe',
+            n_str: N_current.toString(), // Pass N only
+            min_limit: currentMin.toString(),
+            max_limit: chunkMax.toString(),
+            workerIndex: i
+        });
+        currentMin = chunkMax + 1n; 
+    }
+}
+
+// --- Phase 2: Fermat ---
+function startFermatSearch() {
+    if (N_current <= 1n) return;
+    setPhase('Phase 2: Fermat Filter', 0);
+    
+    currentChunkMin = SMin;
+    const rangePerWorker = Math.ceil(Number(FERMAT_RANGE) / NUM_WORKERS);
+    
+    for (let i = 0; i < NUM_WORKERS; i++) {
+        let chunkMax = currentChunkMin + BigInt(rangePerWorker) - 1n;
+        if (chunkMax > SMin + FERMAT_RANGE - 1n) chunkMax = SMin + FERMAT_RANGE - 1n;
+
+        const worker = new Worker(factorWorkerUrl);
+        worker.onmessage = handleWorkerMessage;
+        workers[i] = worker;
+        workerProgress[i] = 0;
+
+        worker.postMessage({
+            mode: 'fermat',
+            minS: currentChunkMin.toString(),
+            maxS: chunkMax.toString(),
+            n_current_str: N_current.toString(),
+            qr_primes: QR_PRIMES.map(String),
+            workerIndex: i
+        });
+        currentChunkMin = chunkMax + 1n;
+    }
+}
+
+function stopSearch(internal = false) {
+    workers.forEach(w => w && w.terminate());
+    workers = new Array(NUM_WORKERS).fill(null);
+    isSearching = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    if (!internal) {
+        setPhase('Stopped', 0);
+        log('Stopped.');
+    }
+}
+
+window.onload = function() {
+    startBtn.addEventListener('click', () => calculateSMinAndStart(false));
+    stopBtn.addEventListener('click', () => stopSearch(false));
+    window.addEventListener('beforeunload', () => URL.revokeObjectURL(factorWorkerUrl));
+};
+</script>
+</body>
+</html>

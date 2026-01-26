@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pattern Hunter v5.1: FIXED</title>
+<style>
+    body { background-color: #000; color: #00ff9d; font-family: 'Courier New', monospace; padding: 10px; margin: 0; }
+    .card { background: #050505; border: 1px solid #1a1a1a; padding: 15px; max-width: 800px; margin: 0 auto; border-radius: 4px; box-shadow: 0 0 30px rgba(0, 255, 157, 0.1); }
+    
+    h1 { text-align: center; margin: 0; font-size: 1.5rem; letter-spacing: 3px; color: #fff; text-shadow: 0 0 10px #00ff9d; }
+    .subtitle { text-align: center; color: #00ff9d; font-size: 0.8rem; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; }
+
+    .stat-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #111; padding: 15px; border: 1px solid #333; margin-bottom: 15px; text-align: center; }
+    .stat-label { font-size: 0.7rem; color: #666; text-transform: uppercase; }
+    .stat-val { font-size: 1.2rem; font-weight: bold; color: #fff; }
+    #totalScanned { color: #00ff9d; }
+
+    .control-group { margin-bottom: 15px; }
+    input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 10px; font-family: monospace; font-size: 1.1rem; text-align: center; box-sizing: border-box; }
+    
+    .btn { width: 100%; padding: 18px; font-weight: 900; cursor: pointer; text-transform: uppercase; background: #00ff9d; color: #000; border: none; font-size: 1.1rem; letter-spacing: 2px; transition: all 0.2s; }
+    .btn:active { transform: scale(0.98); }
+    .btn-stop { background: #ff3333; color: white; display: none; }
+
+    .core-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+    .core-card { background: #080808; border: 1px solid #222; padding: 8px; position: relative; }
+    .core-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: #888; margin-bottom: 5px; }
+    .core-val { font-size: 0.9rem; color: #00ff9d; font-weight: bold; }
+    .pulse { width: 6px; height: 6px; background: #00ff9d; border-radius: 50%; display: inline-block; margin-right: 5px; animation: blink 1s infinite; }
+    
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+
+    .log-box { margin-top: 20px; border-top: 1px dashed #333; padding-top: 10px; font-size: 0.75rem; height: 150px; overflow-y: auto; color: #666; }
+    .hit { color: #ff3333; font-weight: bold; font-size: 1rem; border-bottom: 1px solid #ff3333; padding: 10px 0; }
+    .equation-display { background: #220000; color: #ff9999; padding: 10px; margin-top: 5px; border: 1px solid #ff3333; font-size: 0.9rem; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1>PATTERN HUNTER v5.1</h1>
+    <div class="subtitle">EQUATION SOLVER (PATCHED)</div>
+
+    <div class="stat-panel">
+        <div>
+            <div class="stat-label">Families Aligned</div>
+            <div id="totalScanned" class="stat-val">0</div>
+        </div>
+        <div>
+            <div class="stat-label">Status</div>
+            <div id="sysStatus" class="stat-val" style="color:#888">IDLE</div>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <input id="inpTarget" value="1007" placeholder="Enter Odd Integer">
+    </div>
+    <div class="control-group">
+        <input id="inpCores" type="number" value="8" placeholder="Cores (Default 8)">
+    </div>
+
+    <button id="btnStart" class="btn" onclick="startInfinite()">ENGAGE SOLVER</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopHunt()">ABORT</button>
+
+    <div class="core-grid" id="coreContainer"></div>
+    <div class="log-box" id="logBox">System Ready.</div>
+</div>
+
+<script>
+// --- WORKER SCRIPT ---
+const workerScript = `
+self.onmessage = function(e) {
+    const { targetStr, startP, range, workerId } = e.data;
+    const N = BigInt(targetStr);
+    const start = parseInt(startP);
+    const end = start + parseInt(range);
+
+    function isPrime(n) {
+        if(n<2) return false;
+        if(n===2 || n===3) return true;
+        if(n%2===0 || n%3===0) return false;
+        for(let i=5; i*i<=n; i+=6) {
+            if(n%i===0 || n%(i+2)===0) return false;
+        }
+        return true;
+    }
+
+    for (let p = start; p < end; p++) {
+        if (p % 2 === 0) continue;
+        if (!isPrime(p)) continue; 
+
+        const P = BigInt(p);
+
+        // 1. Square Limit Check
+        if (P * P > N) {
+            // Only report "Limit" if this is the very first range check
+            // Otherwise, we just silently stop this worker because it's too high up
+            postMessage({ type: 'finish', msg: 'Limit', p: p, workerId: workerId });
+            return;
+        }
+
+        // 2. Alignment Check (Modulo)
+        if (N % P === 0n) {
+            postMessage({ type: 'hit', p: p });
+            return;
+        }
+    }
+    postMessage({ type: 'chunk_done', workerId: workerId });
+};
+`;
+
+// --- MAIN CONTROLLER ---
+let workers = [];
+let nextStartP = 5;
+const CHUNK_SIZE = 2000000; 
+let totalScanned = 0;
+let isRunning = false;
+
+function log(msg, type='') {
+    const box = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.innerHTML = msg;
+    if(type==='hit') div.className = 'hit';
+    box.prepend(div);
+}
+
+function startInfinite() {
+    const targetStr = document.getElementById('inpTarget').value;
+    const cores = parseInt(document.getElementById('inpCores').value);
+    
+    workers = [];
+    nextStartP = 5;
+    totalScanned = 0;
+    isRunning = true;
+    
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'block';
+    document.getElementById('sysStatus').textContent = "SOLVING";
+    document.getElementById('sysStatus').style.color = "#00ff9d";
+    document.getElementById('coreContainer').innerHTML = '';
+    document.getElementById('logBox').innerHTML = '';
+
+    try {
+        const N = BigInt(targetStr);
+        if (N % 2n === 0n) { log(`HIT: 2 x ${N/2n} = ${N}`, 'hit'); stopHunt(); return; }
+        if (N % 3n === 0n) { log(`HIT: 3 x ${N/3n} = ${N}`, 'hit'); stopHunt(); return; }
+
+        const blob = new Blob([workerScript], {type: 'application/javascript'});
+        const workerUrl = URL.createObjectURL(blob);
+
+        for(let i=0; i<cores; i++) {
+            const card = document.createElement('div');
+            card.className = 'core-card';
+            card.innerHTML = `
+                <div class="core-header"><span>CORE ${i+1}</span><div class="pulse"></div></div>
+                <div class="core-val" id="scan-${i}">Init...</div>
+            `;
+            document.getElementById('coreContainer').appendChild(card);
+
+            const w = new Worker(workerUrl);
+            w.onmessage = (e) => handleMsg(e.data, i, w, targetStr);
+            workers.push(w);
+            assignChunk(w, i, targetStr);
+        }
+
+    } catch(e) { log("Invalid Number", 'hit'); }
+}
+
+function assignChunk(worker, id, targetStr) {
+    if(!isRunning) return;
+    const start = nextStartP;
+    nextStartP += CHUNK_SIZE;
+    
+    document.getElementById(`scan-${id}`).textContent = `Block ${start.toLocaleString()}...`;
+    
+    worker.postMessage({ targetStr: targetStr, startP: start, range: CHUNK_SIZE, workerId: id });
+}
+
+function handleMsg(data, id, worker, targetStr) {
+    if (data.type === 'chunk_done') {
+        totalScanned += CHUNK_SIZE;
+        document.getElementById('totalScanned').textContent = totalScanned.toLocaleString();
+        assignChunk(worker, id, targetStr);
+    }
+    else if (data.type === 'hit') {
+        const N = BigInt(targetStr);
+        const P = BigInt(data.p);
+        const B = N / P; 
+
+        log(`
+            ⚠️ PATTERN MATCHED<br>
+            <div class="equation-display">
+                ${P} x ${B} = ${N}
+            </div>
+        `, 'hit');
+        
+        document.getElementById('sysStatus').textContent = "SOLVED";
+        document.getElementById('sysStatus').style.color = "#ff3333";
+        stopHunt();
+    }
+    else if (data.type === 'finish') {
+        // --- CRITICAL FIX ---
+        // Only accept "PRIME" verdict if it comes from the LOWEST worker (Core 1 / ID 0)
+        // AND that worker was checking the very first block.
+        // OR simply: If a higher core finishes, it just stops working, it doesn't stop the hunt.
+        
+        if (data.workerId === 0 && data.p < 2000000) {
+            log(`🛑 SQUARE LIMIT REACHED. ${targetStr} is PRIME.`, 'hit');
+            document.getElementById('sysStatus').textContent = "PRIME";
+            document.getElementById('sysStatus').style.color = "#fff";
+            stopHunt();
+        } else {
+            // High level worker hit the ceiling. Just retire it.
+            document.getElementById(`scan-${id}`).textContent = "Range Exceeds Sqrt";
+            document.getElementById(`scan-${id}`).style.color = "#666";
+            worker.terminate();
+        }
+    }
+}
+
+function stopHunt() {
+    isRunning = false;
+    workers.forEach(w => w.terminate());
+    workers = [];
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+}
+</script>
+</body>
+</html>

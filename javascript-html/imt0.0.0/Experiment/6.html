@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Ladder Hunter (BigInt)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #111;
+            --term-green: #0f0;
+            --term-dim: #005500;
+            --term-red: #ff3333;
+            --term-blue: #33ccff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--term-green);
+            font-family: 'Roboto Mono', monospace;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            border-bottom: 2px solid var(--term-green);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .panel {
+            border: 1px solid var(--term-dim);
+            padding: 20px;
+            margin-bottom: 20px;
+            background: rgba(0, 20, 0, 0.3);
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            background: #000;
+            color: var(--term-green);
+            border: 1px solid var(--term-green);
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1rem;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        textarea:focus { outline: none; border-color: #fff; }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: var(--term-dim);
+            color: var(--term-green);
+            border: 1px solid var(--term-green);
+            padding: 10px 20px;
+            font-family: 'Roboto Mono', monospace;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--term-green); color: #000; }
+        button.test-btn { border-color: var(--term-blue); color: var(--term-blue); }
+        button.test-btn:hover { background: var(--term-blue); color: #000; }
+
+        .log-window {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--term-dim);
+            padding: 10px;
+            background: #000;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .result-box {
+            margin-top: 20px;
+            border: 2px solid var(--term-green);
+            padding: 20px;
+            display: none;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            border-bottom: 1px dashed var(--term-dim);
+            padding-bottom: 5px;
+        }
+        .stat-label { color: #888; }
+        .stat-val { font-weight: bold; color: #fff; text-align: right; }
+        .stat-val.highlight { color: var(--term-blue); }
+
+        .success { color: var(--term-green); }
+        .scanning { color: var(--term-blue); animation: blink 1s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Ladder Hunter v1.0</h1>
+    
+    <div class="panel">
+        <label>TARGET NUMBER (N)</label>
+        <textarea id="inputN" placeholder="Enter any number (even 59 digits)..."></textarea>
+        
+        <div class="btn-group">
+            <button onclick="startHunt()">INITIATE SCAN</button>
+            <button class="test-btn" onclick="genMassive()">GENERATE 59-DIGIT TEST</button>
+            <button class="test-btn" onclick="genTrap()">GENERATE 100-DIGIT TRAP</button>
+        </div>
+    </div>
+
+    <div class="log-window" id="log">
+        SYSTEM READY.
+        WAITING FOR INPUT...
+    </div>
+
+    <div class="result-box" id="result">
+        <h2 style="margin-top:0; color:#fff;">LADDER FOUND</h2>
+        
+        <div class="stat-row">
+            <span class="stat-label">LADDER LENGTH (Smaller Factor)</span>
+            <span class="stat-val highlight" id="resLength"></span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">STARTING RUNG (2K+1)</span>
+            <span class="stat-val" id="resStart"></span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">OFFSET FROM SPINE (K)</span>
+            <span class="stat-val" id="resOffset"></span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">HIDDEN SQUARE (M²)</span>
+            <span class="stat-val" id="resRoof"></span>
+        </div>
+        <div style="margin-top:15px; text-align:center; color:#888;">
+            COMPUTATION TIME: <span id="resTime" style="color:#fff;"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const logEl = document.getElementById('log');
+    const resEl = document.getElementById('result');
+    const inputEl = document.getElementById('inputN');
+
+    function log(msg, type='') {
+        const line = document.createElement('div');
+        line.textContent = `> ${msg}`;
+        if(type) line.className = type;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // BigInt Square Root
+    function bigSqrt(value) {
+        if (value < 0n) throw 'negative';
+        if (value < 2n) return value;
+        
+        let x0 = value;
+        let x1 = (x0 + 1n) / 2n;
+        
+        while (x1 < x0) {
+            x0 = x1;
+            x1 = (value / x0 + x0) / 2n;
+        }
+        return x0;
+    }
+
+    // Generate a massive 59-digit number that is geometrically close to a square
+    function genMassive() {
+        // Create a random ~30 digit number
+        const randomFactor = BigInt(Math.floor(Math.random() * 1e15)) * BigInt(Math.floor(Math.random() * 1e14)); 
+        // Create a "Twin" offset (Small gap)
+        const A = randomFactor;
+        const B = randomFactor - 2n; // Offset 1
+        const N = A * B;
+        inputEl.value = N.toString();
+        log(`GENERATED 59-DIGIT "TWIN" COMPOSITE.`);
+        log(`Target Length: ${N.toString().length} digits.`);
+    }
+
+    // Generate a 100-digit number with Offset 3 (Like 4087)
+    function genTrap() {
+        // Approx 50 digits
+        const base = 10n ** 49n; 
+        const A = base + BigInt(Math.floor(Math.random() * 100000));
+        const B = A - 6n; // Gap 6 => Offset 3
+        const N = A * B;
+        inputEl.value = N.toString();
+        log(`GENERATED 100-DIGIT "OFFSET 3" TRAP.`);
+        log(`Target Length: ${N.toString().length} digits.`);
+    }
+
+    async function startHunt() {
+        resEl.style.display = 'none';
+        const input = inputEl.value.trim();
+        if(!input) return;
+
+        let N;
+        try {
+            N = BigInt(input);
+        } catch(e) {
+            log("ERROR: INVALID NUMBER FORMAT", "term-red");
+            return;
+        }
+
+        log(`INITIALIZING SCAN FOR N...`);
+        log(`DIGIT COUNT: ${input.length}`);
+        
+        // Timer
+        const startTime = performance.now();
+
+        // 1. Check Perfect Square (Offset 0)
+        const root = bigSqrt(N);
+        if (root * root === N) {
+            foundIt(0n, root, root, startTime);
+            return;
+        }
+
+        // 2. Scan Offsets (K)
+        // We look for integer solutions to sqrt(N + K^2)
+        // This is extremely efficient for small offsets
+        
+        log(`SCANNING GEOMETRIC OFFSETS...`, "scanning");
+
+        // Allow UI to update
+        await new Promise(r => setTimeout(r, 10));
+
+        let K = 1n;
+        const maxScan = 20000n; // Safety limit for the demo (prevents browser freeze)
+        let found = false;
+
+        while(K < maxScan) {
+            const K2 = K * K;
+            const target = N + K2;
+            const M = bigSqrt(target);
+            
+            if (M * M === target) {
+                // FOUND IT!
+                // M is the Roof (Larger Average)
+                // K is the Offset (Floor)
+                const factorA = M - K; // Smaller Factor (Ladder Length)
+                const factorB = M + K; // Larger Factor
+                
+                foundIt(K, M, factorA, startTime);
+                found = true;
+                break;
+            }
+
+            // Periodic update for massive scans
+            if (K % 1000n === 0n) {
+                log(`Checked Offsets up to ${K}...`);
+                await new Promise(r => setTimeout(r, 0));
+            }
+            K++;
+        }
+
+        if (!found) {
+            const elapsed = (performance.now() - startTime).toFixed(2);
+            log(`SCAN COMPLETE. NO SMALL OFFSET FOUND (< ${maxScan}).`);
+            log(`This suggests a "Wide Split" geometry.`);
+            log(`Time elapsed: ${elapsed}ms`);
+        }
+    }
+
+    function foundIt(K, M, Length, startTime) {
+        const elapsed = (performance.now() - startTime).toFixed(2);
+        
+        // Calculate Ladder Stats
+        // Ladder Start = 2K + 1
+        const startRung = (2n * K) + 1n;
+        
+        log(`SUCCESS! GEOMETRY LOCKED.`, "success");
+        
+        resEl.style.display = 'block';
+        document.getElementById('resLength').innerText = Length.toString();
+        document.getElementById('resStart').innerText = startRung.toString();
+        document.getElementById('resOffset').innerText = K.toString();
+        document.getElementById('resRoof').innerText = (M*M).toString();
+        document.getElementById('resTime').innerText = `${elapsed}ms`;
+    }
+
+</script>
+
+</body>
+</html>

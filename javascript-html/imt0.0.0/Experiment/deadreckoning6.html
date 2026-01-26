@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNOMON: STRIDE LOCKER</title>
+<style>
+    :root {
+        --bg: #050505;
+        --metal: #2a2a2a;
+        --neon: #00ff41;
+        --warn: #ff003c;
+        --cyan: #00f3ff;
+        --gold: #ffd700;
+    }
+    body {
+        background: var(--bg); color: #fff;
+        font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* --- HUD --- */
+    .hud {
+        background: #111; border-bottom: 2px solid var(--neon);
+        padding: 15px; z-index: 100;
+        box-shadow: 0 5px 20px #000;
+        display: flex; gap: 20px; align-items: center;
+    }
+    .hud-title {
+        font-weight: 900; letter-spacing: 2px; color: var(--neon);
+        display: flex; flex-direction: column; font-size: 0.8rem;
+    }
+    .hud-title span { font-size: 1.2rem; }
+
+    input {
+        background: #000; border: 1px solid #444; color: var(--gold);
+        font-family: inherit; font-size: 1.1rem; padding: 10px; flex: 1;
+        font-weight: bold; min-width: 200px;
+    }
+
+    /* --- CONTROLS --- */
+    .btn-group { display: flex; gap: 5px; }
+    button {
+        border: none; padding: 10px 20px; font-weight: 900; cursor: pointer;
+        text-transform: uppercase; letter-spacing: 1px;
+        transition: all 0.1s;
+    }
+    .btn-squeeze {
+        background: var(--warn); color: #fff;
+        clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%);
+    }
+    .btn-lock {
+        background: var(--cyan); color: #000;
+        clip-path: polygon(0 0, 90% 0, 100% 100%, 0 100%);
+    }
+    .btn-reset { background: #333; color: #888; }
+    
+    button:active { transform: scale(0.95); filter: brightness(1.2); }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* --- MAIN CHAMBER --- */
+    .chamber {
+        flex: 1; position: relative;
+        display: flex; justify-content: center; align-items: center;
+        perspective: 1000px; overflow: hidden;
+        background: radial-gradient(circle at center, #1a1a1a 0%, #000 70%);
+    }
+    
+    /* WALLS */
+    .wall {
+        position: absolute; height: 200%; width: 1000px;
+        background: linear-gradient(90deg, #000 0%, rgba(255,0,60,0.2) 100%);
+        border-right: 4px solid var(--warn);
+        transform-origin: center right;
+        transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        display: flex; align-items: center; justify-content: flex-end;
+    }
+    .wall.left { 
+        left: -1050px; 
+        transform: translateX(-50px) rotateY(20deg); 
+    }
+    .wall.right { 
+        right: -1050px; 
+        background: linear-gradient(-90deg, #000 0%, rgba(255,0,60,0.2) 100%);
+        border-right: none; border-left: 4px solid var(--warn);
+        justify-content: flex-start;
+        transform: translateX(50px) rotateY(-20deg);
+    }
+
+    .wall-label {
+        color: var(--warn); font-size: 1.5rem; font-weight: bold;
+        writing-mode: vertical-rl; padding: 20px; text-shadow: 0 0 10px var(--warn);
+        opacity: 0.7;
+    }
+
+    /* THE STRIDE LOCK (Center) */
+    .lock-mechanism {
+        position: relative; width: 300px; height: 300px;
+        border: 2px dashed #444; border-radius: 50%;
+        display: flex; justify-content: center; align-items: center;
+        transition: all 0.5s;
+    }
+    .lock-ring {
+        position: absolute; border: 4px solid var(--cyan);
+        border-radius: 50%; width: 100%; height: 100%;
+        border-top-color: transparent;
+        animation: spin 4s linear infinite;
+        opacity: 0; transition: opacity 0.5s;
+    }
+    .target-n {
+        font-size: 1.5rem; color: #fff; font-weight: bold; z-index: 10;
+        background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #444;
+    }
+    
+    /* DATA READOUT */
+    .readout-panel {
+        position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+        background: rgba(0,0,0,0.9); border: 1px solid var(--cyan);
+        padding: 20px; width: 600px; max-width: 90%;
+        display: none;
+    }
+    .step-log {
+        max-height: 150px; overflow-y: auto; font-size: 0.8rem;
+        margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 10px;
+    }
+    .log-line { margin: 5px 0; color: #888; display: flex; justify-content: space-between;}
+    .log-highlight { color: var(--neon); font-weight: bold; }
+    
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* STATES */
+    .state-squeezed .wall.left { transform: translateX(300px) rotateY(5deg); }
+    .state-squeezed .wall.right { transform: translateX(-300px) rotateY(-5deg); }
+    
+    .state-locked .lock-mechanism { border-color: var(--cyan); transform: scale(0.8); }
+    .state-locked .lock-ring { opacity: 1; }
+    
+    .state-narrow .wall.left { transform: translateX(450px) rotateY(0deg); border-color: var(--neon); background: rgba(0,255,65,0.1); }
+    .state-narrow .wall.right { transform: translateX(-450px) rotateY(0deg); border-left-color: var(--neon); background: rgba(0,255,65,0.1); }
+    .state-narrow .wall-label { color: var(--neon); text-shadow: 0 0 10px var(--neon); }
+
+</style>
+</head>
+<body>
+
+<div class="hud">
+    <div class="hud-title">GNOMON <span>STRIDE LOCKER</span></div>
+    <input type="text" id="inpN" value="71641520761751435455133616475667090434063332228247871795429">
+    <div class="btn-group">
+        <button class="btn-squeeze" id="btnSqueeze" onclick="actionSqueeze()">1. SQUEEZE WALLS</button>
+        <button class="btn-lock" id="btnLock" onclick="actionLock()" disabled>2. LOCK STRIDE</button>
+        <button class="btn-reset" onclick="reset()">RESET</button>
+    </div>
+</div>
+
+<div class="chamber" id="chamber">
+    <div class="wall left" id="wallL"><div class="wall-label" id="lblL">LOWER</div></div>
+    
+    <div class="lock-mechanism" id="lockMech">
+        <div class="lock-ring"></div>
+        <div class="target-n" id="dispN">TARGET</div>
+    </div>
+    
+    <div class="wall right" id="wallR"><div class="wall-label" id="lblR">UPPER</div></div>
+    
+    <div class="readout-panel" id="readout">
+        <div class="step-log" id="log"></div>
+        <div style="display:flex; justify-content:space-between; color:var(--cyan); font-weight:bold;">
+            <span id="statusText">WAITING FOR SQUEEZE...</span>
+            <span id="nextAction"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // STATE
+    let currentN = 0n;
+    let quotient = 0n;
+    let remainder = 0n;
+    let stepCount = 0;
+    let isSqueezed = false;
+    let isLocked = false;
+
+    // UI REFS
+    const chamber = document.getElementById('chamber');
+    const btnSqueeze = document.getElementById('btnSqueeze');
+    const btnLock = document.getElementById('btnLock');
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('statusText');
+    const nextEl = document.getElementById('nextAction');
+    const lblL = document.getElementById('lblL');
+    const lblR = document.getElementById('lblR');
+    const dispN = document.getElementById('dispN');
+
+    function log(msg, val='') {
+        const div = document.createElement('div');
+        div.className = 'log-line';
+        div.innerHTML = `<span>${msg}</span><span class="log-highlight">${val}</span>`;
+        logEl.prepend(div);
+    }
+
+    function reset() {
+        chamber.className = 'chamber';
+        btnSqueeze.disabled = false;
+        btnLock.disabled = true;
+        logEl.innerHTML = '';
+        stepCount = 0;
+        isSqueezed = false;
+        isLocked = false;
+        document.getElementById('readout').style.display = 'none';
+        btnSqueeze.innerText = "1. SQUEEZE WALLS";
+        btnLock.innerText = "2. LOCK STRIDE";
+    }
+
+    function actionSqueeze() {
+        const nStr = document.getElementById('inpN').value.trim();
+        if(!nStr) return;
+        
+        if(stepCount === 0) {
+            currentN = BigInt(nStr);
+            quotient = currentN; // Init
+        }
+
+        // VISUALS
+        chamber.classList.add('state-squeezed');
+        if(stepCount > 0) chamber.classList.add('state-narrow');
+        
+        document.getElementById('readout').style.display = 'block';
+        
+        // LOGIC: SQUEEZE = FIND WALLS (Mod 3 of Current Quotient)
+        // Note: The user wants "Quotient Mod Remainder" eventually.
+        // Step 1 is always Mod 3 walls of the current frame.
+        
+        // If this is step 0, we find walls around N.
+        // If this is step > 0, we are squeezing the "Lane" defined by the quotient.
+        
+        let target = (stepCount === 0) ? currentN : quotient;
+        
+        // Find nearest multiples of 3
+        let mod3 = target % 3n;
+        let lower = target - mod3; 
+        if(lower % 2n === 0n) lower -= 3n; // odd only
+        let upper = target + (3n - mod3);
+        if(upper % 2n === 0n) upper += 3n;
+        
+        // Label Update
+        lblL.innerText = "WALL " + (lower % 1000n).toString();
+        lblR.innerText = "WALL " + (upper % 1000n).toString();
+        dispN.innerText = stepCount === 0 ? "TARGET N" : "QUOTIENT Q" + stepCount;
+
+        log(`SQUEEZE [GEN ${stepCount}]`, `Range: ${lower} ... ${upper}`);
+        statusEl.innerText = "WALLS SECURED. READY TO LOCK.";
+        nextEl.innerText = ">>> LOCK STRIDE";
+        
+        btnSqueeze.disabled = true;
+        btnLock.disabled = false;
+        isSqueezed = true;
+    }
+
+    function actionLock() {
+        // LOCK STRIDE: CALC MOD 9 RAY & QUOTIENT
+        chamber.classList.add('state-locked');
+        
+        let target = (stepCount === 0) ? currentN : quotient;
+        
+        // User Logic: "Divide quotient mod remainder"
+        // First pass: N % 9.
+        // Second pass: Use previous result?
+        
+        let modBase = 9n;
+        // If we have a previous remainder, maybe use that? 
+        // User: "dividing quotient mod remainder"
+        // Let's interpret strict: Q_new = Q_old / R_old.
+        
+        if (stepCount === 0) {
+            remainder = target % 9n;
+            quotient = target / 9n;
+            log(`LOCK [GEN ${stepCount}]`, `Mod 9 Ray: ${remainder}`);
+        } else {
+            // Recursive Step
+            if(remainder === 0n) remainder = 3n; // Safety for div by zero, shouldn't happen on odd composites often?
+            
+            let oldR = remainder;
+            remainder = target % oldR; // Quotient Mod Remainder
+            quotient = target / oldR;  // Divide Quotient
+            
+            log(`LOCK [GEN ${stepCount}]`, `Q % ${oldR} = ${remainder}`);
+        }
+        
+        // Visual Feedback
+        statusEl.innerText = `STRIDE LOCKED. SUB-QUOTIENT: ${quotient.toString().slice(0,10)}...`;
+        nextEl.innerText = ">>> NARROW WALLS";
+        
+        btnLock.innerText = "LOCK NEXT";
+        btnSqueeze.innerText = "NARROW WALLS";
+        btnSqueeze.disabled = false;
+        btnLock.disabled = true;
+        
+        stepCount++;
+        
+        // Auto-release visual tension for next squeeze
+        setTimeout(() => {
+            chamber.classList.remove('state-squeezed');
+            chamber.classList.remove('state-narrow');
+            chamber.classList.remove('state-locked');
+        }, 500);
+    }
+
+</script>
+</body>
+</html>

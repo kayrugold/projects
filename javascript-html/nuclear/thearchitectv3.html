@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Architect v3.0 (Deep Field Mapper)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; max-width: 800px; margin: 0 auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    
+    label { display: block; font-size: 0.7rem; color: #94a3b8; margin-bottom: 4px; font-weight: bold; uppercase; letter-spacing: 0.05em; }
+    input { width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 6px; font-family: monospace; text-align: center; font-weight: bold; }
+    input:focus { outline: none; border-color: #3b82f6; }
+    
+    .btn { width: 100%; padding: 14px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; border: none; transition: all 0.2s; color: white; }
+    .btn-run { background: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+    .btn-stop { background: #ef4444; display: none; }
+    .btn-dl { background: #10b981; margin-top: 10px; display: none; } 
+
+    .stats-container { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+    .stat-box { text-align: center; padding: 5px; }
+    .stat-label { font-size: 0.7rem; color: #64748b; margin-bottom: 2px; }
+    .stat-val { font-size: 1.1rem; font-weight: bold; color: #f1f5f9; }
+    .timer { color: #fbbf24; text-shadow: 0 0 5px rgba(251, 191, 36, 0.2); }
+    .hero-stat { grid-column: span 2; border-top: 1px solid #1e293b; margin-top: 10px; padding-top: 10px; }
+    .hero-val { font-size: 2rem; color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.2); }
+
+    .progress-track { height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; margin: 15px 0; border: 1px solid #334155; }
+    .progress-fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
+
+    .data-preview { background: #020617; border: 1px solid #334155; padding: 10px; margin-top: 10px; border-radius: 6px; color: #4ade80; font-size: 0.8rem; min-height: 60px; display: flex; align-items: center; justify-content: center; text-align: center; }
+    .log-window { background: #020617; border: 1px solid #334155; height: 120px; overflow-y: auto; padding: 10px; font-size: 0.8rem; color: #cbd5e1; border-radius: 6px; font-family: monospace; margin-top: 15px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-bold text-center text-blue-400 mb-1">THE ARCHITECT v3.0</h1>
+    <p class="text-center text-xs text-slate-500 mb-6">Target: 1 Billion Digits</p>
+
+    <div class="grid-2">
+        <div>
+            <label>TARGET NUMBER (e.g. 1e1000+61)</label>
+            <input id="inpStart" value="1e1000000000+61">
+        </div>
+        <div>
+            <label>SCAN RANGE (Neighbors)</label>
+            <input id="inpMax" value="200000" style="border-color: #fbbf24; color: #fbbf24;">
+        </div>
+    </div>
+    
+    <div>
+        <label>CHUNK SIZE</label>
+        <input id="inpChunk" value="50000">
+    </div>
+
+    <div class="progress-track"><div id="pBar" class="progress-fill"></div></div>
+
+    <div class="stats-container grid-2">
+        <div class="stat-box">
+            <div class="stat-label">ELAPSED TIME</div>
+            <div id="sTime" class="stat-val timer">00:00:00</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">WALL DENSITY</div>
+            <div id="sDensity" class="stat-val">0%</div>
+        </div>
+        <div class="stat-box hero-stat">
+            <div class="stat-label">SURVIVORS (CANDIDATES)</div>
+            <div id="sCount" class="stat-val hero-val">0</div>
+        </div>
+    </div>
+
+    <button id="btnStart" class="btn btn-run" onclick="startBuild()">START SCAN</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopBuild()">HALT</button>
+    <button id="btnDl" class="btn btn-dl" onclick="downloadData()">💾 DOWNLOAD SURVIVORS</button>
+
+    <div class="data-preview" id="livePreview">Waiting for Target Coordinates...</div>
+    <div class="log-window" id="logBox">System Ready.</div>
+</div>
+
+<script>
+let isRunning = false;
+let startTime = 0;
+let timerInterval = null;
+let worker = null;
+let totalPrimes = 0;
+let collectedData = []; 
+
+// PARSER
+function parseVirtualInput(str) {
+    str = str.toLowerCase().replace(/\s/g, '');
+    let base = 1n, exp = 0n, add = 0n;
+    
+    let mainPart = str;
+    if(str.includes('+')) {
+        const parts = str.split('+');
+        mainPart = parts[0];
+        add = BigInt(parts[1]);
+    }
+    
+    if(mainPart.includes('e')) {
+        const parts = mainPart.split('e');
+        base = BigInt(parts[0] || 1);
+        exp = BigInt(parts[1]);
+    } else {
+        base = BigInt(mainPart);
+        exp = 0n; 
+    }
+    return { base, exp, add };
+}
+
+// WORKER
+const workerCode = `
+self.onmessage = function(e) {
+    const { startData, chunkStr } = e.data;
+    const size = Number(chunkStr);
+    const ruler = new Uint8Array(size);
+    const MAX_SIEVE = 10000000; 
+    let limit = MAX_SIEVE;
+    let walls = 0;
+    
+    let startBase = BigInt(startData.base);
+    let startExp = BigInt(startData.exp);
+    let startAdd = BigInt(startData.add);
+
+    function powMod(b, e, m) {
+        let res = 1n;
+        b = b % m;
+        while (e > 0n) {
+            if (e & 1n) res = (res * b) % m;
+            b = (b * b) % m;
+            e >>= 1n;
+        }
+        return res;
+    }
+
+    const gens = new Uint8Array(limit + 1);
+    for(let p=3; p<=limit; p+=2) {
+        if(gens[p] === 0) {
+            const P = BigInt(p);
+            
+            // 1. Global Start of Family P (Index)
+            const globalStartMod = (P + 1n) / 2n;
+
+            // 2. Chunk Start (Index) Mod P
+            const bMod = powMod(startBase, startExp, P);
+            const numMod = (bMod + startAdd + 1n) % P;
+            const chunkStartMod = (numMod * globalStartMod) % P;
+
+            // 3. Calculate Offset
+            let offset = globalStartMod - chunkStartMod;
+            if(offset < 0n) offset += P;
+            
+            let localStart = Number(offset);
+
+            // Mark Walls
+            for(let i=localStart; i<size; i+=p) {
+                if(ruler[i] === 0) {
+                    ruler[i] = 1;
+                    walls++;
+                }
+            }
+
+            if(p*p <= limit) {
+                for(let j=p*p; j<=limit; j+=2*p) gens[j] = 1;
+            }
+        }
+    }
+
+    const results = [];
+    for(let i=0; i<size; i++) {
+        if(ruler[i] === 0) {
+            results.push(i); 
+        }
+    }
+
+    self.postMessage({ candidates: results, walls: walls, total: size });
+};
+`;
+
+function log(msg) {
+    const el = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.innerText = "> " + msg;
+    el.prepend(div);
+}
+
+function updateTimer() {
+    const now = Date.now();
+    const diff = Math.floor((now - startTime) / 1000);
+    const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    document.getElementById('sTime').innerText = `${h}:${m}:${s}`;
+}
+
+let currentOffset = 0;
+let maxOffset = 0;
+let startConfig = null;
+
+function startBuild() {
+    if(isRunning) return;
+    isRunning = true;
+    
+    totalPrimes = 0;
+    collectedData = [];
+    currentOffset = 0;
+    
+    document.getElementById('sCount').innerText = "0";
+    document.getElementById('pBar').style.width = "0%";
+    document.getElementById('logBox').innerText = "";
+    document.getElementById('btnStart').style.display = "none";
+    document.getElementById('btnStop').style.display = "inline-block";
+    document.getElementById('btnDl').style.display = "none";
+
+    const rawStart = document.getElementById('inpStart').value;
+    const chunkVal = document.getElementById('inpChunk').value;
+    const maxVal = document.getElementById('inpMax').value;
+    
+    maxOffset = parseInt(maxVal);
+
+    log(`Parsing Target: ${rawStart}...`);
+    try {
+        startConfig = parseVirtualInput(rawStart);
+    } catch(e) {
+        alert("Invalid format");
+        stopBuild();
+        return;
+    }
+    
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+
+    const blob = new Blob([workerCode], {type: "application/javascript"});
+    worker = new Worker(URL.createObjectURL(blob));
+
+    processChunk();
+}
+
+function processChunk() {
+    if(!isRunning) return;
+    
+    let chunkSize = parseInt(document.getElementById('inpChunk').value);
+    if(currentOffset + chunkSize > maxOffset) {
+        chunkSize = maxOffset - currentOffset;
+    }
+    
+    if(chunkSize <= 0) {
+        finishBuild();
+        return;
+    }
+
+    let chunkConfig = { ...startConfig };
+    chunkConfig.add += (BigInt(currentOffset) * 2n); 
+
+    worker.postMessage({ startData: chunkConfig, chunkStr: chunkSize.toString() });
+    worker.onmessage = handleWorkerResult;
+}
+
+function handleWorkerResult(e) {
+    const { candidates, walls, total } = e.data;
+    
+    candidates.forEach(offset => {
+        collectedData.push(`+${currentOffset + offset}`);
+    });
+
+    totalPrimes += candidates.length;
+    document.getElementById('sCount').innerText = totalPrimes.toLocaleString();
+    
+    const density = ((walls / total) * 100).toFixed(1);
+    document.getElementById('sDensity').innerText = density + "%";
+
+    currentOffset += total;
+    const progress = (currentOffset / maxOffset) * 100;
+    document.getElementById('pBar').style.width = progress + "%";
+
+    if(candidates.length > 0) {
+        const lastOff = candidates[candidates.length-1] + currentOffset - total;
+        document.getElementById('livePreview').innerHTML = 
+            `LATEST SURVIVOR<br>Target <span style="color:#fbbf24">+${lastOff * 2}</span>`;
+    }
+
+    if(isRunning) {
+        setTimeout(processChunk, 0);
+    }
+}
+
+function stopBuild() {
+    log("Manual Abort.");
+    finishBuild();
+}
+
+function finishBuild() {
+    if(worker) worker.terminate();
+    worker = null;
+    isRunning = false;
+    clearInterval(timerInterval);
+    document.getElementById('btnStart').style.display = "inline-block";
+    document.getElementById('btnStop').style.display = "none";
+    document.getElementById('btnDl').style.display = "block";
+    document.getElementById('pBar').style.width = "100%";
+    log("Scan Complete.");
+}
+
+function downloadData() {
+    let content = "OFFSET FROM TARGET NUMBER (Add this to your +61)\n";
+    collectedData.forEach(c => {
+        content += `${c}\n`;
+    });
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `architect_survivors.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+</script>
+</body>
+</html>

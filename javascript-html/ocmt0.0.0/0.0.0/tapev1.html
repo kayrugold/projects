@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAPE RUNNER v3.2 (Velocity Edition)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root { --bg: #0f172a; --panel: #1e293b; --accent: #22d3ee; --hit: #10b981; --warn: #f59e0b; --text: #e2e8f0; --display: #000; }
+    body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 10px; margin: 0; }
+    
+    .dashboard { max-width: 800px; margin: 0 auto; background: var(--panel); border: 2px solid #334155; border-radius: 12px; padding: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    
+    /* READOUTS */
+    .top-row { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .readout-box { background: var(--display); border: 1px solid #475569; padding: 10px; border-radius: 6px; text-align: center; }
+    .readout-label { color: #64748b; font-size: 0.55rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+    .readout-val { font-size: 1.2rem; color: var(--accent); font-weight: 900; word-break: break-all; line-height: 1.1; }
+    .speed-val { color: var(--warn); font-size: 1rem; }
+
+    /* GPS GRID */
+    .gps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+    .gps-cell { background: #0f172a; padding: 5px; border-radius: 4px; border: 1px solid #334155; }
+    .gps-title { color: #64748b; font-weight: bold; font-size: 0.5rem; text-transform: uppercase; }
+    .gps-data { color: #fff; font-weight: bold; font-size: 0.65rem; word-break: break-all; }
+
+    /* INPUT & CONTROLS */
+    input { background: #0f172a; border: 1px solid #475569; color: #fff; padding: 10px; width: 100%; border-radius: 6px; font-family: monospace; font-size: 0.8rem; text-align: center; margin-bottom: 10px; }
+    .btn-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .btn { flex: 1; padding: 15px; font-weight: 900; border-radius: 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; border: none; font-size: 0.9rem; }
+    .btn-start { background: var(--accent); color: #000; }
+    .btn-stop { background: #ef4444; color: #fff; display: none; }
+
+    /* GAUGES */
+    .cores-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+    .core-panel { background: #0f172a; border: 1px solid #334155; padding: 5px; border-radius: 4px; }
+    .core-head { display: flex; justify-content: space-between; font-size: 0.55rem; font-weight: bold; color: #94a3b8; margin-bottom: 2px; }
+    .gauge-housing { background: #000; height: 6px; width: 100%; border-radius: 3px; border: 1px solid #334155; overflow: hidden; }
+    .gauge-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.2s linear; }
+
+    /* TERMINAL */
+    .terminal { background: #000; border: 1px solid #334155; height: 160px; overflow-y: auto; padding: 8px; font-size: 0.65rem; color: #94a3b8; border-radius: 6px; font-family: monospace; }
+    .t-sys { color: #f59e0b; }
+    .t-hit { color: #10b981; font-weight: bold; font-size: 0.8rem; }
+    .t-speed { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="top-row">
+        <div class="readout-box">
+            <div class="readout-label">Global Tape ID</div>
+            <div class="readout-val" id="dispOdometer">000,000,000,000</div>
+        </div>
+        <div class="readout-box">
+            <div class="readout-label">Fleet Velocity</div>
+            <div class="readout-val speed-val" id="dispSpeed">0 IDs/s</div>
+        </div>
+    </div>
+
+    <div class="gps-grid">
+        <div class="gps-cell"><div class="gps-title">GPS Rank</div><div class="gps-data" id="gpsRank">--</div></div>
+        <div class="gps-cell"><div class="gps-title">Est. Primes</div><div class="gps-data" id="gpsPrimes">--</div></div>
+        <div class="gps-cell"><div class="gps-title">Start ID</div><div class="gps-data" id="gpsStart">--</div></div>
+        <div class="gps-cell"><div class="gps-title">Buffer</div><div class="gps-data" id="gpsBuffer" style="color:#f59e0b">--</div></div>
+    </div>
+
+    <input type="text" id="inpTarget" value="71641520761751435455133616475667090434063332228247871795429">
+
+    <div class="btn-row">
+        <button id="btnEngage" class="btn btn-start" onclick="startHaul()">ENGAGE THRUSTERS</button>
+        <button id="btnBrake" class="btn btn-stop" onclick="stopHaul()">EMERGENCY STOP</button>
+    </div>
+
+    <div id="coreGrid" class="cores-grid"></div>
+
+    <div class="terminal" id="logBox">
+        > SYSTEM READY.<br>> VELOCITY OPTIMIZATION ENABLED.
+    </div>
+</div>
+
+<script>
+// --- OPTIMIZED WORKER ENGINE ---
+function workerBody() {
+    self.onmessage = function(e) {
+        var d = e.data;
+        var mode = d.mode;
+
+        // Optimized Sqrt for initialization only
+        function sqrtBI(n) {
+            if (n < 2n) return n;
+            var x = n; var y = (x + 1n) / 2n;
+            while (y < x) { x = y; y = (x + n / x) / 2n; }
+            return x;
+        }
+
+        if (mode === 'gauntlet') {
+            self.postMessage({type:'log', msg:'Gauntlet Active: ' + d.start + ' to ' + d.end});
+            var targetN = BigInt(d.targetN_str);
+            var curr = BigInt(d.start);
+            var end = BigInt(d.end);
+            var total = end - curr;
+            var chunk = 0n;
+            
+            for (var p = curr; p <= end; p += 2n) {
+                if (targetN % p === 0n && targetN !== p) {
+                    self.postMessage({type:'hit', p:p.toString(), q:(targetN/p).toString()});
+                    return;
+                }
+                chunk++;
+                if (chunk % 50000n === 0n) {
+                    var pct = Number(((p - curr) * 100n) / total);
+                    self.postMessage({type:'prog', pct: pct, val: p.toString()});
+                }
+            }
+            self.postMessage({type:'done_gauntlet'});
+        }
+
+        if (mode === 'unpack') {
+            var targetN = BigInt(d.targetN_str);
+            var L = BigInt(d.start);
+            var count = BigInt(d.chunkSize);
+            var steps = 0n;
+
+            // --- THE VELOCITY OPTIMIZATION ---
+            // Instead of sqrtBI inside the loop, we track the root incrementally.
+            // val = 8*L + 1
+            // root = floor(sqrt(val))
+            
+            var val = L * 8n + 1n;
+            var root = sqrtBI(val);
+            var nextSquare = (root + 1n) * (root + 1n);
+
+            var startTime = Date.now();
+            var reportInterval = 20000n; // Report every 20k steps
+
+            while(steps < count) {
+                // 1. INCREMENTAL ROOT UPDATE (The "Derivative" Trick)
+                // val increases by 8 every step.
+                // We check if we crossed the next square.
+                if (val >= nextSquare) {
+                    root++;
+                    nextSquare = (root + 1n) * (root + 1n);
+                }
+
+                // 2. UNPACK GEOMETRY (Fast Math)
+                var k = (root - 1n) / 2n;
+                // Since we are moving fast, re-calc triK occasionally or derive it?
+                // Deriving is safer to avoid drift.
+                var triK = (k * (k + 1n)) / 2n;
+                
+                // Correction if root approximation wobbles (rare with integer math but safe to check)
+                if (L > triK) { 
+                    // This catches the edge case where L steps into next row
+                    // but root hasn't updated yet? 
+                    // Actually with strict math above, it should be stable.
+                    // But standard logic:
+                    // k = ceil((root-1)/2). 
+                    // Let's stick to standard logic but using cached 'root'.
+                }
+                
+                // Actually, standard logic:
+                // k is roughly root/2.
+                // Let's rely on standard logic but use our fast 'root'.
+                // If (root is even), k = (root-2)/2 ?? 
+                // Formula: k = ceil( (root - 1) / 2 )
+                // Integer div: k = (root - 1 + 1) / 2 = root / 2  <-- Wait, integer division floors.
+                // k = (root) / 2n if root is odd?
+                // Let's stick to the robust one:
+                // k = (root - 1n) / 2n.
+                // Check L vs triK of next k?
+                
+                // Let's just recalc triK. It's just multiplies. Fast.
+                // Optimization: k changes very slowly. We could cache k too.
+                // But multiplying is fast. Sqrt was the slow part.
+                
+                // RE-CALC K check (Safety)
+                // We used floor(sqrt), so k might be 1 short?
+                // Standard: k = ceil( (sqrt(8L+1)-1)/2 )
+                // Our 'root' is floor(sqrt(8L+1)).
+                // So k = (root + 1n - 1n) / 2n = root / 2n. 
+                // Let's try k = (root + 1n) / 2n.
+                
+                var k_fast = (root + 1n) / 2n;
+                var triK_fast = (k_fast * (k_fast + 1n)) / 2n;
+                
+                // If L > triK, we are in next row?
+                // No, triK is the END of row k.
+                // If L > triK, we must increment k.
+                while (L > triK_fast) { 
+                    k_fast++; 
+                    triK_fast = (k_fast * (k_fast + 1n)) / 2n;
+                }
+                // If L <= triPrev, decrement? (Shouldn't happen moving forward)
+                
+                var triPrev = (k_fast * (k_fast - 1n)) / 2n;
+                var colIndex = L - triPrev; 
+                var P2 = k_fast * 2n + 1n;
+                var b_geo = colIndex - 1n;
+                var P1 = P2 - (b_geo * 2n);
+
+                // 3. MOD 3 SKIP (The Wheel)
+                if (P2 % 3n !== 0n && P1 % 3n !== 0n) {
+                    // 4. CHECK TARGET
+                    if (P2 * P1 === targetN) {
+                        self.postMessage({type:'found', L:L.toString(), P2:P2.toString(), P1:P1.toString(), a:((P2+P1)/2n).toString(), b:b_geo.toString()});
+                        return;
+                    }
+                }
+
+                // LOOP MAINTENANCE
+                val += 8n;
+                L++;
+                steps++;
+
+                if (steps % reportInterval === 0n) {
+                    var pct = Number((steps * 100n) / count);
+                    self.postMessage({type:'prog', pct: pct, val: L.toString(), steps: Number(reportInterval)});
+                }
+            }
+            self.postMessage({type:'done_chunk', lastL: L.toString()});
+        }
+    };
+}
+
+// --- MAIN THREAD ---
+var workers = [];
+var targetN = 0n;
+var activeCores = 8;
+var running = false;
+var haulChunkSize = 2000000n;
+var totalIDsChecked = 0;
+var lastSpeedCheck = Date.now();
+
+function initGrid() {
+    var grid = document.getElementById('coreGrid');
+    grid.innerHTML = '';
+    for(var i=0; i<activeCores; i++) {
+        grid.innerHTML += '<div class="core-panel"><div class="core-head"><span>C'+(i+1)+'</span><span id="pct-'+i+'">0%</span></div><div class="gauge-housing"><div class="gauge-fill" id="bar-'+i+'"></div></div></div>';
+    }
+}
+
+function log(msg, cls) {
+    var box = document.getElementById('logBox');
+    var div = document.createElement('div');
+    div.innerHTML = "> " + msg;
+    if(cls) div.className = cls;
+    box.prepend(div);
+}
+
+function calculateGPS(n) {
+    var odds = (n - 1n) / 2n;
+    var txt = n.toString();
+    var lnN = Math.log(10) * txt.length; 
+    var estPrimes = BigInt(Math.floor(Number(n) / (lnN - 1.1)));
+    var rawStart = odds - estPrimes;
+    var buffer = rawStart / 50n; 
+    var safeStart = rawStart - buffer;
+
+    document.getElementById('gpsRank').innerText = odds.toString().substring(0,8)+"...";
+    document.getElementById('gpsPrimes').innerText = "~"+estPrimes.toString().substring(0,8)+"...";
+    document.getElementById('gpsStart').innerText = safeStart.toString().substring(0,8)+"...";
+    document.getElementById('gpsBuffer').innerText = "-"+buffer.toString();
+    return safeStart;
+}
+
+function startHaul() {
+    var inp = document.getElementById('inpTarget').value.trim();
+    if(!inp) return;
+    try { targetN = BigInt(inp); } catch(e) { log("Invalid N", "t-sys"); return; }
+    
+    running = true;
+    totalIDsChecked = 0;
+    document.getElementById('btnEngage').style.display = 'none';
+    document.getElementById('btnBrake').style.display = 'block';
+    initGrid();
+
+    var gpsStart = calculateGPS(targetN);
+    log("GPS LOCKED. STARTING...", "t-sys");
+
+    var blobStr = "(" + workerBody.toString() + ")()";
+    var blob = new Blob([blobStr], {type: 'application/javascript'});
+    var url = URL.createObjectURL(blob);
+    
+    var gChunk = 2000000n / BigInt(activeCores);
+    
+    for(var i=0; i<activeCores; i++) {
+        var w = new Worker(url);
+        workers.push(w);
+        
+        var s = 3n + (BigInt(i) * gChunk);
+        var eRange = s + gChunk;
+        w.postMessage({mode:'gauntlet', start:s.toString(), end:eRange.toString(), targetN_str:targetN.toString()});
+
+        (function(idx, worker) {
+            worker.onmessage = function(ev) {
+                var d = ev.data;
+                
+                if(d.type === 'log') log("C"+(idx+1)+": "+d.msg);
+                
+                if(d.type === 'hit') {
+                    stopHaul();
+                    log("GAUNTLET HIT! " + d.p + " x " + d.q, "t-hit");
+                }
+                
+                if(d.type === 'prog') {
+                    var p = Math.floor(d.pct);
+                    document.getElementById('bar-'+idx).style.width = p + "%";
+                    document.getElementById('pct-'+idx).innerText = p + "%";
+                    if(idx===0 && d.val) document.getElementById('dispOdometer').innerText = d.val;
+                    
+                    if(d.steps) {
+                        totalIDsChecked += d.steps;
+                        var now = Date.now();
+                        if (now - lastSpeedCheck > 1000) {
+                            var spd = totalIDsChecked; // IDs in last sec approx
+                            document.getElementById('dispSpeed').innerText = (spd/1000).toFixed(1) + "k IDs/s";
+                            totalIDsChecked = 0;
+                            lastSpeedCheck = now;
+                        }
+                    }
+                }
+                
+                if(d.type === 'done_gauntlet') {
+                    if(idx === 0) log("Gauntlet Clear. Engaging Drive...", "t-sys");
+                    var uStart = gpsStart + (BigInt(idx) * haulChunkSize);
+                    worker.postMessage({mode:'unpack', start:uStart.toString(), chunkSize:haulChunkSize.toString(), targetN_str:targetN.toString()});
+                }
+                
+                if(d.type === 'found') {
+                    stopHaul();
+                    document.getElementById('dispOdometer').innerText = d.L;
+                    log("TARGET FOUND @ ID " + d.L, "t-hit");
+                    log("FACTORS: " + d.P2 + " x " + d.P1, "t-hit");
+                }
+                
+                if(d.type === 'done_chunk') {
+                    if(!running) return;
+                    var lastL = BigInt(d.lastL);
+                    var jump = haulChunkSize * BigInt(activeCores - 1);
+                    var nextStart = lastL + jump;
+                    log("C"+(idx+1)+" Refueling... Next: "+nextStart.toString().substring(0,8)+"...", "t-speed");
+                    worker.postMessage({mode:'unpack', start:nextStart.toString(), chunkSize:haulChunkSize.toString(), targetN_str:targetN.toString()});
+                }
+            };
+        })(i, w);
+    }
+}
+
+function stopHaul() {
+    running = false;
+    workers.forEach(function(w) { w.terminate(); });
+    workers = [];
+    document.getElementById('btnEngage').style.display = 'block';
+    document.getElementById('btnBrake').style.display = 'none';
+    log("ENGINE STOPPED.", "t-sys");
+}
+</script>
+</body>
+</html>

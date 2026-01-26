@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter: Logic Table</title>
+    <style>
+        :root {
+            --bg-deep: #050a14;
+            --header-bg: #1e293b;
+            --header-text: #94a3b8;
+            --grid-line: #334155;
+            --highlight: #f59e0b; /* Orange from your screenshot */
+            --type1: #1e3a8a;      /* Blue Tile */
+            --type2: #7f1d1d;      /* Red Tile */
+            --wall: #0f172a;       /* Dark/Gray Tile */
+            --text-main: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none; 
+        }
+
+        /* CONTROL BAR */
+        #controls {
+            padding: 8px 12px;
+            background: #0f172a;
+            border-bottom: 2px solid var(--highlight);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            z-index: 100;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: #1e293b;
+            border-radius: 4px;
+            padding: 4px 8px;
+            border: 1px solid #334155;
+        }
+
+        .input-group span { color: #64748b; font-weight: bold; margin-right: 5px; }
+
+        input {
+            background: transparent;
+            border: none;
+            color: var(--highlight);
+            font-family: inherit;
+            font-size: 1rem;
+            width: 70px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        button {
+            background: var(--highlight);
+            color: #0f172a;
+            border: none;
+            padding: 6px 16px;
+            font-weight: 800;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        button:active { transform: translateY(1px); }
+
+        /* VIEWPORT */
+        #viewport {
+            flex-grow: 1;
+            position: relative;
+            cursor: crosshair;
+            background: var(--bg-deep);
+        }
+
+        /* FLOATING HUD */
+        #hud {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--grid-line);
+            padding: 10px;
+            border-radius: 6px;
+            pointer-events: none;
+            font-size: 0.8rem;
+            color: var(--highlight);
+            text-align: right;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        #hud div { margin-bottom: 4px; }
+        #hud span { color: white; font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <div class="input-group">
+        <span>10^</span>
+        <input type="text" id="inp-exp" value="100">
+    </div>
+    <div class="input-group">
+        <span>+</span>
+        <input type="text" id="inp-off" value="19">
+    </div>
+    <button id="btn-go">TELEPORT</button>
+</div>
+
+<div id="viewport">
+    <canvas id="gridCanvas"></canvas>
+    <div id="hud">
+        <div>TARGET MOD: <span id="hud-mod">TYPE 2</span></div>
+        <div style="font-size: 0.7rem; color: #94a3b8">Zoom: Wheel / Pinch</div>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURATION ---
+    const COLORS = {
+        bg: '#050a14',
+        header: '#1e293b',
+        headerText: '#94a3b8',
+        wall: '#0f172a',
+        type1: '#1e3a8a', // Blue
+        type2: '#7f1d1d', // Red
+        highlight: '#f59e0b',
+        text: '#cbd5e1'
+    };
+
+    // --- STATE ---
+    let state = {
+        startRow: 3n, // Logical A
+        startCol: 3n, // Logical B
+        zoom: 1.0,    // Scale factor
+        offsetX: 0,   // Pan X (pixels)
+        offsetY: 0,   // Pan Y (pixels)
+        targetMod: 2, // Default 10^100 + 19 is Type 2
+        baseCellSize: 60
+    };
+
+    // --- DOM ---
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const hudMod = document.getElementById('hud-mod');
+
+    // --- MATH HELPERS ---
+    
+    // Fast BigInt Modulo 3
+    function getMod3(val) {
+        return Number(val % 3n);
+    }
+
+    // Format BigInt for Headers (e.g. "123...456")
+    function fmtNum(n) {
+        let s = n.toString();
+        if (s.length > 9) return s.slice(0, 4) + ".." + s.slice(-3);
+        return s;
+    }
+
+    // --- RENDER LOOP ---
+    function render() {
+        // 1. Setup
+        const width = canvas.width;
+        const height = canvas.height;
+        const cellSize = state.baseCellSize * state.zoom;
+        
+        // Header Sizes
+        const headerW = 80; // Left column width
+        const headerH = 40; // Top row height
+
+        // Clear
+        ctx.fillStyle = COLORS.bg;
+        ctx.fillRect(0, 0, width, height);
+
+        // 2. Determine Visible Range
+        // We start drawing at (headerW, headerH)
+        // The grid content is offset by state.offsetX/Y
+        
+        const visibleCols = Math.ceil((width - headerW) / cellSize) + 1;
+        const visibleRows = Math.ceil((height - headerH) / cellSize) + 1;
+
+        // --- LAYER 1: THE GRID ---
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `${14 * state.zoom}px monospace`;
+
+        for (let r = 0; r < visibleRows; r++) {
+            let rowVal = state.startRow + BigInt(r * 2);
+            let rowMod = getMod3(rowVal);
+            let y = headerH + (r * cellSize) + state.offsetY;
+
+            // Skip if offscreen top
+            if (y + cellSize < headerH) continue;
+
+            for (let c = 0; c < visibleCols; c++) {
+                let colVal = state.startCol + BigInt(c * 2);
+                let colMod = getMod3(colVal);
+                let x = headerW + (c * cellSize) + state.offsetX;
+
+                // Skip if offscreen left
+                if (x + cellSize < headerW) continue;
+
+                // LOGIC:
+                let prodMod = (rowMod * colMod) % 3;
+                let isHit = (prodMod === state.targetMod);
+                
+                // Color Logic
+                let fill = COLORS.wall;
+                let alpha = 0.3; // Default Dim
+
+                if (rowMod !== 0 && colMod !== 0) {
+                    alpha = 1.0;
+                    if (rowMod === colMod) fill = COLORS.type1;
+                    else fill = COLORS.type2;
+                }
+
+                // Draw Cell
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = fill;
+                ctx.fillRect(x + 1, y + 1, cellSize - 2, cellSize - 2);
+                ctx.globalAlpha = 1.0;
+
+                // Highlight HIT
+                if (rowMod !== 0 && colMod !== 0 && isHit) {
+                    ctx.strokeStyle = COLORS.highlight;
+                    ctx.lineWidth = 2 * state.zoom;
+                    ctx.strokeRect(x + 2, y + 2, cellSize - 4, cellSize - 4);
+                }
+
+                // Text Content
+                if (state.zoom > 0.6) {
+                    ctx.fillStyle = COLORS.text;
+                    // If simple numbers, show product. If huge, show symbols.
+                    if (rowVal < 1000n && colVal < 1000n) {
+                        ctx.fillText((rowVal * colVal).toString(), x + cellSize/2, y + cellSize/2);
+                    } else if (isHit) {
+                        // Just show a dot or symbol for hits in deep ocean
+                        ctx.fillStyle = COLORS.highlight;
+                        ctx.font = `bold ${16 * state.zoom}px monospace`;
+                        ctx.fillText("★", x + cellSize/2, y + cellSize/2);
+                    }
+                }
+            }
+        }
+
+        // --- LAYER 2: HEADERS (Sticky) ---
+        
+        // A. Top Header Background
+        ctx.fillStyle = COLORS.header;
+        ctx.fillRect(headerW, 0, width - headerW, headerH);
+        
+        // B. Left Header Background
+        ctx.fillRect(0, headerH, headerW, height - headerH);
+        
+        // C. Corner Cell
+        ctx.fillStyle = COLORS.bg; // Or highlight color
+        ctx.fillRect(0, 0, headerW, headerH);
+        ctx.fillStyle = COLORS.highlight;
+        ctx.font = "bold 14px monospace";
+        ctx.fillText("AxB", headerW/2, headerH/2);
+
+        // D. Draw Top Header Text (Columns / B)
+        ctx.fillStyle = COLORS.headerText;
+        ctx.font = "12px monospace";
+        for (let c = 0; c < visibleCols; c++) {
+            let colVal = state.startCol + BigInt(c * 2);
+            let x = headerW + (c * cellSize) + state.offsetX;
+            if (x + cellSize < headerW) continue;
+            
+            // Highlight current B
+            if (getMod3(colVal) !== 0) ctx.fillStyle = "#fff";
+            else ctx.fillStyle = COLORS.headerText;
+            
+            ctx.fillText(fmtNum(colVal), x + cellSize/2, headerH/2);
+        }
+
+        // E. Draw Left Header Text (Rows / A)
+        for (let r = 0; r < visibleRows; r++) {
+            let rowVal = state.startRow + BigInt(r * 2);
+            let y = headerH + (r * cellSize) + state.offsetY;
+            if (y + cellSize < headerH) continue;
+
+            if (getMod3(rowVal) !== 0) ctx.fillStyle = "#fff";
+            else ctx.fillStyle = COLORS.headerText;
+
+            ctx.fillText(fmtNum(rowVal), headerW/2, y + cellSize/2);
+        }
+
+        // F. Grid Lines for Headers
+        ctx.strokeStyle = COLORS.highlight;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(headerW, 0); ctx.lineTo(headerW, height);
+        ctx.moveTo(0, headerH); ctx.lineTo(width, headerH);
+        ctx.stroke();
+    }
+
+    // --- INTERACTION HANDLERS ---
+    
+    // Resize
+    function resize() {
+        canvas.width = document.getElementById('viewport').clientWidth;
+        canvas.height = document.getElementById('viewport').clientHeight;
+        render();
+    }
+    window.addEventListener('resize', resize);
+
+    // Pan & Zoom Logic
+    const view = document.getElementById('viewport');
+    let isDragging = false;
+    let lastX = 0, lastY = 0;
+
+    view.addEventListener('mousedown', e => {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => isDragging = false);
+
+    view.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        let dx = e.clientX - lastX;
+        let dy = e.clientY - lastY;
+        lastX = e.clientX;
+        lastY = e.clientY;
+
+        state.offsetX += dx;
+        state.offsetY += dy;
+
+        // Infinite Scroll Logic
+        let currentCellSize = state.baseCellSize * state.zoom;
+        
+        // Pan Right -> Load Lower Numbers
+        while (state.offsetX > 0) {
+            state.startCol -= 2n;
+            state.offsetX -= currentCellSize;
+        }
+        // Pan Left -> Load Higher Numbers
+        while (state.offsetX < -currentCellSize) {
+            state.startCol += 2n;
+            state.offsetX += currentCellSize;
+        }
+        // Pan Down -> Load Lower Rows
+        while (state.offsetY > 0) {
+            state.startRow -= 2n;
+            state.offsetY -= currentCellSize;
+        }
+        // Pan Up -> Load Higher Rows
+        while (state.offsetY < -currentCellSize) {
+            state.startRow += 2n;
+            state.offsetY += currentCellSize;
+        }
+
+        // Limits
+        if (state.startRow < 3n) state.startRow = 3n;
+        if (state.startCol < 3n) state.startCol = 3n;
+
+        render();
+    });
+
+    // Zoom
+    view.addEventListener('wheel', e => {
+        e.preventDefault();
+        let scaleAmount = -e.deltaY * 0.001;
+        state.zoom += scaleAmount;
+        if (state.zoom < 0.2) state.zoom = 0.2;
+        if (state.zoom > 2.0) state.zoom = 2.0;
+        render();
+    }, { passive: false });
+
+
+    // Teleport
+    document.getElementById('btn-go').addEventListener('click', () => {
+        const expStr = document.getElementById('inp-exp').value;
+        const offStr = document.getElementById('inp-off').value;
+        
+        const exp = BigInt(expStr);
+        const off = BigInt(offStr);
+
+        // 1. Calc Target Type
+        // 10^N = 1 mod 3.
+        let tMod = Number((1n + off) % 3n);
+        state.targetMod = tMod;
+        
+        hudMod.innerText = tMod === 0 ? "DIV 3" : (tMod === 1 ? "TYPE 1" : "TYPE 2");
+        hudMod.style.color = tMod === 0 ? "#888" : (tMod === 1 ? COLORS.type1 : COLORS.type2);
+
+        // 2. Teleport
+        if (exp < 50n) {
+            state.startRow = 3n;
+            state.startCol = (10n ** exp) / 3n;
+        } else {
+            // Fake Symbolic Jump
+            state.startRow = 3n;
+            state.startCol = 10n ** 20n; // Just a big number for display
+        }
+        
+        // Make sure we land on an odd number
+        if (state.startCol % 2n === 0n) state.startCol += 1n;
+
+        state.offsetX = 0;
+        state.offsetY = 0;
+        render();
+    });
+
+    // Init
+    resize();
+    render();
+
+</script>
+</body>
+</html>

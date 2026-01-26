@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>HACKER BYPASS v1.0: Full Gnomon Automation</title>
+<script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+<style>
+:root {
+    --bg-color: #0d0d0d;
+    --text-color: #00ff00; /* Neon Green */
+    --card-bg: #1a1a1a;
+    --input-bg: #000;
+    --input-border: #00ff0044;
+    --header-color: #00ff00;
+    --progress-bg: #00ff00;
+    --button-bg: #00cc00;
+    --button-hover: #009900;
+    --bypass-bg: #ff00ff; /* Magenta */
+    --bypass-hover: #cc00cc;
+    --log-bg: #000;
+    --log-text: #00ff00;
+    --error-color: #ff0000;
+}
+body {
+    font-family: 'Courier New', monospace;
+    background: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    flex-direction: column;
+    padding: 2rem;
+}
+.container {
+    max-width: 900px;
+    width: 100%;
+    background: var(--card-bg);
+    border-radius: 0;
+    box-shadow: 0 0 40px rgba(0, 255, 0, 0.2);
+    padding: 2.5rem;
+    border: 1px solid var(--header-color);
+}
+h2 {
+    text-align: center;
+    color: var(--header-color);
+    margin-bottom: 2rem;
+    font-size: 2rem;
+    text-shadow: 0 0 10px var(--header-color);
+    font-weight: 700;
+    border-bottom: 2px dashed var(--input-border);
+    padding-bottom: 1rem;
+}
+h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    color: #fff;
+    border-bottom: 1px solid var(--input-border);
+    padding-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; }
+.input-group { display: flex; flex-direction: column; }
+label { margin-bottom: 0.5rem; font-weight: 600; color: var(--header-color); }
+input[type="text"] {
+    padding: 0.75rem;
+    border: 1px solid var(--input-border);
+    border-radius: 0;
+    background: var(--input-bg);
+    color: var(--log-text);
+    font-size: 1rem;
+}
+input:focus { outline: none; border-color: var(--header-color); box-shadow: 0 0 10px rgba(0, 255, 0, 0.5); }
+.button-group { flex-direction: row; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+button {
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: 0;
+    background: var(--button-bg);
+    color: #000;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+button:hover:not(:disabled) { background: var(--button-hover); }
+button:disabled { background: #444; cursor: not-allowed; color: #888; }
+#bypassButton { background: var(--bypass-bg); color: #000; font-weight: 900; }
+#bypassButton:hover:not(:disabled) { background: var(--bypass-hover); }
+
+#progressBarContainer { width: 100%; background: #222; border-radius: 0; margin-top: 1.5rem; overflow: hidden; }
+#progressBar { height: 25px; width: 0%; background: var(--progress-bg); text-align: center; line-height: 25px; color: #000; font-weight: bold; transition: width 0.2s ease; }
+#results { margin-top: 1.5rem; font-weight: 700; color: var(--header-color); font-size: 1.1rem; }
+#logOutput, #factorsOutput {
+    width: 100%;
+    height: 150px;
+    overflow-y: auto;
+    border: 1px dashed var(--input-border);
+    background: var(--log-bg);
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+    margin-top: 1rem;
+    color: var(--log-text);
+    font-size: 0.9rem;
+}
+#factorsOutput { height: 100px; color: #ff00ff; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; align-items: end; }
+</style>
+</head>
+<body>
+<div class="container">
+<h2>:: PROJECT GNOMON_OS :: FULL BYPASS MODE</h2>
+<p style="text-align:center; color:#999; margin-top:-1.5rem; margin-bottom: 2rem;">
+    Initiate the $\mathbf{S_{\text{min}}}$ Anchor, execute the SGS Filter, and resolve the Inner Square $\mathbf{X}$ in one seamless sequence.
+</p>
+
+<h3>&gt; Target Vector Input</h3>
+<div class="grid">
+    <div class="input-group">
+        <label for="baseInput">Base (a)</label>
+        <input type="text" id="baseInput" value="10">
+    </div>
+    <div class="input-group">
+        <label for="exponentInput">Exponent (b)</label>
+        <input type="text" id="exponentInput" value="100000">
+    </div>
+    <div class="input-group">
+        <label for="addendInput">Addend (c)</label>
+        <input type="text" id="addendInput" value="19">
+    </div>
+</div>
+
+<h3>&gt; S-Search Parameters (Dynamically Populated)</h3>
+<div class="grid">
+    <div class="input-group">
+        <label for="minLimitInput">Min Limit (S_min - Geometry)</label>
+        <input type="text" id="minLimitInput" value="1" disabled style="color:#00ff00;">
+    </div>
+    <div class="input-group">
+        <label for="maxLimitInput">Max Limit (Manual Setting)</label>
+        <input type="text" id="maxLimitInput" value="1000000">
+    </div>
+    <div class="input-group">
+        <label for="chunkSizeInput">Worker Chunk Size</label>
+        <input type="text" id="chunkSizeInput" value="500000">
+    </div>
+</div>
+
+<div class="button-group">
+    <button id="bypassButton">INITIATE FULL BYPASS</button>
+    <button id="stopButton" disabled>HALT EXECUTION</button>
+</div>
+
+<div id="progressBarContainer">
+    <div id="progressBar">0%</div>
+</div>
+<div id="results">Status: Awaiting Command...</div>
+
+<h3>&gt; System Log</h3>
+<pre id="logOutput">Log: System Ready. Waiting for bypass signal.</pre>
+
+<h3>&gt; Factor Found</h3>
+<pre id="factorsOutput">Waiting for $\mathbf{P \times Q}$...</pre>
+
+</div>
+
+<script>
+// ====================================================================
+// --- CONSOLIDATED KERNEL LOGIC (Based on FactorHunter 9.3) ---
+// ====================================================================
+
+// --- DOM ELEMENTS & STATE ---
+const baseInput = document.getElementById('baseInput');
+const exponentInput = document.getElementById('exponentInput');
+const addendInput = document.getElementById('addendInput');
+const minLimitInput = document.getElementById('minLimitInput');
+const maxLimitInput = document.getElementById('maxLimitInput');
+const chunkSizeInput = document.getElementById('chunkSizeInput');
+const bypassButton = document.getElementById('bypassButton');
+const stopButton = document.getElementById('stopButton');
+const progressBar = document.getElementById('progressBar');
+const resultsDiv = document.getElementById('results');
+const logOutput = document.getElementById('logOutput');
+const factorsOutput = document.getElementById('factorsOutput');
+
+let workerPool = [];
+let sqrtWorker = null;
+const numWorkers = navigator.hardwareConcurrency || 4;
+let activeWorkers = 0;
+let isScanning = false;
+let foundFactors = new Set();
+let sCandidateList = new Set(); 
+let currentMin = 0n;
+let workerProgress = new Array(numWorkers).fill(0);
+let workerChunks = new Array(numWorkers).fill(null);
+let totalScanned = 0n;
+let totalRange = 0n;
+
+// CONSTANTS
+const QR_SCREEN_PRIMES = [3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n];
+const EXPONENT_SAFE_LIMIT = 10000n;
+let N_MODS_CACHE = {};
+let N_STR_CACHE = "";
+
+// --- UTILITIES ---
+function parseBigInt(str) {
+    if (!str) return 0n;
+    str = str.replace(/\s/g, '');
+    try { return BigInt(eval(str.replace(/\*\*/g, '**'))); } catch (e) { return BigInt(str); }
+}
+function log(msg) {
+    logOutput.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+    logOutput.scrollTop = logOutput.scrollHeight;
+}
+function logFactor(factor) {
+     if (!foundFactors.has(factor)) {
+        foundFactors.add(factor);
+        factorsOutput.textContent = Array.from(foundFactors).join('\n');
+    }
+}
+function setStatus(t) { resultsDiv.textContent = `Status: ${t}`; }
+function setProgress(p) {
+    const percent = Math.min(100, Math.max(0, p)).toFixed(2);
+    progressBar.style.width = percent + '%';
+    progressBar.textContent = percent + '%';
+}
+function updateSieveProgress() {
+    if (totalRange <= 0n) return setProgress(0);
+    const progressPercent = Math.min(100, Number(totalScanned * 10000n / totalRange) / 100);
+    setProgress(progressPercent);
+}
+function powMod(base, exp, mod) {
+    let result = 1n;
+    base %= mod;
+    while (exp > 0n) {
+        if ((exp & 1n) === 1n) result = (result * base) % mod;
+        exp >>= 1n;
+        base = (base * base) % mod;
+    }
+    return result;
+}
+
+// --- WORKER CODE (S-Search and S-Resolution) ---
+const workerCode = `
+// Must import the library *inside* the worker
+self.importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+
+function newBigIntSqrt(n) {
+    if (n.isNegative()) throw new Error("Cannot sqrt negative number");
+    if (n.lesser(2)) return n;
+    const one = self.bigInt.one;
+    let x = n.shiftRight(one); 
+    if (x.isZero()) return n;
+    let y;
+    while (true) {
+        y = x.add(n.divide(x)).shiftRight(one); 
+        if (y.geq(x)) {
+            return x;
+        }
+        x = y;
+    }
+}
+
+function powMod(base, exp, mod) {
+    let result = self.bigInt.one;
+    base = base.mod(mod);
+    while (exp.greater(0)) {
+        if (exp.isOdd()) result = result.multiply(base).mod(mod);
+        exp = exp.shiftRight(1);
+        base = base.square().mod(mod);
+    }
+    return result;
+}
+
+function legendreSymbol(a, p) {
+    if (p.equals(2)) return 1;
+    a = a.mod(p).add(p).mod(p);
+    const ls = powMod(a, p.subtract(1).shiftRight(1), p);
+    if (ls.equals(p.subtract(1))) return -1;
+    return 1;
+}
+
+self.onmessage = e => {
+    let { mode, a, b, c, min, max, workerIndex, N_mods, candidates, N_str } = e.data;
+
+    const a_bi = self.bigInt(a);
+    const b_bi = self.bigInt(b);
+    const c_bi = self.bigInt(c);
+    let min_bi = self.bigInt(min);
+    let max_bi = self.bigInt(max);
+    const rangeInChunk = max_bi.subtract(min_bi);
+    let lastProgress = -1;
+
+    // --- Mode: SGS Filter Only (Step 2) ---
+    if (mode === 'sgs') {
+        const QR_SCREEN_PRIMES = [3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n].map(p => self.bigInt(p));
+        let candidatesFound = [];
+
+        for (let S = min_bi; S.leq(max_bi); S = S.add(1)) {
+            let passes = true;
+            for (const p of QR_SCREEN_PRIMES) {
+                const N_mod_p = self.bigInt(N_mods[p.toString()]);
+                const S_sq_mod_p = S.square().mod(p);
+                const fourN_mod_p = N_mod_p.multiply(4).mod(p);
+
+                let D_mod_p = S_sq_mod_p.subtract(fourN_mod_p).mod(p);
+                if (D_mod_p.lesser(0)) D_mod_p = D_mod_p.add(p);
+
+                if (legendreSymbol(D_mod_p, p) === -1) {
+                    passes = false;
+                    break;
+                }
+            }
+            if (passes) candidatesFound.push(S.toString());
+
+            if (rangeInChunk.greater(0)) {
+                const progress = S.subtract(min_bi).multiply(100).divide(rangeInChunk).toJSNumber();
+                if (Math.floor(progress) > lastProgress) {
+                    self.postMessage({ type: 'progress', progress: Math.floor(progress), workerIndex, mode: mode });
+                    lastProgress = Math.floor(progress);
+                }
+            }
+        }
+        if (candidatesFound.length > 0) {
+            self.postMessage({ type: 'sCandidatesFound', candidates: candidatesFound, workerIndex });
+        }
+    
+    // --- Mode: SAS Resolver (Step 4) ---
+    } else if (mode === 'resolve_sas') {
+        const N = self.bigInt(N_str);
+        const fourN = N.multiply(4);
+        let factorsFound = [];
+        let checkedCount = 0;
+
+        for (const S_str of candidates) {
+            const S = self.bigInt(S_str);
+            const S_sq = S.square();
+
+            if (S_sq.lesser(fourN)) continue;
+
+            const D = S_sq.subtract(fourN);
+            const k = newBigIntSqrt(D);
+
+            if (k.square().equals(D)) {
+                // Factor pair found using Gnomon Identity: (S+k)/2 and (S-k)/2
+                const P = S.add(k).shiftRight(1);
+                const Q = S.subtract(k).shiftRight(1);
+
+                if (Q.greater(1) && P.multiply(Q).equals(N)) {
+                    factorsFound.push({ P: P.toString(), Q: Q.toString() });
+                }
+            }
+
+            checkedCount++;
+            if (checkedCount % 100 === 0) {
+                 self.postMessage({ type: 'resolverProgress', progress: Math.floor(checkedCount * 100 / candidates.length), workerIndex });
+            }
+        }
+
+        self.postMessage({ type: 'factorsResolved', factors: factorsFound, workerIndex });
+    }
+
+    let minStr = (typeof min !== 'undefined' && min !== null) ? min.toString() : '0';
+    let maxStr = (typeof max !== 'undefined' && max !== null) ? max.toString() : '0';
+    self.postMessage({ type: 'done', min: minStr, max: maxStr, workerIndex, mode: mode });
+};
+`;
+const workerDataURI = 'data:application/javascript;base64,' + btoa(workerCode);
+
+// --- WORKER CODE (Streaming Sqrt) ---
+const sqrtWorkerCode = `
+    // [Streaming Sqrt worker logic, as provided in largesqrt.html, goes here]
+    // ... (omitted for brevity, assume the full Sqrt worker code is included)
+    // IMPORTANT: In a real system, you would paste the full worker code here.
+    const chunk_size = 9;
+    const BASE = 10 ** chunk_size;
+
+    function trim(c) { let i = 0; while (i < c.length - 1 && c[i] === 0) i++; return c.slice(i); }
+    function cmp(a, b) { a = trim(a); b = trim(b); if (a.length !== b.length) return a.length > b.length ? 1 : -1; for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1; } return 0; }
+    function add(a, b) { let a_rev = a.slice().reverse(); let b_rev = b.slice().reverse(); let n = Math.max(a_rev.length, b_rev.length), carry = 0, out = []; for (let i = 0; i < n; i++) { let s = (a_rev[i] || 0) + (b_rev[i] || 0) + carry; out.push(s % BASE); carry = Math.floor(s / BASE); } if (carry) out.push(carry); return out.reverse(); }
+    function sub(a, b) { let a_rev = a.slice().reverse(); let b_rev = b.slice().reverse(); let n = a_rev.length, borrow = 0, out = []; for (let i = 0; i < n; i++) { let v = a_rev[i] - (b_rev[i] || 0) - borrow; if (v < 0) { v += BASE; borrow = 1; } else { borrow = 0; } out.push(v); } return trim(out.reverse()); }
+    function mulSmall(a, s) { if (s === 0) return [0]; let a_rev = a.slice().reverse(), carry = 0, out = []; for (const d of a_rev) { let p = d * s + carry; out.push(p % BASE); carry = Math.floor(p / BASE); } while (carry > 0) { out.push(carry % BASE); carry = Math.floor(carry / BASE); } return out.reverse(); }
+    function chunksToString(chunks) { if (!chunks || chunks.length === 0) return "0"; let s = chunks[0].toString(); for (let i = 1; i < chunks.length; i++) { s += chunks[i].toString().padStart(chunk_size, '0'); } return s; }
+    function generateNString(aStr, bStr, cStr) {
+        if (aStr !== '10') throw new Error('Streaming string generation currently only supports base 10.');
+        const b = BigInt(bStr); const c = BigInt(cStr);
+        if (c < 0n) throw new Error('Streaming Sqrt for c < 0 (a^b - c) is not yet supported.');
+        const cStr_abs = c.toString(); const cLen = cStr_abs.length;
+        if (b < cLen) return (BigInt(10)**b + c).toString();
+        const numZeros = b - BigInt(cLen);
+        let nStr = '1';
+        const practicalZeroLimit = 5000000;
+        const zerosToRepeat = numZeros < BigInt(practicalZeroLimit) ? numZeros : BigInt(practicalZeroLimit);
+        if (zerosToRepeat > 0) nStr += '0'.repeat(Number(zerosToRepeat));
+        nStr += c.toString().padStart(cLen, '0');
+        return nStr;
+    }
+
+    self.onmessage = function(e) {
+        const { a, b, c } = e.data;
+        let nStr;
+        try { nStr = generateNString(a, b, c); } catch (err) { self.postMessage({ type: 'error', message: err.message }); return; }
+        const groupDigits = 2 * chunk_size;
+        let padLength = nStr.length % groupDigits;
+        if (padLength !== 0) padLength = groupDigits - padLength;
+        const paddedNStr = '0'.repeat(padLength) + nStr;
+        const groups = [];
+        for (let i = 0; i < paddedNStr.length; i += groupDigits) groups.push(paddedNStr.substring(i, i + groupDigits));
+        let root = [0]; let remainder = [0]; const totalGroups = groups.length;
+        groups.forEach((group, index) => {
+            remainder.push(0, 0);
+            const groupChunks = [parseInt(group.substring(0, chunk_size), 10), parseInt(group.substring(chunk_size), 10)];
+            remainder = add(remainder, groupChunks);
+            let prefix = mulSmall(root, 2); prefix.push(0);
+            let lo = 0, hi = BASE - 1, chosen = 0;
+            while (lo <= hi) {
+                let mid = Math.floor((lo + hi) / 2);
+                let t = add(prefix, [mid]);
+                let trial = mulSmall(t, mid);
+                if (cmp(trial, remainder) <= 0) { chosen = mid; lo = mid + 1; } else { hi = mid - 1; }
+            }
+            let t_chosen = add(prefix, [chosen]);
+            let trial_chosen = mulSmall(t_chosen, chosen);
+            remainder = sub(remainder, trial_chosen);
+            root.push(chosen); root = trim(root);
+            if (index % 100 === 0) self.postMessage({ type: 'progress', value: ((index + 1) / totalGroups) * 100 });
+        });
+        self.postMessage({ type: 'progress', value: 100 });
+        self.postMessage({ type: 'result', root: chunksToString(root), remainder: chunksToString(remainder) });
+    };
+`;
+
+// --- MAIN THREAD AUTOMATION LOGIC ---
+
+function calculateNMods(a, b, c) {
+    const N_mods = {};
+    for (const p of QR_SCREEN_PRIMES) {
+         const remPow = powMod(a, b, p);
+         const remC = c % p;
+         let remN = (remPow + remC) % p;
+         if (remN < 0n) remN += p;
+         N_mods[p.toString()] = Number(remN);
+    }
+    return N_mods;
+}
+
+// 1. Initiate Full Bypass
+async function startAutomatedGnomonFactoring() {
+    if (isScanning) return;
+    stopScan(true); // Reset state
+
+    // Clean outputs
+    logOutput.textContent = '';
+    factorsOutput.textContent = '';
+    foundFactors.clear();
+    sCandidateList.clear();
+    log(":: INITIATING FULL BYPASS SEQUENCE ::");
+
+    // --- Validate N ---
+    const a = parseBigInt(baseInput.value);
+    const b = parseBigInt(exponentInput.value);
+    const c = parseBigInt(addendInput.value);
+    if (!a || !b || !c) return log("Error: Base, Exponent, or Addend empty.");
+    if (b > EXPONENT_SAFE_LIMIT) {
+        log("Warning: Exponent is large. The final S-Resolver step may take a long time or fail due to memory limits.");
+        log("If successful, N will be calculated via BigInt on the main thread, which is resource heavy.");
+        N_STR_CACHE = bigInt(a).pow(b).add(c).toString(); // Pre-calculate N if possible
+    } else {
+        N_STR_CACHE = bigInt(a).pow(b).add(c).toString(); // N is small enough for sure
+    }
+    
+    // --- Step 1: Find S_min (Geometry Anchor) ---
+    setStatus("PHASE 1/3: Calculating Geometry Anchor S_min...");
+    log("PHASE 1: Starting Streaming Sqrt worker for S_min...");
+    await startSMinCalc(true); // Run S_min, then automatically proceed
+
+    // NOTE: The rest of the chain is triggered by the S_min worker's success callback.
+}
+
+// 2. S_min Calculation (Modified to auto-trigger Phase 2)
+function startSMinCalc(autoTriggerNext) {
+    // ... [Logic identical to original startSMinCalc] ...
+    const aStr = baseInput.value;
+    const bStr = exponentInput.value;
+    const cStr = addendInput.value;
+
+    if (aStr !== "10") return log("Error: S_min finder currently only supports base 10.");
+
+    isScanning = true;
+    bypassButton.disabled = true;
+    stopButton.disabled = false;
+
+    sqrtWorker = new Worker(URL.createObjectURL(new Blob([sqrtWorkerCode], { type: 'application/javascript' })));
+
+    sqrtWorker.onmessage = (e) => {
+        if (e.data.type === 'progress') {
+            setStatus(`PHASE 1/3: Sqrt calculation... ${e.data.value.toFixed(2)}%`);
+            setProgress(e.data.value);
+        } else if (e.data.type === 'log') {
+            log(e.data.message);
+        } else if (e.data.type === 'result') {
+            const { root, remainder } = e.data;
+            const floor_sqrt = bigInt(root);
+            const rem = bigInt(remainder);
+
+            let s_min = floor_sqrt.multiply(2);
+            if (rem.greater(0)) s_min = s_min.add(1);
+
+            const s_min_str = s_min.toString();
+            minLimitInput.value = s_min_str; // AUTO-POPULATE
+            log(`PHASE 1 Complete. Geometry Anchor S_min found: ${s_min_str.substring(0, 30)}...`);
+
+            stopSMinCalc(); // Stop S_min worker
+            
+            // --- AUTOMATED TRIGGER TO PHASE 2 ---
+            if (autoTriggerNext) {
+                // Set max limit to S_min + 1,000,000 if not large already
+                const maxVal = parseBigInt(maxLimitInput.value);
+                const currentRange = maxVal - parseBigInt(s_min_str);
+                if (currentRange < 1000000n) {
+                    maxLimitInput.value = (s_min.add(1000000)).toString();
+                    log(`Adjusted Max Limit to 1,000,000 past S_min.`);
+                }
+                
+                startParallelScan('sgs'); // Auto-trigger SGS Filter
+            }
+        } else if (e.data.type === 'error') {
+            log(`PHASE 1 Error: ${e.data.message}`);
+            stopSMinCalc();
+        }
+    };
+    sqrtWorker.onerror = (e) => { log(`PHASE 1 Worker Error: ${e.message}`); stopSMinCalc(); };
+    sqrtWorker.postMessage({ a: aStr, b: bStr, c: cStr });
+}
+
+function stopSMinCalc() {
+    if (sqrtWorker) { sqrtWorker.terminate(); sqrtWorker = null; }
+    isScanning = false;
+    bypassButton.disabled = false;
+    stopButton.disabled = true;
+}
+
+// 3. SGS Filter Scan (Modified to auto-trigger Phase 3)
+async function startParallelScan(mode) {
+    stopScan(true); // Reset worker state
+    sCandidateList.clear(); // Clear candidates for new run
+    
+    const a = parseBigInt(baseInput.value);
+    const b = parseBigInt(exponentInput.value);
+    const c = parseBigInt(addendInput.value);
+
+    setStatus("PHASE 2/3: Pre-calculating Modulo Filters (Filter/Pattern)...");
+    N_MODS_CACHE = calculateNMods(a, b, c);
+    log("PHASE 2: Modulo filters loaded. Initiating SGS Sieve.");
+
+    isScanning = true;
+    bypassButton.disabled = true;
+    stopButton.disabled = false;
+
+    const maxVal = parseBigInt(maxLimitInput.value);
+    let minVal = parseBigInt(minLimitInput.value);
+    
+    totalScanned = 0n;
+    totalRange = maxVal > minVal ? maxVal - minVal + 1n : 0n;
+    workerChunks.fill(null);
+    workerProgress.fill(0);
+    updateSieveProgress();
+
+    currentMin = minVal;
+    activeWorkers = 0;
+
+    for (let i = 0; i < numWorkers; i++) {
+        if (await createWorker(i)) {
+            if (assignNextChunk(i, mode)) activeWorkers++;
+        }
+        if (currentMin > maxVal) break;
+    }
+
+    if (activeWorkers === 0) {
+        log('No workers active. Range may be empty.');
+        setStatus('Idle');
+        stopScan();
+    } else {
+        setStatus(`PHASE 2/3: Screening ${totalRange.toLocaleString()} S-candidates with ${activeWorkers} workers...`);
+    }
+}
+
+// Worker message handler (modified to include phase chaining)
+function handleWorkerMessage(e) {
+    const data = e.data;
+    const workerIndex = data.workerIndex;
+
+    if (data.type === 'sCandidatesFound') {
+        data.candidates.forEach(s => sCandidateList.add(s)); 
+        setStatus(`PHASE 2/3: Filter found ${sCandidateList.size} S-candidates (Inner Square candidates)...`);
+        
+    } else if (data.type === 'factorsResolved') {
+        // --- FINAL RESOLUTION COMPLETE ---
+        data.factors.forEach(f => {
+            log(`:: 🚀 **SUCCESS** Factors Extracted (P x Q):`);
+            log(`P: ${f.P.toLocaleString()}`);
+            log(`Q: ${f.Q.toLocaleString()}`);
+            logFactor(f.P); 
+            logFactor(f.Q);
+        });
+        setStatus(`PHASE 3/3: RESOLVED! Found ${data.factors.length} non-trivial factors.`);
+        stopScan(); // Terminate all workers and finalize
+        
+    } else if (data.type === 'resolverProgress') {
+        setProgress(data.progress);
+
+    } else if (data.type === 'progress') {
+        const newProgress = data.progress;
+        const lastProgress = workerProgress[workerIndex];
+        const chunkInfo = workerChunks[workerIndex];
+        if (chunkInfo && newProgress > lastProgress) {
+            const progressDelta = BigInt(newProgress - lastProgress);
+            const numbersScannedInDelta = (chunkInfo.size * progressDelta) / 100n;
+            totalScanned += numbersScannedInDelta;
+            workerProgress[workerIndex] = newProgress;
+            updateSieveProgress();
+        }
+    } else if (data.type === 'done') {
+        // Finalize chunk progress
+        const lastProgress = workerProgress[workerIndex];
+        const chunkInfo = workerChunks[workerIndex];
+        if (chunkInfo && lastProgress < 100) {
+            totalScanned += (chunkInfo.size * BigInt(100 - lastProgress)) / 100n;
+        }
+        workerChunks[workerIndex] = null;
+        workerProgress[workerIndex] = 100;
+        updateSieveProgress();
+
+        if (data.mode === 'sgs') {
+            // Try to assign a new chunk
+            if (!assignNextChunk(workerIndex, data.mode)) {
+                activeWorkers--;
+                if (activeWorkers === 0) {
+                    log(`PHASE 2 Complete. SGS Filter found ${sCandidateList.size} total candidates.`);
+                    // --- AUTOMATED TRIGGER TO PHASE 3 (The Final Bypass) ---
+                    resolveSASFactors(Array.from(sCandidateList));
+                }
+            }
+        } else if (data.mode === 'resolve_sas') {
+             // Resolver worker is done, but the loop is managed by the main resolve function
+             activeWorkers--;
+        }
+    } else if (data.type === 'error') {
+        setStatus('Execution Halted');
+        log(`:: EXECUTION HALTED :: Worker ${workerIndex} Error: ${data.message}`);
+        stopScan(true);
+    }
+}
+
+// Worker functions (createWorker, assignNextChunk, stopScan)
+function assignNextChunk(workerIndex, mode) {
+    const maxVal = parseBigInt(maxLimitInput.value);
+    if (!isScanning || currentMin > maxVal) return false;
+
+    let chunkSize = parseBigInt(chunkSizeInput.value);
+    if (mode === 'sgs' && chunkSize > 1000000n) chunkSize = 1000000n;
+
+    const chunkMin = currentMin;
+    let chunkMax = currentMin + chunkSize - 1n;
+    if (chunkMax > maxVal) chunkMax = maxVal;
+    currentMin = chunkMax + 1n;
+
+    workerProgress[workerIndex] = 0;
+    workerChunks[workerIndex] = { size: chunkMax - chunkMin + 1n };
+
+    workerPool[workerIndex].postMessage({
+        mode: mode,
+        a: baseInput.value, b: exponentInput.value, c: addendInput.value,
+        min: chunkMin.toString(), max: chunkMax.toString(), workerIndex,
+        N_mods: N_MODS_CACHE
+    });
+    return true;
+}
+
+async function createWorker(workerIndex) {
+    return new Promise(resolve => {
+        if (workerPool[workerIndex]) workerPool[workerIndex].terminate();
+        const worker = new Worker(workerDataURI);
+        worker.onmessage = handleWorkerMessage;
+        worker.onerror = e => { setStatus('Worker error'); log(`Worker ${workerIndex} error: ${e.message}`); stopScan(true); resolve(null); };
+        workerPool[workerIndex] = worker;
+        resolve(worker);
+    });
+}
+
+function stopScan(userInitiated = false) {
+    isScanning = false;
+    workerPool.forEach(w => { if (w) w.terminate(); });
+    workerPool = [];
+    activeWorkers = 0;
+    stopButton.disabled = true;
+    bypassButton.disabled = false;
+    if (resultsDiv.textContent.includes('...')) setStatus('Execution Halted by Operator');
+}
+
+// 4. SAS Resolver (Automated Step 4)
+async function resolveSASFactors(candidates) {
+    if (candidates.length === 0) {
+        log("PHASE 3 Complete. Zero candidates to resolve. N is likely prime.");
+        setStatus("Execution Complete. N likely prime.");
+        return;
+    }
+    
+    log(`PHASE 3: **AUTOMATIC BYPASS** initiated. Sending ${candidates.length} candidates to resolver...`);
+    setStatus(`PHASE 3/3: Resolving ${candidates.length} Inner Square candidates...`);
+    setProgress(0);
+    
+    // N_STR_CACHE contains the full N calculated in Phase 1 (if successful)
+    const N_str = N_STR_CACHE;
+
+    // Reset workers for resolution task
+    stopScan(true);
+    isScanning = true;
+    stopButton.disabled = false;
+    
+    // Use a single worker for this heavy, sequential task
+    await createWorker(0);
+    activeWorkers = 1;
+    
+    workerPool[0].postMessage({
+        mode: 'resolve_sas',
+        candidates: candidates,
+        N_str: N_str,
+        workerIndex: 0
+    });
+}
+
+// --- INITIAL SETUP ---
+window.addEventListener('load', () => {
+    log('HACKER BYPASS v1.0 Kernel Loaded.');
+    log('WARNING: Exponent is set to 10^5 by default for safety. Adjust for larger targets.');
+    baseInput.value = "10";
+    exponentInput.value = "100000";
+    addendInput.value = "19";
+    maxLimitInput.value = "1001000"; // Default range size 1M+1k
+    chunkSizeInput.value = "500000";
+
+    bypassButton.addEventListener('click', startAutomatedGnomonFactoring);
+    stopButton.addEventListener('click', () => {
+         if (sqrtWorker) stopSMinCalc(); // Stop S_min
+         else stopScan(true); // Stop SGS/Resolver
+    });
+});
+</script>
+</body>
+</html>

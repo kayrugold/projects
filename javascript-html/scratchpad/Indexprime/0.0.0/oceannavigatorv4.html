@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter: Inspector</title>
+    <style>
+        :root {
+            --bg: #050a14;
+            --wall: #000000;
+            --t1: #172554;   /* Dark Blue */
+            --t2: #450a0a;   /* Dark Red */
+            --hit: #f59e0b;  /* Gold */
+            --text-bright: #ffffff;
+            --text-dim: #475569;
+            --accent: #3b82f6;
+            --panel-bg: #0f172a;
+            --border: #334155;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: #94a3b8;
+            font-family: 'Courier New', monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
+        }
+
+        /* TOP BAR */
+        #controls {
+            height: 54px;
+            background: var(--panel-bg);
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+            z-index: 50;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .input-box {
+            flex: 1;
+            background: #020617;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            color: var(--accent);
+            font-family: inherit;
+            font-size: 1rem;
+            width: 100%;
+            font-weight: bold;
+            outline: none;
+        }
+
+        button {
+            height: 36px;
+            padding: 0 16px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        /* VIEWPORT */
+        #viewport {
+            flex-grow: 1;
+            position: relative;
+            background: var(--bg);
+            cursor: grab;
+            overflow: hidden;
+        }
+        #viewport:active { cursor: grabbing; }
+        
+        canvas { 
+            display: block; 
+            width: 100%; 
+            height: 100%;
+            transform: translateZ(0); 
+        }
+
+        /* STATUS BAR (Permanent) */
+        #status-bar {
+            height: 30px;
+            background: var(--panel-bg);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 0.75rem;
+            z-index: 20;
+        }
+
+        /* --- THE SLIDE-UP INSPECTOR --- */
+        #inspector-panel {
+            position: absolute;
+            bottom: -350px; /* Hidden off-screen */
+            left: 0;
+            width: 100%;
+            height: 300px;
+            background: rgba(15, 23, 42, 0.98);
+            border-top: 2px solid var(--hit);
+            border-radius: 12px 12px 0 0;
+            transition: bottom 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        #inspector-panel.open {
+            bottom: 0; /* Slide up */
+        }
+
+        .panel-header {
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.3);
+        }
+
+        .panel-title { color: var(--hit); font-weight: bold; font-size: 1rem; }
+        
+        .close-btn {
+            background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; padding: 0 10px;
+        }
+
+        .panel-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 5px;
+        }
+
+        .lbl { color: #64748b; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+        .val { color: #fff; font-size: 1.1rem; font-weight: bold; font-family: monospace; }
+        .val-big { font-size: 0.9rem; color: var(--accent); }
+
+    </style>
+</head>
+<body>
+
+<div id="controls">
+    <div class="input-box">
+        <span style="color:#64748b; margin-right:8px">TARGET:</span>
+        <input type="text" id="inp-target" value="10^1000000000 + 19">
+    </div>
+    <button id="btn-go">HUNT</button>
+</div>
+
+<div id="viewport">
+    <canvas id="gridCanvas"></canvas>
+    
+    <div id="inspector-panel">
+        <div class="panel-header">
+            <div class="panel-title">INSPECTOR</div>
+            <button class="close-btn" id="btn-close">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="data-row">
+                <div class="lbl">Row Factor (A)</div>
+                <div class="val" id="ins-a">--</div>
+            </div>
+            <div class="data-row">
+                <div class="lbl">Col Factor (B)</div>
+                <div class="val" id="ins-b">--</div>
+            </div>
+            <div class="data-row">
+                <div class="lbl">Analysis</div>
+                <div class="val" id="ins-status">--</div>
+            </div>
+            <div style="background:#020617; padding:10px; border:1px solid #334155; border-radius:6px; margin-top:5px;">
+                <div class="lbl" style="margin-bottom:5px;">Full Equation</div>
+                <div class="val-big" id="ins-eq">--</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="status-bar">
+    <div>ZOOM: <span id="st-zoom" style="color:#e2e8f0">1.0x</span></div>
+    <div id="perf-ind" style="color:#10b981">READY</div>
+</div>
+
+<script>
+    // --- CONFIG ---
+    const COLORS = {
+        bg: '#050a14',
+        wall: '#000000', 
+        t1: '#172554',   
+        t2: '#450a0a',   
+        hit: '#f59e0b',  
+        textBright: '#ffffff',
+        textDim: '#334155',
+        grid: '#1e293b',
+        header: '#1e293b',
+        headerText: '#e2e8f0'
+    };
+
+    let state = {
+        startRow: 3n,
+        startCol: 3n,
+        panX: 0,
+        panY: 0,
+        zoom: 1.0,
+        
+        cellSize: 150, 
+        headerSize: 50,
+        targetMod: 0,
+        
+        isPanning: false,
+        needsRender: true
+    };
+
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+
+    // --- MATH HELPERS ---
+    function parseInputSafe(str) {
+        str = str.replace(/\s/g, '').toLowerCase();
+        try {
+            if (str.includes('^')) {
+                let parts = str.split('+');
+                let baseParts = parts[0].split('^');
+                let base = BigInt(baseParts[0]);
+                let exp = BigInt(baseParts[1]);
+                let off = parts[1] ? BigInt(parts[1]) : 0n;
+                if (exp > 100n) return { type: 'SYM', base, exp, off };
+                return { type: 'BIG', val: (base ** exp) + off };
+            }
+            return { type: 'BIG', val: BigInt(str) };
+        } catch(e) { return { type: 'BIG', val: 3n }; }
+    }
+
+    function getMod3(n) { return Number(n % 3n); }
+
+    function fmtNum(n) {
+        let s = n.toString();
+        if (s.length > 7) return ".." + s.slice(-6);
+        return s;
+    }
+
+    // --- RENDERER ---
+    function render() {
+        if (!state.needsRender) return;
+        state.needsRender = false;
+
+        const w = canvas.width;
+        const h = canvas.height;
+        const cs = state.cellSize * state.zoom;
+        const hs = state.headerSize;
+
+        // 1. Clear
+        ctx.fillStyle = COLORS.bg;
+        ctx.fillRect(0, 0, w, h);
+
+        const cols = Math.ceil((w - hs) / cs) + 1;
+        const rows = Math.ceil((h - hs) / cs) + 1;
+        
+        // LOD Logic: Show text much deeper now
+        let lod = 0; 
+        if (state.zoom < 0.3 || state.isPanning) lod = 1;
+
+        const sx = state.panX;
+        const sy = state.panY;
+
+        if (lod === 0) {
+            const fontSize = Math.max(10, 13 * state.zoom);
+            ctx.font = `${fontSize}px monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+        }
+
+        // --- GRID LOOP ---
+        for (let r = 0; r < rows; r++) {
+            let y = hs + sy + (r * cs);
+            if (y < hs - cs) continue;
+            if (y > h) break;
+
+            let rowVal = state.startRow + BigInt(r * 2);
+            let rMod = getMod3(rowVal);
+
+            for (let c = 0; c < cols; c++) {
+                let x = hs + sx + (c * cs);
+                if (x < hs - cs) continue;
+                if (x > w) break;
+
+                let colVal = state.startCol + BigInt(c * 2);
+                let cMod = getMod3(colVal);
+                
+                let isWall = (rMod === 0 || cMod === 0);
+                let pMod = (rMod * cMod) % 3;
+                let isHit = (!isWall && pMod === state.targetMod);
+
+                // 1. Draw Body
+                if (isWall) {
+                    ctx.fillStyle = COLORS.wall;
+                } else {
+                    ctx.fillStyle = (rMod === cMod) ? COLORS.t1 : COLORS.t2;
+                }
+                ctx.fillRect(x, y, cs, cs);
+                
+                // 2. Borders
+                ctx.strokeStyle = COLORS.grid;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x, y, cs, cs);
+
+                // 3. Highlight Hit (Orange Outline)
+                if (isHit) {
+                    ctx.strokeStyle = COLORS.hit;
+                    ctx.lineWidth = Math.max(2, 4 * state.zoom);
+                    ctx.strokeRect(x+2, y+2, cs-4, cs-4);
+                }
+
+                // 4. Text
+                if (lod === 0) {
+                    ctx.fillStyle = isWall ? COLORS.textDim : COLORS.textBright;
+                    let txtA = fmtNum(rowVal);
+                    let txtB = fmtNum(colVal);
+                    ctx.fillText(`${txtA} × ${txtB}`, x + cs/2, y + cs/2);
+                }
+            }
+        }
+
+        // --- HEADERS ---
+        ctx.fillStyle = COLORS.header;
+        ctx.fillRect(hs, 0, w, hs);
+        ctx.fillRect(0, hs, hs, h);
+        ctx.fillStyle = COLORS.accent; 
+        ctx.fillRect(0, 0, hs, hs);
+
+        ctx.fillStyle = '#fff';
+        if(lod===0) { ctx.font = 'bold 12px monospace'; ctx.fillText("AxB", hs/2, hs/2); }
+
+        if (lod === 0) {
+            ctx.fillStyle = COLORS.headerText;
+            ctx.font = '12px monospace';
+            
+            for (let c = 0; c < cols; c++) {
+                let colVal = state.startCol + BigInt(c * 2);
+                let x = hs + sx + (c * cs);
+                if (x < hs) continue;
+                if (x > w) break;
+                ctx.fillStyle = (getMod3(colVal) === 0) ? COLORS.textDim : COLORS.headerText;
+                ctx.fillText(fmtNum(colVal), x + cs/2, hs/2);
+            }
+            for (let r = 0; r < rows; r++) {
+                let rowVal = state.startRow + BigInt(r * 2);
+                let y = hs + sy + (r * cs);
+                if (y < hs) continue;
+                if (y > h) break;
+                ctx.fillStyle = (getMod3(rowVal) === 0) ? COLORS.textDim : COLORS.headerText;
+                ctx.fillText(fmtNum(rowVal), hs/2, y + cs/2);
+            }
+        }
+    }
+
+    // --- SCROLL & ZOOM ---
+    function updateScroll() {
+        const cs = state.cellSize * state.zoom;
+        let changed = false;
+        while(state.panX > 0) { state.startCol -= 2n; state.panX -= cs; changed=true; }
+        while(state.panX < -cs) { state.startCol += 2n; state.panX += cs; changed=true; }
+        while(state.panY > 0) { state.startRow -= 2n; state.panY -= cs; changed=true; }
+        while(state.panY < -cs) { state.startRow += 2n; state.panY += cs; changed=true; }
+        
+        if(state.startRow < 3n) { state.startRow = 3n; state.panY = Math.min(0, state.panY); }
+        if(state.startCol < 3n) { state.startCol = 3n; state.panX = Math.min(0, state.panX); }
+        
+        if(changed) state.needsRender = true;
+    }
+
+    function applyZoom(newZoom, cx, cy) {
+        const oldZoom = state.zoom;
+        const relX = (cx - state.headerSize - state.panX) / oldZoom;
+        const relY = (cy - state.headerSize - state.panY) / oldZoom;
+        state.zoom = Math.max(0.05, Math.min(newZoom, 5.0));
+        state.panX = cx - state.headerSize - (relX * state.zoom);
+        state.panY = cy - state.headerSize - (relY * state.zoom);
+        updateScroll();
+        document.getElementById('st-zoom').innerText = state.zoom.toFixed(2) + "x";
+    }
+
+    // --- INTERACTION ---
+    function teleport(inputStr) {
+        let res = parseInputSafe(inputStr);
+        if (res.type === 'BIG') {
+            state.targetMod = getMod3(res.val);
+            state.startCol = (res.val < 1000000n) ? 3n : res.val / 3n;
+        } else {
+            let baseMod = 1n;
+            let totalMod = (baseMod + res.off) % 3n;
+            state.targetMod = Number(totalMod);
+            let fakeBase = 333333333333333n; 
+            let offsetPart = res.off / 3n;
+            state.startCol = fakeBase + offsetPart;
+        }
+
+        if (state.startCol % 2n === 0n) state.startCol -= 1n;
+        state.startRow = 3n;
+        state.panX = 0; state.panY = 0;
+        state.needsRender = true;
+    }
+
+    // Touch & Mouse
+    let evCache = [];
+    let prevDiff = -1;
+    let tapStartX = 0, tapStartY = 0;
+
+    canvas.addEventListener('pointerdown', e => {
+        state.isPanning = true; evCache.push(e); canvas.setPointerCapture(e.pointerId);
+        tapStartX = e.clientX; tapStartY = e.clientY;
+    });
+    
+    canvas.addEventListener('pointerup', e => {
+        removeEvent(e);
+        if (evCache.length === 0) { 
+            state.isPanning = false; 
+            state.needsRender = true;
+            // Check for Tap (minimal movement)
+            if (Math.hypot(e.clientX - tapStartX, e.clientY - tapStartY) < 10) {
+                handleTap(e.clientX, e.clientY);
+            }
+        }
+    });
+
+    canvas.addEventListener('pointermove', e => {
+        const index = evCache.findIndex(ev => ev.pointerId === e.pointerId);
+        if (index > -1) evCache[index] = e;
+
+        if (evCache.length === 2) {
+            const curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY);
+            const centerX = (evCache[0].clientX + evCache[1].clientX) / 2;
+            const centerY = (evCache[0].clientY + evCache[1].clientY) / 2;
+            if (prevDiff > 0) {
+                const scaleDiff = curDiff / prevDiff;
+                applyZoom(state.zoom * scaleDiff, centerX, centerY);
+            }
+            prevDiff = curDiff;
+        } else if (evCache.length === 1) {
+            state.panX += e.movementX; state.panY += e.movementY;
+            updateScroll();
+        }
+        state.needsRender = true;
+    });
+
+    function removeEvent(e) {
+        const index = evCache.findIndex(ev => ev.pointerId === e.pointerId);
+        if (index > -1) evCache.splice(index, 1);
+        if (evCache.length < 2) prevDiff = -1;
+    }
+    
+    // Mouse Wheel
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        applyZoom(state.zoom * scaleFactor, e.clientX, e.clientY);
+    }, {passive:false});
+
+    // --- HANDLE TAP (OPEN PANEL) ---
+    function handleTap(x, y) {
+        // Adjust for header
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = x - rect.left;
+        const canvasY = y - rect.top;
+
+        if (canvasX < state.headerSize || canvasY < state.headerSize) return;
+
+        const cs = state.cellSize * state.zoom;
+        const cIdx = Math.floor((canvasX - state.headerSize - state.panX) / cs);
+        const rIdx = Math.floor((canvasY - state.headerSize - state.panY) / cs);
+        
+        const rVal = state.startRow + BigInt(rIdx * 2);
+        const cVal = state.startCol + BigInt(cIdx * 2);
+        
+        // Update Panel Content
+        document.getElementById('ins-a').innerText = rVal.toString();
+        document.getElementById('ins-b').innerText = cVal.toString();
+        document.getElementById('ins-eq').innerText = `${fmtNum(rVal)} × ${fmtNum(cVal)}`;
+        
+        // Analyze Logic
+        let rMod = getMod3(rVal);
+        let cMod = getMod3(cVal);
+        let pMod = (rMod * cMod) % 3;
+        
+        let statusText = "INVALID";
+        let statusColor = "#64748b"; // Gray
+        
+        if (rMod === 0 || cMod === 0) {
+            statusText = "VOID (Div by 3)";
+        } else if (pMod === state.targetMod) {
+            statusText = "MATCH (Potential Factor)";
+            statusColor = COLORS.hit;
+        } else {
+            statusText = "MISMATCH (Wrong Type)";
+        }
+        
+        document.getElementById('ins-status').innerText = statusText;
+        document.getElementById('ins-status').style.color = statusColor;
+
+        // Slide Up
+        document.getElementById('inspector-panel').classList.add('open');
+    }
+
+    document.getElementById('btn-close').addEventListener('click', () => {
+        document.getElementById('inspector-panel').classList.remove('open');
+    });
+
+    document.getElementById('btn-go').addEventListener('click', () => teleport(document.getElementById('inp-target').value));
+
+    function loop() { if(state.needsRender) render(); requestAnimationFrame(loop); }
+    window.addEventListener('resize', () => { canvas.width = document.getElementById('viewport').clientWidth; canvas.height = document.getElementById('viewport').clientHeight; state.needsRender = true; });
+    
+    canvas.width = document.getElementById('viewport').clientWidth;
+    canvas.height = document.getElementById('viewport').clientHeight;
+    teleport("10^1000000000 + 19");
+    loop();
+
+</script>
+</body>
+</html>

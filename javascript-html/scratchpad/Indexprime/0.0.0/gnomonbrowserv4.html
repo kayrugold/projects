@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gnomon Mobile Grid</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --accent-color: #38bdf8;
+            --panel-bg: #1e293b;
+            --cell-bg: #1e293b;
+            --cell-hover: #334155;
+            --highlight-row: rgba(56, 189, 248, 0.15);
+            --gnomon-pink: #f472b6;
+            --header-bg: #0f172a;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Bar Controls */
+        .controls {
+            padding: 10px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 50;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 5px;
+            flex-grow: 1;
+        }
+        
+        input {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1rem;
+            width: 100%;
+            text-align: center;
+            outline: none;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        button.secondary { background-color: #334155; color: #fff; }
+
+        /* Scrollable Grid Area */
+        .grid-wrapper {
+            flex-grow: 1;
+            overflow: auto;
+            position: relative;
+            background: #000;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 1px;
+            padding-bottom: 100px; /* Space for panel */
+        }
+
+        /* The Cell */
+        .cell {
+            background-color: var(--cell-bg);
+            min-width: 75px;
+            height: 75px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            user-select: none;
+        }
+
+        /* Headers */
+        .header-cell {
+            background-color: var(--header-bg);
+            color: var(--accent-color);
+            font-weight: bold;
+            position: sticky;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #334155;
+            font-size: 0.9rem;
+        }
+        .header-row { top: 0; height: 40px; }
+        .header-col { left: 0; width: 50px; z-index: 21; }
+        .corner { top: 0; left: 0; z-index: 30; width: 50px; height: 40px; border: 2px solid var(--accent-color); }
+
+        /* Cell Content */
+        .value { font-size: 1rem; font-weight: bold; color: #fff; z-index: 2; }
+        
+        .eq { 
+            font-size: 0.65rem; 
+            color: #94a3b8; 
+            margin-top: 2px; 
+            font-family: monospace;
+            display: block; /* Always visible */
+        }
+
+        .gnomon-badge {
+            position: absolute;
+            top: 2px; right: 2px;
+            font-size: 0.6rem;
+            color: var(--gnomon-pink);
+            background: rgba(244, 114, 182, 0.15);
+            padding: 1px 3px;
+            border-radius: 3px;
+            display: block; /* Always visible */
+        }
+
+        /* Highlights */
+        .perfect-square { border: 1px solid var(--gnomon-pink); background: rgba(244, 114, 182, 0.05); }
+        .highlight-target { 
+            background-color: rgba(56, 189, 248, 0.3) !important; 
+            border: 2px solid #fff !important; 
+            z-index: 25;
+        }
+        .highlight-line { background-color: var(--highlight-row) !important; }
+
+        /* Mobile Bottom Sheet Panel */
+        #infoPanel {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--panel-bg);
+            border-top: 2px solid var(--accent-color);
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            transform: translateY(110%);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            z-index: 1000;
+            max-height: 50vh;
+        }
+        #infoPanel.active { transform: translateY(0); }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .close-btn {
+            background: transparent;
+            color: #fff;
+            font-size: 1.5rem;
+            padding: 0 10px;
+        }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-item label { display: block; color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; }
+        .stat-item div { color: #fff; font-size: 1.1rem; font-weight: bold; font-family: monospace; }
+
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="input-group" style="flex: 0 0 60px;">
+            <input type="number" id="gridSize" value="25" placeholder="Size" onchange="drawGrid()">
+        </div>
+        <div class="input-group">
+            <input type="number" id="targetInput" placeholder="Find Number">
+        </div>
+        <button onclick="findAndHighlight()">Go</button>
+    </div>
+
+    <div class="grid-wrapper" id="scrollContainer">
+        <div id="grid" class="grid-container"></div>
+    </div>
+
+    <div id="infoPanel">
+        <div class="panel-header">
+            <h3 style="margin:0; color:var(--accent-color)">Cell Details</h3>
+            <button class="close-btn" onclick="closePanel()">&times;</button>
+        </div>
+        <div class="stat-grid">
+            <div class="stat-item">
+                <label>Value</label>
+                <div id="pVal" style="color:var(--accent-color)">--</div>
+            </div>
+            <div class="stat-item">
+                <label>Equation</label>
+                <div id="pEq">--</div>
+            </div>
+            <div class="stat-item">
+                <label>Coordinates</label>
+                <div id="pCoords">--</div>
+            </div>
+            <div class="stat-item">
+                <label>Gnomon Index</label>
+                <div id="pGnomon" style="color:var(--gnomon-pink)">--</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const gridEl = document.getElementById('grid');
+        let currentSize = 25;
+
+        function getOdd(i) { return BigInt(i) * 2n - 1n; }
+        
+        function drawGrid() {
+            let size = parseInt(document.getElementById('gridSize').value) || 25;
+            if(size > 200) size = 200; // Cap for mobile performance
+            currentSize = size;
+            
+            gridEl.innerHTML = '';
+            // Template: Header Col (50px) + N Data Cols (75px)
+            gridEl.style.gridTemplateColumns = `50px repeat(${size}, 75px)`;
+
+            // 1. Corner
+            let corner = document.createElement('div');
+            corner.className = 'cell corner header-cell';
+            corner.innerText = 'x';
+            gridEl.appendChild(corner);
+
+            // 2. Col Headers
+            for(let c=1; c<=size; c++) {
+                let d = document.createElement('div');
+                d.className = 'cell header-cell header-row';
+                d.innerText = getOdd(c);
+                d.id = `col-${c}`;
+                gridEl.appendChild(d);
+            }
+
+            // 3. Rows
+            for(let r=1; r<=size; r++) {
+                let oddR = getOdd(r);
+                
+                // Row Header
+                let rh = document.createElement('div');
+                rh.className = 'cell header-cell header-col';
+                rh.innerText = oddR;
+                rh.id = `row-${r}`;
+                gridEl.appendChild(rh);
+
+                // Cells
+                for(let c=1; c<=size; c++) {
+                    let oddC = getOdd(c);
+                    let val = oddR * oddC;
+                    let isSquare = (r === c);
+                    
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if(isSquare) cell.classList.add('perfect-square');
+                    cell.id = `cell-${r}-${c}`;
+                    
+                    // Value formatting
+                    let sVal = val.toString();
+                    if(sVal.length > 5) sVal = sVal.substring(0,4) + '..';
+
+                    // Gnomon Logic: Square Gnomon is 2n-1 (which is just the odd number itself)
+                    // If the user wants the Gnomon Index 'k' where Gk = 2k-1, then Index is row number.
+                    // Based on "5x5 is 25, Gnomon is 9", Gnomon = 2*Side - 1.
+                    let gnomonVal = (2n * oddR) - 1n; 
+
+                    let html = `<span class="value">${sVal}</span>`;
+                    html += `<span class="eq">${oddR}×${oddC}</span>`;
+                    
+                    if(isSquare) {
+                        html += `<div class="gnomon-badge">${gnomonVal}</div>`;
+                    }
+
+                    cell.innerHTML = html;
+                    cell.onclick = () => showPanel(val, oddR, oddC, r, c, gnomonVal);
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+
+        // --- Robust Search Logic (from prev discussion) ---
+        function bigSqrt(n) {
+            if (n < 0n) return 0n;
+            if (n < 2n) return n;
+            let x = n, y = (x + n / x) / 2n;
+            while (y < x) { x = y; y = (x + n / x) / 2n; }
+            return x;
+        }
+
+        function findAndHighlight() {
+            let raw = document.getElementById('targetInput').value;
+            if(!raw) return;
+            let T = BigInt(raw.replace(/,/g,''));
+
+            if(T % 2n === 0n) { alert("Odd numbers only"); return; }
+
+            // Ceiling Squeeze Search
+            let ceiling = bigSqrt(T);
+            if(ceiling % 2n === 0n) ceiling--;
+            
+            let foundR = 1n, foundC = T; // Default to prime row 1
+            let limit = 20000;
+            
+            // Scan down
+            for(let r = ceiling; r >= 1n; r -= 2n) {
+                if(limit-- < 0) break; 
+                if(T % r === 0n) {
+                    foundR = r; foundC = T/r;
+                    break;
+                }
+            }
+
+            // Convert to Indices
+            let rIdx = Number((foundR + 1n) / 2n);
+            let cIdx = Number((foundC + 1n) / 2n);
+
+            // Highlight
+            document.querySelectorAll('.highlight-target').forEach(e=>e.classList.remove('highlight-target'));
+            document.querySelectorAll('.highlight-line').forEach(e=>e.classList.remove('highlight-line'));
+
+            if(rIdx <= currentSize && cIdx <= currentSize) {
+                let cell = document.getElementById(`cell-${rIdx}-${cIdx}`);
+                let rh = document.getElementById(`row-${rIdx}`);
+                let ch = document.getElementById(`col-${cIdx}`);
+                
+                if(cell) {
+                    cell.classList.add('highlight-target');
+                    cell.scrollIntoView({behavior: "smooth", block: "center", inline: "center"});
+                }
+                if(rh) rh.classList.add('highlight-line');
+                if(ch) ch.classList.add('highlight-line');
+                
+                // Show panel automatically
+                showPanel(T, foundR, foundC, rIdx, cIdx, (2n*foundR)-1n);
+            } else {
+                alert(`Found at Row ${rIdx}, Col ${cIdx}. (Outside current view of ${currentSize})`);
+                showPanel(T, foundR, foundC, rIdx, cIdx, (2n*foundR)-1n);
+            }
+        }
+
+        function showPanel(val, rVal, cVal, rIdx, cIdx, gnomon) {
+            document.getElementById('infoPanel').classList.add('active');
+            document.getElementById('pVal').innerText = val;
+            document.getElementById('pEq').innerText = `${rVal} × ${cVal}`;
+            document.getElementById('pCoords').innerText = `Row ${rIdx}, Col ${cIdx}`;
+            
+            // For Gnomon Index, show the Row Gnomon for context
+            // "Gnomon 9" for the 5x5 row
+            let rowGnomon = (2n * rVal) - 1n;
+            document.getElementById('pGnomon').innerText = rowGnomon;
+        }
+
+        function closePanel() {
+            document.getElementById('infoPanel').classList.remove('active');
+        }
+
+        // Init
+        drawGrid();
+
+        // Enter key support
+        document.getElementById('targetInput').addEventListener('keyup', e => {
+            if(e.key === 'Enter') findAndHighlight();
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mersenne Prime Hunter (FFT Patch)</title>
+    <style>
+        :root { --bg: #0b1120; --card: #1e293b; --text: #e2e8f0; --accent: #38bdf8; --green: #4ade80; --red: #f87171; }
+        body { font-family: 'Segoe UI', Roboto, monospace; background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .dashboard { background: var(--card); border: 1px solid #334155; border-radius: 12px; padding: 25px; width: 100%; max-width: 720px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px; }
+        h2 { margin: 0; color: var(--accent); font-size: 1.4rem; letter-spacing: 1px; text-transform: uppercase; }
+        .status-tag { font-size: 0.8rem; background: #0f172a; padding: 4px 8px; border-radius: 4px; color: #94a3b8; border: 1px solid #334155; }
+        .spinner { width: 20px; height: 20px; border: 3px solid #334155; border-top: 3px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; opacity: 0; }
+        .spinner.active { opacity: 1; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .input-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { background: #0f172a; border: 1px solid #475569; color: white; padding: 12px; border-radius: 6px; flex: 1; font-family: monospace; font-size: 1.1rem; }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+        .stat label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+        .stat div { font-size: 1.1rem; font-weight: bold; font-family: monospace; color: #f8fafc; }
+        .stat .green { color: var(--green); } .stat .blue { color: var(--accent); }
+        .bar-bg { background: #334155; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+        .bar-fill { background: linear-gradient(90deg, #3b82f6, var(--accent)); height: 100%; width: 0%; transition: width 0.2s linear; }
+        .log { background: #000; border: 1px solid #334155; border-radius: 6px; height: 160px; overflow-y: auto; padding: 12px; font-family: monospace; font-size: 0.85rem; color: var(--green); margin-bottom: 15px; white-space: pre-wrap; }
+        .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 0.9rem; transition: filter 0.2s; }
+        button:hover:not(:disabled) { filter: brightness(1.1); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-go { background: var(--green); color: #022c22; }
+        .btn-stop { background: var(--red); color: white; }
+        .btn-save { background: #3b82f6; color: white; }
+        .upload-wrap { position: relative; overflow: hidden; background: #8b5cf6; color: white; flex: 1; text-align: center; padding: 12px; border-radius: 6px; font-weight: bold; text-transform: uppercase; font-size: 0.9rem; cursor: pointer; }
+        .upload-wrap input { position: absolute; left: 0; top: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="header">
+        <div>
+            <h2>Mersenne Hunter</h2>
+            <span id="engineTag" class="status-tag">ENGINE: IDLE</span>
+        </div>
+        <div id="spin" class="spinner"></div>
+    </div>
+
+    <div class="input-row">
+        <input type="number" id="expInput" value="11213" placeholder="Exponent p">
+    </div>
+
+    <div class="grid">
+        <div class="stat"><label>Progress</label><div id="valPct" class="blue">0.0%</div></div>
+        <div class="stat"><label>Speed</label><div id="valSpeed" class="green">0 it/s</div></div>
+        <div class="stat"><label>Step</label><div id="valStep">0</div></div>
+        <div class="stat"><label>ETA</label><div id="valETA">--:--</div></div>
+    </div>
+
+    <div class="bar-bg"><div id="progressBar" class="bar-fill"></div></div>
+    <div id="sysLog" class="log">System Ready.</div>
+
+    <div class="btn-row">
+        <button id="btnStart" class="btn-go">Start Engine</button>
+        <button id="btnStop" class="btn-stop" disabled>Abort</button>
+    </div>
+    <div class="btn-row">
+        <button id="btnSave" class="btn-save" disabled>💾 Save Checkpoint</button>
+        <label class="upload-wrap">📂 Load Checkpoint <input type="file" id="fileLoad"></label>
+    </div>
+</div>
+
+<script>
+const workerSource = `
+const CHUNK_SIZE = 4;
+const BASE = 10000n; 
+
+function fft(real, imag, inverse) {
+    const n = real.length;
+    const bits = Math.log2(n);
+    for (let i=0; i<n; i++) {
+        let r=0, k=i;
+        for(let j=0; j<bits; j++) { r=(r<<1)|(k&1); k>>=1; }
+        if(i<r) { [real[i],real[r]]=[real[r],real[i]]; [imag[i],imag[r]]=[imag[r],imag[i]]; }
+    }
+    for (let len=2; len<=n; len<<=1) {
+        const half=len>>1;
+        const angle=(2*Math.PI)/len*(inverse?-1:1);
+        const wLenR=Math.cos(angle), wLenI=Math.sin(angle);
+        for (let i=0; i<n; i+=len) {
+            let wR=1, wI=0;
+            for (let j=0; j<half; j++) {
+                const uR=real[i+j], uI=imag[i+j];
+                const tR=real[i+j+half]*wR - imag[i+j+half]*wI;
+                const tI=real[i+j+half]*wI + imag[i+j+half]*wR;
+                real[i+j]=uR+tR; imag[i+j]=uI+tI;
+                real[i+j+half]=uR-tR; imag[i+j+half]=uI-tI;
+                const tmp=wR; wR=wR*wLenR - wI*wLenI; wI=tmp*wLenI + wI*wLenR;
+            }
+        }
+    }
+    if (inverse) for(let i=0; i<n; i++) { real[i]/=n; imag[i]/=n; }
+}
+
+function multiplyFFT(a) {
+    // 1. BigInt -> Chunks
+    const s = a.toString();
+    const aChunks = [];
+    for(let i=s.length; i>0; i-=CHUNK_SIZE) aChunks.push(parseFloat(s.slice(Math.max(0, i-CHUNK_SIZE), i)));
+    
+    // 2. Setup FFT Buffers
+    let size=1; while(size < 2*aChunks.length) size<<=1;
+    const real=new Float64Array(size), imag=new Float64Array(size);
+    for(let i=0; i<aChunks.length; i++) real[i]=aChunks[i];
+
+    // 3. Convolution (Square)
+    fft(real, imag, false);
+    for(let i=0; i<size; i++) {
+        const r=real[i], im=imag[i];
+        real[i]=(r*r)-(im*im); imag[i]=2*r*im;
+    }
+    fft(real, imag, true);
+
+    // 4. Chunks -> BigInt (Carry Handling)
+    // FIX: Convert TypedArray to standard Array so it can hold BigInts
+    const bigChunks = Array.from(real).map(Math.round).map(BigInt);
+
+    for(let i=0; i<bigChunks.length; i++) {
+        if(bigChunks[i]>=BASE) {
+            const div = bigChunks[i]/BASE;
+            bigChunks[i] %= BASE;
+            if(i+1>=bigChunks.length) bigChunks.push(0n);
+            bigChunks[i+1] += div;
+        }
+    }
+    return bigChunks.reduce((acc,val,idx) => acc + val * (BASE**BigInt(idx)), 0n);
+}
+
+self.onmessage = function(e) {
+    const d = e.data;
+    if (d.cmd === 'snapshot') { self.doSnap = true; return; }
+
+    if (d.cmd === 'start' || d.cmd === 'resume') {
+        const p = BigInt(d.p);
+        const Mp = (1n << p) - 1n;
+        let s = d.s ? BigInt(d.s) : 4n;
+        let i = d.i ? Number(d.i) : 0;
+        const total = Number(p) - 2;
+        
+        self.doSnap = false;
+        self.isRunning = true;
+
+        let startTime = performance.now();
+        let lastTime = startTime;
+        let lastStep = i;
+        let engineType = "NATIVE";
+
+        const mersenneMod = (x) => {
+            while (x > Mp) x = (x & Mp) + (x >> p);
+            return x === Mp ? 0n : x;
+        };
+
+        function runChunk() {
+            if (!self.isRunning) return;
+            
+            const chunkSize = 2000; 
+            const end = Math.min(i + chunkSize, total);
+
+            for (; i < end; i++) {
+                // Use FFT only for very large numbers to avoid overhead
+                if (s < 10n**300n) {
+                    s = s * s; 
+                    if (engineType !== "NATIVE") { engineType = "NATIVE"; self.postMessage({type:'engine', mode:'NATIVE'}); }
+                } else {
+                    s = multiplyFFT(s);
+                    if (engineType !== "FFT") { engineType = "FFT"; self.postMessage({type:'engine', mode:'FFT'}); }
+                }
+                s = s - 2n;
+                s = mersenneMod(s);
+            }
+
+            if (self.doSnap) {
+                self.postMessage({ type: 'snap_data', p: p.toString(), s: s.toString(), i: i });
+                self.doSnap = false;
+                self.isRunning = false;
+                return;
+            }
+
+            const now = performance.now();
+            if (now - lastTime > 500) {
+                const ips = (i - lastStep) / ((now - lastTime)/1000);
+                const eta = ips > 0 ? (total - i) / ips : 0;
+                self.postMessage({ type: 'stat', pct: (i/total)*100, step: i, ips, eta });
+                lastTime = now;
+                lastStep = i;
+            }
+
+            if (i < total) setTimeout(runChunk, 0);
+            else self.postMessage({ type: 'done', res: s===0n, residue: s.toString(), time: (now-startTime)/1000 });
+        }
+        runChunk();
+    }
+};
+`;
+
+let worker = null;
+const els = {
+    start: document.getElementById('btnStart'), stop: document.getElementById('btnStop'), save: document.getElementById('btnSave'),
+    exp: document.getElementById('expInput'), pct: document.getElementById('valPct'), spd: document.getElementById('valSpeed'),
+    step: document.getElementById('valStep'), eta: document.getElementById('valETA'), bar: document.getElementById('progressBar'),
+    log: document.getElementById('sysLog'), spin: document.getElementById('spin'), tag: document.getElementById('engineTag')
+};
+
+function log(msg) { els.log.textContent += msg + "\\n"; els.log.scrollTop = els.log.scrollHeight; }
+function fmtTime(s) { 
+    if(!isFinite(s)) return "--:--";
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = Math.floor(s%60);
+    return `${h}h ${m}m ${sec}s`;
+}
+
+function initWorker(p, cmd, s=null, i=null) {
+    if(worker) worker.terminate();
+    const blob = new Blob([workerSource], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    els.start.disabled = true; els.stop.disabled = false; els.save.disabled = false;
+    els.spin.classList.add('active');
+    els.tag.textContent = "ENGINE: WARMUP";
+    
+    worker.postMessage({ cmd, p, s, i });
+
+    worker.onmessage = e => {
+        const d = e.data;
+        if (d.type === 'stat') {
+            els.pct.textContent = d.pct.toFixed(2) + "%";
+            els.spd.textContent = Math.floor(d.ips).toLocaleString() + " it/s";
+            els.step.textContent = d.step.toLocaleString();
+            els.eta.textContent = fmtTime(d.eta);
+            els.bar.style.width = d.pct + "%";
+        } else if (d.type === 'engine') {
+            els.tag.textContent = "ENGINE: " + d.mode;
+            els.tag.style.color = d.mode === "FFT" ? "#f472b6" : "#4ade80";
+        } else if (d.type === 'snap_data') {
+            const blob = new Blob([JSON.stringify(d)], {type:'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `mersenne_p${d.p}_step${d.i}.json`;
+            a.click();
+            log(">> Checkpoint saved to disk.");
+            els.spin.classList.remove('active');
+        } else if (d.type === 'done') {
+            log("---------------------------");
+            log(d.res ? "RESULT: PRIME! 🟢" : "RESULT: COMPOSITE 🔴");
+            log(`Time: ${d.time}s | Residue: ${d.residue.substring(0,20)}...`);
+            els.stop.click();
+        }
+    };
+}
+
+els.start.onclick = () => {
+    const p = els.exp.value;
+    if(!p || p<3) return log("Invalid Exponent");
+    log(`>> Initializing Search for M${p}...`);
+    initWorker(p, 'start');
+};
+
+els.stop.onclick = () => {
+    if(worker) worker.terminate();
+    els.start.disabled = false; els.stop.disabled = true; els.save.disabled = true;
+    els.spin.classList.remove('active');
+    els.tag.textContent = "ENGINE: IDLE";
+    log(">> Process Aborted.");
+};
+
+els.save.onclick = () => { if(worker) worker.postMessage({cmd:'snapshot'}); };
+
+document.getElementById('fileLoad').onchange = (e) => {
+    const f = e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => {
+        try {
+            const d = JSON.parse(ev.target.result);
+            els.exp.value = d.p;
+            log(`>> Resuming M${d.p} from Step ${d.i}`);
+            initWorker(d.p, 'resume', d.s, d.i);
+        } catch(err) { log("Error: Invalid file."); }
+    };
+    r.readAsText(f);
+    e.target.value = '';
+};
+</script>
+</body>
+</html>

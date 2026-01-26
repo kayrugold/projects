@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Prime Window: 4-Card View</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --bg: #0f172a;
+        --panel: #1e293b;
+        --wall: #3b82f6;   /* Blue for Mod 3 Boundaries */
+        --square: #f59e0b; /* Orange for Square Reference */
+        --prime: #10b981;  /* Green for The Gap */
+        --text: #e2e8f0;
+    }
+    
+    body { background-color: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    
+    .dashboard { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 20px; }
+    
+    /* THE ROAD DISPLAY */
+    .windshield {
+        background: #020617; border: 4px solid #334155; border-radius: 12px;
+        height: 220px; position: relative; overflow: hidden;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+    }
+    
+    .road-strip {
+        display: flex; gap: 12px; align-items: center; justify-content: center; transition: transform 0.3s ease-out;
+        padding: 0 20px;
+    }
+    
+    .marker {
+        width: 75px; height: 90px; 
+        background: #1e293b; border: 2px solid #475569; border-radius: 8px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 1.4rem; color: #64748b;
+        transition: all 0.3s; opacity: 0.6;
+    }
+    
+    .marker.active {
+        width: 95px; height: 110px; opacity: 1; font-size: 1.8rem;
+        z-index: 10; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        background: #334155; color: #fff; border-color: #94a3b8;
+        transform: scale(1.05);
+    }
+
+    /* STATES */
+    .marker.is-wall { border-color: var(--wall); color: var(--wall); box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+    .marker.is-square { border-color: var(--square); color: var(--square); box-shadow: 0 0 15px rgba(245, 158, 11, 0.2); }
+    .marker.is-gap { border-color: var(--prime); color: var(--prime); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+
+    /* LOGIC HUD */
+    .hud-panel {
+        background: var(--panel); border: 1px solid #334155; padding: 15px; border-radius: 8px;
+        display: flex; flex-direction: column; gap: 10px;
+    }
+    
+    .logic-row {
+        display: flex; justify-content: space-between; align-items: center;
+        border-bottom: 1px dashed #334155; padding-bottom: 5px;
+    }
+    .logic-lbl { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; }
+    .logic-val { font-weight: bold; font-size: 1.1rem; }
+
+    /* CONTROLS */
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .control-grp { background: #1e293b; padding: 10px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+    
+    .btn { 
+        background: #334155; color: #fff; border: none; padding: 10px; width: 100%;
+        font-weight: bold; cursor: pointer; border-radius: 4px; margin-top: 5px;
+    }
+    .btn:hover { background: #475569; }
+    .btn-up { border-bottom: 2px solid #64748b; }
+    .btn-down { border-top: 2px solid #64748b; }
+
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h1 class="text-center font-bold text-xl text-blue-400">PRIME WINDOW (4-CARD)</h1>
+
+    <div class="windshield">
+        <div class="text-xs text-gray-500 absolute top-4">DRIVER'S VIEW</div>
+        <div id="road" class="road-strip">
+            </div>
+        <div class="text-xs text-gray-500 absolute bottom-4">▼ CURRENT POSITION ▼</div>
+    </div>
+
+    <div class="hud-panel">
+        <div class="logic-row">
+            <span class="logic-lbl">Selected Number</span>
+            <span id="dispNum" class="logic-val text-white">25</span>
+        </div>
+        <div class="logic-row">
+            <span class="logic-lbl">Analysis</span>
+            <span id="dispStatus" class="logic-val">SQUARE REFERENCE</span>
+        </div>
+        <div class="logic-row">
+            <span class="logic-lbl">Equation</span>
+            <span id="dispEq" class="logic-val text-yellow-400">5 × 5 = 25</span>
+        </div>
+        <div class="logic-row" id="stepRow">
+            <span class="logic-lbl">Algorithm Step</span>
+            <span id="dispStep" class="text-xs text-gray-400">Step 2: Reference Square Found</span>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-grp">
+            <label class="text-xs text-blue-400 font-bold">BOUNDARY (A)</label>
+            <div class="text-xl font-bold my-2" id="valA">3</div>
+            <button class="btn btn-up" onclick="adjA(2)">▲ Expand Wall</button>
+            <button class="btn btn-down" onclick="adjA(-2)">▼ Shrink Wall</button>
+        </div>
+        <div class="control-grp">
+            <label class="text-xs text-green-400 font-bold">SCROLL ROAD (B)</label>
+            <div class="text-xl font-bold my-2" id="valB">25</div>
+            <button class="btn btn-up" onclick="adjB(2)">▲ Drive Forward</button>
+            <button class="btn btn-down" onclick="adjB(-2)">▼ Drive Back</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// STATE
+let centerNum = 25; // "B" - Position on Road
+let wallMod = 3;    // "A" - The Wall Interval
+
+const roadEl = document.getElementById('road');
+
+function init() {
+    renderRoad();
+    updateHUD();
+}
+
+function adjB(delta) {
+    centerNum += delta;
+    if(centerNum < 3) centerNum = 3;
+    renderRoad();
+    updateHUD();
+}
+
+function adjA(delta) {
+    wallMod += delta;
+    if(wallMod < 3) wallMod = 3;
+    renderRoad();
+    updateHUD();
+}
+
+function isSquare(n) {
+    return n > 0 && Math.sqrt(n) % 1 === 0;
+}
+
+function renderRoad() {
+    roadEl.innerHTML = '';
+    
+    // THE 4-CARD WINDOW
+    // Relative to center (0), we show:
+    // -4 (Previous Neighbor)
+    // -2 (Immediate Neighbor)
+    //  0 (Current Target)
+    // +2 (Next Neighbor)
+    
+    const range = [-4, -2, 0, 2];
+    
+    range.forEach(offset => {
+        const num = centerNum + offset;
+        const div = document.createElement('div');
+        
+        let typeClass = '';
+        
+        // 1. Check Wall (Mod A)
+        if (num % wallMod === 0) {
+            typeClass = 'is-wall';
+        } 
+        // 2. Check Square
+        else if (isSquare(num)) {
+            typeClass = 'is-square';
+        }
+        // 3. Gap
+        else {
+            typeClass = 'is-gap';
+        }
+
+        const isActive = (offset === 0) ? 'active' : '';
+        
+        div.className = `marker ${isActive} ${typeClass}`;
+        div.innerText = num;
+        roadEl.appendChild(div);
+    });
+}
+
+function updateHUD() {
+    document.getElementById('valB').innerText = centerNum;
+    document.getElementById('valA').innerText = wallMod;
+    document.getElementById('dispNum').innerText = centerNum;
+    
+    const statusEl = document.getElementById('dispStatus');
+    const eqEl = document.getElementById('dispEq');
+    const stepEl = document.getElementById('dispStep');
+    
+    // LOGIC TREE (Following your text file)
+    
+    // Step 1: Boundaries (Multiples of A)
+    if (centerNum % wallMod === 0) {
+        const factor = centerNum / wallMod;
+        statusEl.innerText = "BOUNDARY WALL";
+        statusEl.style.color = "var(--wall)";
+        eqEl.innerText = `${wallMod} × ${factor} = ${centerNum}`;
+        stepEl.innerText = "Step 1: Set Boundaries (Multiple of 3)";
+    }
+    // Step 2: Squares
+    else if (isSquare(centerNum)) {
+        const root = Math.sqrt(centerNum);
+        statusEl.innerText = "REFERENCE SQUARE";
+        statusEl.style.color = "var(--square)";
+        eqEl.innerText = `${root} × ${root} = ${centerNum}`;
+        stepEl.innerText = "Step 2: Find Square Reference (Limit Set)";
+    }
+    // Step 3/4: The Gap / Prime Window
+    else {
+        statusEl.innerText = "THE GAP (PRIME?)";
+        statusEl.style.color = "var(--prime)";
+        eqEl.innerText = `1 × ${centerNum}`;
+        stepEl.innerText = "Step 4: The Survivor (Inside the Window)";
+    }
+}
+
+init();
+</script>
+</body>
+</html>

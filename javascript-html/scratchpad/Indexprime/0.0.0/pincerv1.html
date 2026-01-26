@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HUNTER v12: SYMBOLIC PINCER</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --bg: #000000;
+        --panel: #050505;
+        --grid: #111;
+        --low-beam: #00ff9d; /* Green for Low Sweep */
+        --high-beam: #f43f5e; /* Red for Deep Strike */
+        --hit: #fbbf24;      /* Amber for Hit */
+        --text: #e5e5e5;
+    }
+    
+    body { background-color: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    
+    .dashboard { width: 100%; max-width: 1000px; display: grid; gap: 20px; }
+    
+    .card { background: var(--panel); border: 1px solid var(--grid); padding: 20px; box-shadow: 0 0 50px rgba(0, 255, 157, 0.05); border-radius: 4px; }
+    .card-header { display: flex; justify-content: space-between; border-bottom: 1px solid var(--grid); padding-bottom: 10px; margin-bottom: 15px; align-items: center; }
+    
+    /* INPUTS */
+    .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+    .inp-col { flex: 1; }
+    label { font-size: 0.65rem; color: #666; display: block; margin-bottom: 4px; text-transform: uppercase; font-weight: bold; }
+    input { width: 100%; background: #080808; border: 1px solid #222; color: #fff; padding: 12px; font-family: monospace; text-align: center; font-size: 1.1rem; outline: none; transition: border 0.3s; }
+    input:focus { border-color: var(--low-beam); }
+
+    /* CORE GRID */
+    .core-grid { 
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); 
+        gap: 6px; margin-top: 20px; 
+    }
+    .core-item {
+        background: #020202; border: 1px solid #111; padding: 8px; border-radius: 4px;
+        font-size: 0.6rem; color: #666; display: flex; flex-direction: column; gap: 2px;
+        position: relative; overflow: hidden;
+    }
+    .core-item.team-low { border-left: 2px solid var(--low-beam); }
+    .core-item.team-high { border-left: 2px solid var(--high-beam); }
+    
+    .core-val { color: #fff; font-weight: bold; font-size: 0.7rem; margin-top: 2px; }
+    .core-label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 1px; }
+    
+    .core-bar { height: 2px; background: #222; width: 100%; margin-top: 4px; }
+    .core-fill { height: 100%; width: 0%; transition: width 0.2s; }
+    .fill-low { background: var(--low-beam); }
+    .fill-high { background: var(--high-beam); }
+
+    /* PINCER RADAR */
+    .pincer-viz {
+        display: flex; height: 40px; background: #020202; border: 1px solid #111; margin-bottom: 15px; position: relative; overflow: hidden;
+    }
+    .pincer-left { flex: 1; background: linear-gradient(90deg, rgba(0,255,157,0.1), transparent); border-right: 1px dashed #222; display: flex; align-items: center; padding-left: 10px; font-size: 0.6rem; color: var(--low-beam); }
+    .pincer-right { flex: 1; background: linear-gradient(-90deg, rgba(244, 63, 94, 0.1), transparent); display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-size: 0.6rem; color: var(--high-beam); }
+
+    /* TROPHY CASE */
+    .trophy-container { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; margin-top: 15px; padding: 5px; border: 1px solid #111; background: #020202; }
+    .trophy { 
+        background: #080808; border-left: 2px solid var(--hit); padding: 8px 12px; 
+        font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;
+        animation: slideIn 0.3s ease-out; 
+    }
+    .t-label { color: #666; font-size: 0.65rem; text-transform: uppercase; }
+    @keyframes slideIn { 0% { transform: translateX(-10px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+
+    /* CONTROLS */
+    .btn { width: 100%; padding: 15px; font-weight: 900; letter-spacing: 2px; background: #080808; color: #fff; border: 1px solid #222; cursor: pointer; transition: all 0.2s; font-size: 1rem; margin-top: 10px; }
+    .btn:hover { background: #111; border-color: #444; }
+    .btn-run { color: var(--low-beam); border-color: var(--low-beam); }
+    .btn-run:hover { background: rgba(0, 255, 157, 0.1); }
+    .btn-stop { color: var(--high-beam); border-color: var(--high-beam); }
+    .btn-stop:hover { background: rgba(244, 63, 94, 0.1); }
+
+    .stats-bar { display: flex; justify-content: space-between; font-size: 0.7rem; color: #666; margin-top: 15px; border-top: 1px solid var(--grid); padding-top: 10px; }
+    .stat-hl { color: #fff; font-weight: bold; }
+
+    .log-box { height: 80px; overflow-y: auto; font-size: 0.65rem; color: #444; margin-top: 15px; background: #000; border: 1px solid #111; padding: 8px; font-family: monospace; }
+    .log-hit { color: var(--hit); font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="card">
+        <div class="card-header">
+            <span style="font-weight:900; letter-spacing:1px; color:var(--text)">HUNTER v12</span>
+            <span style="font-size:0.6rem; color:#444">SYMBOLIC PINCER MODE</span>
+        </div>
+        
+        <div class="input-group">
+            <div class="inp-col"><label>Base</label><input id="inpBase" value="10"></div>
+            <div class="inp-col"><label>Exponent</label><input id="inpExp" value="1000000000"></div>
+            <div class="inp-col"><label>Add</label><input id="inpAdd" value="19"></div>
+        </div>
+
+        <div style="font-size:0.7rem; color:#444; text-align:center; margin-bottom:10px;">
+            TARGET: <span id="targetPreview" style="color:#fff">10^1000000000 + 19</span>
+        </div>
+
+        <div class="pincer-viz">
+            <div class="pincer-left">TEAM ALPHA (LOW SWEEP)</div>
+            <div class="pincer-right">TEAM BRAVO (DEEP STRIKE)</div>
+        </div>
+
+        <button id="btnRun" class="btn btn-run" onclick="toggleEngine()">DEPLOY PINCER</button>
+
+        <div class="stats-bar">
+            <span>Rulers Checked: <span id="rulerCount" class="stat-hl">0</span></span>
+            <span>Net Velocity: <span id="speedVal" class="stat-hl">0</span> /s</span>
+        </div>
+
+        <div id="coreContainer" class="core-grid"></div>
+
+        <div class="flex justify-between items-end mt-4">
+            <span style="font-size:0.7rem; color:#666; text-transform:uppercase;">Trophy Case</span>
+            <button class="btn" style="width:auto; padding:5px 10px; margin:0; font-size:0.7rem;" onclick="clearTrophies()">CLEAR</button>
+        </div>
+        <div id="trophyCase" class="trophy-container"></div>
+        
+        <div id="logBox" class="log-box">System Ready. Pincer Strategy Loaded.</div>
+    </div>
+</div>
+
+<script>
+// --- WORKER: SYMBOLIC PINCER ---
+const workerBlob = new Blob([`
+    self.onmessage = function(e) {
+        const { cmd, baseStr, expStr, addStr, coreId, startOffset, stride } = e.data;
+        
+        if (cmd === 'start') {
+            const base = BigInt(baseStr);
+            const exp = BigInt(expStr); 
+            const add = BigInt(addStr); 
+            
+            // Symbolic Modulo Check
+            function checkSnap(m) {
+                const mBI = BigInt(m);
+                let r = 1n;
+                let b = base % mBI;
+                let e = exp;
+                while (e > 0n) {
+                    if ((e & 1n) === 1n) r = (r * b) % mBI;
+                    b = (b * b) % mBI;
+                    e >>= 1n;
+                }
+                return (r + add) % mBI === 0n;
+            }
+
+            const wheel = [1, 7, 11, 13, 17, 19, 23, 29];
+            const wheelSize = 30;
+            
+            // PINCER LOGIC:
+            // d starts at the assigned "Deep Offset" (startOffset)
+            // Each core jumps by 'stride' (30 * HalfCores) to keep its lane clear.
+            let d = startOffset + 30;
+            
+            // Align d to 30
+            const rem = d % 30;
+            if(rem !== 0) d += (30 - rem);
+
+            let count = 0;
+            let lastUpdate = Date.now();
+            let batchProgress = 0;
+            const batchLimit = 100000; 
+
+            // Safety Check (Only if starting at 0)
+            if (startOffset === 0 && coreId === 0) {
+                const smalls = [7, 11, 13, 17, 19, 23, 29, 31];
+                for(let p of smalls) {
+                    if(checkSnap(p)) postMessage({ type: 'snap', ruler: p });
+                }
+            }
+
+            while(true) {
+                for (let i = 0; i < 8; i++) {
+                    const ruler = d + wheel[i];
+                    if (checkSnap(ruler)) {
+                        postMessage({ type: 'snap', ruler: ruler });
+                    }
+                    count++;
+                    batchProgress++;
+                }
+                
+                d += stride;
+
+                if (count % 20000 === 0) {
+                    const now = Date.now();
+                    if (now - lastUpdate > 200) {
+                        let pct = (batchProgress / batchLimit) * 100;
+                        if(pct >= 100) { pct = 0; batchProgress = 0; }
+                        postMessage({ type: 'prog', count: count, current: d, pct: pct });
+                        lastUpdate = now;
+                    }
+                }
+            }
+        }
+    }
+`], { type: 'application/javascript' });
+
+// --- MAIN THREAD ---
+let workers = [];
+let isRunning = false;
+let totalChecked = 0;
+let lastTotal = 0;
+let lastTime = 0;
+let wakeLock = null;
+const threadCount = navigator.hardwareConcurrency || 4;
+let coreStats = new Array(threadCount).fill(0);
+
+const el = (id) => document.getElementById(id);
+const log = (msg, type='sys') => {
+    const d = document.createElement('div');
+    d.textContent = `> ${msg}`;
+    d.className = `log-${type}`;
+    el('logBox').prepend(d);
+}
+
+function initUI() {
+    const container = el('coreContainer');
+    container.innerHTML = '';
+    
+    // Split Teams
+    const mid = Math.ceil(threadCount / 2);
+    
+    for(let i=0; i<threadCount; i++) {
+        const isHigh = i >= mid;
+        const teamClass = isHigh ? 'team-high' : 'team-low';
+        const fillClass = isHigh ? 'fill-high' : 'fill-low';
+        const label = isHigh ? 'BRAVO (DEEP)' : 'ALPHA (SWEEP)';
+        
+        const div = document.createElement('div');
+        div.className = `core-item ${teamClass}`;
+        div.innerHTML = `
+            <div class="flex justify-between items-center">
+                <span class="core-label">${label}</span>
+                <span style="font-size:0.5rem; color:#444">CORE ${i}</span>
+            </div>
+            <div class="core-val" id="val-${i}">INIT</div>
+            <div class="core-bar"><div id="bar-${i}" class="core-fill ${fillClass}"></div></div>
+        `;
+        container.appendChild(div);
+    }
+    
+    // Restore inputs
+    ['inpBase', 'inpExp', 'inpAdd'].forEach(k => {
+        if(localStorage.getItem(k)) el(k).value = localStorage.getItem(k);
+        el(k).addEventListener('input', updatePreview);
+    });
+    updatePreview();
+    loadTrophies();
+}
+
+function updatePreview() {
+    const b = el('inpBase').value;
+    const e = el('inpExp').value;
+    const a = el('inpAdd').value;
+    el('targetPreview').innerText = `${b}^${e} + ${a}`;
+    
+    localStorage.setItem('inpBase', b);
+    localStorage.setItem('inpExp', e);
+    localStorage.setItem('inpAdd', a);
+}
+
+async function toggleEngine() {
+    if(isRunning) return stopEngine();
+    
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
+
+    el('btnRun').innerText = "ABORT PINCER";
+    el('btnRun').className = "btn btn-stop";
+    
+    isRunning = true;
+    totalChecked = 0;
+    lastTotal = 0;
+    lastTime = Date.now();
+    coreStats.fill(0);
+    
+    const base = el('inpBase').value;
+    const exp = el('inpExp').value;
+    const add = el('inpAdd').value;
+    
+    const workerUrl = URL.createObjectURL(workerBlob);
+    
+    // DEPLOYMENT STRATEGY
+    const mid = Math.ceil(threadCount / 2);
+    const lowCores = mid;
+    const highCores = threadCount - mid;
+    
+    // Team Alpha Stride: 30 * AlphaCoreCount
+    const strideAlpha = 30 * lowCores;
+    
+    // Team Bravo Stride: 30 * BravoCoreCount
+    const strideBravo = 30 * highCores;
+    
+    // Deep Offsets (Powers of 10)
+    // Core 0 of Bravo starts at 1 Billion
+    // Core 1 of Bravo starts at 1 Trillion
+    // etc.
+    const deepBase = 1000000000; // 1 Billion start
+    
+    for(let i=0; i<threadCount; i++) {
+        let startOffset = 0;
+        let stride = 0;
+        
+        if (i < mid) {
+            // TEAM ALPHA
+            startOffset = 30 * i;
+            stride = strideAlpha;
+        } else {
+            // TEAM BRAVO
+            const bravoIdx = i - mid;
+            // 1 Billion, 10 Billion, 100 Billion... scaling up
+            startOffset = deepBase * Math.pow(10, bravoIdx * 3); 
+            stride = strideBravo;
+        }
+        
+        const w = new Worker(workerUrl);
+        w.onmessage = function(e) { handleWorker(e, i); };
+        w.postMessage({ 
+            cmd: 'start', 
+            baseStr: base, 
+            expStr: exp, 
+            addStr: add, 
+            coreId: i,
+            startOffset: startOffset,
+            stride: stride
+        });
+        workers.push(w);
+    }
+    
+    log("Pincer Movement Active.", 'sys');
+}
+
+function handleWorker(e, id) {
+    const d = e.data;
+    
+    if(d.type === 'prog') {
+        el(`bar-${id}`).style.width = `${d.pct}%`;
+        
+        // Format number nicely (K, M, B)
+        let val = d.current;
+        let fmt = val.toLocaleString();
+        if (val > 1000000000) fmt = (val/1000000000).toFixed(2) + "B";
+        else if (val > 1000000) fmt = (val/1000000).toFixed(2) + "M";
+        
+        el(`val-${id}`).innerText = fmt;
+        
+        coreStats[id] = d.count;
+        const total = coreStats.reduce((a,b)=>a+b, 0);
+        el('rulerCount').innerText = total.toLocaleString();
+        
+        const now = Date.now();
+        const diff = now - lastTime;
+        if(diff > 500) {
+            const spd = (total - lastTotal) / (diff/1000);
+            el('speedVal').innerText = Math.round(spd).toLocaleString();
+            lastTotal = total;
+            lastTime = now;
+        }
+    }
+    
+    if(d.type === 'snap') {
+        const p = d.ruler;
+        log(`SNAP: ${p}`, 'hit');
+        addTrophy(p);
+    }
+}
+
+function addTrophy(p) {
+    let factors = JSON.parse(localStorage.getItem('factors') || "[]");
+    if(factors.includes(p)) return; 
+    
+    factors.push(p);
+    factors.sort((a,b) => a-b);
+    localStorage.setItem('factors', JSON.stringify(factors));
+    renderTrophies();
+}
+
+function renderTrophies() {
+    const list = el('trophyCase');
+    list.innerHTML = '';
+    let factors = JSON.parse(localStorage.getItem('factors') || "[]");
+    
+    factors.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'trophy';
+        div.innerHTML = `
+            <div>
+                <div style="color:#fff; font-weight:bold; font-size:1rem">${p}</div>
+                <div class="t-label">Confirmed Factor</div>
+            </div>
+            <div style="color:var(--safe); font-size:0.7rem">VERIFIED</div>
+        `;
+        list.prepend(div);
+    });
+}
+
+function loadTrophies() { renderTrophies(); }
+
+function clearTrophies() {
+    localStorage.setItem('factors', "[]");
+    renderTrophies();
+    log("Trophies Cleared.", 'sys');
+}
+
+function stopEngine() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    isRunning = false;
+    if(wakeLock) wakeLock.release();
+    
+    el('btnRun').innerText = "DEPLOY PINCER";
+    el('btnRun').className = "btn btn-run";
+    log("Fleet Returned.", 'sys');
+}
+
+initUI();
+</script>
+</body>
+</html>

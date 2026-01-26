@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Driver's Sieve: ETERNAL</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --bg: #000000;
+        --panel: #0a0a0a;
+        --border: #222;
+        --accent: #ff0033;
+        --safe: #00cc66;
+        --wall: #0066ff;
+        --text: #cccccc;
+    }
+    
+    body { background-color: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    
+    .dashboard { width: 100%; max-width: 900px; display: grid; gap: 20px; }
+    
+    /* CARD STYLES */
+    .card { background: var(--panel); border: 1px solid var(--border); padding: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
+    .card-title { font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 2px; font-size: 0.9rem; }
+    
+    /* INPUTS */
+    .input-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+    label { font-size: 0.6rem; color: #555; display: block; margin-bottom: 4px; text-transform: uppercase; }
+    input { width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 10px; font-family: monospace; text-align: center; font-size: 1.1rem; outline: none; }
+    input:focus { border-color: var(--wall); }
+
+    /* VISUALIZER */
+    .road-viz { 
+        display: flex; align-items: center; justify-content: center; 
+        padding: 40px 20px; background: #030303; 
+        border-top: 2px solid #111; border-bottom: 2px solid #111; 
+        position: relative; overflow: hidden; margin: 20px 0;
+    }
+    
+    .wall-post { width: 10px; height: 80px; border: 1px solid var(--wall); background: repeating-linear-gradient(0deg, var(--wall), var(--wall) 2px, transparent 2px, transparent 10px); z-index: 10; }
+    .lane-line { flex: 1; height: 2px; background: #222; position: relative; }
+    
+    .target-marker { 
+        width: 60px; height: 60px; background: #111; border: 2px solid #333; 
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        font-weight: bold; font-size: 0.8rem; z-index: 20;
+    }
+    .target-marker.active { border-color: var(--safe); box-shadow: 0 0 20px rgba(0,204,102,0.1); }
+    .target-marker.snapped { border-color: var(--accent); background: rgba(255,0,51,0.2); box-shadow: 0 0 40px var(--accent); }
+
+    .gap-val { position: absolute; top: -30px; font-size: 0.8rem; color: #666; font-weight: bold; }
+    
+    /* STATS & TROPHY ROOM */
+    .stats-row { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 10px 0; border-bottom: 1px solid #111; }
+    .stat-hl { color: #fff; font-weight: bold; }
+    
+    .trophy-case { 
+        margin-top: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; 
+        max-height: 150px; overflow-y: auto; padding: 5px; background: #000; border: 1px solid #222;
+    }
+    .trophy { background: #1a0505; border: 1px solid #440a0a; color: var(--accent); padding: 8px; font-size: 0.8rem; text-align: center; font-weight: bold; animation: popIn 0.3s ease-out; }
+    @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+    /* LOG */
+    .console-box { height: 150px; overflow-y: auto; background: #000; border: 1px solid #222; padding: 10px; font-size: 0.7rem; display: flex; flex-direction: column-reverse; }
+    .log-line { border-bottom: 1px solid #111; padding: 2px 0; }
+    .l-snap { color: var(--accent); font-weight: bold; font-size: 1rem; padding: 5px 0; border-top: 1px solid #333; border-bottom: 1px solid #333; }
+    .l-prog { color: var(--wall); }
+
+    /* BUTTON */
+    .btn { width: 100%; padding: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; background: #111; color: #fff; border: 1px solid #333; cursor: pointer; }
+    .btn:hover { background: #222; }
+    .btn.stop { border-color: var(--accent); color: var(--accent); }
+    .btn.stop:hover { background: var(--accent); color: #000; }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Target Config</span>
+            <span style="font-size:0.7rem; color:#444">ETERNAL MODE</span>
+        </div>
+        <div class="input-grid">
+            <div class="input-wrapper">
+                <label>Base (A)</label>
+                <input id="inpBase" value="10">
+            </div>
+            <div class="input-wrapper">
+                <label>Exponent (B)</label>
+                <input id="inpExp" value="1000000000">
+            </div>
+            <div class="input-wrapper">
+                <label>Add (+C)</label>
+                <input id="inpAdd" value="19">
+            </div>
+        </div>
+        <div id="targetDisplay" class="text-center text-xs text-gray-500 mb-4 font-mono">10^1,000,000,000 + 19</div>
+        <button id="btnRun" class="btn" onclick="toggleDrive()">Start Driver</button>
+    </div>
+
+    <div class="card" id="vizCard" style="opacity:0.5">
+        <div class="card-header">
+            <span class="card-title">Driver's View</span>
+            <span id="statusTxt" style="font-size:0.7rem">OFFLINE</span>
+        </div>
+        
+        <div class="road-viz">
+            <div class="wall-post"></div>
+            <div class="lane-line">
+                <div class="gap-val" style="left:50%; transform:translate(-50%)">Gap: <span id="gapVal">--</span></div>
+            </div>
+            <div id="targetMarker" class="target-marker">N</div>
+            <div class="lane-line"></div>
+            <div class="wall-post"></div>
+        </div>
+
+        <div class="stats-row">
+            <span>Rulers Checked: <span id="rulerCount" class="stat-hl">0</span></span>
+            <span>Current Ruler: <span id="currRuler" class="stat-hl">--</span></span>
+        </div>
+
+        <div style="font-size:0.7rem; color:#666; text-transform:uppercase; margin-bottom:5px;">Factors Found (Trophy Case)</div>
+        <div id="trophyCase" class="trophy-case"></div>
+    </div>
+
+    <div class="console-box" id="console">
+        <div style="color:#666">> System Ready. Infinite Loop Enabled.</div>
+    </div>
+</div>
+
+<script>
+// --- ETERNAL WORKER ---
+const workerBlob = new Blob([`
+    self.onmessage = function(e) {
+        const { cmd, baseStr, expStr, addStr } = e.data;
+        
+        if (cmd === 'start') {
+            const base = BigInt(baseStr);
+            const exp = BigInt(expStr);
+            const add = BigInt(addStr);
+            
+            // Modular Exponentiation (The Teleport)
+            function powMod(a, b, m) {
+                let res = 1n;
+                a = a % m;
+                while (b > 0n) {
+                    if ((b & 1n) === 1n) res = (res * a) % m;
+                    a = (a * a) % m;
+                    b >>= 1n;
+                }
+                return res;
+            }
+
+            // Infinite Sieve Generator
+            const BLOCK_SIZE = 500000;
+            const seedPrimes = []; 
+            let count = 0;
+            let lastUpdate = Date.now();
+
+            // Bootstrap seeds (first 50k)
+            {
+                const arr = new Uint8Array(50000);
+                for(let i=2; i*i<50000; i++) {
+                    if(arr[i]===0) for(let j=i*i; j<50000; j+=i) arr[j]=1;
+                }
+                for(let i=2; i<50000; i++) if(arr[i]===0) seedPrimes.push(i);
+            }
+
+            function sieveBlock(start, size) {
+                const limit = start + size;
+                const arr = new Uint8Array(size); // 0=prime
+
+                // Mark composites using seeds
+                for(let i=0; i<seedPrimes.length; i++) {
+                    const p = seedPrimes[i];
+                    if(p*p > limit) break;
+                    
+                    let first = Math.floor((start + p - 1)/p)*p;
+                    if(first < p*p) first = p*p;
+                    
+                    for(let j=first; j<limit; j+=p) arr[j-start] = 1;
+                }
+
+                // Check Primes
+                for(let i=0; i<size; i++) {
+                    if(arr[i]===0) {
+                        const p = start + i;
+                        if(p<2) continue;
+                        
+                        // Add to seeds if needed for future blocks
+                        if(p < 50000) seedPrimes.push(p);
+
+                        // --- THE SNAP LOGIC ---
+                        const pBI = BigInt(p);
+                        const rem = (powMod(base, exp, pBI) + add) % pBI;
+
+                        if(rem === 0n) {
+                            postMessage({ type: 'snap', ruler: p });
+                            // DO NOT RETURN TRUE. KEEP GOING.
+                        }
+
+                        count++;
+                        if(count % 50000 === 0) {
+                             const now = Date.now();
+                             if(now - lastUpdate > 100) {
+                                 postMessage({ type: 'prog', count: count, current: p });
+                                 lastUpdate = now;
+                             }
+                        }
+                    }
+                }
+            }
+
+            let blockStart = 2;
+            while(true) {
+                sieveBlock(blockStart, BLOCK_SIZE);
+                blockStart += BLOCK_SIZE;
+            }
+        }
+    }
+`], { type: 'application/javascript' });
+
+// --- UI LOGIC ---
+let worker = null;
+let isRunning = false;
+let factorsFound = 0;
+
+const el = (id) => document.getElementById(id);
+const log = (msg, type='') => {
+    const box = el('console');
+    const d = document.createElement('div');
+    d.className = 'log-line ' + (type||'');
+    d.innerText = `> ${msg}`;
+    box.prepend(d);
+}
+
+['inpBase', 'inpExp', 'inpAdd'].forEach(id => el(id).addEventListener('input', () => {
+    el('targetDisplay').innerText = `${el('inpBase').value}^${el('inpExp').value} + ${el('inpAdd').value}`;
+}));
+
+function toggleDrive() {
+    if(isRunning) return stopDrive();
+    
+    // 1. Frame Check (Mod 3)
+    const base = BigInt(el('inpBase').value);
+    const exp = BigInt(el('inpExp').value);
+    const add = BigInt(el('inpAdd').value);
+    
+    // Calculate Mod 3 for Gap Visual
+    const b3 = Number(base % 3n);
+    const a3 = Number(add % 3n);
+    let p3 = 1, e = exp, b = BigInt(b3);
+    while(e > 0n) {
+        if((e & 1n) === 1n) p3 = Number((BigInt(p3)*b)%3n);
+        b = (b*b)%3n; e>>=1n;
+    }
+    const gap = (p3 + a3) % 3;
+
+    // Reset UI
+    factorsFound = 0;
+    el('trophyCase').innerHTML = '';
+    el('vizCard').style.opacity = 1;
+    el('statusTxt').innerText = "HUNTING...";
+    el('statusTxt').style.color = "#00cc66";
+    el('btnRun').innerText = "STOP DRIVER";
+    el('btnRun').classList.add('stop');
+    el('targetMarker').className = 'target-marker active';
+    el('targetMarker').innerText = "N";
+    
+    if(gap === 0) {
+        el('gapVal').innerText = "0 (WALL HIT)";
+        log("Mod-3 Wall Hit. 3 is a factor.", "l-snap");
+        addTrophy(3);
+    } else {
+        el('gapVal').innerText = `+${gap}`;
+        log(`Gap is +${gap}. Walls set.`);
+    }
+
+    // Start Worker
+    isRunning = true;
+    worker = new Worker(URL.createObjectURL(workerBlob));
+    worker.onmessage = handleWorker;
+    worker.postMessage({ cmd:'start', baseStr:base.toString(), expStr:exp.toString(), addStr:add.toString() });
+}
+
+function handleWorker(e) {
+    const d = e.data;
+    if(d.type === 'prog') {
+        el('rulerCount').innerText = d.count.toLocaleString();
+        el('currRuler').innerText = d.current.toLocaleString();
+    }
+    if(d.type === 'snap') {
+        // We found one, but we don't stop!
+        log(`SNAP! Ruler ${d.ruler} fits.`, "l-snap");
+        addTrophy(d.ruler);
+        
+        // Visual flare
+        const marker = el('targetMarker');
+        marker.classList.add('snapped');
+        marker.innerText = "HIT";
+        setTimeout(() => {
+            if(isRunning) {
+                marker.classList.remove('snapped');
+                marker.innerText = "N";
+            }
+        }, 500);
+    }
+}
+
+function addTrophy(n) {
+    factorsFound++;
+    const div = document.createElement('div');
+    div.className = 'trophy';
+    div.innerText = n;
+    el('trophyCase').appendChild(div);
+}
+
+function stopDrive() {
+    if(worker) worker.terminate();
+    worker = null;
+    isRunning = false;
+    el('statusTxt').innerText = "STOPPED";
+    el('statusTxt').style.color = "#666";
+    el('btnRun').innerText = "START DRIVER";
+    el('btnRun').classList.remove('stop');
+    log(`Driver stopped. Found ${factorsFound} factors.`);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hyper-Streamliner (Memory Optimized)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background-color: #0f172a; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 20px; }
+  .card { max-width: 900px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  .input-group { margin-bottom: 16px; }
+  label { display: block; font-weight: bold; margin-bottom: 8px; color: #94a3b8; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  input { width: 100%; background: #020617; border: 1px solid #475569; color: #fff; padding: 12px; border-radius: 6px; font-family: inherit; font-size: 1rem; transition: border-color 0.2s; }
+  input:focus { outline: none; border-color: #10b981; }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.1rem; transition: transform 0.1s, background-color 0.2s; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 10px; }
+  .btn-start { background: #10b981; color: #022c22; }
+  .btn-start:hover { background: #059669; }
+  .btn-stop { background: #ef4444; color: #fff; }
+  .btn-stop:hover { background: #dc2626; }
+  .log-box { background: #020617; border: 1px solid #334155; padding: 16px; height: 300px; overflow-y: auto; margin-top: 24px; border-radius: 8px; font-size: 0.9rem; color: #6ee7b7; line-height: 1.5; white-space: pre-wrap; }
+  .status-bar { height: 4px; width: 100%; background: #334155; margin-top: 20px; border-radius: 2px; overflow: hidden; }
+  .progress { height: 100%; background: #10b981; width: 0%; transition: width 0.3s ease; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1 class="text-2xl font-bold text-center text-emerald-400 mb-2">THE HYPER-STREAMLINER</h1>
+  <p class="text-center text-xs text-gray-500 mb-6">Optimized Giga-Scale NTT (32-bit Buffer)</p>
+
+  <div class="grid grid-cols-3 gap-4 mb-4">
+    <div class="input-group">
+      <label>Base (a)</label>
+      <input id="inpBase" value="10">
+    </div>
+    <div class="input-group">
+      <label>Exponent (b)</label>
+      <input id="inpExp" value="1000000000"> 
+    </div>
+    <div class="input-group">
+      <label>Add (c)</label>
+      <input id="inpAdd" value="61">
+    </div>
+  </div>
+
+  <button id="btnRun" class="btn btn-start" onclick="startProof()">ALLOCATE & SQUARE</button>
+  <button id="btnStop" class="btn btn-stop hidden" onclick="stopProof()">ABORT</button>
+
+  <div class="status-bar"><div id="progressBar" class="progress"></div></div>
+  <div id="logBox" class="log-box">System Ready.
+Optimized for 32-bit Memory Structures to avoid browser crash.
+This attempts to calculate I^2 for 10^9 digits.</div>
+</div>
+
+<script>
+const workerCode = `
+// --- CONFIGURATION ---
+const BASE = 10000;
+const BASE_BI = 10000n;
+const CHUNK_SIZE = 4;
+
+// NTT Params (Fits in 32-bit signed integer positive range)
+const Q = 998244353n;
+const G = 3n;
+
+// --- UTILS ---
+function trim(arr) {
+    let i = 0;
+    if(!arr || arr.length === 0) return [0];
+    while (i < arr.length - 1 && arr[i] === 0) i++;
+    return arr.slice(i);
+}
+
+function stringToChunks(str) {
+    if (!str) return [0];
+    str = str.trim();
+    const pad = (CHUNK_SIZE - (str.length % CHUNK_SIZE)) % CHUNK_SIZE;
+    str = '0'.repeat(pad) + str;
+    const out = [];
+    for(let i=0; i<str.length; i+=CHUNK_SIZE) {
+        out.push(parseInt(str.substring(i, i+CHUNK_SIZE), 10));
+    }
+    return trim(out).reverse(); // LSB-first
+}
+
+function chunksToString(chunks) {
+    if(!chunks || chunks.length === 0) return "0";
+    // Handle TypedArray
+    let c = Array.from(chunks).slice().reverse(); 
+    c = trim(c);
+    let s = c[0].toString();
+    for(let i=1; i<c.length; i++) {
+        s += c[i].toString().padStart(CHUNK_SIZE, '0');
+    }
+    return s;
+}
+
+// --- NTT CORE (32-bit Optimized) ---
+function power(base, exp) {
+    let res = 1n;
+    base %= Q;
+    while (exp > 0n) {
+        if (exp % 2n === 1n) res = (res * base) % Q;
+        base = (base * base) % Q;
+        exp /= 2n;
+    }
+    return res;
+}
+
+function modInverse(n) {
+    return power(n, Q - 2n);
+}
+
+// In-place NTT on 32-bit array (Casts to BigInt for math)
+function ntt(a, invert) {
+    const n = a.length;
+    for (let i = 1, j = 0; i < n; i++) {
+        let bit = n >> 1;
+        for (; j & bit; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) {
+            const temp = a[i];
+            a[i] = a[j];
+            a[j] = temp;
+        }
+    }
+    
+    for (let len = 2; len <= n; len <<= 1) {
+        let wlen = power(G, (Q - 1n) / BigInt(len));
+        if (invert) wlen = modInverse(wlen);
+        
+        for (let i = 0; i < n; i += len) {
+            let w = 1n;
+            for (let j = 0; j < len / 2; j++) {
+                // Read as BigInt
+                let u = BigInt(a[i + j]);
+                let v = (BigInt(a[i + j + len / 2]) * w) % Q;
+                
+                // Write back as Number (fits in Uint32)
+                a[i + j] = Number((u + v) % Q);
+                a[i + j + len / 2] = Number((u - v + Q) % Q);
+                
+                w = (w * wlen) % Q;
+            }
+        }
+    }
+    
+    if (invert) {
+        const n_inv = modInverse(BigInt(n));
+        for (let i = 0; i < n; i++) {
+            a[i] = Number((BigInt(a[i]) * n_inv) % Q);
+        }
+    }
+}
+
+// --- MULTIPLICATION (SQUARING ONLY) ---
+function square(a) {
+    let n = 1;
+    while (n < a.length + a.length) n <<= 1;
+    
+    self.postMessage({type:'log', msg: \`Allocating NTT Buffer: \${(n * 4 / 1024 / 1024).toFixed(2)} MB...\`});
+    
+    // 32-bit Array (Saves 50% RAM vs 64-bit)
+    let fa;
+    try {
+        fa = new Uint32Array(n);
+    } catch(e) {
+        throw new Error("Buffer Alloc Failed: " + e.message);
+    }
+    
+    // Copy input
+    for(let i=0; i<a.length; i++) fa[i] = a[i];
+    
+    // Forward NTT
+    self.postMessage({type:'log', msg: 'Running Forward NTT...'});
+    ntt(fa, false);
+    
+    // Pointwise Square
+    self.postMessage({type:'log', msg: 'Pointwise Squaring...'});
+    for(let i=0; i<n; i++) {
+        let val = BigInt(fa[i]);
+        fa[i] = Number((val * val) % Q);
+    }
+    
+    // Inverse NTT
+    self.postMessage({type:'log', msg: 'Running Inverse NTT...'});
+    ntt(fa, true);
+    
+    // Carry Propagation
+    self.postMessage({type:'log', msg: 'Propagating Carries...'});
+    const res = new Int32Array(n);
+    let carry = 0n;
+    for(let i=0; i<n; i++) {
+        let val = BigInt(fa[i]) + carry;
+        res[i] = Number(val % BASE_BI);
+        carry = val / BASE_BI;
+    }
+    
+    return res;
+}
+
+// --- SUBTRACTION ---
+function subtract(a, b) {
+    const len = a.length;
+    const res = new Int32Array(len);
+    let borrow = 0;
+    for(let i=0; i<len; i++) {
+        let val = a[i] - (b[i] || 0) - borrow;
+        if(val < 0) {
+            val += BASE;
+            borrow = 1;
+        } else {
+            borrow = 0;
+        }
+        res[i] = val;
+    }
+    return res;
+}
+
+// --- WORKER LOGIC ---
+self.onmessage = function(e) {
+    const { mode, aStr, bStr, cStr } = e.data;
+    
+    if(mode === 'prove') {
+        try {
+            const bVal = parseInt(bStr);
+            const cVal = parseInt(cStr);
+            const estimatedChunks = Math.ceil(bVal / CHUNK_SIZE);
+            
+            self.postMessage({type:'log', msg: \`Generating Index for 10^\${bVal}...\`});
+            
+            // Allocate Index Buffer (Int32)
+            const I_chunks = new Int32Array(estimatedChunks + 1);
+            
+            // Low part (C+1)/2
+            const lowVal = Math.floor((cVal + 1) / 2); 
+            const lowStr = lowVal.toString();
+            const lowChunks = stringToChunks(lowStr); 
+            for(let k=0; k<lowChunks.length; k++) I_chunks[k] = lowChunks[k];
+            
+            // High part (5...)
+            const topPos = bVal - 1;
+            const topChunkIdx = Math.floor(topPos / CHUNK_SIZE);
+            const topChunkShift = topPos % CHUNK_SIZE;
+            const topVal = 5 * Math.pow(10, topChunkShift);
+            I_chunks[topChunkIdx] += topVal;
+            
+            self.postMessage({type:'log', msg: \`Index Built. \${(I_chunks.length*4/1024/1024).toFixed(2)} MB used.\`});
+            
+            // SQUARE IT
+            const startTime = performance.now();
+            const I_sq_chunks = square(I_chunks);
+            const endTime = performance.now();
+            
+            self.postMessage({type:'log', msg: \`I^2 Calculated in \${((endTime-startTime)/1000).toFixed(2)}s\`});
+            
+            // Construct N for subtraction
+            self.postMessage({type:'log', msg: 'Subtracting N...'});
+            const N_chunks = new Int32Array(I_sq_chunks.length);
+            const cChunks = stringToChunks(cStr);
+            for(let k=0; k<cChunks.length; k++) N_chunks[k] = cChunks[k];
+            
+            const nTopPos = bVal;
+            const nTopChunkIdx = Math.floor(nTopPos / CHUNK_SIZE);
+            const nTopShift = nTopPos % CHUNK_SIZE;
+            const nTopVal = 1 * Math.pow(10, nTopShift);
+            N_chunks[nTopChunkIdx] = nTopVal;
+            
+            // Calculate R^2
+            const R_sq_chunks = subtract(I_sq_chunks, N_chunks);
+            
+            // Result Tail
+            let tailArr = [];
+            for(let i=0; i<10 && i<R_sq_chunks.length; i++) tailArr.push(R_sq_chunks[i]);
+            const tail = chunksToString(tailArr); 
+            
+            self.postMessage({
+                type: 'result',
+                rimSqTail: tail,
+                isZero: (R_sq_chunks.length === 1 && R_sq_chunks[0] === 0)
+            });
+            
+        } catch(e) {
+            self.postMessage({type:'error', msg: e.message});
+        }
+    }
+};
+`;
+
+let worker = null;
+
+function log(msg, type='') {
+    const el = document.getElementById('logBox');
+    const line = document.createElement('div');
+    line.textContent = `> ${msg}`;
+    if(type === 'error') line.className = 'error';
+    if(type === 'success') line.className = 'highlight';
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+}
+
+function startProof() {
+    const base = document.getElementById('inpBase').value;
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    
+    document.getElementById('btnRun').classList.add('hidden');
+    document.getElementById('btnStop').classList.remove('hidden');
+    document.getElementById('progressBar').style.width = '5%';
+    log("Initializing Optimized Worker...");
+
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    worker.onmessage = function(e) {
+        const d = e.data;
+        if(d.type === 'log') {
+            log(d.msg);
+        } else if(d.type === 'error') {
+            log(`ERROR: ${d.msg}`, 'error');
+            stopProof();
+        } else if(d.type === 'result') {
+            document.getElementById('progressBar').style.width = '100%';
+            log("-----------------------------");
+            log("PROOF COMPLETE", "success");
+            log(`Rim^2 (Tail): ...${d.rimSqTail}`);
+            stopProof();
+        }
+    };
+    
+    worker.postMessage({ mode: 'prove', aStr: base, bStr: exp, cStr: add });
+}
+
+function stopProof() {
+    if(worker) worker.terminate();
+    worker = null;
+    document.getElementById('btnRun').classList.remove('hidden');
+    document.getElementById('btnStop').classList.add('hidden');
+    document.getElementById('progressBar').style.width = '0%';
+    log("Process Halted.");
+}
+</script>
+</body>
+</html>
+

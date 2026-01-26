@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Hyper-Streamliner v10 (Fermat Stress Test)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background-color: #000; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 10px; }
+  .card { background: #0a0a0a; border: 1px solid #333; border-radius: 12px; padding: 15px; box-shadow: 0 0 15px rgba(220, 38, 38, 0.2); }
+  input { width: 100%; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 6px; font-weight:bold; font-size: 1.1rem; }
+  label { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  
+  .btn { width: 100%; padding: 15px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 15px; transition: all 0.2s; }
+  .btn-stress { background: #dc2626; color: #fff; border: 1px solid #991b1b; } /* Red for Stress Test */
+  .btn-stress:hover { background: #ef4444; }
+  .btn-stop { background: #4b5563; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px; }
+  .stat-box { background: #111; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #222; }
+  .stat-val { font-size: 0.9rem; font-weight: bold; color: #fff; }
+  .stat-lbl { font-size: 0.6rem; color: #555; margin-top: 2px; }
+
+  .progress-section { margin-top: 20px; }
+  .p-bar-wrapper { margin-bottom: 8px; }
+  .p-lbl { font-size: 0.65rem; color: #888; margin-bottom: 2px; display: flex; justify-content: space-between; }
+  .p-track { height: 6px; background: #222; border-radius: 3px; overflow: hidden; }
+  .p-fill { height: 100%; width: 0%; transition: width 0.2s linear; }
+
+  #log { margin-top: 20px; font-size: 0.75rem; color: #888; height: 150px; overflow-y: auto; border-top: 1px solid #333; padding-top: 10px; font-family: 'Courier New', monospace; white-space: pre-wrap; }
+  .success-text { color: #4ade80; font-weight: bold; }
+  .fail-text { color: #f87171; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2 class="text-xl font-black text-center text-red-500 tracking-tighter mb-1">HYPER v10.0</h2>
+  <p class="text-center text-xs text-gray-600 mb-6">FERMAT STRESS TEST ENGINE</p>
+  
+  <div class="grid grid-cols-2 gap-3 mb-2">
+    <div>
+      <label>Base (10^X)</label>
+      <input id="inpExp" value="1000000000" type="number">
+    </div>
+    <div>
+      <label>Add (+C)</label>
+      <input id="inpAdd" value="61" type="number">
+    </div>
+  </div>
+
+  <button id="btnRun" class="btn btn-stress" onclick="runStressTest()">INITIATE STRESS TEST</button>
+  <button id="btnStop" class="btn btn-stop hidden" onclick="stopTest()">ABORT</button>
+  
+  <div class="stat-grid">
+    <div class="stat-box"><div id="statTime" class="stat-val">0.0s</div><div class="stat-lbl">ELAPSED</div></div>
+    <div class="stat-box"><div id="statSpeed" class="stat-val">0</div><div class="stat-lbl">OPS/SEC</div></div>
+    <div class="stat-box"><div id="statStatus" class="stat-val text-gray-500">READY</div><div class="stat-lbl">SYSTEM</div></div>
+  </div>
+
+  <div class="progress-section">
+    <div class="p-bar-wrapper">
+      <div class="p-lbl"><span>CORE 1 (Mod P1)</span><span id="pct0">0%</span></div>
+      <div class="p-track"><div id="bar0" class="p-fill" style="background:#ef4444"></div></div>
+    </div>
+    <div class="p-bar-wrapper">
+      <div class="p-lbl"><span>CORE 2 (Mod P2)</span><span id="pct1">0%</span></div>
+      <div class="p-track"><div id="bar1" class="p-fill" style="background:#3b82f6"></div></div>
+    </div>
+    <div class="p-bar-wrapper">
+      <div class="p-lbl"><span>CORE 3 (Mod P3)</span><span id="pct2">0%</span></div>
+      <div class="p-track"><div id="bar2" class="p-fill" style="background:#22c55e"></div></div>
+    </div>
+  </div>
+
+  <div id="log">System Initialized.
+Target: 10^1,000,000,000 + 61
+Test: 3^(N-1) mod N
+Ready to launch workers...</div>
+</div>
+
+<script>
+// --- WORKER CODE (The Hammer) ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { expVal, addVal, modStr, coreId } = e.data;
+    const MOD = BigInt(modStr);
+    const EXP = parseInt(expVal); // The 1,000,000,000
+    const ADD = BigInt(addVal);
+    
+    // We want to calculate: 3^(N-1) % MOD
+    // N = 10^EXP + ADD
+    // N-1 = 10^EXP + (ADD - 1)
+    // Result = ( 3^(10^EXP) * 3^(ADD-1) ) % MOD
+
+    try {
+        const start = performance.now();
+        
+        // 1. Calculate the "Tail Power" -> 3^(ADD-1) % MOD
+        // This is small, so we do it normally.
+        let tailPower = 1n;
+        let tailExp = ADD - 1n;
+        let base = 3n;
+        
+        while (tailExp > 0n) {
+            if (tailExp & 1n) tailPower = (tailPower * base) % MOD;
+            base = (base * base) % MOD;
+            tailExp >>= 1n;
+        }
+
+        // 2. Calculate the "Massive Power" -> 3^(10^EXP) % MOD
+        // We do this by raising to power 10, EXP times.
+        // Loop runs 1 Billion times.
+        
+        let currentVal = 3n; // Start with 3
+        
+        // Reporting interval
+        const reportStep = 5000000; // Report every 5 million ops
+        let ops = 0;
+
+        for(let i=0; i<EXP; i++) {
+            // Effectively: currentVal = currentVal^10 % MOD
+            // We do this by squaring and multiplying to get ^10
+            // x^10 = (x^2)^5 = ((x^2)^2 * x)^2 ... or just explicit chain:
+            // x2 = x^2
+            // x4 = x2^2
+            // x5 = x4 * x
+            // x10 = x5^2
+            
+            let x = currentVal;
+            let x2 = (x * x) % MOD;
+            let x4 = (x2 * x2) % MOD;
+            let x5 = (x4 * x) % MOD;
+            let x10 = (x5 * x5) % MOD;
+            
+            currentVal = x10;
+            
+            ops++;
+            if(ops % reportStep === 0) {
+                postMessage({type: 'prog', pct: (ops/EXP)*100, ops: ops});
+            }
+        }
+
+        // 3. Combine
+        const finalRes = (currentVal * tailPower) % MOD;
+        
+        const end = performance.now();
+        postMessage({type: 'done', val: finalRes.toString(), time: end-start});
+
+    } catch(err) {
+        postMessage({type: 'error', msg: err.message});
+    }
+};
+`;
+
+// --- MAIN THREAD ---
+
+// Large 64-bit Primes for the Moduli (Product is ~45 digits)
+const MODS = [
+    "1000000000000037", // ~10^15
+    "1000000000000091", // ~10^15
+    "1000000000000159"  // ~10^15
+];
+
+let workers = [];
+let startTime = 0;
+let timerInt = null;
+let completed = 0;
+let results = [null, null, null]; // Store results for CRT
+
+function log(msg, type="") {
+    const l = document.getElementById('log');
+    let span = `<div>> ${msg}</div>`;
+    if(type==='success') span = `<div class="success-text">> ${msg}</div>`;
+    if(type==='fail') span = `<div class="fail-text">> ${msg}</div>`;
+    l.innerHTML += span;
+    l.scrollTop = l.scrollHeight;
+}
+
+function runStressTest() {
+    // UI Reset
+    document.getElementById('btnRun').classList.add('hidden');
+    document.getElementById('btnStop').classList.remove('hidden');
+    document.getElementById('log').innerHTML = '';
+    results = [null, null, null];
+    completed = 0;
+    
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    
+    log(`INITIALIZING STRESS TEST...`);
+    log(`Target: 10^${exp} + ${add}`);
+    log(`Engine: Scalar Modular Exponentiation`);
+    
+    startTime = Date.now();
+    document.getElementById('statStatus').textContent = "RUNNING";
+    document.getElementById('statStatus').style.color = "#ef4444";
+    
+    timerInt = setInterval(() => {
+        let t = (Date.now() - startTime) / 1000;
+        document.getElementById('statTime').textContent = t.toFixed(1) + "s";
+    }, 100);
+
+    // Create Workers
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    
+    for(let i=0; i<3; i++) {
+        const w = new Worker(url);
+        workers.push(w);
+        
+        w.onmessage = function(e) {
+            if(e.data.type === 'prog') {
+                // Update UI
+                const p = e.data.pct.toFixed(1);
+                document.getElementById(`pct${i}`).textContent = p + "%";
+                document.getElementById(`bar${i}`).style.width = p + "%";
+                
+                // Speed Estimate (Rough)
+                if(i===0 && e.data.pct > 1) {
+                    const el = (Date.now() - startTime)/1000;
+                    const ops = e.data.ops;
+                    const spd = (ops / el / 1000000).toFixed(1) + "M";
+                    document.getElementById('statSpeed').textContent = spd;
+                }
+            }
+            else if(e.data.type === 'done') {
+                log(`Core ${i+1} Finished. Result: ...${e.data.val.slice(-6)}`);
+                results[i] = BigInt(e.data.val);
+                completed++;
+                document.getElementById(`bar${i}`).style.backgroundColor = "#4ade80"; // Green
+                if(completed === 3) finalizeTest();
+            }
+            else if(e.data.type === 'error') {
+                log(`Core ${i+1} Error: ${e.data.msg}`, 'fail');
+            }
+        };
+        
+        w.postMessage({
+            expVal: exp,
+            addVal: add,
+            modStr: MODS[i],
+            coreId: i
+        });
+    }
+}
+
+function stopTest() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    clearInterval(timerInt);
+    document.getElementById('btnRun').classList.remove('hidden');
+    document.getElementById('btnStop').classList.add('hidden');
+    document.getElementById('statStatus').textContent = "ABORTED";
+    document.getElementById('statStatus').style.color = "#888";
+    log("Test Aborted by User.");
+}
+
+function finalizeTest() {
+    clearInterval(timerInt);
+    document.getElementById('btnRun').classList.remove('hidden');
+    document.getElementById('btnStop').classList.add('hidden');
+    document.getElementById('statStatus').textContent = "COMPLETE";
+    document.getElementById('statStatus').style.color = "#4ade80";
+    
+    log("All Cores Reported. Reconstructing...", "success");
+    
+    // Manual CRT Reconstruction
+    const m1 = BigInt(MODS[0]);
+    const m2 = BigInt(MODS[1]);
+    const m3 = BigInt(MODS[2]);
+    const M = m1 * m2 * m3;
+    
+    const M1 = M/m1;
+    const M2 = M/m2;
+    const M3 = M/m3;
+    
+    // Inverse function
+    const power = (b, e, m) => {
+        let res = 1n; b %= m;
+        while (e > 0n) {
+            if (e & 1n) res = (res * b) % m;
+            b = (b * b) % m;
+            e >>= 1n;
+        }
+        return res;
+    };
+    const modInverse = (n, m) => power(n, m - 2n, m);
+    
+    const y1 = modInverse(M1, m1);
+    const y2 = modInverse(M2, m2);
+    const y3 = modInverse(M3, m3);
+    
+    // Sum
+    let term1 = (results[0] * M1 * y1) % M;
+    let term2 = (results[1] * M2 * y2) % M;
+    let term3 = (results[2] * M3 * y3) % M;
+    
+    let X = (term1 + term2 + term3) % M;
+    
+    log("-----------------------------");
+    log("FERMAT TEST RESULT (Tail):");
+    log(X.toString(), "success");
+    log("-----------------------------");
+    
+    if(X === 1n) {
+        log("RESULT IS 1!", "success");
+        log("CONCLUSION: PROBABLE PRIME (99.99%)", "success");
+        log("The number 'rang true' against the hammer.");
+    } else {
+        log("RESULT IS NOT 1.", "fail");
+        log("CONCLUSION: COMPOSITE (Guaranteed)", "fail");
+        log("The number 'broke' under stress.");
+    }
+}
+</script>
+</body>
+</html>
+

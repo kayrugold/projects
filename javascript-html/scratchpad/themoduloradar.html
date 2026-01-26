@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>The Modulo Radar</title>
+<style>
+    :root {
+        --bg: #000000;
+        --grid-dim: #1e293b;
+        --grid-bright: #334155;
+        --crosshair: #10b981; /* Green */
+        --wall: #ef4444;      /* Red */
+        --text: #e2e8f0;
+        --accent: #f59e0b;
+    }
+
+    body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Courier New', Courier, monospace;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        touch-action: none;
+    }
+
+    /* Radar Screen */
+    #radar-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        cursor: move;
+    }
+
+    canvas { display: block; }
+
+    /* HUD Overlay */
+    #hud {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        pointer-events: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .panel {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid #334155;
+        padding: 15px;
+        border-radius: 8px;
+        backdrop-filter: blur(4px);
+    }
+
+    .big-num { font-size: 2.5rem; font-weight: bold; color: var(--crosshair); text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+    .label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .status { font-size: 1.2rem; font-weight: bold; margin-top: 5px; }
+    
+    .status.safe { color: var(--crosshair); }
+    .status.hit { color: var(--wall); animation: pulse 0.5s infinite; }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+
+    /* Top Controls */
+    #controls {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 10;
+        display: flex;
+        gap: 10px;
+    }
+
+    button {
+        background: #1e293b;
+        color: #fff;
+        border: 1px solid #475569;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: bold;
+    }
+    button:hover { background: #334155; }
+
+    /* The Crosshair */
+    #crosshair-overlay {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 40px; height: 40px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 5;
+    }
+    
+    .ch-line {
+        position: absolute;
+        background: var(--crosshair);
+        box-shadow: 0 0 8px var(--crosshair);
+    }
+    .ch-h { width: 100%; height: 2px; top: 50%; margin-top: -1px; }
+    .ch-v { height: 100%; width: 2px; left: 50%; margin-left: -1px; }
+
+</style>
+</head>
+<body>
+
+<div id="controls">
+    <button id="btnReset">Reset to 101</button>
+    <button id="btnJump">Jump to 2025</button>
+</div>
+
+<div id="radar-container">
+    <canvas id="radarCanvas"></canvas>
+    <div id="crosshair-overlay">
+        <div class="ch-line ch-h"></div>
+        <div class="ch-line ch-v"></div>
+    </div>
+    
+    <div id="hud">
+        <div class="panel">
+            <div class="label">Scanner Locked On</div>
+            <div class="big-num" id="currentNum">101</div>
+            <div class="status safe" id="statusText">SCANNING GAP</div>
+        </div>
+        <div class="panel" style="text-align:right;">
+            <div class="label">Nearest Wall</div>
+            <div id="nearestDetail" style="font-size:1.1rem; color:var(--accent); margin-top:5px;">--</div>
+            <div id="distDetail" style="font-size:0.9rem; color:#94a3b8;">--</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('radarCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const container = document.getElementById('radar-container');
+    
+    // UI Elements
+    const elNum = document.getElementById('currentNum');
+    const elStatus = document.getElementById('statusText');
+    const elNearest = document.getElementById('nearestDetail');
+    const elDist = document.getElementById('distDetail');
+
+    // State
+    // We don't store "Target". We store the View Offset.
+    // The "Center Value" is calculated from the offset.
+    // To make this infinite, we define:
+    // Pixel 0 = Number 0.
+    // Scale = 20 pixels per integer unit.
+    
+    let state = {
+        centerVal: 101, // The number currently under the crosshair
+        scale: 40,      // Pixels per unit number
+        viewW: 0,
+        viewH: 0
+    };
+
+    // Touch Handling
+    let isDragging = false;
+    let lastX = 0;
+
+    // --- Math Engine ---
+    
+    // We are visualizing the 1D Number Line, but "stacked" to look like a grid?
+    // Or are we visualizing the 2D Multiplication Grid?
+    // The user said "Move the whole grid".
+    // Let's visualize the 2D Grid: X axis = Factors, Y axis = Factors.
+    // BUT, we need to map that to the linear number "CenterVal".
+    
+    // INTERPRETATION:
+    // We are scrolling along the Number Line (1D).
+    // The "Grid" we see are the vertical lines of factors intersecting the number line.
+    // Let's make it 2D:
+    // X Axis: The Number Line (100, 101, 102...)
+    // Y Axis: The "Modulus" or "Factor Base" (3, 5, 7, 9...)
+    // This creates a visual "Spectrum" of divisibility.
+    
+    function render() {
+        // Clear
+        ctx.fillStyle = '#020617';
+        ctx.fillRect(0, 0, state.viewW, state.viewH);
+
+        const centerX = state.viewW / 2;
+        const centerY = state.viewH / 2;
+        
+        // Calculate range of numbers visible on X axis
+        // centerVal is at centerX.
+        // x = (val - centerVal) * scale + centerX
+        // val = (x - centerX) / scale + centerVal
+        
+        const startVal = Math.floor((0 - centerX) / state.scale + state.centerVal);
+        const endVal = Math.ceil((state.viewW - centerX) / state.scale + state.centerVal);
+
+        // Draw Number Line (Center Horizontal)
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(state.viewW, centerY);
+        ctx.stroke();
+
+        // Draw Ticks & Numbers
+        ctx.textAlign = 'center';
+        ctx.font = '14px monospace';
+        
+        for (let i = startVal; i <= endVal; i++) {
+            const x = (i - state.centerVal) * state.scale + centerX;
+            
+            // Major Tick
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(x - 1, 0, 2, state.viewH); // Vertical guide line
+            
+            // Number Label
+            if (i === Math.round(state.centerVal)) {
+                ctx.fillStyle = '#10b981';
+                ctx.font = 'bold 18px monospace';
+            } else {
+                ctx.fillStyle = '#64748b';
+                ctx.font = '14px monospace';
+            }
+            ctx.fillText(i, x, centerY + 25);
+        }
+
+        // --- The "Overlay" Grid (Factors) ---
+        // We draw horizontal rows for factors 3, 5, 7, 9, 11...
+        // If 'i' is divisible by factor 'f', we draw a block/dot at (i, f)
+        
+        const maxFactorRows = Math.floor((state.viewH / 2) / 30); // How many factor rows fit?
+        
+        let nearestHit = null;
+        let minDistance = Infinity;
+
+        // Iterate Factors (Rows)
+        for (let row = 0; row < maxFactorRows; row++) {
+            const factor = 3 + (row * 2); // 3, 5, 7, 9...
+            const yUp = centerY - 40 - (row * 30);
+            
+            // Draw Factor Label
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'right';
+            ctx.font = '12px monospace';
+            ctx.fillText(factor, centerX - 10, yUp + 4);
+            
+            // Draw Grid Line for this factor
+            ctx.strokeStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(0, yUp);
+            ctx.lineTo(state.viewW, yUp);
+            ctx.stroke();
+
+            // Draw "Walls" (Multiples of this factor)
+            // Find first multiple of factor in view
+            // startVal / factor ...
+            const firstMult = Math.ceil(startVal / factor) * factor;
+            
+            for (let m = firstMult; m <= endVal; m += factor) {
+                const x = (m - state.centerVal) * state.scale + centerX;
+                
+                // Draw The Wall (Brick)
+                ctx.fillStyle = (factor === m || factor === Math.sqrt(m)) ? '#3b82f6' : '#ef4444'; // Blue for square/prime, Red for comp
+                
+                // Block Size
+                const sz = 16;
+                ctx.fillRect(x - sz/2, yUp - sz/2, sz, sz);
+                
+                // Connector Line to main axis
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)';
+                ctx.beginPath();
+                ctx.moveTo(x, yUp + sz/2);
+                ctx.lineTo(x, centerY);
+                ctx.stroke();
+
+                // Check distance to Center Crosshair
+                const dist = Math.abs(state.centerVal - m);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestHit = { factor: factor, val: m };
+                }
+                
+                // If Direct Hit on Center (tolerance for float drag)
+                if (Math.abs(x - centerX) < 1) {
+                    // It's a hit
+                }
+            }
+        }
+        
+        // Update HUD based on center integer
+        const centerInt = Math.round(state.centerVal);
+        elNum.innerText = centerInt;
+        
+        // Check if Center Int is hit by anything
+        // Re-calc specific for centerInt to be precise
+        let isHit = false;
+        let hitters = [];
+        
+        // Quick check against displayed factors (and more invisible ones)
+        // Actually, simple primality check for the HUD status
+        // But let's use the visual logic:
+        // We only see factors up to a certain limit on screen.
+        // Let's just factor the number mathematically for the HUD to be accurate.
+        
+        // Find factors
+        if (centerInt > 1) {
+             for (let f = 3; f <= Math.sqrt(centerInt); f+=2) {
+                 if (centerInt % f === 0) {
+                     isHit = true;
+                     hitters.push(`${f}×${centerInt/f}`);
+                     break; // Just need one to know it's hit
+                 }
+             }
+        }
+        
+        if (isHit) {
+            elStatus.innerText = "WALL DETECTED";
+            elStatus.className = "status hit";
+            elNum.style.color = "#ef4444";
+            document.querySelector('.ch-line.ch-h').style.background = '#ef4444';
+            document.querySelector('.ch-line.ch-v').style.background = '#ef4444';
+        } else {
+            elStatus.innerText = "SAFE GAP";
+            elStatus.className = "status safe";
+            elNum.style.color = "#10b981";
+            document.querySelector('.ch-line.ch-h').style.background = '#10b981';
+            document.querySelector('.ch-line.ch-v').style.background = '#10b981';
+        }
+
+        // Nearest Info
+        if (nearestHit) {
+            elNearest.innerText = `${nearestHit.val} (div by ${nearestHit.factor})`;
+            const diff = nearestHit.val - state.centerVal;
+            elDist.innerText = `Distance: ${diff.toFixed(2)}`;
+        }
+    }
+
+    // --- Interaction ---
+    function resize() {
+        state.viewW = container.clientWidth;
+        state.viewH = container.clientHeight;
+        canvas.width = state.viewW;
+        canvas.height = state.viewH;
+        render();
+    }
+    window.addEventListener('resize', resize);
+
+    // Drag Logic
+    canvas.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; });
+    canvas.addEventListener('touchstart', e => { isDragging = true; lastX = e.touches[0].clientX; });
+
+    window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastX;
+        lastX = e.clientX;
+        // Shift CenterVal
+        state.centerVal -= (dx / state.scale);
+        render();
+    });
+
+    window.addEventListener('touchmove', e => {
+        if (!isDragging) return;
+        const dx = e.touches[0].clientX - lastX;
+        lastX = e.touches[0].clientX;
+        state.centerVal -= (dx / state.scale);
+        render();
+    });
+
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('touchend', () => isDragging = false);
+
+    // Controls
+    document.getElementById('btnReset').onclick = () => { state.centerVal = 101; render(); };
+    document.getElementById('btnJump').onclick = () => { state.centerVal = 2025; render(); };
+
+    // Init
+    resize();
+    render();
+
+</script>
+</body>
+</html>

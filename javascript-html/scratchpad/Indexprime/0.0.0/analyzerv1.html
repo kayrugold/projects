@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Gap & Ruler Inspector (Mobile)</title>
+<style>
+  :root { 
+    --bg: #0f172a; 
+    --panel: #1e293b; 
+    --text: #e2e8f0; 
+    --accent: #3b82f6; 
+    --highlight: #f59e0b; 
+    --header: #334155; 
+    --square: #1e3a8a;
+    --fence: #162032; 
+    --fence-border: #475569;
+  }
+  
+  body { 
+    margin: 0; 
+    background: var(--bg); 
+    color: var(--text); 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+    overflow: hidden; 
+  }
+  
+  /* Header Section */
+  header { 
+    padding: 12px 15px; 
+    background: var(--panel); 
+    border-bottom: 1px solid #334155; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    flex-shrink: 0; 
+    z-index: 50;
+  }
+  
+  h1 { 
+    margin: 0; 
+    font-size: 1rem; 
+    font-weight: 600; 
+    color: #60a5fa; 
+  }
+  
+  .controls { 
+    display: flex; 
+    gap: 8px; 
+    align-items: center; 
+  }
+  
+  input { 
+    background: #0f172a; 
+    border: 1px solid #475569; 
+    color: white; 
+    padding: 6px; 
+    border-radius: 4px; 
+    width: 50px; 
+    text-align: center; 
+    font-family: monospace;
+    font-size: 1rem;
+  }
+  
+  button { 
+    background: var(--accent); 
+    color: white; 
+    border: none; 
+    padding: 8px 12px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    font-size: 0.9rem;
+  }
+
+  /* Main Scrollable Area */
+  .container { 
+    flex: 1; 
+    display: flex; 
+    overflow: hidden; 
+    position: relative;
+  }
+  
+  .table-scroll { 
+    flex: 1; 
+    overflow: auto; 
+    padding: 10px; 
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table { 
+    border-collapse: separate; 
+    border-spacing: 2px; 
+    margin-bottom: 40px; 
+  }
+  
+  th { 
+    position: sticky; 
+    background: var(--header); 
+    color: #94a3b8; 
+    padding: 10px; 
+    min-width: 40px; 
+    height: 30px;
+    font-weight: bold; 
+    z-index: 10; 
+    font-family: monospace;
+    font-size: 1rem;
+  }
+  
+  th.top-head { top: 0; border-bottom: 3px solid var(--accent); z-index: 20; }
+  th.side-head { left: 0; border-right: 3px solid var(--accent); z-index: 20; text-align: right; }
+  th.corner { top: 0; left: 0; z-index: 30; background: var(--panel); border-right: 3px solid var(--accent); border-bottom: 3px solid var(--accent); }
+  th.fence-header { background: #272e3b; color: #475569; }
+  
+  td { 
+    background: #1e293b; 
+    color: #64748b; 
+    text-align: center; 
+    padding: 12px; 
+    border-radius: 4px; 
+    font-family: monospace;
+    font-size: 1.1rem;
+  }
+  td.fence-cell { background: var(--fence); color: #334155; }
+  td.square { background: var(--square); color: #93c5fd; }
+  
+  td.active-cell { 
+    background: var(--highlight) !important; 
+    color: #000 !important; 
+    font-weight: bold; 
+    border: 2px solid white;
+  }
+
+  /* INFO PANEL (Responsive) */
+  .info-panel { 
+    background: rgba(30, 41, 59, 0.98); 
+    border-top: 2px solid var(--accent); 
+    box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
+    z-index: 100;
+    
+    /* Desktop Default */
+    display: grid; 
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    padding: 15px 20px;
+    min-height: 120px;
+  }
+
+  /* MOBILE OVERRIDE */
+  @media (max-width: 768px) {
+    .info-panel {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: auto;
+        max-height: 85vh;
+        overflow-y: auto;
+        gap: 0;
+        padding: 0;
+        
+        /* Animation Logic */
+        transform: translateY(110%);
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    
+    .info-panel.show {
+        transform: translateY(0);
+    }
+
+    .panel-col {
+        padding: 20px;
+        border-right: none !important;
+        border-bottom: 1px solid #334155;
+    }
+    
+    /* Special Close Button for Mobile */
+    .mobile-close-btn {
+        display: block !important;
+        width: 100%;
+        padding: 15px;
+        background: #ef4444;
+        color: white;
+        font-weight: bold;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: sticky;
+        bottom: 0;
+    }
+  }
+
+  .mobile-close-btn { display: none; }
+
+  .panel-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  /* Desktop border logic handled in media query */
+  @media (min-width: 769px) {
+      .panel-col { border-right: 1px solid #334155; }
+      .panel-col:last-child { border-right: none; }
+  }
+
+  .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 4px; }
+  .big-text { font-size: 1.4rem; font-weight: bold; color: var(--text); font-family: monospace; }
+  .logic-text { font-size: 0.95rem; color: #94a3b8; line-height: 1.5; font-family: monospace; }
+  .highlight-txt { color: var(--highlight); }
+  .accent-txt { color: var(--accent); }
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Gap Inspector</h1>
+  <div class="controls">
+    <input type="number" id="inpMax" value="31" step="2" min="3">
+    <button onclick="renderTable()">Grid</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="table-scroll">
+    <table id="multTable"></table>
+  </div>
+</div>
+
+<div class="info-panel" id="infoPanel">
+  
+  <div class="panel-col">
+    <div class="label">Equation</div>
+    <div class="big-text" id="eqDisplay">_ × _ = _</div>
+    <div class="logic-text" id="sqBarrierDisplay" style="margin-top:5px;">Nearest Square: -</div>
+  </div>
+
+  <div class="panel-col">
+    <div class="label">Mod 3 Fence Logic</div>
+    <div class="logic-text" id="wallDisplay">
+      Select a cell...
+    </div>
+  </div>
+
+  <div class="panel-col">
+    <div class="label">Ruler Check</div>
+    <div class="logic-text" id="rulerDisplay">
+      —
+    </div>
+  </div>
+
+  <div class="mobile-close-btn" onclick="closePanel()">
+    BACK TO GRID
+  </div>
+
+</div>
+
+<script>
+const table = document.getElementById('multTable');
+const infoPanel = document.getElementById('infoPanel');
+const eqDisplay = document.getElementById('eqDisplay');
+const wallDisplay = document.getElementById('wallDisplay');
+const rulerDisplay = document.getElementById('rulerDisplay');
+const sqBarrierDisplay = document.getElementById('sqBarrierDisplay');
+let maxFactor = 31;
+
+function renderTable() {
+  const inpVal = parseInt(document.getElementById('inpMax').value);
+  maxFactor = (inpVal < 3) ? 3 : inpVal;
+  if(maxFactor % 2 === 0) maxFactor++; 
+  document.getElementById('inpMax').value = maxFactor;
+
+  table.innerHTML = '';
+  
+  const factors = [];
+  for(let i=3; i<=maxFactor; i+=2) factors.push(i);
+
+  // HEADER
+  const thead = document.createElement('tr');
+  const thCorner = document.createElement('th');
+  thCorner.className = 'corner';
+  thCorner.innerText = '×';
+  thead.appendChild(thCorner);
+
+  factors.forEach(f => {
+    const th = document.createElement('th');
+    th.className = 'top-head';
+    if(f % 3 === 0) th.classList.add('fence-header');
+    th.innerText = f;
+    th.dataset.val = f;
+    thead.appendChild(th);
+  });
+  table.appendChild(thead);
+
+  // ROWS
+  factors.forEach(rowFactor => {
+    const tr = document.createElement('tr');
+    const thSide = document.createElement('th');
+    thSide.className = 'side-head';
+    if(rowFactor % 3 === 0) thSide.classList.add('fence-header');
+    thSide.innerText = rowFactor;
+    thSide.dataset.val = rowFactor;
+    tr.appendChild(thSide);
+
+    factors.forEach(colFactor => {
+      const td = document.createElement('td');
+      const product = rowFactor * colFactor;
+      
+      td.innerText = product;
+      td.dataset.r = rowFactor;
+      td.dataset.c = colFactor;
+
+      const isFence = (rowFactor % 3 === 0 || colFactor % 3 === 0);
+      const isSquare = (rowFactor === colFactor);
+
+      if(isFence) td.classList.add('fence-cell');
+      if(isSquare) td.classList.add('square');
+
+      td.onclick = () => inspectGap(td, rowFactor, colFactor, product);
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+}
+
+function inspectGap(cell, r, c, p) {
+  // Highlights
+  document.querySelectorAll('.active-cell').forEach(e => e.classList.remove('active-cell'));
+  document.querySelectorAll('.active-header').forEach(e => e.classList.remove('active-header'));
+  cell.classList.add('active-cell');
+  
+  const topHead = document.querySelector(`th.top-head[data-val='${c}']`);
+  const sideHead = document.querySelector(`th.side-head[data-val='${r}']`);
+  if(topHead) topHead.classList.add('active-header');
+  if(sideHead) sideHead.classList.add('active-header');
+
+  // MATH
+  eqDisplay.innerHTML = `<span class="accent-txt">${r}</span> × <span class="accent-txt">${c}</span> = <span class="highlight-txt">${p}</span>`;
+  
+  let root = Math.floor(Math.sqrt(p));
+  if(root % 2 === 0) root--;
+  const prevSquare = root * root;
+  sqBarrierDisplay.innerHTML = `Nearest Square Below: <span style="color:#fff">${root}² (${prevSquare})</span>`;
+
+  // MOD 3
+  const wall = p - (p % 3);
+  const gap = p % 3;
+  
+  if (gap === 0) {
+    wallDisplay.innerHTML = `This number is a <b style="color:#ef4444">WALL</b>.<br>Divisible by 3.`;
+    rulerDisplay.innerHTML = "Eliminated by Mod 3.";
+  } else {
+    wallDisplay.innerHTML = `
+      Left Wall: <b style="color:#94a3b8">${wall}</b><br>
+      Gap: <b class="highlight-txt" style="font-size:1.2em">+${gap}</b>
+    `;
+    
+    // RULER LOGIC
+    const wallRemainder = wall % r;
+    const distToSnap = r - wallRemainder;
+    rulerDisplay.innerHTML = `
+      <b>Ruler ${r}</b>:<br>
+      At Wall ${wall}, ruler mark <b>${wallRemainder}</b>.<br>
+      Needed <b>${distToSnap}</b> steps.<br>
+      Gap is <b>${gap}</b> → <b class="highlight-txt">SNAP!</b>
+    `;
+  }
+
+  // SHOW PANEL (Mobile)
+  infoPanel.classList.add('show');
+}
+
+function closePanel() {
+  infoPanel.classList.remove('show');
+  // Optional: clear active highlights when closing? 
+  // document.querySelectorAll('.active-cell').forEach(e => e.classList.remove('active-cell'));
+}
+
+renderTable();
+</script>
+</body>
+</html>

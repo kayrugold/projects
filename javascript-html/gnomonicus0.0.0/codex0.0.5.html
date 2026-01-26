@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Codex Gnomonicus v0.0.5</title>
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        :root {
+            --bg-paper: #f9f3e3;
+            --ink-black: #1a1a1a;
+            --ink-red: #c0392b;
+            --ink-blue: #2980b9;
+            --font-hand: 'Architects Daughter', cursive;
+            --font-mono: 'Roboto Mono', monospace;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-paper);
+            color: var(--ink-black);
+            font-family: var(--font-hand);
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* Paper Texture */
+        body::before {
+            content: "";
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: -1;
+        }
+
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 15px; box-sizing: border-box;
+            display: flex; justify-content: space-between;
+            pointer-events: none; z-index: 10;
+        }
+        .stat-box { 
+            background: #fff; padding: 8px 15px; 
+            border-radius: 8px; border: 2px dashed var(--ink-black); 
+            font-size: 1.2rem; box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+        }
+
+        #btn-jump {
+            position: absolute; bottom: 30px; right: 30px;
+            width: 70px; height: 70px;
+            background: var(--ink-black); color: #fff;
+            border-radius: 50%; border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            font-family: var(--font-hand); font-size: 1.5rem;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; z-index: 50;
+        }
+        #btn-jump:active { transform: scale(0.95); }
+
+        /* DECODER CARD */
+        #card {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 380px;
+            background: #fff; border: 3px solid var(--ink-black);
+            padding: 0; border-radius: 8px;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.15);
+            display: none; flex-direction: column;
+            font-family: var(--font-mono); font-size: 0.95rem;
+            z-index: 40; overflow: hidden;
+        }
+        
+        .card-header { 
+            font-family: var(--font-hand); font-size: 1.8rem; color: var(--ink-red); 
+            text-align: center; padding: 15px; background: #fff;
+            border-bottom: 2px dashed #ddd;
+        }
+
+        .card-body { padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+
+        .data-row { display: flex; justify-content: space-between; align-items: center; }
+        .data-lbl { color: #666; font-size: 0.85rem; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
+        .data-val { font-weight: 900; color: var(--ink-black); font-size: 1.1rem; }
+        .cargo-val { color: var(--ink-blue); font-size: 1.4rem; font-weight: 900; }
+
+        .factor-box {
+            background: #f0fdf4; border: 2px solid #86efac; 
+            padding: 12px; margin-top: 10px; 
+            text-align: center; border-radius: 8px;
+        }
+        .factor-lbl { color: #166534; font-size: 0.7rem; font-weight: bold; margin-bottom: 2px; text-transform: uppercase; }
+        .factor-val { color: #15803d; font-size: 1.4rem; font-weight: bold; }
+
+        /* ANALYSIS SUMS (From Gnomonicus) */
+        .sum-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;
+            margin-top: 10px; border-top: 2px dashed #eee; padding-top: 10px;
+        }
+        .sum-item { text-align: center; }
+        .sum-lbl { font-size: 0.6rem; color: #c0392b; font-weight: bold; }
+        .sum-val { font-size: 0.9rem; font-weight: bold; color: #c0392b; }
+
+        canvas { display: block; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="stat-box">Row: <span id="disp-row">--</span></div>
+        <div class="stat-box">Scale: <span id="disp-scale">1.0</span></div>
+    </div>
+
+    <button id="btn-jump" onclick="askJump()">Go</button>
+
+    <div id="card" onclick="this.style.display='none'">
+        <div class="card-header">Tape ID: <span id="c-tape">--</span></div>
+        <div class="card-body">
+            <div class="data-row">
+                <span class="data-lbl">Coordinate</span>
+                <span class="data-val" id="c-coord">--</span>
+            </div>
+            <div class="data-row" style="margin-top:5px;">
+                <span class="data-lbl">ANCHOR (A)</span>
+                <span class="data-val" id="c-anchor">--</span>
+            </div>
+            <div class="data-row">
+                <span class="data-lbl">GAP (B)</span>
+                <span class="data-val" id="c-gap">--</span>
+            </div>
+            <div style="border-top: 2px solid #eee; margin: 10px 0;"></div>
+            <div class="data-row">
+                <span class="data-lbl">CARGO (VALUE)</span>
+                <span class="data-val cargo-val" id="c-val">--</span>
+            </div>
+            <div class="factor-box">
+                <div class="factor-lbl">FACTORS DETECTED</div>
+                <div class="factor-val" id="c-factors">--</div>
+            </div>
+            
+            <div class="sum-grid" id="sum-section" style="display:none;">
+                <div class="sum-item">
+                    <div class="sum-lbl">ROW Σ</div>
+                    <div class="sum-val" id="sum-row">--</div>
+                </div>
+                <div class="sum-item">
+                    <div class="sum-lbl">GAP Σ</div>
+                    <div class="sum-val" id="sum-col">--</div>
+                </div>
+                <div class="sum-item">
+                    <div class="sum-lbl">GNOMON Σ</div>
+                    <div class="sum-val" id="sum-gnomon">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+
+        let scale = 60;
+        let offsetX = window.innerWidth / 2;
+        let offsetY = 100;
+        let selected = null;
+        let showAnalysis = false; // Toggle for red lines
+
+        let evCache = [];
+        let prevDiff = -1;
+        let clickStartPos = {x:0, y:0};
+
+        function init() {
+            window.addEventListener('resize', resize);
+            resize();
+            canvas.addEventListener('pointerdown', onPointerDown);
+            canvas.addEventListener('pointermove', onPointerMove);
+            canvas.addEventListener('pointerup', onPointerUp);
+            canvas.addEventListener('pointercancel', onPointerUp);
+            canvas.addEventListener('pointerout', onPointerUp);
+            canvas.addEventListener('pointerleave', onPointerUp);
+            canvas.addEventListener('wheel', onWheel, {passive: false});
+            canvas.addEventListener('click', onClick);
+            requestAnimationFrame(draw);
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+
+        // --- CORE MATH ---
+        function getGridInfo(r, c) {
+            let R = BigInt(r) + 1n; 
+            let halfW = R - 1n;
+            
+            // Tape ID Logic
+            let endID = R * R;
+            let offsetFromEnd = halfW - BigInt(c);
+            let tapeID = endID - offsetFromEnd;
+            
+            // Difference of Squares Logic
+            let a = 2n * R - 1n; 
+            let gap = BigInt(Math.abs(c));
+            let val = a * (a - (2n * gap));
+            
+            let f1 = a;
+            let f2 = a - (2n * gap);
+            let p1 = f1, p2 = f2;
+            if (p1 < 0n) p1 = -p1; if (p2 < 0n) p2 = -p2;
+            if (p1 > p2) { let t=p1; p1=p2; p2=t; }
+
+            return {
+                R: R, c: BigInt(c), tapeID: tapeID,
+                a: a, gap: gap, val: val, factors: `${p1} × ${p2}`,
+                isEnd: (BigInt(c) === halfW), isCenter: (c === 0)
+            };
+        }
+
+        // --- NEW: SUM CALCULATOR ---
+        function calculateSums(r, c) {
+            let R = BigInt(r) + 1n;
+            let targetGap = Math.abs(c);
+            
+            // 1. Row Sum (Center to Edge for this Row)
+            let rowSum = 0n;
+            let halfW = Number(R) - 1;
+            for(let i=0; i<=halfW; i++) {
+                let node = getGridInfo(r, i);
+                rowSum += node.val;
+            }
+
+            // 2. Gap Sum (Vertical Stack from Tip to this Row)
+            // Iterate rows from Gap index up to current R
+            let colSum = 0n;
+            for(let i=targetGap; i<=r; i++) {
+                let node = getGridInfo(i, targetGap);
+                colSum += node.val;
+            }
+
+            // 3. Gnomon Sum (L-Shape)
+            // Simple geometric definition: Row + Col - Intersection
+            let intersectVal = getGridInfo(r, targetGap).val;
+            let gnomonSum = rowSum + colSum - intersectVal;
+
+            return { row: rowSum, col: colSum, gnomon: gnomonSum };
+        }
+
+        function getCoordsFromTape(T_str) {
+            try {
+                let T = bigInt(T_str);
+                let R = bigSqrt(T.value); 
+                if (R*R < T.value) R++;
+                let endID = R * R;
+                let offsetFromEnd = endID - T.value;
+                let halfW = R - 1n;
+                let c = halfW - offsetFromEnd;
+                return { r: Number(R) - 1, c: Number(c), valid: true };
+            } catch(e) { return { valid: false }; }
+        }
+
+        function bigSqrt(value) {
+            if (value < 0n) return -1n;
+            if (value < 2n) return value;
+            let x = value;
+            let y = (x + 1n) / 2n;
+            while (y < x) { x = y; y = (value / x + x) / 2n; }
+            return x;
+        }
+
+        // --- DRAWING ---
+        function draw() {
+            ctx.fillStyle = "#f9f3e3";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let startRow = Math.floor(-offsetY / scale);
+            let endRow = startRow + Math.ceil(canvas.height / scale) + 1;
+            if (startRow < 0) startRow = 0;
+            let midX = offsetX;
+
+            document.getElementById('disp-row').innerText = startRow + 1;
+            document.getElementById('disp-scale').innerText = (scale/60).toFixed(1) + "x";
+
+            // Draw Analysis Lines (Underneath)
+            if (selected && showAnalysis) {
+                drawAnalysisLines(selected.r, selected.c, midX);
+            }
+
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            let fontSize = Math.max(10, scale * 0.4);
+            ctx.font = `${fontSize}px 'Architects Daughter', cursive`;
+
+            for (let r = startRow; r < endRow; r++) {
+                let y = offsetY + r * scale;
+                let R = r + 1;
+                let halfW = R - 1;
+                
+                // Culling
+                let screenLeftC = Math.floor((-offsetX) / scale) - 1;
+                let screenRightC = Math.floor((canvas.width - offsetX) / scale) + 1;
+                let startC = Math.max(-halfW, screenLeftC);
+                let endC = Math.min(halfW, screenRightC);
+
+                for (let c = startC; c <= endC; c++) {
+                    let x = midX + c * scale;
+                    let bigR = BigInt(R);
+                    let endID = bigR * bigR;
+                    let offsetFromEnd = BigInt(halfW - c);
+                    let tapeID = endID - offsetFromEnd;
+
+                    if (selected && selected.tapeID === tapeID) {
+                        ctx.fillStyle = "rgba(255, 235, 59, 0.5)";
+                        ctx.fillRect(x - scale/2 + 2, y - scale/2 + 2, scale - 4, scale - 4);
+                        ctx.strokeStyle = "#c0392b"; ctx.lineWidth = 3;
+                        ctx.strokeRect(x - scale/2 + 2, y - scale/2 + 2, scale - 4, scale - 4);
+                    }
+
+                    if (c === halfW) ctx.fillStyle = "#c0392b"; 
+                    else if (c === 0) ctx.fillStyle = "#2980b9"; 
+                    else ctx.fillStyle = "#1a1a1a"; 
+
+                    if (scale > 20) {
+                        let txt = tapeID.toString();
+                        if (txt.length > 6) txt = txt.substring(0, 2) + ".." + txt.slice(-2);
+                        ctx.fillText(txt, x, y);
+                    } else { ctx.fillRect(x - 2, y - 2, 4, 4); }
+                }
+            }
+        }
+
+        function drawAnalysisLines(r, c, midX) {
+            let y = offsetY + r * scale;
+            let x = midX + c * scale;
+            let R = r + 1;
+            let halfW = R - 1;
+            let gap = Math.abs(c);
+
+            ctx.strokeStyle = "rgba(192, 57, 43, 0.3)";
+            ctx.lineWidth = scale * 0.6;
+            ctx.lineCap = "round";
+
+            // Horizontal (Row)
+            let startX = midX - halfW * scale;
+            let endX = midX + halfW * scale;
+            // Only draw center to edge per Gnomon logic? No, draw full row for visual clarity
+            ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
+
+            // Vertical (Gap)
+            // From tip (row = gap) to current row
+            let topY = offsetY + gap * scale;
+            ctx.beginPath(); ctx.moveTo(x, topY); ctx.lineTo(x, y); ctx.stroke();
+
+            // Circle Intersection
+            ctx.beginPath(); 
+            ctx.arc(x, y, scale * 0.4, 0, Math.PI*2);
+            ctx.fillStyle = "rgba(192, 57, 43, 0.6)";
+            ctx.fill();
+        }
+
+        // --- INTERACTION ---
+        function onPointerDown(ev) { evCache.push(ev); clickStartPos={x:ev.clientX, y:ev.clientY}; }
+        function onPointerMove(ev) {
+            const index = evCache.findIndex(e => e.pointerId === ev.pointerId);
+            if (index > -1) evCache[index] = ev;
+            if (evCache.length === 1) {
+                offsetX += ev.movementX; offsetY += ev.movementY; requestAnimationFrame(draw);
+            } else if (evCache.length === 2) {
+                const curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY);
+                const midX = (evCache[0].clientX + evCache[1].clientX) / 2;
+                const midY = (evCache[0].clientY + evCache[1].clientY) / 2;
+                if (prevDiff > 0) {
+                    let zoomFactor = 1.0 + (curDiff - prevDiff) * 0.005;
+                    if (curDiff < prevDiff) zoomFactor = 1.0 - (prevDiff - curDiff) * 0.005;
+                    const newScale = scale * zoomFactor;
+                    if (newScale > 0.5 && newScale < 500) {
+                        offsetX = midX - (midX - offsetX) * zoomFactor;
+                        offsetY = midY - (midY - offsetY) * zoomFactor;
+                        scale = newScale;
+                    }
+                }
+                prevDiff = curDiff; requestAnimationFrame(draw);
+            }
+        }
+        function onPointerUp(ev) {
+            const index = evCache.findIndex(e => e.pointerId === ev.pointerId);
+            if (index > -1) evCache.splice(index, 1);
+            if (evCache.length < 2) prevDiff = -1;
+        }
+        function onWheel(ev) {
+            ev.preventDefault();
+            const zoomFactor = ev.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = scale * zoomFactor;
+            if (newScale > 0.5 && newScale < 500) {
+                offsetX = ev.clientX - (ev.clientX - offsetX) * zoomFactor;
+                offsetY = ev.clientY - (ev.clientY - offsetY) * zoomFactor;
+                scale = newScale; draw();
+            }
+        }
+
+        function onClick(e) {
+            const dist = Math.hypot(e.clientX - clickStartPos.x, e.clientY - clickStartPos.y);
+            if (dist > 10) return; 
+            let r = Math.floor((e.clientY - (offsetY - scale/2)) / scale);
+            let c = Math.floor((e.clientX - (offsetX - scale/2)) / scale);
+            let info = getGridInfo(r, c);
+            if (info) {
+                selected = { tapeID: info.tapeID, r: r, c: c };
+                showAnalysis = true;
+                
+                // Calc Sums
+                let sums = calculateSums(r, c);
+                document.getElementById('sum-row').innerText = sums.row.toString();
+                document.getElementById('sum-col').innerText = sums.col.toString();
+                document.getElementById('sum-gnomon').innerText = sums.gnomon.toString();
+                document.getElementById('sum-section').style.display = "grid";
+
+                showCard(info);
+                draw();
+            }
+        }
+
+        function askJump() {
+            let val = prompt("Enter Tape ID to Jump to:");
+            if (val) {
+                let coords = getCoordsFromTape(val);
+                if (coords.valid) {
+                    offsetY = (canvas.height / 2) - (coords.r * scale);
+                    offsetX = (canvas.width / 2) - (coords.c * scale);
+                    let T = bigInt(val).value;
+                    let info = getGridInfo(coords.r, coords.c);
+                    selected = { tapeID: T, r: coords.r, c: coords.c };
+                    showAnalysis = true;
+                    // Auto-calc sums for jumped target
+                    let sums = calculateSums(coords.r, coords.c);
+                    document.getElementById('sum-row').innerText = sums.row.toString();
+                    document.getElementById('sum-col').innerText = sums.col.toString();
+                    document.getElementById('sum-gnomon').innerText = sums.gnomon.toString();
+                    document.getElementById('sum-section').style.display = "grid";
+                    if(info) showCard(info);
+                    draw();
+                }
+            }
+        }
+
+        function showCard(info) {
+            document.getElementById('card').style.display = 'flex';
+            document.getElementById('c-tape').innerText = info.tapeID.toString();
+            document.getElementById('c-coord').innerText = `Row ${info.R}, Gap ${info.gap}`;
+            document.getElementById('c-anchor').innerText = info.a.toString();
+            document.getElementById('c-gap').innerText = info.gap.toString();
+            document.getElementById('c-val').innerText = info.val.toString();
+            document.getElementById('c-factors').innerText = info.factors;
+        }
+
+        init();
+    </script>
+</body>
+</html>

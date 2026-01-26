@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter: Geometry Shifter</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        h1 { color: #00e676; margin: 0 0 20px 0; font-size: 1.5rem; }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 50px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        input {
+            padding: 12px;
+            background: #333;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            width: 60px;
+            font-size: 1.2rem;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #00e676;
+            color: #000;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1rem;
+            text-transform: uppercase;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.95); }
+
+        #canvas-container {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        canvas {
+            border-radius: 12px;
+            background: #181818;
+            box-shadow: 0 0 20px rgba(0, 230, 118, 0.1);
+        }
+
+        .stats {
+            margin-top: 20px;
+            color: #888;
+            font-size: 0.9rem;
+            text-align: center;
+            min-height: 40px;
+        }
+        .highlight { color: #fff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Geometry Shifter</h1>
+
+    <div class="controls">
+        <input type="number" id="numInput" value="11" inputmode="numeric">
+        <button onclick="updateNumber()">Set</button>
+        <button onclick="toggleView()" id="morphBtn">Morph ◢</button>
+    </div>
+
+    <div class="stats" id="stats">
+        Current: Gnomon (Square Wrapper)
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('numInput');
+        const stats = document.getElementById('stats');
+        const morphBtn = document.getElementById('morphBtn');
+
+        let currentNum = 11;
+        let isGnomon = true; // True = L-shape, False = Triangle
+        let blocks = []; // Array of block objects {x, y, targetX, targetY, color}
+        let animationFrame;
+
+        // Configuration
+        const blockSize = 24;
+        const gap = 4;
+        
+        function init() {
+            // Resize canvas to fit screen nicely
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.min(window.innerWidth - 40, 500);
+            const h = Math.min(window.innerHeight - 200, 500);
+            
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+            
+            updateNumber();
+        }
+
+        function updateNumber() {
+            const val = parseInt(input.value);
+            if (!val || val < 1) return;
+            currentNum = val;
+            isGnomon = true;
+            morphBtn.innerText = "Morph ◢";
+            stats.innerHTML = `Shape: <span class="highlight">Gnomon</span> (Difference of Squares)`;
+            createBlocks();
+            draw();
+        }
+
+        function toggleView() {
+            isGnomon = !isGnomon;
+            morphBtn.innerText = isGnomon ? "Morph ◢" : "Reset ▙";
+            
+            if (isGnomon) {
+                stats.innerHTML = `Shape: <span class="highlight">Gnomon</span> (Difference of Squares)`;
+                setGnomonTargets();
+            } else {
+                // Check if perfect triangle
+                // Triangle number formula: T = n(n+1)/2
+                // Inverse: n = (sqrt(8T + 1) - 1) / 2
+                const tCheck = (Math.sqrt(8 * currentNum + 1) - 1) / 2;
+                const isPerfect = Number.isInteger(tCheck);
+                
+                stats.innerHTML = isPerfect 
+                    ? `Shape: <span class="highlight">Perfect Triangle</span> (Rows: ${tCheck})`
+                    : `Shape: <span class="highlight">Imperfect Stack</span> (Remainder: 1)`;
+                    
+                setTriangleTargets();
+            }
+            animate();
+        }
+
+        function createBlocks() {
+            blocks = [];
+            // We create 'currentNum' blocks.
+            // Initially position them in Gnomon formation to start.
+            
+            // Gnomon Logic:
+            // inner_size = (n-1)/2 (if odd)
+            // if even, we just make a generic L or line? 
+            // Let's stick to the visual standard: vertical col, bottom row.
+            
+            // For general visualization, let's treat "Gnomon" as:
+            // A vertical column of ceil(n/2) and a bottom row of floor(n/2)?
+            // NO, let's match the "Difference of Squares" math for Odds.
+            // For Evens, we will just make an L-shape that fits.
+            
+            const isOdd = (currentNum % 2 !== 0);
+            let verticalHeight, bottomWidth;
+            
+            if (isOdd) {
+                // Perfect difference of squares
+                // Example 11: 6x6 - 5x5.
+                // Outer dimension = (n+1)/2 = 6.
+                verticalHeight = (currentNum + 1) / 2; // 6
+                bottomWidth = verticalHeight; // 6
+            } else {
+                // Just an L shape. 
+                verticalHeight = Math.ceil(currentNum / 2) + 1;
+                bottomWidth = Math.floor(currentNum / 2);
+            }
+
+            // Generate Gnomon Coordinates (Centering in canvas)
+            const cx = (canvas.width / (window.devicePixelRatio||1)) / 2;
+            const cy = (canvas.height / (window.devicePixelRatio||1)) / 2;
+            
+            // Gnomon offset (bottom-left alignment)
+            const gOffX = cx - (bottomWidth * (blockSize+gap)) / 2;
+            const gOffY = cy + (verticalHeight * (blockSize+gap)) / 2;
+
+            let count = 0;
+            
+            // 1. Vertical Column (Left side of the L)
+            for (let r = 0; r < verticalHeight; r++) {
+                if (count >= currentNum) break;
+                blocks.push({
+                    id: count,
+                    x: gOffX,
+                    y: gOffY - (r * (blockSize + gap)) - blockSize, // build up
+                    color: '#00e676'
+                });
+                count++;
+            }
+            
+            // 2. Bottom Row (starting after the corner)
+            for (let c = 1; c < bottomWidth; c++) {
+                if (count >= currentNum) break;
+                blocks.push({
+                    id: count,
+                    x: gOffX + (c * (blockSize + gap)),
+                    y: gOffY - blockSize,
+                    color: '#00c853' // Slightly darker for the "tail"
+                });
+                count++;
+            }
+            
+            // Save these as initial targets too
+            blocks.forEach(b => {
+                b.tx = b.x;
+                b.ty = b.y;
+            });
+        }
+
+        function setGnomonTargets() {
+            const isOdd = (currentNum % 2 !== 0);
+            let verticalHeight = isOdd ? (currentNum + 1) / 2 : Math.ceil(currentNum / 2) + 1;
+            let bottomWidth = isOdd ? verticalHeight : Math.floor(currentNum / 2);
+
+            const cx = (canvas.width / (window.devicePixelRatio||1)) / 2;
+            const cy = (canvas.height / (window.devicePixelRatio||1)) / 2;
+            const gOffX = cx - (bottomWidth * (blockSize+gap)) / 2;
+            const gOffY = cy + (verticalHeight * (blockSize+gap)) / 2;
+
+            let count = 0;
+            // Vertical
+            for (let r = 0; r < verticalHeight; r++) {
+                if (count >= currentNum) break;
+                blocks[count].tx = gOffX;
+                blocks[count].ty = gOffY - (r * (blockSize + gap)) - blockSize;
+                count++;
+            }
+            // Horizontal
+            for (let c = 1; c < bottomWidth; c++) {
+                if (count >= currentNum) break;
+                blocks[count].tx = gOffX + (c * (blockSize + gap));
+                blocks[count].ty = gOffY - blockSize;
+                count++;
+            }
+        }
+
+        function setTriangleTargets() {
+            // Triangle / Pyramid Stacking
+            // Calculate how many rows we can fill
+            // n(n+1)/2 <= currentNum
+            
+            let row = 1;
+            let used = 0;
+            const center = (canvas.width / (window.devicePixelRatio||1)) / 2;
+            const bottom = (canvas.height / (window.devicePixelRatio||1)) / 2 + 100; // Push down a bit
+            
+            // Calculate total height of the pyramid to center vertically
+            // Approx roots
+            const approxRows = Math.floor((-1 + Math.sqrt(1 + 8*currentNum))/2); 
+            // Just assume slightly higher start
+            const startY = (canvas.height / (window.devicePixelRatio||1)) / 2 - (approxRows * (blockSize+gap))/2;
+
+            let count = 0;
+            let currentRow = 1;
+            
+            while (count < currentNum) {
+                const itemsInRow = currentRow;
+                const rowWidth = itemsInRow * (blockSize + gap) - gap;
+                const rowStartX = center - rowWidth / 2;
+                const rowY = startY + (currentRow * (blockSize + gap));
+                
+                for (let i = 0; i < itemsInRow; i++) {
+                    if (count >= currentNum) break;
+                    
+                    blocks[count].tx = rowStartX + i * (blockSize + gap);
+                    blocks[count].ty = rowY;
+                    count++;
+                }
+                currentRow++;
+            }
+        }
+
+        function animate() {
+            let moving = false;
+            
+            blocks.forEach(b => {
+                // Lerp (Linear Interpolation) for smooth movement
+                const dx = b.tx - b.x;
+                const dy = b.ty - b.y;
+                
+                if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+                    b.x += dx * 0.15; // Speed factor
+                    b.y += dy * 0.15;
+                    moving = true;
+                } else {
+                    b.x = b.tx;
+                    b.y = b.ty;
+                }
+            });
+
+            draw();
+
+            if (moving) {
+                animationFrame = requestAnimationFrame(animate);
+            }
+        }
+
+        function draw() {
+            const w = canvas.width / (window.devicePixelRatio||1);
+            const h = canvas.height / (window.devicePixelRatio||1);
+            ctx.clearRect(0, 0, w, h);
+
+            blocks.forEach(b => {
+                ctx.fillStyle = b.color;
+                // Draw slight shadow
+                ctx.fillStyle = 'rgba(0, 230, 118, 0.2)';
+                ctx.fillRect(b.x + 2, b.y + 2, blockSize, blockSize);
+                
+                // Draw Block
+                ctx.fillStyle = b.color;
+                ctx.fillRect(b.x, b.y, blockSize, blockSize);
+                
+                // Border
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(b.x, b.y, blockSize, blockSize);
+            });
+        }
+
+        // Init
+        init();
+        
+        // Input Listener
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") updateNumber();
+        });
+
+    </script>
+</body>
+</html>

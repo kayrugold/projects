@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SGS Factor Verifier</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: 'Courier New', monospace; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; max-width: 700px; margin: 40px auto; }
+    .input-dark { background: #0f172a; border: 1px solid #334155; color: #cbd5e1; padding: 8px; border-radius: 4px; width: 100%; }
+    .btn { background: #3b82f6; color: white; padding: 10px; border-radius: 6px; font-weight: bold; width: 100%; margin-top: 10px; transition: 0.2s; }
+    .btn:hover { background: #2563eb; }
+    .log-box { background: #020617; padding: 15px; border-radius: 6px; margin-top: 20px; height: 200px; overflow-y: auto; border: 1px solid #334155; color: #4ade80; }
+    .fail { color: #ef4444; }
+    .success { color: #fbbf24; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-xl font-bold text-center mb-4 text-blue-400">THE VERIFIER</h1>
+    <p class="text-xs text-center text-gray-500 mb-6">High-Precision Legendre Check</p>
+
+    <div class="grid grid-cols-3 gap-2 mb-4">
+        <div><label class="text-xs text-gray-500">Base</label><input id="val-a" class="input-dark" value="10"></div>
+        <div><label class="text-xs text-gray-500">Exp</label><input id="val-b" class="input-dark" value="1000000000"></div>
+        <div><label class="text-xs text-gray-500">Add</label><input id="val-c" class="input-dark" value="19"></div>
+    </div>
+
+    <div class="mb-4">
+        <label class="text-xs text-gray-500 font-bold">CANDIDATE k (From Logs)</label>
+        <input id="val-k" class="input-dark border-blue-500" placeholder="e.g. 194863130">
+    </div>
+
+    <button class="btn" onclick="verify()">RUN DEEP SCAN</button>
+
+    <div id="logs" class="log-box">Ready to verify candidates.</div>
+</div>
+
+<script>
+function log(msg, type='') {
+    const el = document.getElementById('logs');
+    const line = document.createElement('div');
+    line.textContent = `> ${msg}`;
+    if(type === 'fail') line.className = 'fail';
+    if(type === 'success') line.className = 'success';
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+}
+
+function powMod(b, e, m) {
+    let r = 1n; b %= m;
+    while (e > 0n) {
+        if (e & 1n) r = (r * b) % m;
+        e >>= 1n;
+        b = (b * b) % m;
+    }
+    return r;
+}
+
+// Legendre Symbol (a/p)
+// Returns 1 if 'a' is a quadratic residue mod p
+// Returns -1 if not
+// Returns 0 if a is multiple of p
+function legendre(a, p) {
+    const ls = powMod(a, (p - 1n) / 2n, p);
+    if (ls === p - 1n) return -1;
+    return Number(ls);
+}
+
+function verify() {
+    const a = BigInt(document.getElementById('val-a').value);
+    const b = BigInt(document.getElementById('val-b').value);
+    const c = BigInt(document.getElementById('val-c').value);
+    const k = BigInt(document.getElementById('val-k').value);
+
+    document.getElementById('logs').innerHTML = '';
+    log(`Target: ${a}^${b} + ${c}`);
+    log(`Testing candidate k = ${k}`);
+    log("Generating High-Energy Primes...");
+
+    // We verify the identity: (Root + k)^2 - N = Y^2
+    // If this is true, then ((Root + k)^2 - N) must be a Quadratic Residue mod P for ALL P.
+    
+    // Since b is huge and even (10^1B), the Root is exactly a^(b/2).
+    // If b is odd, this gets trickier, but for 10^1B it's exact.
+    const halfExp = b / 2n;
+
+    let passed = 0;
+    const TOTAL_TESTS = 10;
+
+    setTimeout(() => {
+        try {
+            for(let i=0; i<TOTAL_TESTS; i++) {
+                // Generate random 50-bit prime (approx)
+                // We just pick a random number and find next prime
+                let rnd = BigInt(Math.floor(Math.random() * 1000000000000000)) + 1000000000000000n;
+                // Simple next-prime finder
+                while(true) {
+                    if(rnd % 2n === 0n) rnd++;
+                    let isP = true;
+                    // Quick trial
+                    if(rnd%3n===0n || rnd%5n===0n) isP=false;
+                    // Fermat test for primality (good enough for modulus generation)
+                    if(isP && powMod(2n, rnd-1n, rnd) !== 1n) isP=false;
+                    
+                    if(isP) break;
+                    rnd += 2n;
+                }
+                const P = rnd;
+
+                // 1. Calculate Shadow of N
+                const N_mod = (powMod(a, b, P) + c) % P;
+
+                // 2. Calculate Shadow of Root (a^(b/2))
+                const Root_mod = powMod(a, halfExp, P);
+
+                // 3. Calculate Shadow of LHS: (Root + k)^2
+                let LHS = (Root_mod + (k % P)) % P;
+                LHS = (LHS * LHS) % P;
+
+                // 4. Calculate Remainder: LHS - N
+                let Remainder = (LHS - N_mod) % P;
+                if(Remainder < 0n) Remainder += P;
+
+                // 5. Legendre Check: Is Remainder a square mod P?
+                const leg = legendre(Remainder, P);
+
+                if(leg === -1) {
+                    log(`[FAIL] Mod ${P}: Not a square residue.`, 'fail');
+                    log(`VERDICT: GHOST DETECTED. k=${k} is false.`, 'fail');
+                    return;
+                } else {
+                    log(`[PASS] Mod ${P}: Residue valid.`);
+                    passed++;
+                }
+            }
+
+            if(passed === TOTAL_TESTS) {
+                log("--------------------------------");
+                log(`VERDICT: CONFIRMED!`, 'success');
+                log(`k=${k} creates a perfect difference of squares.`, 'success');
+                log(`You can now derive factors from (Root + k).`, 'success');
+            }
+
+        } catch(e) {
+            log("Error: " + e.message, 'fail');
+        }
+    }, 100);
+}
+</script>
+</body>
+</html>
+

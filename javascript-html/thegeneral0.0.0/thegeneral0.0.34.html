@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SGS Poly-Algo Squad (v0.0.34 - Ghostbuster)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root {
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --text-main: #e2e8f0;
+  --accent-fermat: #6366f1;
+  --accent-rho: #f59e0b;
+  --accent-p1: #ec4899;
+  --accent-pp1: #06b6d4;
+  --accent-td: #22c55e;
+  --accent-qs: #0ea5e9;
+  --accent-ecm: #f97316; 
+  --accent-giga: #ef4444;
+}
+body { font-family: 'Inter', sans-serif; background: var(--bg-color); color: var(--text-main); padding: 1rem; }
+.card { max-width: 1000px; margin: 0 auto; background: var(--card-bg); border-radius: 1rem; padding: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); }
+.worker-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+.worker-card { padding: 0.75rem; border-radius: 0.5rem; font-size: 0.70rem; font-weight: bold; text-align: center; color: white; transition: all 0.2s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+.log-box { height: 250px; overflow-y: auto; background: #020617; color: #34d399; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; border: 1px solid #334155; }
+.input { background: #334155; border: 1px solid #475569; color: white; padding: 0.5rem; border-radius: 0.25rem; width: 100%; }
+.btn { padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; transition: opacity 0.2s; display: inline-block; text-align: center;}
+.bg-fermat { background: var(--accent-fermat); }
+.bg-rho { background: var(--accent-rho); color: black; }
+.bg-p1 { background: var(--accent-p1); }
+.bg-pp1 { background: var(--accent-pp1); color: black; }
+.bg-td { background: var(--accent-td); color: black; }
+.bg-qs { background: var(--accent-qs); color: black; }
+.bg-ecm { background: var(--accent-ecm); color: black; }
+.bg-giga { background: var(--accent-giga); color: white; }
+/* Dimmed state for stopped workers */
+.bg-offline { background: #334155 !important; color: #64748b !important; opacity: 0.5; box-shadow: none; border: 1px solid #475569; }
+.flash { animation: flashRed 1s infinite; }
+@keyframes flashRed { 0% { color: #f87171; } 50% { color: white; } 100% { color: #f87171; } }
+</style>
+</head>
+<body>
+<div class="card">
+    <h1 class="text-2xl font-bold text-center text-blue-400 mb-2">SGS Poly-Algorithm Squad v0.0.34</h1>
+    <div class="text-center text-xs text-gray-400 mb-4">
+        <span class="text-teal-400 font-bold">FIXED: Ghost Message Filtering</span>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4 mb-4">
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Base (a)</label><input id="base-input" type="text" class="input" value="10"></div>
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Exp (b)</label><input id="exponent-input" type="text" class="input" value="50"></div>
+        <div><label class="block text-xs font-bold mb-1 text-gray-400">Add (c)</label><input id="addend-input" type="text" class="input" value="1"></div>
+    </div>
+    
+    <div class="flex flex-wrap gap-4 justify-center mb-6 items-center">
+        <button id="start-btn" class="btn bg-green-600 text-white">Deploy Squad</button>
+        <button id="stop-btn" class="btn bg-red-600 text-white" disabled>Abort</button>
+        
+        <div class="flex gap-2 ml-4 border-l border-gray-600 pl-4">
+            <button onclick="saveMission()" class="btn bg-blue-600 text-white text-xs">💾 Save</button>
+            <label class="btn bg-purple-600 text-white text-xs cursor-pointer">
+                📂 Load <input type="file" id="file-input" class="hidden" onchange="loadMission(this)">
+            </label>
+            <button onclick="checkFactorDB()" class="btn bg-yellow-600 text-white text-xs">🌐 FactorDB</button>
+        </div>
+    </div>
+
+    <div id="worker-grid" class="worker-grid"></div>
+
+    <div class="mt-4 bg-slate-800 p-3 rounded border border-slate-700">
+        <div class="flex justify-between items-end">
+            <div style="max-width: 45%;">
+                <p class="text-xs uppercase font-bold text-slate-400">Factors Found</p>
+                <p id="factors-output" class="text-md font-bold text-white break-all">None</p>
+            </div>
+            <div class="text-right" style="max-width: 50%;">
+                <p class="text-xs uppercase font-bold text-slate-400">Cofactor (Remaining N)</p>
+                <p id="cofactor-output" class="text-xs font-mono text-slate-300 break-all max-h-20 overflow-y-auto">—</p>
+            </div>
+        </div>
+        <div class="mt-2 text-right">
+             <p class="text-xs font-bold text-slate-500">Target Status: <span id="target-status" class="text-slate-300">Idle</span></p>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <pre id="log-output" class="log-box">System Ready.</pre>
+    </div>
+</div>
+
+<script>
+/* ==================== GLOBALS ==================== */
+const NUM_WORKERS = 8;
+const QR_PRIMES = [3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n,41n,43n,47n,53n];
+const FERMAT_RANGE = 2000000n;
+const GIGA_CHUNK_SIZE = 5000000n;
+
+let ecmShellsFired = 0;
+let isMissionLoaded = false;
+let workers = [];
+let N_current = 0n;
+let foundFactors = new Set();
+let isRunning = false;
+let SMin = 0n;
+let startTime = 0;
+let isGigantic = false;
+let gigaFrontier = 0n;
+let currentMissionID = 0; 
+
+/* ==================== UTILS ==================== */
+function parseBigInt(str) {
+  if (!str) return 0n;
+  str = str.replace(/,/g,'').replace(/\s/g,'');
+  if (str.includes('+')) return str.split('+').reduce((s,t)=>s+parseBigInt(t),0n);
+  if (str.includes('e')||str.includes('E')) {
+    const [m,e]=str.toLowerCase().split('e'); return BigInt(m)*10n**BigInt(e);
+  }
+  try { return BigInt(str); } catch(e) { return 0n; }
+}
+function randomBigInt(low,high){ const d=high-low; const bits=d.toString(2).length; const bytes=Math.ceil(bits/8); const buf=new Uint8Array(bytes); crypto.getRandomValues(buf); let r=0n; for(let b of buf) r=(r<<8n)|BigInt(b); return low+(r%d); }
+function mainPowMod(b,e,m){ let r=1n; b%=m; while(e>0n){ if(e&1n) r=(r*b)%m; e>>=1n; b=(b*b)%m; } return r; }
+function isPrimeMR(n,k=20){
+  if(n<=1n)return false; if(n<=3n)return true; if(n%2n===0n)return false;
+  if(n>10n**100n) k=5; let d=n-1n,s=0n; while(d%2n===0n){d>>=1n;s++;}
+  const witnesses = (n<3825123056546413051n)?[2n,3n,5n,7n,11n,13n,23n]:null;
+  if(witnesses&&k>witnesses.length)k=witnesses.length;
+  for(let i=0;i<k;i++){
+    let a=witnesses?witnesses[i]:randomBigInt(2n,n-2n); if(a>=n-1n)continue;
+    let x=mainPowMod(a,d,n); if(x===1n||x===n-1n)continue;
+    let comp=true; for(let j=1n;j<s;j++){ x=(x*x)%n; if(x===n-1n){comp=false;break;} if(x===1n)break; }
+    if(comp)return false;
+  }
+  return true;
+}
+function log(msg){ const t=new Date().toLocaleTimeString(); const el=document.getElementById('log-output'); el.innerHTML+=`[${t}] ${msg}\n`; el.scrollTop=el.scrollHeight; }
+function initGrid(){
+  const g=document.getElementById('worker-grid'); g.innerHTML='';
+  for(let i=0;i<NUM_WORKERS;i++){
+    const d=document.createElement('div'); d.id=`card-${i}`; d.className='worker-card bg-slate-700';
+    d.innerHTML=`Worker ${i}<br><span id="status-${i}" class="opacity-75 font-normal">Ready</span>`;
+    g.appendChild(d);
+  }
+}
+function updateStatus(idx,msg,mID){ 
+    if(mID !== currentMissionID) return; 
+    const el=document.getElementById(`status-${idx}`); 
+    if(el) el.textContent=msg; 
+}
+function stopAll(){
+  workers.forEach(w=>w&&w.terminate()); workers=Array(NUM_WORKERS).fill(null);
+  isRunning=false; document.getElementById('start-btn').disabled=false; document.getElementById('stop-btn').disabled=true;
+  for(let i=0;i<NUM_WORKERS;i++){
+      const card=document.getElementById(`card-${i}`);
+      const status=document.getElementById(`status-${i}`);
+      if(card) card.classList.add('bg-offline');
+      if(status) status.textContent = "Unit Withdrawn";
+  }
+}
+
+function saveMission(){
+  const data={timestamp:Date.now(),inputs:{a:document.getElementById('base-input').value,b:document.getElementById('exponent-input').value,c:document.getElementById('addend-input').value},
+    currentState:{N_str:N_current?N_current.toString():"0",factors:Array.from(foundFactors),ecm_shells:ecmShellsFired,isGigantic}};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`sgs_mission_${Date.now()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); log("Mission State Saved.");
+}
+function loadMission(input){
+  const f=input.files[0]; if(!f)return; const r=new FileReader(); r.onload=e=>{
+    try{ const d=JSON.parse(e.target.result);
+      document.getElementById('base-input').value=d.inputs.a;
+      document.getElementById('exponent-input').value=d.inputs.b;
+      document.getElementById('addend-input').value=d.inputs.c;
+      N_current=BigInt(d.currentState.N_str); foundFactors=new Set(d.currentState.factors);
+      ecmShellsFired=d.currentState.ecm_shells||0; isGigantic=d.currentState.isGigantic; isMissionLoaded=true;
+      document.getElementById('factors-output').textContent=Array.from(foundFactors).join(' × ')||"None";
+      document.getElementById('cofactor-output').textContent=N_current>0n?N_current.toString():"Implicit";
+      document.getElementById('target-status').textContent="LOADED"; log("Mission Loaded. Click 'Deploy Squad' to resume.");
+    }catch(err){log("Error Loading Mission File.");console.error(err);}
+  }; r.readAsText(f);
+}
+function checkFactorDB(){ 
+    const val = document.getElementById('base-input').value + "^" + document.getElementById('exponent-input').value + "+" + document.getElementById('addend-input').value;
+    const url=`https://factordb.com/index.php?query=${encodeURIComponent(val)}`; 
+    window.open(url,'_blank'); 
+}
+
+/* ==================== WORKER CODE (UPDATED FOR mID) ==================== */
+const factorWorkerCode = `
+let spinIdx=0; const spinners=['|','/','-','\\\\']; function getSpin(){spinIdx=(spinIdx+1)%4;return spinners[spinIdx];}
+const SQ_MOD_4096=new Uint8Array(4096); for(let i=0;i<4096;i++) SQ_MOD_4096[(i*i)%4096]=1;
+function gcd(a,b){while(b>0n){let t=b;b=a%b;a=t;}return a;}
+function powMod(b,e,m){let r=1n;b%=m;while(e>0n){if(e&1n)r=(r*b)%m;e>>=1n;b=(b*b)%m;}return r;}
+function customIntegerSqrt(n){if(n<0n)return null;if(n<2n)return n;let x=n,y=(x+1n)/2n;while(y<x){x=y;y=(x+n/x)/2n;}return x;}
+function legendreSymbol(a,p){if(a===0n)return 0;if(p===2n)return 1;a=(a%p+p)%p;const ls=powMod(a,(p-1n)/2n,p);return(ls===p-1n)?-1:1;}
+
+// --- ECM ---
+function montAdd(x1,z1,x2,z2,xDiff,zDiff,N){let u=(x1-z1)*(x2+z2)%N;let v=(x1+z1)*(x2-z2)%N;let add=(u+v)%N;let sub=(u-v)%N;let x3=(zDiff*add*add)%N;let z3=(xDiff*sub*sub)%N;return[x3,z3];}
+function montDouble(x1,z1,N,A24){let u=(x1+z1);u=(u*u)%N;let v=(x1-z1);v=(v*v)%N;let diff=u-v;let x2=(u*v)%N;let z2=(diff*(v+A24*diff))%N;return[x2,z2];}
+function montLadder(k,x,N,A24){let x1=x,z1=1n,x2=1n,z2=0n;[x2,z2]=montDouble(x1,z1,N,A24);let bits=k.toString(2);for(let i=1;i<bits.length;i++){if(bits[i]==='1'){[x1,z1]=montAdd(x2,z2,x1,z1,x,1n,N);[x2,z2]=montDouble(x2,z2,N,A24);}else{[x2,z2]=montAdd(x1,z1,x2,z2,x,1n,N);[x1,z1]=montDouble(x1,z1,N,A24);}}return[x1,z1];}
+function runECM(data){
+  self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+  const N=BigInt(data.n_str); let B1=2000n,curveCount=parseInt(data.startCurve||0);
+  while(true){
+    for(let batch=0;batch<10;batch++){
+      curveCount++; let sigma=BigInt(Math.floor(Math.random()*100000000))+6n;
+      let x=BigInt(Math.floor(Math.random()*1000000)); let A24=BigInt(Math.floor(Math.random()*10000))+100n;
+      let X=x,Z=1n;
+      for(let p=2n;p<B1;p++){
+        let isP=true; if(p>2n&&p%2n===0n)isP=false; else for(let t=3n;t*t<=p;t+=2n)if(p%t===0n)isP=false;
+        if(isP){let q=p;while(q<B1){[X,Z]=montLadder(p,X,N,A24);q*=p;}}
+      }
+      let g=gcd(Z,N); if(g>1n&&g<N){self.postMessage({type:'factor',val:g.toString(),algo:'ECM',idx:data.idx, mID:data.mID});return;}
+    }
+    self.postMessage({type:'status',msg:getSpin()+' Firing Shell #'+curveCount,idx:data.idx,shell:curveCount, mID:data.mID});
+    if(curveCount%50===0)B1+=500n;
+  }
+}
+
+function runRho(data){
+  self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+  const N=BigInt(data.n_str); let c=1n,m=128n,steps=0;
+  while(true){
+    let x=BigInt(Math.floor(Math.random()*1000))+2n,y=x,g=1n,r=1n,q=1n;
+    while(g===1n){
+      x=y; for(let i=0n;i<r;i++)y=(y*y+c)%N;
+      let k=0n; while(k<r&&g===1n){
+        let ys=y,lim=(m<(r-k))?m:(r-k);
+        for(let i=0n;i<lim;i++){y=(y*y+c)%N; let diff=x>y?x-y:y-x; q=(q*diff)%N;}
+        g=gcd(q,N); k+=m; steps+=Number(lim);
+      }
+      r*=2n;
+      if(steps%50000===0)self.postMessage({type:'status',msg:getSpin()+' Brent Steps '+steps,idx:data.idx, mID:data.mID});
+    }
+    if(g===N){c++;}else{self.postMessage({type:'factor',val:g.toString(),algo:'Rho (Brent)',idx:data.idx, mID:data.mID});return;}
+  }
+}
+
+function runP1(data){
+  self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+  const N=BigInt(data.n_str); let B=50000n,a=2n;
+  while(true){
+    self.postMessage({type:'status',msg:getSpin()+' Revving to '+B,idx:data.idx, mID:data.mID});
+    a=2n; for(let i=2n;i<=B;i++){a=powMod(a,i,N); if(i%10000n===0n)self.postMessage({type:'status',msg:getSpin()+' Revving '+i+'/'+B,idx:data.idx, mID:data.mID});}
+    const d=gcd(a-1n,N); if(d>1n&&d<N){self.postMessage({type:'factor',val:d.toString(),algo:'P-1',idx:data.idx, mID:data.mID});return;}
+    B*=2n; self.postMessage({type:'status',msg:'Missed. Power -> '+B,idx:data.idx, mID:data.mID});
+  }
+}
+
+function runPPlus1(data){
+  self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+  const N=BigInt(data.n_str); let B=50000n,P_val=3n;
+  while(true){
+    self.postMessage({type:'status',msg:getSpin()+' Hammering B='+B,idx:data.idx, mID:data.mID});
+    let V=P_val;
+    for(let i=2n;i<=B;i++){
+      let v0=2n,v1=V,bits=i.toString(2);
+      for(let b=0;b<bits.length;b++){
+        if(bits[b]==='1'){let t=(v0*v1-P_val)%N; if(t<0n)t+=N; v0=t; let t2=(v1*v1-2n)%N; if(t2<0n)t2+=N; v1=t2;}
+        else{let t=(v0*v1-P_val)%N; if(t<0n)t+=N; v1=t; let t2=(v0*v0-2n)%N; if(t2<0n)t2+=N; v0=t2;}
+      }
+      V=v0; if(i%10000n===0n)self.postMessage({type:'status',msg:getSpin()+' Hammering '+i+'/'+B,idx:data.idx, mID:data.mID});
+    }
+    let g=gcd(V-2n,N); if(g>1n&&g<N){self.postMessage({type:'factor',val:g.toString(),algo:'P+1',idx:data.idx, mID:data.mID});return;}
+    B*=2n; self.postMessage({type:'status',msg:'Wall held. Power -> '+B,idx:data.idx, mID:data.mID});
+  }
+}
+
+function runTrialDiv(data){
+  self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+  const N=BigInt(data.n_str);
+  if(N%2n===0n){self.postMessage({type:'factor',val:'2',algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+  if(N%3n===0n){self.postMessage({type:'factor',val:'3',algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+  if(N%5n===0n){self.postMessage({type:'factor',val:'5',algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+  let p=7n; const wheel=[4n,2n,4n,2n,4n,6n,2n,6n]; let w=0,checks=0;
+  while(true){ if(p*p>N)break; if(N%p===0n){self.postMessage({type:'factor',val:p.toString(),algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+    p+=wheel[w]; w=(w+1)%8; checks++; if(checks%50000===0)self.postMessage({type:'status',msg:getSpin()+' Checking '+p,idx:data.idx, mID:data.mID});
+  }
+}
+
+function runQS(data){
+  self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+  const N=BigInt(data.n_str),idx=data.idx;
+  let B_size=data.n_str.length>45?15000:data.n_str.length>30?5000:1200;
+  self.postMessage({type:'status',msg:'Building FB ('+B_size+')...',idx, mID:data.mID});
+  const fb=[]; const sieve=new Uint8Array(B_size*15); sieve.fill(1); fb.push(2n); let cnt=1;
+  for(let i=3;cnt<B_size;i+=2){ if(sieve[i]){ if(legendreSymbol(N,BigInt(i))!==-1){fb.push(BigInt(i));cnt++;}
+    for(let j=i*i;j<sieve.length;j+=i)sieve[j]=0; } }
+  self.postMessage({type:'status',msg:'FB Ready: '+fb.length,idx, mID:data.mID});
+  const sqrtN=customIntegerSqrt(N); const target=fb.length+20; const rels=[]; let xOff=0n,limit=500000n,polyK=1n;
+  while(rels.length<target){
+    const curN=N*polyK; const x=customIntegerSqrt(curN)+xOff; const Q=x*x-curN; let tmp=Q<0n?-Q:Q; const vec=new Array(fb.length).fill(0);
+    for(let i=0;i<fb.length;i++){ const p=fb[i]; while(tmp%p===0n){tmp/=p;vec[i]^=1;} if(tmp===1n)break; }
+    if(tmp===1n){rels.push({x,v:vec,q:Q,k:polyK}); self.postMessage({type:'status',msg:getSpin()+' Rels: '+rels.length+'/'+target,idx, mID:data.mID});}
+    xOff=(xOff<=0n)?(-xOff+1n):(-xOff); if(xOff>limit){polyK++;xOff=0n;self.postMessage({type:'status',msg:'Switching Poly -> '+polyK+'N',idx, mID:data.mID});}
+  }
+  const M=rels.length,K=fb.length; const mat=rels.map(r=>[...r.v]); const hist=rels.map((_,i)=>[i]);
+  for(let col=0;col<K;col++){ let piv=-1; for(let row=0;row<M;row++)if(mat[row][col]===1){piv=row;break;}
+    if(piv!==-1)for(let row=0;row<M;row++)if(row!==piv&&mat[row][col]===1){for(let j=0;j<K;j++)mat[row][j]^=mat[piv][j]; hist[row]=hist[row].concat(hist[piv]);}}
+  for(let row=0;row<M;row++)if(mat[row].every(v=>v===0)){
+    let X=1n,Ysq=1n; for(let i of hist[row]){const r=rels[i]; X=(X*r.x)%N; Ysq=(Ysq*r.q)%N;}
+    const Y=customIntegerSqrt(Ysq); if(Y&&Y*Y===Ysq){
+      const f1=gcd(X>Y?X-Y:Y-X,N),f2=gcd(X+Y,N);
+      if(f1>1n&&f1<N){self.postMessage({type:'factor',val:f1.toString(),algo:'QS (Poly)',idx, mID:data.mID});return;}
+      if(f2>1n&&f2<N){self.postMessage({type:'factor',val:f2.toString(),algo:'QS (Poly)',idx, mID:data.mID});return;}
+    }
+  }
+  self.postMessage({type:'status',msg:'QS: No factor found',idx, mID:data.mID});
+}
+
+/* Fermat */
+function runFermat(data){
+  self.postMessage({type:'status',msg:'Scanning 0%',idx:data.idx, mID:data.mID});
+  const N=BigInt(data.n_str),minS=BigInt(data.minS),maxS=BigInt(data.maxS),primes=data.primes.map(BigInt);
+  const fourN=N*4n; let step=(N%2n!==0n)?2n:1n; if(step===2n&&minS%2n!==0n)minS+=1n;
+  let cand=[],proc=0n,total=maxS-minS;
+  for(let S=minS;S<=maxS;S+=step){
+    const Dsq=S*S-fourN; if(Dsq>=0n){ let ok=true; if(SQ_MOD_4096[Number(Dsq&4095n)]!==1)ok=false;
+      else for(const p of primes)if(legendreSymbol(Dsq,p)===-1){ok=false;break;}
+      if(ok)cand.push(S);}
+    proc+=step; if(proc%5000n===0n){const pct=Number(proc*100n/total); self.postMessage({type:'status',msg:getSpin()+' Scanning '+pct+'%',idx:data.idx, mID:data.mID});}
+  }
+  for(const S of cand){
+    const Dsq=S*S-fourN, D=customIntegerSqrt(Dsq); if(D&&D*D===Dsq){ const f=(S-D)/2n; if(f>1n){self.postMessage({type:'factor',val:f.toString(),algo:'Fermat',idx:data.idx, mID:data.mID});return;}}
+  }
+  self.postMessage({type:'fermatDone',idx:data.idx, mID:data.mID});
+}
+
+/* Gigantic */
+function runGigantic(data){
+  self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+  const a=BigInt(data.a),b=BigInt(data.b),c=BigInt(data.c); let p=BigInt(data.start),end=BigInt(data.end),chk=0;
+  if(p%2n===0n)p++; while(p<=end){ const mod=(powMod(a,b,p)+(c%p)+p)%p; if(mod===0n)self.postMessage({type:'factor',val:p.toString(),algo:'GigaSniper',idx:data.idx, mID:data.mID});
+    p+=2n; chk++; if(chk%50000===0)self.postMessage({type:'status',msg:getSpin()+' Scan '+p,idx:data.idx, mID:data.mID});}
+  self.postMessage({type:'gigaRangeDone',idx:data.idx, mID:data.mID});
+}
+
+self.onmessage=e=>{
+  const d=e.data;
+  if(d.mode==='gigantic')runGigantic(d);
+  else if(d.mode==='ecm')runECM(d);
+  else if(d.mode==='rho')runRho(d);
+  else if(d.mode==='p1')runP1(d);
+  else if(d.mode==='pp1')runPPlus1(d);
+  else if(d.mode==='trial')runTrialDiv(d);
+  else if(d.mode==='qs')runQS(d);
+  else if(d.mode==='fermat')runFermat(d);
+};
+`;
+const workerBlob = new Blob([factorWorkerCode], {type:'application/javascript'});
+const workerUrl = URL.createObjectURL(workerBlob);
+
+/* ==================== MAIN LOGIC ==================== */
+function deploySquad(){
+  workers.forEach(w=>w&&w.terminate()); workers=Array(NUM_WORKERS).fill(null);
+  currentMissionID++; 
+  const thisRunID = currentMissionID; 
+
+  const a_str=document.getElementById('base-input').value;
+  const b_str=document.getElementById('exponent-input').value;
+  const c_str=document.getElementById('addend-input').value;
+  let bigA,bigB,bigC;
+  try{ bigA=parseBigInt(a_str); bigB=parseBigInt(b_str); bigC=parseBigInt(c_str); }
+  catch(e){ log('Invalid Input Format'); return; }
+
+  const digitCount = bigB * BigInt(bigA.toString().length) + 1n;
+  if(digitCount > 10000n) isGigantic = true; else isGigantic = false;
+
+  if(!isRunning && !isMissionLoaded){
+    if(isGigantic){
+      startTime=Date.now(); log(`GIGANTIC MODE. Implicit Target.`);
+      document.getElementById('target-status').textContent='IMPLICIT';
+      document.getElementById('cofactor-output').textContent='Implicit';
+      gigaFrontier=2n;
+    }else{
+      startTime=Date.now(); foundFactors.clear(); document.getElementById('factors-output').textContent='None';
+      document.getElementById('cofactor-output').textContent='—'; ecmShellsFired=0;
+      try{
+        N_current = bigA**bigB + bigC;
+        document.getElementById('target-status').textContent='EXPLICIT';
+        const nStr=N_current.toString(); log(`Target: ${nStr.substring(0,20)}... (${nStr.length} digits)`);
+        document.getElementById('cofactor-output').textContent=N_current.toString();
+      }catch(e){
+        log('Explicit computation failed. Switching to Gigantic.');
+        isGigantic=true; document.getElementById('target-status').textContent='IMPLICIT';
+        document.getElementById('cofactor-output').textContent='Implicit'; gigaFrontier=2n;
+      }
+    }
+  }else if(isMissionLoaded){
+    isMissionLoaded=false; log("Resuming Mission...");
+    document.getElementById('cofactor-output').textContent = N_current>0n?N_current.toString():'Implicit';
+  }
+
+  isRunning=true;
+  if(!isGigantic){
+    if(N_current===1n){ log('Mission Complete: Target reduced to 1.'); stopAll(); return; }
+    if(isPrimeMR(N_current)){
+      log('GATEKEEPER: Target is PRIME.');
+      if(!foundFactors.has(N_current.toString())){ foundFactors.add(N_current.toString()); document.getElementById('factors-output').textContent=Array.from(foundFactors).join(' × '); }
+      stopAll(); return;
+    }
+    const sqrt=n=>{if(n<2n)return n;let x=n,y=(x+1n)/2n;while(y<x){x=y;y=(x+n/x)/2n;}return x;};
+    const isqrt=sqrt(N_current); SMin=isqrt*2n; if(SMin*SMin<4n*N_current)SMin+=1n;
+  }
+
+  document.getElementById('start-btn').disabled=true; document.getElementById('stop-btn').disabled=false;
+
+  const nLen = N_current.toString().length;
+  let tactic='balanced'; if(nLen<30)tactic='blitz'; if(nLen>60)tactic='siege';
+  if(!isGigantic) log(`Tactical Analysis: ${nLen} digits -> Mode: ${tactic.toUpperCase()}`);
+
+  for(let i=0;i<NUM_WORKERS;i++){
+    const card=document.getElementById(`card-${i}`); 
+    // WAKE UP CARD (Visual Reset)
+    card.className=`worker-card ${isGigantic?'bg-giga':'bg-slate-600'}`; 
+    card.classList.remove('bg-offline'); // Ensure dimming is gone
+    
+    let role=`Worker ${i}`;
+    if(!isGigantic){
+      if(tactic==='blitz'){
+        if(i<4){card.classList.add('bg-rho');role=`Rho Scout ${i+1}`;}
+        else if(i<6){card.classList.add('bg-fermat');role=`Fermat Marine ${i-3}`;}
+        else if(i===6){card.classList.add('bg-td');role='Trial Grunt';}
+        else{card.classList.add('bg-p1');role='P-1 Sniper';}
+      }else if(tactic==='siege'){
+        if(i<4){card.classList.add('bg-ecm');role=`ECM Artillery ${i+1}`;}
+        else if(i===4){card.classList.add('bg-p1');role='P-1 Sniper';}
+        else if(i===5){card.classList.add('bg-pp1');role='P+1 Breacher';}
+        else if(i===6){card.classList.add('bg-qs');role='QS Mastermind';}
+        else{card.classList.add('bg-rho');role='Rho Scout';}
+      }else{
+        if(i<2){card.classList.add('bg-fermat');role=`Fermat Marine ${i+1}`;}
+        else if(i===2){card.classList.add('bg-ecm');role='ECM Artillery';}
+        else if(i===3){card.classList.add('bg-rho');role='Rho Scout';}
+        else if(i===4){card.classList.add('bg-p1');role='P-1 Sniper';}
+        else if(i===5){card.classList.add('bg-pp1');role='P+1 Breacher';}
+        else if(i===6){card.classList.add('bg-qs');role='QS Mastermind';}
+        else if(i===7){card.classList.add('bg-td');role='Trial Grunt';}
+      }
+    }else role=`Giga Sniper ${i}`;
+    card.innerHTML=`${role}<br><span id="status-${i}" class="opacity-75 font-normal">Deploying</span>`;
+  }
+
+  setTimeout(()=>{
+    for(let i=0;i<NUM_WORKERS;i++){
+      const w=new Worker(workerUrl); workers[i]=w; w.onmessage=handleMsg;
+      const payload = {mID: thisRunID, idx: i};
+      
+      if(isGigantic) dispatchGigaChunk(w,i,bigA.toString(),bigB.toString(),bigC.toString(), thisRunID);
+      else{
+        payload.n_str = N_current.toString();
+        if(tactic==='blitz'){
+          if(i<4) w.postMessage({...payload, mode:'rho'});
+          else if(i<6) startFermatChunk(i,2,thisRunID);
+          else if(i===6) w.postMessage({...payload, mode:'trial'});
+          else w.postMessage({...payload, mode:'p1'});
+        }else if(tactic==='siege'){
+          if(i<4) w.postMessage({...payload, mode:'ecm', startCurve:ecmShellsFired});
+          else if(i===4) w.postMessage({...payload, mode:'p1'});
+          else if(i===5) w.postMessage({...payload, mode:'pp1'});
+          else if(i===6) w.postMessage({...payload, mode:'qs'});
+          else w.postMessage({...payload, mode:'rho'});
+        }else{
+          if(i<2) startFermatChunk(i,2,thisRunID);
+          else if(i===2) w.postMessage({...payload, mode:'ecm', startCurve:ecmShellsFired});
+          else if(i===3) w.postMessage({...payload, mode:'rho'});
+          else if(i===4) w.postMessage({...payload, mode:'p1'});
+          else if(i===5) w.postMessage({...payload, mode:'pp1'});
+          else if(i===6) w.postMessage({...payload, mode:'qs'});
+          else if(i===7) w.postMessage({...payload, mode:'trial'});
+        }
+      }
+    }
+  },100);
+}
+function dispatchGigaChunk(w,idx,a,b,c,mID){
+  if(!isRunning)return; const start=gigaFrontier; const end=start+GIGA_CHUNK_SIZE; gigaFrontier=end;
+  w.postMessage({mode:'gigantic',a,b,c,start:start.toString(),end:end.toString(),idx, mID});
+}
+function startFermatChunk(idx,army,mID){
+  if(!isRunning)return; const off=BigInt(idx); const range=FERMAT_RANGE;
+  const min=SMin+(off*range); const max=min+range-1n;
+  workers[idx].postMessage({mode:'fermat',n_str:N_current.toString(),minS:min.toString(),maxS:max.toString(),primes:QR_PRIMES.map(String),idx, mID});
+}
+function handleMsg(e){
+  const d=e.data;
+  if(d.algo==='ECM'&&d.shell)ecmShellsFired=d.shell;
+  if(d.type==='status'&&d.shell)ecmShellsFired=d.shell;
+  if(d.type==='status') updateStatus(d.idx,d.msg,d.mID); 
+  else if(d.type==='factor'){
+    const elapsed=(Date.now()-startTime)/1000; log(`${d.algo} Found: ${d.val} (${elapsed.toFixed(2)}s)`);
+    if(!foundFactors.has(d.val)){
+      foundFactors.add(d.val); document.getElementById('factors-output').textContent=Array.from(foundFactors).join(' × ');
+      if(!isGigantic){
+        const f=BigInt(d.val); if(N_current%f===0n){ N_current/=f; log('Reduced N. Redeploying...');
+          document.getElementById('cofactor-output').textContent=N_current.toString(); ecmShellsFired=0; deploySquad(); }
+      }
+    }
+  }else if(d.type==='fermatDone'){
+    if(isRunning&&!isGigantic){ SMin += (FERMAT_RANGE * 2n); startFermatChunk(d.idx,2,d.mID); }
+  }else if(d.type==='gigaRangeDone'){
+    if(isRunning&&isGigantic){
+      const a=document.getElementById('base-input').value,b=document.getElementById('exponent-input').value,c=document.getElementById('addend-input').value;
+      const A=parseBigInt(a),B=parseBigInt(b),C=parseBigInt(c);
+      dispatchGigaChunk(workers[d.idx],d.idx,A.toString(),B.toString(),C.toString(),d.mID);
+    }
+  }
+}
+document.getElementById('start-btn').onclick=()=>{ if(!isMissionLoaded){N_current=0n;isRunning=false;} deploySquad(); };
+document.getElementById('stop-btn').onclick=()=>{ stopAll(); log('Squad Aborted.'); };
+initGrid();
+</script>
+</body>
+</html>

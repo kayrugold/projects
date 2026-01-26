@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gnomon Correlator v17</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --accent: #f472b6;
+        --input-bg: rgba(0,0,0,0.3);
+    }
+    * { box-sizing: border-box; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden;
+        overscroll-behavior: none; touch-action: none;
+    }
+
+    /* CONTROLS */
+    .controls { 
+        padding: 5px 10px; background: #0f172a; border-bottom: 1px solid var(--border); 
+        display: flex; gap: 8px; align-items: center; justify-content: space-between; height: 50px; z-index: 200;
+    }
+    .brand { font-weight: 900; color: #fff; font-size: 0.8rem; letter-spacing: 1px; }
+    .input-group { display: flex; gap: 5px; align-items: center; flex: 1; justify-content: flex-end; }
+    
+    .toggle-btn { background: #334155; color: #94a3b8; width: 32px; padding:0; height: 30px; display: grid; place-items: center; border-radius: 4px; border:none; cursor: pointer; }
+    .toggle-btn.active { background: var(--cyan); color: #000; box-shadow: 0 0 10px var(--cyan); }
+
+    /* CANVAS */
+    .layout { flex: 1; position: relative; overflow: hidden; background: #000; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* DECODER PANEL */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--cyan); 
+        display: flex; flex-direction: column; height: auto; min-height: 220px; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8); z-index: 150;
+    }
+    .panel-sec { padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+    
+    .big-math { background: #0b1120; }
+    .bm-val { font-size: 1.5rem; font-weight: 900; color: #fff; }
+    .bm-sub { font-size: 0.8rem; color: #f472b6; font-weight: bold; margin-top: 4px; }
+
+    /* INTERACTIVE INPUT GRID */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; padding: 10px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 5px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; margin-bottom: 2px; }
+    
+    .info-input {
+        width: 100%; background: var(--input-bg); border: 1px solid #334155;
+        color: #fff; font-family: inherit; font-weight: bold; font-size: 0.9rem;
+        text-align: center; padding: 4px; border-radius: 4px; outline: none;
+    }
+    .info-input:focus { border-color: var(--cyan); background: #000; }
+    
+    .inp-k { color: #34d399; } 
+    .inp-b { color: #f472b6; } 
+    .inp-a { color: #3b82f6; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+    <span class="brand">GNOMON v17</span>
+    <div class="input-group">
+        <button class="toggle-btn active" id="btnMirror" title="Toggle Mirror">◥</button>
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="panel-sec big-math">
+        <div>
+            <div class="sec-lbl">COMPRESSION INDEX</div>
+            <div id="dispComp" class="bm-val">--</div>
+            <div id="dispSq" class="bm-sub">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">VALUE (N)</div>
+            <div id="dispVal" class="bm-val" style="font-size:1.3rem">--</div>
+            <div id="dispFactors" class="bm-sub" style="color:var(--cyan)">--</div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-lbl">ROW (k)</div>
+            <input id="inpK" type="number" class="info-input inp-k" onchange="updateFromInput('k')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">COL (j)</div>
+            <input id="inpJ" type="number" class="info-input inp-k" onchange="updateFromInput('j')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">OUTER (a)</div>
+            <input id="inpA" type="number" class="info-input inp-a" onchange="updateFromInput('a')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">INNER (b)</div>
+            <input id="inpB" type="number" class="info-input inp-b" onchange="updateFromInput('b')">
+        </div>
+    </div>
+</div>
+
+<script>
+// --- CONFIG & STATE ---
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+const CELL_S = 64; 
+const HDR_S = 30; 
+
+// View State 
+let scrollX = 0, scrollY = 0;
+let selected = { k: 0, j: 0 };
+let hideMirror = true; 
+let cellCache = new Map();
+
+// --- WORKER ---
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const P = (idx) => idx * 2n + 1n; 
+
+    const process = (k_in, j_in) => {
+        const k = BigInt(k_in);
+        const j = BigInt(j_in);
+        
+        let val, a, b;
+        let P2 = P(k);
+        let P1 = P(j);
+        
+        // Ensure canonical order
+        if (k >= j) {
+            val = P2 * P1;
+            a = (P2 + P1) / 2n;
+            b = (P2 - P1) / 2n;
+        } else {
+            val = P1 * P2;
+            a = (P1 + P2) / 2n;
+            b = (P1 - P2) / 2n;
+        }
+
+        return {
+            k: k_in, j: j_in,
+            a: a.toString(), b: b.toString(),
+            val: val.toString(),
+            isSq: (k === j),
+            P2: P2.toString(), P1: P1.toString()
+        };
+    };
+
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.k, it.j));
+        self.postMessage({ type: 'batch', payload: res });
+    } else if (msg.cmd === 'cell') {
+        const res = process(msg.k, msg.j);
+        self.postMessage({ type: 'cell', payload: res });
+    }
+});
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+
+worker.onmessage = (ev) => {
+    const msg = ev.data;
+    if (msg.type === 'batch') {
+        msg.payload.forEach(p => cellCache.set(`${p.k}|${p.j}`, p));
+        draw();
+    } else if (msg.type === 'cell') {
+        const p = msg.payload;
+        cellCache.set(`${p.k}|${p.j}`, p);
+        if(selected.k === p.k && selected.j === p.j) updateDecoder(p);
+        draw();
+    }
+};
+
+// --- DRAWING ENGINE ---
+function draw() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, w, h);
+
+    const startCol = Math.floor(scrollX / CELL_S);
+    const startRow = Math.floor(scrollY / CELL_S);
+    const colsToDraw = Math.ceil(w / CELL_S) + 1;
+    const rowsToDraw = Math.ceil(h / CELL_S) + 1;
+    
+    const offX = -(scrollX % CELL_S);
+    const offY = -(scrollY % CELL_S);
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+    // 1. MAIN GRID
+    ctx.save();
+    ctx.translate(HDR_S + offX, HDR_S + offY);
+
+    for (let r = 0; r < rowsToDraw; r++) {
+        for (let c = 0; c < colsToDraw; c++) {
+            const k = startRow + r;
+            const j = startCol + c;
+
+            if (hideMirror && j > k) continue;
+            if (k < 0 || j < 0) continue;
+
+            const x = c * CELL_S;
+            const y = r * CELL_S;
+            const key = `${k}|${j}`;
+            const cell = cellCache.get(key);
+            const isSel = (k === selected.k && j === selected.j);
+
+            // Style
+            let bg = '#111827';
+            let txt = '#64748b';
+
+            if (cell && cell.isSq) {
+                bg = 'rgba(59, 130, 246, 0.1)'; 
+                txt = '#fff';
+            }
+
+            // Draw Cell
+            ctx.fillStyle = bg;
+            ctx.fillRect(x, y, CELL_S-1, CELL_S-1);
+
+            // Diagonal Spine Highlight
+            if (k === j) {
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x+2, y+2, CELL_S-5, CELL_S-5);
+            }
+
+            // --- SELECTION GLOW ---
+            if (isSel) {
+                // White Border
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x+1, y+1, CELL_S-3, CELL_S-3);
+                
+                // Cyan Glow (Inner)
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.25)';
+                ctx.fillRect(x+1, y+1, CELL_S-3, CELL_S-3);
+                
+                txt = '#fff';
+            }
+
+            // Text
+            if (cell) {
+                ctx.font = 'bold 12px monospace';
+                ctx.fillStyle = txt;
+                ctx.fillText(`${cell.a}-${cell.b}`, x + CELL_S/2, y + CELL_S/2);
+            } else {
+                ctx.font = '10px monospace';
+                ctx.fillStyle = '#333';
+                ctx.fillText('...', x + CELL_S/2, y + CELL_S/2);
+            }
+        }
+    }
+    ctx.restore();
+
+    // 2. HEADERS
+    ctx.font = 'bold 10px monospace';
+    // Top (j)
+    ctx.save(); ctx.translate(HDR_S + offX, 0);
+    for(let c=0; c<colsToDraw; c++) {
+        const j = startCol + c;
+        if(j<0) continue;
+        const x = c * CELL_S;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(x, 0, CELL_S-1, HDR_S);
+        ctx.fillStyle = '#22d3ee'; ctx.fillText(j, x+CELL_S/2, HDR_S/2);
+    }
+    ctx.restore();
+    // Left (k)
+    ctx.save(); ctx.translate(0, HDR_S + offY);
+    for(let r=0; r<rowsToDraw; r++) {
+        const k = startRow + r;
+        if(k<0) continue;
+        const y = r * CELL_S;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(0, y, HDR_S, CELL_S-1);
+        ctx.fillStyle = '#34d399'; ctx.fillText(k, HDR_S/2, y+CELL_S/2);
+    }
+    ctx.restore();
+    // Corner
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,HDR_S,HDR_S);
+    ctx.fillStyle = '#fff'; ctx.fillText('k\\j', HDR_S/2, HDR_S/2);
+}
+
+// --- LOGIC ---
+function requestBatch() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    const sC = Math.floor(scrollX / CELL_S);
+    const sR = Math.floor(scrollY / CELL_S);
+    const cols = Math.ceil(w / CELL_S) + 1;
+    const rows = Math.ceil(h / CELL_S) + 1;
+    
+    const items = [];
+    for(let r=0; r<rows; r++) {
+        for(let c=0; c<cols; c++) {
+            const k = sR + r;
+            const j = sC + c;
+            if(k<0 || j<0) continue;
+            if(hideMirror && j > k) continue;
+            if(!cellCache.has(`${k}|${j}`)) items.push({k, j});
+        }
+    }
+    if(items.length) worker.postMessage({cmd:'batch', items});
+}
+
+function select(k, j) {
+    selected = { k, j };
+    
+    const key = `${k}|${j}`;
+    const p = cellCache.get(key);
+    if(p) updateDecoder(p);
+    else worker.postMessage({cmd:'cell', k, j});
+    draw();
+}
+
+function updateDecoder(p) {
+    if(!p) return;
+    document.getElementById('dispComp').innerText = `${p.a} - ${p.b}`;
+    document.getElementById('dispSq').innerText = `${p.a}² - ${p.b}²`;
+    document.getElementById('dispVal').innerText = p.val;
+    document.getElementById('dispFactors').innerText = `${p.P2} × ${p.P1}`;
+    
+    setInputValue('inpK', p.k);
+    setInputValue('inpJ', p.j);
+    setInputValue('inpA', p.a);
+    setInputValue('inpB', p.b);
+}
+
+function setInputValue(id, val) {
+    const el = document.getElementById(id);
+    if(document.activeElement !== el) { 
+        el.value = val;
+    }
+}
+
+function updateFromInput(type) {
+    let k, j;
+    if (type === 'k' || type === 'j') {
+        k = parseInt(document.getElementById('inpK').value) || 0;
+        j = parseInt(document.getElementById('inpJ').value) || 0;
+    } else {
+        const a = parseInt(document.getElementById('inpA').value) || 1;
+        const b = parseInt(document.getElementById('inpB').value) || 0;
+        const P2 = a + b;
+        const P1 = a - b;
+        k = (P2 - 1) / 2;
+        j = (P1 - 1) / 2;
+    }
+    if (k < 0) k = 0; if (j < 0) j = 0;
+
+    scrollY = k * CELL_S - (wrap.clientHeight/2) + (CELL_S/2);
+    scrollX = j * CELL_S - (wrap.clientWidth/2) + (CELL_S/2);
+    if(scrollY < 0) scrollY = 0; if(scrollX < 0) scrollX = 0;
+
+    cellCache.clear();
+    requestBatch();
+    select(k, j);
+}
+
+// --- INTERACTION ---
+let dragging = false;
+let lastX=0, lastY=0; 
+let startX=0, startY=0; 
+let velX=0, velY=0;
+let rafId = null;
+
+wrap.addEventListener('pointerdown', e => {
+    dragging = true; 
+    lastX = e.clientX; lastY = e.clientY;
+    startX = e.clientX; startY = e.clientY;
+    velX = 0; velY = 0; 
+    if(rafId) cancelAnimationFrame(rafId);
+    wrap.setPointerCapture(e.pointerId);
+});
+
+wrap.addEventListener('pointermove', e => {
+    if(!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    
+    scrollX -= dx; scrollY -= dy;
+    if(scrollX < 0) scrollX = 0; 
+    if(scrollY < 0) scrollY = 0;
+
+    velX = dx; velY = dy;
+    lastX = e.clientX; lastY = e.clientY;
+    requestBatch(); draw();
+});
+
+wrap.addEventListener('pointerup', e => {
+    dragging = false;
+    
+    // CLICK DETECTION (Logic Fixed: Use CSS pixels consistently)
+    const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+    if(dist < 15) { // Slightly looser tolerance
+        const rect = canvas.getBoundingClientRect();
+        
+        // rawX should be in CSS pixels relative to grid origin
+        // e.clientX is CSS px. scrollX is CSS px. HDR_S is CSS px.
+        const rawX = (e.clientX - rect.left) + scrollX - HDR_S;
+        const rawY = (e.clientY - rect.top) + scrollY - HDR_S;
+        
+        if(rawX > 0 && rawY > 0) {
+            const c = Math.floor(rawX / CELL_S);
+            const r = Math.floor(rawY / CELL_S);
+            if(!hideMirror || c <= r) {
+                velX=0; velY=0;
+                select(r, c);
+            }
+        }
+        return;
+    }
+
+    function inertia() {
+        if(Math.abs(velX) < 0.1 && Math.abs(velY) < 0.1) return;
+        scrollX -= velX; scrollY -= velY;
+        if(scrollX < 0) { scrollX=0; velX=0; }
+        if(scrollY < 0) { scrollY=0; velY=0; }
+        velX *= 0.95; velY *= 0.95;
+        requestBatch(); draw();
+        rafId = requestAnimationFrame(inertia);
+    }
+    inertia();
+});
+
+document.getElementById('btnMirror').onclick = (e) => {
+    hideMirror = !hideMirror;
+    e.target.classList.toggle('active');
+    cellCache.clear(); requestBatch(); draw();
+};
+
+function resize() {
+    DPR = window.devicePixelRatio || 1;
+    canvas.width = wrap.clientWidth * DPR;
+    canvas.height = wrap.clientHeight * DPR;
+    requestBatch(); draw();
+}
+window.onresize = resize;
+resize();
+select(12, 12); 
+
+</script>
+</body>
+</html>

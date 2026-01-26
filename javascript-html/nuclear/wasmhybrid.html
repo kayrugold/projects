@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Phase 2: Memory Bridge (Final Fix)</title>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; font-family: monospace; padding: 20px; text-align: center; }
+        button { font-size: 1.2rem; padding: 15px 30px; background: #8b5cf6; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; }
+        #log { margin-top: 20px; white-space: pre-wrap; text-align: left; background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        .success { color: #4ade80; font-weight: bold; }
+        .fail { color: #f87171; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Phase 2: Memory Bridge</h1>
+    <p>Verifying JS ↔ WASM Shared Memory</p>
+    <button onclick="runMemoryTest()">🧠 Test Memory Link</button>
+    <div id="log">System Ready.</div>
+
+<script>
+// 1. The FIXED Binary (Corrected Header Size)
+const wasmBytes = new Uint8Array([
+  0, 97, 115, 109, 1, 0, 0, 0,      // Header
+  1, 6, 1, 96, 1, 127, 1, 127,      // Type: (i32) -> i32 (FIXED: Size was 7, now 6)
+  3, 2, 1, 0,                       // Function Decl
+  5, 3, 1, 0, 1,                    // Memory: 1 Page
+  7, 17, 2,                         // Export Section
+    6, 109, 101, 109, 111, 114, 121, 2, 0, // "memory"
+    4, 116, 101, 115, 116, 0, 0,           // "test"
+  10, 12, 1, 10, 0,                 // Code Section
+    32, 0, 45, 0, 0, 65, 1, 106, 11 // Body: get(0), load8, const(1), add
+]);
+
+function log(msg) {
+    document.getElementById('log').innerHTML += "<div>" + msg + "</div>";
+}
+
+async function runMemoryTest() {
+    log(">> Initializing Memory Bridge...");
+    
+    try {
+        const module = await WebAssembly.instantiate(wasmBytes);
+        const exports = module.instance.exports;
+        
+        const wasmMemory = new Uint8Array(exports.memory.buffer);
+        log(">> Memory Linked. Size: " + wasmMemory.length + " bytes");
+
+        log(">> JS: Writing value '99' to memory index 0...");
+        wasmMemory[0] = 99;
+
+        log(">> WASM: Reading index 0 and adding 1...");
+        const result = exports.test(0);
+
+        log(">> Result: " + result);
+
+        if (result === 100) {
+            log("<span class='success'>>> TEST PASSED: READ/WRITE CONFIRMED 🟢</span>");
+        } else {
+            log("<span class='fail'>>> TEST FAILED: Expected 100, got " + result + "</span>");
+        }
+        
+    } catch (e) {
+        log("<span class='fail'>>> ERROR: " + e.message + "</span>");
+    }
+}
+</script>
+</body>
+</html>

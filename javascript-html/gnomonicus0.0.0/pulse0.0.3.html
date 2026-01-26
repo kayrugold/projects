@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Geometric Pulse Engine (v0.1.0)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <style>
+        :root {
+            --bg: #050505;
+            --main: #ffcc00; /* Gold */
+            --sub: #00ffff;  /* Cyan */
+            --dim: #333;
+            --panel: #111;
+        }
+        body {
+            background: var(--bg); color: var(--main);
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0; padding: 15px;
+            display: flex; flex-direction: column; align-items: center;
+            min-height: 100vh;
+            overflow-y: auto; overflow-x: hidden;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        h1 { margin: 0 0 15px 0; font-size:1.4rem; text-align:center; border-bottom: 2px solid var(--dim); padding-bottom: 10px; width: 100%; }
+
+        /* INPUT SECTION */
+        .controls { 
+            width: 100%; display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; 
+        }
+        input { 
+            padding: 15px; background: #1a1a1a; border: 1px solid var(--dim); 
+            color: #fff; font-family: inherit; font-size: 1.1rem; text-align: center;
+            border-radius: 4px; outline: none; width: 100%; box-sizing: border-box;
+        }
+        input:focus { border-color: var(--main); }
+        button {
+            padding: 15px; background: var(--main); color: #000; border: none;
+            font-weight: bold; cursor: pointer; font-size: 1rem; border-radius: 4px;
+            width: 100%;
+        }
+        button:active { transform: translateY(2px); }
+
+        /* VISUALIZER */
+        #vis-container {
+            width: 100%; aspect-ratio: 1 / 1; max-width: 400px;
+            background: #000; border: 1px solid var(--sub);
+            margin-bottom: 15px; position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.05);
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+        .overlay-tag {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0,0,0,0.7); color: var(--sub);
+            padding: 4px 8px; font-size: 0.8rem; border: 1px solid var(--sub);
+            pointer-events: none;
+        }
+
+        /* TIMELINE SLIDER */
+        .slider-box {
+            width: 100%; padding: 15px; box-sizing: border-box;
+            border: 1px solid var(--dim); background: var(--panel);
+            margin-bottom: 15px; text-align: center; border-radius: 4px;
+        }
+        input[type=range] { width: 100%; margin: 15px 0; cursor: pointer; accent-color: var(--sub); }
+        .frame-info { display: flex; justify-content: space-between; font-size: 0.9rem; color: #888; }
+
+        /* DYNAMIC EQUATION BOX */
+        .math-stream {
+            width: 100%; padding: 15px; box-sizing: border-box;
+            background: #080808; border-left: 3px solid var(--sub);
+            margin-bottom: 20px; font-size: 1rem; color: #888;
+            word-wrap: break-word; line-height: 1.6;
+            font-family: 'Courier New', monospace;
+        }
+        .math-term { display: inline-block; transition: all 0.2s; }
+        .math-term.active { color: var(--sub); font-weight: bold; transform: scale(1.1); text-shadow: 0 0 5px rgba(0,255,255,0.5); }
+        .math-final { color: #fff; font-weight: bold; border-bottom: 1px dashed #fff; margin-left: 5px; }
+
+        /* DASHBOARD */
+        .dash-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%;
+        }
+        .card {
+            background: var(--panel); border: 1px solid var(--dim);
+            padding: 15px 10px; text-align: center; border-radius: 4px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .card.highlight { border-color: var(--sub); background: rgba(0, 255, 255, 0.05); }
+        
+        .lbl { font-size: 0.7rem; color: #888; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .val { font-size: 1.6rem; font-weight: bold; color: #fff; }
+        .sub { font-size: 0.8rem; color: var(--main); margin-top: 4px; }
+        .note { font-size: 0.7rem; color: #666; margin-top: 2px; }
+
+        /* FOOTER INFO */
+        .info-bar {
+            margin-top: 20px; padding: 10px; width: 100%; text-align: center;
+            border-top: 1px solid var(--dim); color: #666; font-size: 0.8rem;
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>Geometric Pulse Engine</h1>
+
+<div class="controls">
+    <input type="number" id="inpNum" value="21" placeholder="Target N">
+    <button onclick="loadEngine()">LOAD TARGET</button>
+</div>
+
+<div id="vis-container">
+    <canvas id="canvas"></canvas>
+    <div class="overlay-tag">GNOMON SCOPE</div>
+</div>
+
+<div class="slider-box">
+    <div class="frame-info">
+        <span>TIMELINE SCRUBBER</span>
+        <span id="pulseLabel" style="color:var(--main)">--</span>
+    </div>
+    <input type="range" id="timeSlider" min="1" max="1" value="1" oninput="updateState()">
+    <div class="frame-info">
+        <span>FRAME <span id="frameVal" style="color:#fff; font-weight:bold;">1</span></span>
+        <span>INDEX <span id="idxVal" style="color:#fff;">--</span></span>
+    </div>
+</div>
+
+<div class="math-stream" id="mathBox">
+    </div>
+
+<div class="dash-grid">
+    <div class="card">
+        <div class="lbl">Total Square</div>
+        <div class="val" id="sqVal">--</div>
+        <div class="sub">√<span id="rootVal">--</span></div>
+    </div>
+    <div class="card highlight">
+        <div class="lbl">Active Shell</div>
+        <div class="val" id="shellVal" style="color:var(--sub)">--</div>
+        <div class="sub"><span id="shellMult">--</span> × 8</div>
+        <div class="note">This is the Gnomon</div>
+    </div>
+    <div class="card">
+        <div class="lbl">Triangle Base</div>
+        <div class="val" id="triBase">--</div>
+        <div class="note">Count of Shells</div>
+    </div>
+    <div class="card">
+        <div class="lbl">Triangle Sum</div>
+        <div class="val" id="triSum" style="color:var(--main)">--</div>
+        <div class="note">Total 8s Used</div>
+    </div>
+</div>
+
+<div class="info-bar">
+    LOGIC: Square = (8 × Triangle) + 1
+</div>
+
+<script>
+    let canvas, ctx;
+    let maxIndex = 1;
+    let targetN = 21;
+
+    function init() {
+        canvas = document.getElementById('canvas');
+        ctx = canvas.getContext('2d');
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        loadEngine();
+    }
+
+    function resizeCanvas() {
+        const rect = document.getElementById('vis-container').getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        updateState();
+    }
+
+    function loadEngine() {
+        const val = parseInt(document.getElementById('inpNum').value);
+        if(val && val % 2 !== 0) {
+            targetN = val;
+            maxIndex = Math.max(25, (targetN + 1)/2 + 5); 
+            const slider = document.getElementById('timeSlider');
+            slider.max = maxIndex;
+            slider.value = Math.min((targetN + 1) / 2, maxIndex);
+            updateState();
+        } else {
+            alert("Please enter an odd number.");
+        }
+    }
+
+    function updateState() {
+        const frame = parseInt(document.getElementById('timeSlider').value);
+        
+        // Math
+        const root = (2 * frame) - 1;
+        const square = root * root;
+        
+        const prevRoot = root - 2;
+        const prevSquare = (prevRoot < 0) ? 0 : prevRoot * prevRoot;
+        const shellVol = square - prevSquare;
+        
+        const triBase = frame - 1;
+        const triSum = (triBase * (triBase + 1)) / 2;
+
+        // UI
+        document.getElementById('frameVal').innerText = frame;
+        document.getElementById('idxVal').innerText = frame; 
+        document.getElementById('pulseLabel').innerText = (frame === 1) ? "SEED" : "EXPAND (+2)";
+        document.getElementById('sqVal').innerText = square;
+        document.getElementById('rootVal').innerText = root;
+        document.getElementById('shellVal').innerText = (frame === 1) ? "1" : shellVol;
+        document.getElementById('shellMult').innerText = triBase; 
+        document.getElementById('triBase').innerText = triBase;
+        document.getElementById('triSum').innerText = triSum;
+
+        drawVisualizer(frame, root);
+        updateEquation(frame, square);
+    }
+
+    function updateEquation(frame, totalSquare) {
+        const box = document.getElementById('mathBox');
+        let html = "<span class='math-term'>1</span>";
+        
+        if (frame > 1) {
+            for (let i = 1; i < frame; i++) {
+                let term = i * 8;
+                // Highlight the last term (the active shell)
+                if (i === frame - 1) {
+                    html += ` + <span class='math-term active'>${term}</span>`;
+                } else {
+                    html += ` + <span class='math-term'>${term}</span>`;
+                }
+            }
+        }
+        
+        html += ` = <span class='math-final'>${totalSquare}</span>`;
+        box.innerHTML = html;
+    }
+
+    function drawVisualizer(k, root) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const padding = 20;
+        const availableSize = Math.min(canvas.width, canvas.height) - padding;
+        const cellSize = availableSize / root;
+
+        for(let i = 1; i <= k; i++) {
+            let loopRoot = (2 * i) - 1;
+            let loopSize = loopRoot * cellSize;
+            let isCurrent = (i === k);
+            
+            if (i === 1) {
+                ctx.fillStyle = "#ffcc00"; 
+                ctx.fillRect(cx - cellSize/2, cy - cellSize/2, cellSize-1, cellSize-1);
+            } else {
+                ctx.strokeStyle = isCurrent ? "#00ffff" : "#333"; 
+                ctx.lineWidth = isCurrent ? cellSize : (cellSize - 1); 
+                
+                let strokeSize = loopSize - cellSize; 
+                ctx.strokeRect(cx - strokeSize/2, cy - strokeSize/2, strokeSize, strokeSize);
+            }
+        }
+    }
+
+    setTimeout(init, 100);
+
+</script>
+</body>
+</html>

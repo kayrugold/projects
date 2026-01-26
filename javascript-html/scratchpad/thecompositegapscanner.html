@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Composite Gap Scanner</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: monospace; padding: 20px; }
+    
+    .scanner-box { 
+        background: #1e293b; border: 1px solid #334155; border-radius: 8px; 
+        padding: 20px; display: flex; flex-direction: column; gap: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+    }
+
+    input { 
+        background: #020617; border: 1px solid #475569; color: white; 
+        padding: 12px; border-radius: 4px; font-size: 1.2rem; width: 100%; font-family: monospace;
+    }
+    
+    button { 
+        background: #3b82f6; color: white; border: none; padding: 12px 24px; 
+        border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1.1rem;
+    }
+    button:hover { background: #2563eb; }
+
+    /* THE VISUAL STRIP */
+    .gap-strip {
+        display: flex; gap: 4px; overflow-x: auto; padding: 20px 0;
+        align-items: center; justify-content: center;
+        background: #020617; border-radius: 8px; border: 1px solid #334155;
+        min-height: 100px;
+    }
+
+    .num-block {
+        padding: 8px 12px; border-radius: 4px; font-weight: bold; font-size: 1rem;
+        border: 1px solid transparent; min-width: 60px; text-align: center;
+        display: flex; flex-direction: column; align-items: center;
+    }
+
+    /* COLORS */
+    .type-comp { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; } /* RED WALLS */
+    .type-prime { background: #064e3b; color: #34d399; border-color: #059669; } /* GREEN GAP */
+    .type-target { border: 2px solid #fbbf24; transform: scale(1.1); z-index: 10; box-shadow: 0 0 15px rgba(251, 191, 36, 0.3); }
+
+    .sub-label { font-size: 0.65rem; margin-top: 4px; opacity: 0.8; font-weight: normal; }
+
+</style>
+</head>
+<body>
+
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4 text-blue-400">Composite Gap Scanner</h1>
+    
+    <div class="scanner-box">
+        <div>
+            <label class="text-xs text-slate-400 uppercase">Center Odd Number</label>
+            <div class="flex gap-2">
+                <input type="number" id="inpNum" value="101" step="2">
+                <button onclick="scanGap()">SCAN GAP</button>
+            </div>
+        </div>
+
+        <div id="gapContainer" class="gap-strip">
+            <span class="text-slate-500 italic">Enter a number to see its neighbors</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4 text-center">
+            <div class="p-4 bg-slate-900 rounded border border-red-900/30">
+                <div class="text-xs text-red-400 uppercase">Lower Wall</div>
+                <div id="txtLow" class="text-xl font-bold text-red-200">--</div>
+            </div>
+            <div class="p-4 bg-slate-900 rounded border border-blue-900/30">
+                <div class="text-xs text-blue-400 uppercase">Gap Size</div>
+                <div id="txtGap" class="text-xl font-bold text-blue-200">--</div>
+            </div>
+            <div class="p-4 bg-slate-900 rounded border border-red-900/30">
+                <div class="text-xs text-red-400 uppercase">Upper Wall</div>
+                <div id="txtHigh" class="text-xl font-bold text-red-200">--</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- SIMPLE LOGIC ---
+
+// 1. Is it composite? (Check factors up to sqrt)
+// Used for "small" large numbers (BigInt friendly)
+function isComposite(n) {
+    if (n <= 3n) return false; // 1, 2, 3 not composite in this context
+    if (n % 2n === 0n) return true; // Evens are composite
+    
+    // Simple loop check
+    // For visualization numbers, this is perfectly fast enough
+    for (let i = 3n; i * i <= n; i += 2n) {
+        if (n % i === 0n) return true;
+        // Safety break for massive numbers to avoid browser freeze if user types 50 digits
+        if (i > 10000n) {
+            // Fallback to Miller-Rabin for speed if simple check gets too heavy
+            return isCompositeMR(n);
+        }
+    }
+    return false;
+}
+
+// Miller-Rabin for backup speed on huge inputs
+function isCompositeMR(n) {
+    // Return TRUE if composite, FALSE if prime
+    if (n <= 3n) return false;
+    let d = n - 1n;
+    let s = 0n;
+    while (d % 2n === 0n) { d /= 2n; s++; }
+    const witnesses = [2n, 3n, 5n, 7n, 11n];
+    for (let a of witnesses) {
+        if (n <= a) break;
+        let x = power(a, d, n);
+        if (x === 1n || x === n - 1n) continue;
+        let comp = true;
+        for (let r = 0; r < s - 1n; r++) {
+            x = (x * x) % n;
+            if (x === n - 1n) { comp = false; break; }
+        }
+        if (comp) return true;
+    }
+    return false;
+}
+
+function power(base, exp, mod) {
+    let res = 1n; base %= mod;
+    while (exp > 0n) {
+        if (exp % 2n === 1n) res = (res * base) % mod;
+        base = (base * base) % mod; exp /= 2n;
+    }
+    return res;
+}
+
+// --- APP LOGIC ---
+
+function scanGap() {
+    const raw = document.getElementById('inpNum').value;
+    let center;
+    try { center = BigInt(raw); } catch(e) { return; }
+    
+    if (center % 2n === 0n) center += 1n; // Force Odd
+    
+    // 1. Find Lower Wall
+    let low = center - 2n;
+    // Walk down until we hit a composite
+    while (!isComposite(low) && low > 1n) {
+        low -= 2n;
+    }
+    // If we walked past 1, clamp (1 is unit, treated as non-composite wall here usually)
+    if (low < 1n) low = 1n; 
+
+    // 2. Find Upper Wall
+    let high = center + 2n;
+    // Walk up until we hit a composite
+    while (!isComposite(high)) {
+        high += 2n;
+    }
+
+    // 3. Render
+    renderStrip(low, high, center);
+    
+    // 4. Update Stats
+    document.getElementById('txtLow').innerText = low.toString();
+    document.getElementById('txtHigh').innerText = high.toString();
+    document.getElementById('txtGap').innerText = (high - low).toString();
+}
+
+function renderStrip(low, high, target) {
+    const container = document.getElementById('gapContainer');
+    container.innerHTML = '';
+
+    // If gap is massive, we can't render 10,000 blocks. 
+    // Limit range to: Low... [Numbers] ... High
+    
+    // Let's generate the array of numbers to show
+    let numbersToShow = [];
+    
+    // Push Lower Wall
+    numbersToShow.push(low);
+    
+    // Push everything in between
+    let curr = low + 2n;
+    while (curr < high) {
+        numbersToShow.push(curr);
+        curr += 2n;
+        // Safety cap for rendering
+        if (numbersToShow.length > 50) break; 
+    }
+    
+    // Push Upper Wall
+    if (numbersToShow[numbersToShow.length-1] !== high) {
+        if (numbersToShow.length > 50) numbersToShow.push("..."); // Indicator
+        numbersToShow.push(high);
+    }
+
+    // Build DOM
+    numbersToShow.forEach(n => {
+        if (n === "...") {
+            const span = document.createElement('span');
+            span.innerText = "...";
+            span.className = "text-slate-600 text-2xl";
+            container.appendChild(span);
+            return;
+        }
+
+        const div = document.createElement('div');
+        const isComp = (n === low || n === high); // By definition of our search
+        const isTgt = (n === target);
+        
+        div.className = `num-block ${isComp ? 'type-comp' : 'type-prime'} ${isTgt ? 'type-target' : ''}`;
+        
+        // Main Number
+        div.innerHTML = `<span>${n.toString()}</span>`;
+        
+        // Label
+        const label = document.createElement('span');
+        label.className = "sub-label";
+        if (isComp) label.innerText = "WALL";
+        else label.innerText = "PRIME"; // In between walls are primes
+        div.appendChild(label);
+        
+        container.appendChild(div);
+        
+        if (isTgt) {
+            setTimeout(() => div.scrollIntoView({behavior: "smooth", inline: "center"}), 100);
+        }
+    });
+}
+
+// Init
+scanGap();
+
+</script>
+</body>
+</html>

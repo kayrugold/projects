@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background: #000; color: #0f0; font-family: monospace; padding: 10px; margin: 0; }
+        #header { border-bottom: 1px solid #0f0; padding: 10px; font-weight: bold; }
+        #out { border: 1px solid #333; height: 400px; overflow-y: auto; padding: 10px; font-size: 12px; background: #050505; }
+        .input-box { padding: 10px; }
+        input { background: #111; border: 1px solid #0f0; color: #0f0; width: 100%; padding: 12px; box-sizing: border-box; font-size: 16px; margin-bottom: 5px; }
+        button { width: 100%; background: #0f0; color: #000; border: none; padding: 15px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .formula { color: #0af; margin: 5px 0; font-weight: bold; }
+        .step { color: #888; border-left: 1px solid #444; margin-left: 5px; padding-left: 8px; }
+        .highlight { color: #fff; background: #222; }
+    </style>
+</head>
+<body>
+    <div id="header">GNOMON NAVIGATOR: DESCRIPTIVE MODE</div>
+    <div id="out">READY...</div>
+    <div class="input-box">
+        <input type="number" id="num" placeholder="Enter Target (65533)" inputmode="numeric">
+        <button onclick="trace()">START FULL TRACE</button>
+    </div>
+
+<script>
+function log(m, cl='') { 
+    const d = document.createElement('div');
+    d.innerHTML = m; d.className = cl;
+    const container = document.getElementById('out');
+    container.appendChild(d); 
+    container.scrollTop = container.scrollHeight;
+}
+
+function trace() {
+    const val = document.getElementById('num').value;
+    if(!val) return;
+    const N = BigInt(val);
+    document.getElementById('out').innerHTML = ""; // Clear screen
+
+    // 1. ANCHORING & GAP FORMULA
+    const root = BigInt(Math.ceil(Math.sqrt(Number(N))));
+    const S = root * root;
+    const G = S - N;
+    log(`[STEP 1] ANCHORING`, "formula");
+    log(`Formula: √${N} ≈ ${root}`, "step");
+    log(`Calculation: ${root}² = ${S}`, "step");
+    log(`GAP FORMULA: S(${S}) - N(${N}) = G(${G})`, "highlight");
+
+    // 2. PIVOT CALCULATION
+    const k = (G + 1n) / 2n;
+    log(`[STEP 2] PIVOT (Variety Equation)`, "formula");
+    log(`Formula: (G + 1) / 2 = k`, "step");
+    log(`Calculation: (${G} + 1) / 2 = <b>${k}</b>`, "highlight");
+
+    // 3. SEATING
+    log(`[STEP 3] SEATING THE ROAD`, "formula");
+    if (N % 3n === 0n) {
+        log(`Resonance Found: ${N} % 3 = 0. Factors: 3 x ${N/3n}`, "highlight");
+        return;
+    }
+    log(`3-Wall Test: Failed (Not divisible by 3).`, "step");
+    log(`Seating at Road 7 (Gnomon Gateway). Stride: +4`, "step");
+
+    // 4. THE LADDER TRACE
+    log(`[STEP 4] ROAD EXPANSION`, "formula");
+    let road = 7n;
+    let stepCount = 1;
+    
+    // Limits loop to prevent crash, but logs every step
+    while (road * road <= N) {
+        if (N % road === 0n) {
+            log(`-----------------------------------`);
+            log(`[!] INTERCEPT FOUND!`, "formula");
+            log(`Final Road: ${road}`, "highlight");
+            log(`Formula: N(${N}) / Road(${road}) = Factor(${N/road})`, "highlight");
+            log(`Final Result: ${road} x ${N/road}`, "highlight");
+            return;
+        }
+        
+        // Descriptive Step Output
+        log(`Step ${stepCount}: Current Road ${road} + 4 = Next Road ${road + 4n}`, "step");
+        
+        road += 4n;
+        stepCount++;
+        
+        // Break for safety in very large numbers if browser hangs
+        if(stepCount > 2000) {
+            log("...Deep Trace continuing in background...", "step");
+            break; 
+        }
+    }
+}
+</script>
+</body>
+</html>

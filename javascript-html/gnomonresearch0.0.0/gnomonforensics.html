@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gnomon Master Lab</title>
+    <style>
+        :root {
+            --bg-dark: #09090b;
+            --card-bg: #18181b;
+            --border: #27272a;
+            --text-main: #e4e4e7;
+            --text-muted: #a1a1aa;
+            --primary: #3b82f6;
+            --stable: #10b981;   /* Prime Green */
+            --unstable: #ef4444; /* Composite Red */
+            --accent-i: #f472b6; /* Factor i Pink */
+            --accent-j: #38bdf8; /* Factor j Blue */
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            /* Allow scrolling! */
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 80px; /* Extra padding for bottom clearance */
+        }
+
+        /* --- STICKY HEADER --- */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(9, 9, 11, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { margin: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; }
+        .badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; background: var(--border); }
+
+        /* --- CANVAS SECTION --- */
+        .canvas-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding: 20px 0;
+            background: radial-gradient(circle at center, #18181b 0%, #09090b 70%);
+        }
+
+        canvas {
+            max-width: 90vw; /* Responsive width */
+            max-height: 90vw; /* Keep it square-ish */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+        }
+
+        /* --- SCROLLABLE CONTENT --- */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* --- SLIDER CARD --- */
+        .control-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .n-display {
+            font-size: 1.5rem;
+            font-weight: 800;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* --- ANALYSIS GRID --- */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card.full { grid-column: span 2; }
+        
+        /* Status Colors */
+        .card.stable { border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.05); }
+        .card.unstable { border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05); }
+
+        .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .value { font-size: 1.25rem; font-weight: 700; color: white; }
+        .sub-value { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; font-family: monospace; }
+
+        /* --- DECODER VISUALS --- */
+        .equation-box {
+            background: #000;
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        
+        .highlight-i { color: var(--accent-i); }
+        .highlight-j { color: var(--accent-j); }
+
+        /* --- SIEVE STRIP (Horizontal Scroll) --- */
+        .sieve-scroll {
+            display: flex;
+            overflow-x: auto;
+            gap: 8px;
+            padding: 8px 0;
+            margin-bottom: 30px;
+            scrollbar-width: none; /* Firefox */
+        }
+        .sieve-scroll::-webkit-scrollbar { display: none; }
+
+        .chip {
+            flex: 0 0 auto;
+            min-width: 44px;
+            height: 44px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chip.active { background: white; color: black; border-color: white; transform: scale(1.1); }
+        
+        .chip span { font-size: 0.9rem; font-weight: 700; }
+        .chip small { font-size: 0.6rem; opacity: 0.7; }
+        
+        .chip.prime { border-bottom: 3px solid var(--stable); }
+        .chip.comp { border-bottom: 3px solid var(--unstable); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Gnomon Lab</h1>
+        <div class="badge">v3.0</div>
+    </header>
+
+    <!-- 1. The Visual -->
+    <div class="canvas-wrapper">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="container">
+        
+        <!-- 2. The Slider Control -->
+        <div class="control-card">
+            <span class="label">INDEX</span>
+            <input type="range" id="slider" min="2" max="50" value="8">
+            <div class="n-display" id="val-n">8</div>
+        </div>
+
+        <!-- 3. The Math Analysis -->
+        <div class="grid" id="analysis-grid">
+            <!-- JS will populate this -->
+        </div>
+
+        <!-- 4. Quick Select (Sieve Strip) -->
+        <div class="label" style="margin-bottom: 8px;">Quick Jump (Sieve Tape)</div>
+        <div class="sieve-scroll" id="sieve-tape">
+            <!-- JS populates -->
+        </div>
+        
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('slider');
+        const tape = document.getElementById('sieve-tape');
+        const grid = document.getElementById('analysis-grid');
+
+        let state = { n: 8 };
+
+        // --- MATH ENGINE ---
+        function checkPrime(num) {
+            if (num <= 1) return false;
+            for (let i = 2; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) return false;
+            }
+            return true;
+        }
+
+        function solveSundaram(k) {
+            // k = i + j + 2ij
+            for (let i = 1; i <= k; i++) {
+                const num = k - i;
+                const den = 2 * i + 1;
+                if (num < 0) break;
+                if (num % den === 0) {
+                    const j = num / den;
+                    if (j >= i) return { found: true, i, j };
+                }
+            }
+            return { found: false };
+        }
+
+        // --- TAPE GENERATOR ---
+        function initTape() {
+            let html = '';
+            for(let i=2; i<=50; i++) {
+                const gnomon = 2*i - 1;
+                const isPrime = checkPrime(gnomon);
+                const type = isPrime ? 'prime' : 'comp';
+                html += `
+                    <div class="chip ${type}" onclick="updateIndex(${i})" id="chip-${i}">
+                        <span>${i}</span>
+                        <small>${gnomon}</small>
+                    </div>
+                `;
+            }
+            tape.innerHTML = html;
+        }
+
+        function updateIndex(n) {
+            state.n = n;
+            slider.value = n;
+            updateUI();
+        }
+
+        // --- MAIN RENDER ---
+        function updateUI() {
+            const n = state.n;
+            const k = n - 1;
+            const gnomon = 2 * n - 1;
+            
+            // Update Slider Text
+            document.getElementById('val-n').innerText = n;
+
+            // Highlight Tape
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            const activeChip = document.getElementById(`chip-${n}`);
+            if(activeChip) {
+                activeChip.classList.add('active');
+                activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+
+            // Analysis Logic
+            const proof = solveSundaram(k);
+            let html = '';
+
+            // Card 1: Gnomon Value
+            html += `
+                <div class="card">
+                    <div class="label">Total Value</div>
+                    <div class="value">${gnomon}</div>
+                    <div class="sub-value">2n - 1</div>
+                </div>
+            `;
+
+            // Card 2: Arm Length (k)
+            html += `
+                <div class="card">
+                    <div class="label">Arm Length (k)</div>
+                    <div class="value">${k}</div>
+                    <div class="sub-value">n - 1</div>
+                </div>
+            `;
+
+            // Card 3: The Proof
+            if (proof.found) {
+                const f1 = 2 * proof.i + 1;
+                const f2 = 2 * proof.j + 1;
+                html += `
+                    <div class="card full unstable">
+                        <div class="label" style="color:var(--unstable)">UNSTABLE STRUCTURE (Composite)</div>
+                        <div class="value">${f1} × ${f2}</div>
+                        <div class="equation-box">
+                            <div>Proof: k = i + j + 2ij</div>
+                            <div>${k} = <span class="highlight-i">${proof.i}</span> + <span class="highlight-j">${proof.j}</span> + 2(<span class="highlight-i">${proof.i}</span>)(<span class="highlight-j">${proof.j}</span>)</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="card full stable">
+                        <div class="label" style="color:var(--stable)">STABLE STRUCTURE (Prime)</div>
+                        <div class="value">Prime Gnomon</div>
+                        <div class="sub-value">No integer solution for k = i + j + 2ij</div>
+                    </div>
+                `;
+            }
+
+            grid.innerHTML = html;
+            renderCanvas(proof);
+        }
+
+        // --- CANVAS RENDER ---
+        function renderCanvas(proof) {
+            // Responsive Size
+            const wrapper = document.querySelector('.canvas-wrapper');
+            const size = Math.min(wrapper.offsetWidth * 0.9, 400); 
+            const dpr = window.devicePixelRatio || 2;
+            
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+            
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0,0,size,size);
+
+            const n = state.n;
+            const maxGrid = n + 1; // Tight zoom
+            const cellSize = size / maxGrid;
+            const pad = 20; // Padding inside canvas
+
+            // Re-calc cell size with padding
+            const drawSize = size - (pad*2);
+            const cell = drawSize / n;
+
+            // 1. Draw Previous Square
+            ctx.fillStyle = '#27272a';
+            ctx.fillRect(pad, pad, (n-1)*cell, (n-1)*cell);
+
+            // 2. Linearize Gnomon for coloring
+            // We draw cells individually
+            
+            // Build cell list (Right vertical down, Corner, Bottom horizontal left)
+            let cells = [];
+            for(let r=0; r<n-1; r++) cells.push({c: n-1, r: r}); // Vert
+            cells.push({c: n-1, r: n-1}); // Corner
+            for(let c=n-2; c>=0; c--) cells.push({c: c, r: n-1}); // Horiz
+
+            const gap = 1.5;
+
+            if (proof.found) {
+                // COMPOSITE: Brick Pattern
+                const brickSize = 2 * proof.i + 1;
+                
+                cells.forEach((pos, idx) => {
+                    const brickIdx = Math.floor(idx / brickSize);
+                    // Alternating colors
+                    ctx.fillStyle = (brickIdx % 2 === 0) ? '#f472b6' : '#db2777'; 
+                    
+                    ctx.fillRect(
+                        pad + pos.c*cell + gap,
+                        pad + pos.r*cell + gap,
+                        cell - gap*2,
+                        cell - gap*2
+                    );
+
+                    // Add Number
+                    if (n < 16) {
+                        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                        ctx.font = '10px monospace';
+                        ctx.fillText(idx+1, pad + pos.c*cell + 4, pad + pos.r*cell + 12);
+                    }
+                });
+            } else {
+                // PRIME: Solid Green
+                ctx.fillStyle = '#10b981';
+                cells.forEach((pos) => {
+                    ctx.fillRect(
+                        pad + pos.c*cell + gap,
+                        pad + pos.r*cell + gap,
+                        cell - gap*2,
+                        cell - gap*2
+                    );
+                });
+            }
+        }
+
+        // Listeners
+        slider.addEventListener('input', (e) => {
+            state.n = parseInt(e.target.value);
+            updateUI();
+        });
+
+        window.addEventListener('resize', () => updateUI());
+
+        // Init
+        initTape();
+        updateUI();
+
+    </script>
+</body>
+</html>
+

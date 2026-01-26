@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stride Hunter v20 (Live Fire)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #000; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; max-width: 800px; margin: 0 auto; box-shadow: 0 0 50px rgba(220, 38, 38, 0.2); }
+    input { width: 100%; background: #1e293b; border: 1px solid #334155; color: #fca5a5; padding: 12px; border-radius: 6px; font-weight: bold; font-family: monospace; text-align: center; margin-bottom: 15px; font-size: 1.1rem; }
+    .btn { width: 100%; padding: 16px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 5px; }
+    .btn-run { background: #dc2626; color: #fff; border: 1px solid #b91c1c; }
+    .btn-run:hover { background: #b91c1c; }
+    .btn-stop { background: #4b5563; color: #fff; display: none; }
+    .log-box { height: 300px; overflow-y: auto; font-size: 0.75rem; color: #64748b; margin-top: 15px; background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #1e293b; }
+    .hit { color: #22c55e; font-weight: bold; }
+    .info { color: #94a3b8; }
+    .cand { color: #f59e0b; }
+    
+    .prog-container { background: #1e293b; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 5px; margin-bottom: 15px; }
+    .prog-fill { height: 100%; width: 0%; transition: width 0.2s; }
+    .prog-red { background: #ef4444; }
+    .prog-green { background: #10b981; }
+    .label-xs { font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: bold; display: flex; justify-content: space-between; }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: #64748b; }
+    .stat-val { color: #e2e8f0; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-black text-center text-red-500 mb-2">STRIDE HUNTER v20</h1>
+    <p class="text-center text-xs text-gray-500 mb-6">LIVE FIRE EDITION • NEWTON VERIFICATION ACTIVE</p>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-gray-500">EXPONENT (10^N)</label><input id="inpExp" value="1000000000"></div>
+        <div><label class="text-xs text-gray-500">ADD (+C)</label><input id="inpAdd" value="61"></div>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-xs text-gray-500">STRIDE DEPTH</label><input id="inpDepth" value="100000"></div>
+        <div><label class="text-xs text-gray-500">CORES</label><input id="inpCores" value="4"></div>
+    </div>
+
+    <button id="btnStart" class="btn btn-run" onclick="startHunt()">ENGAGE TITAN</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopHunt()">ABORT MISSION</button>
+    
+    <div class="mt-6 border-t border-gray-800 pt-4">
+        <div class="stat-row"><span>Status:</span><span id="statStatus" class="stat-val text-blue-400">IDLE</span></div>
+        <div class="stat-row"><span>Speed:</span><span id="statSpeed" class="stat-val">0 /s</span></div>
+        
+        <div class="mt-4">
+            <div class="label-xs"><span>Virtual RAM</span><span id="lblConst">0%</span></div>
+            <div class="prog-container"><div id="progConst" class="prog-fill prog-red"></div></div>
+            
+            <div class="label-xs"><span>Stride Scan</span><span id="lblScan">0%</span></div>
+            <div class="prog-container"><div id="progScan" class="prog-fill prog-green"></div></div>
+        </div>
+    </div>
+
+    <div id="logBox" class="log-box">
+        <div class="info">System Ready.</div>
+        <div class="info">Warning: Newton Sqrt will trigger on Candidates.</div>
+        <div class="info">This will spike memory usage briefly.</div>
+    </div>
+</div>
+
+<script>
+const workerCode = `
+const CHUNK_SIZE = 9;
+const BASE = 10 ** CHUNK_SIZE;
+const PAGE_ELEMENTS = 16 * 1024 * 1024; 
+
+// --- VIRTUAL MEMORY (From Hyper v11) ---
+class VirtualTitan {
+    constructor(totalDigits) {
+        this.totalDigits = totalDigits;
+        this.numChunks = Math.ceil(totalDigits / CHUNK_SIZE);
+        this.numPages = Math.ceil(this.numChunks / PAGE_ELEMENTS);
+        this.pages = [];
+    }
+
+    async allocate() {
+        for(let i=0; i<this.numPages; i++) {
+            let size = PAGE_ELEMENTS;
+            if(i === this.numPages - 1) {
+                size = this.numChunks % PAGE_ELEMENTS;
+                if(size === 0) size = PAGE_ELEMENTS;
+            }
+            try {
+                this.pages.push(new Int32Array(size));
+                let pct = ((i + 1) / this.numPages) * 100;
+                postMessage({type:'allocProg', val: pct});
+                await new Promise(r => setTimeout(r, 10));
+            } catch(e) {
+                throw new Error("RAM Full at Page " + i);
+            }
+        }
+    }
+
+    setChunk(index, value) {
+        let pageIdx = (index / PAGE_ELEMENTS) | 0;
+        let offset = index % PAGE_ELEMENTS;
+        this.pages[pageIdx][offset] = value;
+    }
+
+    getChunk(index) {
+        let pageIdx = (index / PAGE_ELEMENTS) | 0;
+        let offset = index % PAGE_ELEMENTS;
+        return this.pages[pageIdx][offset];
+    }
+}
+
+// --- MATH KERNEL (Minified for speed) ---
+function trim(c){let i=0;while(i<c.length-1&&c[i]===0)i++;return c.slice(i)}
+function cmp(a,b){a=trim(a);b=trim(b);if(a.length!==b.length)return a.length>b.length?1:-1;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]>b[i]?1:-1;return 0;}
+function isZero(c){return c.length===1&&c[0]===0}
+function add(a,b){let ar=a.slice().reverse(),br=b.slice().reverse(),n=Math.max(ar.length,br.length),c=0,o=[];for(let i=0;i<n;i++){let s=(ar[i]||0)+(br[i]||0)+c;o.push(s%BASE);c=(s/BASE)|0}if(c)o.push(c);return trim(o.reverse())}
+function sub(a,b){let ar=a.slice().reverse(),br=b.slice().reverse(),n=ar.length,bo=0,o=[];for(let i=0;i<n;i++){let v=(ar[i]||0)-(br[i]||0)-bo;if(v<0){v+=BASE;bo=1}else{bo=0}o.push(v)}return trim(o.reverse())}
+function mulSmall(a,s){if(s===0)return[0];let ar=a.slice().reverse(),c=0,o=[];for(let d of ar){let p=d*s+c;o.push(p%BASE);c=(p/BASE)|0}while(c>0){o.push(c%BASE);c=(c/BASE)|0}return trim(o.reverse())}
+function mul(a,b){let r=[0],br=b.slice().reverse();for(let i=0;i<br.length;i++){if(br[i]===0)continue;let p=mulSmall(a,br[i]);for(let j=0;j<i;j++)p.push(0);r=add(r,p)}return trim(r)}
+function divMod(A,B){A=trim(A);B=trim(B);if(isZero(B))throw new Error("Div/0");if(cmp(A,B)<0)return{q:[0],r:A};let r=[],q=[],B_top=B[0],bLen=B.length;for(let i=0;i<A.length;i++){r.push(A[i]);r=trim(r);if(cmp(r,B)<0){q.push(0);continue}let est=0;if(r.length===bLen)est=(r[0]/B_top)|0;else if(r.length>bLen)est=((r[0]*BASE+r[1])/B_top)|0;if(est>BASE-1)est=BASE-1;let qu=est;while(qu>0){let T=mulSmall(B,qu);if(cmp(T,r)<=0){r=sub(r,T);break}qu--}q.push(qu)}return{q:trim(q),r:trim(r)}}
+
+// NEWTON SQRT (Reads from RAM for N)
+function sqrt(target) {
+    let len = target.length;
+    let guessLen = (len + 1) >> 1;
+    let x = [1]; for(let i=0;i<guessLen-1;i++)x.push(0);
+    let lastX = [0];
+    let iter = 0;
+    while(cmp(x,lastX)!==0 && iter<20){
+        lastX = x;
+        let d = divMod(target,x).q;
+        let s = add(x,d);
+        x = divMod(s,[2]).q;
+        if(cmp(x,lastX)===0) break;
+        iter++;
+    }
+    return x;
+}
+
+function stringToChunks(s) {
+    const pad = (CHUNK_SIZE - (s.length % CHUNK_SIZE)) % CHUNK_SIZE;
+    s = '0'.repeat(pad) + s;
+    const c = [];
+    for(let i=0; i<s.length; i+=CHUNK_SIZE) c.push(parseInt(s.substring(i, i+CHUNK_SIZE)));
+    let i=0; while(i<c.length-1&&c[i]===0)i++; return c.slice(i);
+}
+
+function chunksToString(c) {
+    c = trim(c);
+    let s = c[0].toString();
+    for(let i=1; i<c.length; i++) s += c[i].toString().padStart(CHUNK_SIZE, '0');
+    return s;
+}
+
+self.onmessage = async function(msg) {
+    const { exp, addVal, start, end, id } = msg.data;
+    try {
+        if(id===0) postMessage({type:'log', msg:'Allocating Titan (Paged)...'});
+        
+        const totalDigits = parseInt(exp)+1;
+        const vMem = new VirtualTitan(totalDigits);
+        await vMem.allocate();
+        
+        let leadDigits = totalDigits % CHUNK_SIZE;
+        if(leadDigits===0) leadDigits=CHUNK_SIZE;
+        vMem.setChunk(0, Math.pow(10, leadDigits-1));
+        let lastIdx = vMem.numChunks-1;
+        vMem.setChunk(lastIdx, vMem.getChunk(lastIdx) + parseInt(addVal));
+        
+        if(id===0) postMessage({type:'log', msg:'Titan Ready. Scanning...'});
+
+        let B = BigInt(start);
+        let B_end = BigInt(end);
+        let strides = 0;
+        let lastReport = Date.now();
+        let totalStrides = Number(B_end - B);
+        
+        const N_mod_64 = parseInt(addVal) % 64;
+        const N_mod_10 = parseInt(addVal) % 10;
+
+        while(B < B_end) {
+            let bVal = Number(B); 
+            let bSq = bVal * bVal; 
+            
+            let targetMod64 = (N_mod_64 + (bSq % 64)) % 64;
+            const res64 = [0,1,4,9,16,17,25,33,36,41,49,57];
+            
+            if(res64.includes(targetMod64)) {
+                let targetMod10 = (N_mod_10 + (bSq % 10)) % 10;
+                if([0,1,4,5,6,9].includes(targetMod10)) {
+                    
+                    // PASSED FILTERS - HEAVY CHECK
+                    postMessage({type:'cand', msg:'Candidate ' + B + '. Verifying Geometry...'});
+                    
+                    // 1. Reconstruct full Target (N + B^2)
+                    // We only do this rare copy
+                    let target = new Array(vMem.numChunks).fill(0);
+                    // Copy pages to flat array (Slow but necessary for Newton)
+                    let ptr = 0;
+                    for(let p=0; p<vMem.pages.length; p++) {
+                        let page = vMem.pages[p];
+                        for(let k=0; k<page.length; k++) {
+                            target[ptr++] = page[k];
+                        }
+                    }
+                    // Add B^2 to tail
+                    let B_sq_chunks = stringToChunks((B*B).toString());
+                    target = add(target, B_sq_chunks);
+
+                    // 2. Newton Sqrt
+                    let root = sqrt(target);
+                    let check = mul(root, root);
+                    
+                    // 3. Verify
+                    if(cmp(check, target) === 0) {
+                        let A_str = chunksToString(root);
+                        postMessage({type:'hit', A: A_str, B: B.toString()});
+                        return;
+                    } else {
+                        postMessage({type:'log', msg:'Candidate ' + B + ' Failed Geometric Check.'});
+                    }
+                }
+            }
+            
+            B++;
+            strides++;
+            if(strides % 1000 === 0) { 
+                let now = Date.now();
+                if(now - lastReport > 500) {
+                    postMessage({type:'stat', strides: strides, total: totalStrides});
+                    strides = 0; lastReport = now;
+                }
+            }
+        }
+        postMessage({type:'done'});
+    } catch(e) {
+        postMessage({type:'err', msg: e.message});
+    }
+};
+`;
+
+let workers = [];
+let startTime = 0;
+let totalStrides = 0;
+
+function log(msg, type='info') {
+    const box = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.textContent = `> ${msg}`;
+    div.className = type;
+    box.prepend(div);
+}
+
+function startHunt() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    document.getElementById('logBox').innerHTML = '';
+    
+    const exp = document.getElementById('inpExp').value;
+    const addVal = document.getElementById('inpAdd').value;
+    const depth = parseInt(document.getElementById('inpDepth').value);
+    const cores = parseInt(document.getElementById('inpCores').value);
+    
+    document.getElementById('statStatus').textContent = "ALLOCATING";
+    document.getElementById('progConst').style.width = '0%';
+    document.getElementById('progScan').style.width = '0%';
+    
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    
+    startTime = Date.now();
+    totalStrides = 0;
+    const stridePerCore = Math.ceil(depth / cores);
+    
+    for(let i=0; i<cores; i++) {
+        const w = new Worker(url);
+        const start = i * stridePerCore + 1;
+        const end = start + stridePerCore;
+        w.onmessage = function(e) { handleMessage(e.data, i, depth); };
+        w.postMessage({ exp, addVal, start, end, id:i });
+        workers.push(w);
+    }
+}
+
+function handleMessage(data, id, totalDepth) {
+    if(data.type === 'log') log(`[Core ${id}] ${data.msg}`, 'info');
+    if(data.type === 'cand') log(`[Core ${id}] ${data.msg}`, 'cand');
+    
+    if(data.type === 'allocProg') {
+        if(id === 0) {
+            document.getElementById('progConst').style.width = data.val + '%';
+            document.getElementById('lblConst').textContent = Math.floor(data.val) + '%';
+        }
+    }
+    
+    if(data.type === 'stat') {
+        if(document.getElementById('statStatus').textContent === "ALLOCATING") {
+             document.getElementById('statStatus').textContent = "SCANNING";
+        }
+        totalStrides += data.strides;
+        let pct = (totalStrides / totalDepth) * 100;
+        document.getElementById('progScan').style.width = pct + '%';
+        document.getElementById('lblScan').textContent = pct.toFixed(1) + '%';
+        
+        let dur = (Date.now() - startTime) / 1000;
+        let speed = totalStrides / (dur || 1);
+        document.getElementById('statSpeed').textContent = Math.floor(speed) + " /s";
+    }
+    
+    if(data.type === 'hit') {
+        log("!!! GEOMETRIC LOCK CONFIRMED !!!", 'hit');
+        log(`Stride B: ${data.B}`, 'hit');
+        log(`Root A: ${data.A}`, 'hit');
+        stopHunt();
+    }
+    
+    if(data.type === 'err') log(`Error: ${data.msg}`, 'warn');
+}
+
+function stopHunt() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    document.getElementById('statStatus').textContent = "STOPPED";
+}
+</script>
+</body>
+</html>

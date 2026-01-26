@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Infinite Multiplication Table v0.0.17 (Stable Pan)</title>
+  
+  <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #050505;
+      --header-bg: #0f172a; 
+      --input-bg: #334155;
+      --border-color: #334155;
+      --text-main: #e2e8f0; 
+      --text-dim: #94a3b8;
+    }
+    html, body {
+      background-color: var(--bg-color);
+      color: var(--text-dim);
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      margin: 0;
+      height: 100vh;
+      width: 100vw;
+      display: flex; 
+      flex-direction: column; 
+      touch-action: none;
+    }
+    
+    /* HUD */
+    .hud {
+      background: rgba(10, 10, 10, 0.95);
+      border-bottom: 1px solid #333;
+      padding: 8px;
+      z-index: 100; 
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .hud label {
+        font-size: 11px;
+        font-weight: bold;
+        color: #94a3b8;
+        margin-right: 4px;
+    }
+    .hud input {
+        background: #334155;
+        border: 1px solid #475569;
+        color: #e2e8f0;
+        font-family: 'Courier New', Courier, monospace;
+        width: 90px;
+        padding: 4px;
+        font-size: 11px;
+    }
+    .hud button {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .hud button:hover { background: #1d4ed8; }
+    
+    /* Viewport */
+    .viewport {
+      position: relative; 
+      flex-grow: 1; 
+      overflow: hidden; 
+      width: 100%;
+      background-color: var(--bg-color);
+    }
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+    
+    .cell-layer {
+      position: absolute; top: 0; left: 0;
+      z-index: 1; will-change: transform;
+    }
+    #colHeaderLayer { z-index: 15; will-change: transform; }
+    #rowHeaderLayer { z-index: 15; will-change: transform; }
+    #originCorner {
+        position: absolute;
+        top: 0; left: 0;
+        z-index: 20; 
+        will-change: width, height, transform;
+    }
+
+    /* Cells */
+    .cell {
+      position: absolute;
+      display: flex; align-items: center; justify-content: center;
+      box-sizing: border-box;
+      overflow: hidden;
+      background: #111;
+      outline: 1px solid #000; 
+      cursor: pointer; 
+    }
+    .cell:hover { outline: 2px solid white; z-index: 50; }
+    .cell-val {
+      font-size: 10px; font-weight: bold; color: white;
+      display: none; 
+      text-shadow: 0 1px 2px black;
+      pointer-events: none;
+    }
+    .show-text .cell-val { display: block; }
+    
+    .cell.axis {
+      background: #1e3a8a; color: #93c5fd;
+      font-weight: bold; cursor: default;
+      z-index: 16;
+    }
+    .cell.prime-axis {
+      background: #1e3a8a; color: #ffffff;
+      font-weight: bold; z-index: 17;
+    }
+    .cell.origin-cell { background: #000; z-index: 20; cursor: default; }
+    .info-bar {
+      position: absolute; bottom: 10px; right: 10px;
+      background: rgba(0,0,0,0.8); padding: 4px 8px;
+      border-radius: 4px; color: #888; font-size: 10px; 
+      pointer-events: none; border: 1px solid #333;
+    }
+    
+  </style>
+</head>
+<body>
+
+  <div class="hud" id="hud">
+    <label>IMT v0.0.17</label>
+    <label for="colInput">Col:</label>
+    <input type="text" id="colInput" placeholder="e.g. 10^15+1">
+    <label for="rowInput">Row:</label>
+    <input type="text" id="rowInput" placeholder="e.g. 1e12">
+    <button id="goBtn">Go</button>
+  </div>
+
+  <div class="viewport" id="viewport">
+    <canvas id="gridCanvas"></canvas>
+    
+    <div class="cell-layer" id="cellLayer"></div>
+    <div class="cell-layer" id="colHeaderLayer"></div>
+    <div class="cell-layer" id="rowHeaderLayer"></div>
+    <div class="cell" id="originCorner"></div>
+
+    <div class="info-bar" id="infoBar">Zoom: 1.0 | Top-Left: (1, 1)</div>
+  </div>
+
+  <script id="worker-code" type="javascript/worker">
+    // --- robust isPrime() function ---
+    function powMod(base, exp, mod) {
+        let b = BigInt(base); let e = BigInt(exp); let m = BigInt(mod);
+        if (m === 0n) throw new Error("Cannot take modulo 0");
+        let r = 1n; b = b % m;
+        while (e > 0n) {
+            if (e % 2n === 1n) r = (r * b) % m;
+            e = e >> 1n; b = (b * b) % m;
+        } return r;
+    }
+    function isPrime(n) {
+        const num = BigInt(n);
+        if (num < 2n) return false;
+        if (num === 2n || num === 3n) return true;
+        if (num % 2n === 0n) return false;
+        const witnesses = [
+            { bound: 2047n, a: [2n] },
+            { bound: 1373653n, a: [2n, 3n] },
+            { bound: 25326001n, a: [2n, 3n, 5n] },
+            { bound: 3215031751n, a: [2n, 3n, 5n, 7n] },
+            { bound: 2152302898747n, a: [2n, 3n, 5n, 7n, 11n] },
+            { bound: 3474749660383n, a: [2n, 3n, 5n, 7n, 11n, 13n] },
+            { bound: 341550071728321n, a: [2n, 3n, 5n, 7n, 11n, 13n, 17n] },
+        ];
+        let k = 0n; let d = num - 1n;
+        while (d % 2n === 0n) { d /= 2n; k++; }
+        let A = [2n, 3n, 5n, 7n, 11n, 13n, 17n, 19n, 23n, 29n, 31n, 37n];
+        for (const set of witnesses) { if (num < set.bound) { A = set.a; break; } }
+        for (const a of A) {
+            if (a >= num) break;
+            let x = powMod(a, d, num);
+            if (x === 1n || x === num - 1n) continue;
+            let composite = true;
+            for (let r = 1n; r < k; r++) {
+                x = (x * x) % num;
+                if (x === 1n) return false;
+                if (x === num - 1n) { composite = false; break; }
+            }
+            if (composite) return false;
+        } return true;
+    }
+    
+    // --- Number Formatting ---
+    const ABBREV = [
+        [1000000000000000000000000n, 'S'], [1000000000000000000000n, 's'],
+        [1000000000000000000n, 'Q'], [1000000000000000n, 'q'],
+        [1000000000000n, 'T'], [1000000000n, 'B'],
+        [1000000n, 'M'], [1000n, 'k']
+    ];
+    function formatBigInt(n) {
+        if (n < 100000n) { return n.toString(); }
+        for (const [val, char] of ABBREV) {
+            if (n >= val) {
+                const major = n / val;
+                const minor = (n % val) * 100n / val;
+                return `${major}.${minor.toString().padStart(2, '0')}${char}`;
+            }
+        }
+        if (n >= 1000n) {
+            const major = n / 1000n;
+            const minor = (n % 1000n) * 100n / 1000n;
+            return `${major}.${minor.toString().padStart(2, '0')}k`;
+        }
+        return n.toString();
+    }
+    
+    // --- onmessage ---
+    self.onmessage = function(e) {
+        const { tasks } = e.data; const results = [];
+        for(let task of tasks) {
+            const c = BigInt(task.c); 
+            const r = BigInt(task.r);
+            let valStr = "...";
+            let isPrimeVal = false;
+            
+            if (r === 0n && c > 0n) { // Column Header
+                valStr = formatBigInt(c);
+                isPrimeVal = isPrime(c);
+            } else if (c === 0n && r > 0n) { // Row Header
+                valStr = formatBigInt(r);
+                isPrimeVal = isPrime(r);
+            } else if (c > 0n && r > 0n) { // Grid Cell
+                try { 
+                    const val = c * r; 
+                    valStr = formatBigInt(val); 
+                } catch (err) { valStr = "Error"; }
+            }
+            
+            results.push({ 
+                id: task.id, 
+                val: valStr, 
+                c: task.c, 
+                r: task.r, 
+                isAxis: (c === 0n || r === 0n), 
+                isPrime: isPrimeVal
+            });
+        } 
+        self.postMessage(results);
+    };
+  </script>
+
+  <script>
+    // --- GRID GLOBALS ---
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const cellLayer = document.getElementById('cellLayer');
+    const viewport = document.getElementById('viewport');
+    const infoBar = document.getElementById('infoBar');
+    const hud = document.getElementById('hud');
+    const colHeaderLayer = document.getElementById('colHeaderLayer');
+    const rowHeaderLayer = document.getElementById('rowHeaderLayer');
+    const originCorner = document.getElementById('originCorner');
+
+    const colInput = document.getElementById('colInput');
+    const rowInput = document.getElementById('rowInput');
+    const goBtn = document.getElementById('goBtn');
+
+    let cellSize = 60; 
+    let scale = 1.0;
+    
+    // --- Base coordinate + pixel offset ---
+    let baseCol = self.bigInt(1); // Start at (1,1)
+    let baseRow = self.bigInt(1);
+    let panX = 0; // Small pixel offset
+    let panY = 0;
+
+    let worker;
+    const renderedCells = new Map();
+    let debounceTimer = null;
+    
+    let isDragging = false; 
+    let lastPanPos = null;
+    let dragThreshold = 5; 
+    let mouseDownPos = null;
+    
+    // --- NEW PARSING FUNCTION ---
+    function parseBigIntInput(str) {
+        if (!str) return self.bigInt.zero;
+        let s = str.replace(/,/g, '').replace(/\s/g, '');
+        try {
+            if (s.includes('+')) {
+                const parts = s.split('+');
+                let sum = self.bigInt.zero;
+                for (const part of parts) {
+                    sum = sum.add(parseBigIntInput(part));
+                }
+                return sum;
+            }
+            if (s.toLowerCase().includes('e')) {
+                const parts = s.toLowerCase().split('e');
+                if (parts.length !== 2 || !/^\d+$/.test(parts[1])) {
+                    throw new Error("Invalid scientific notation");
+                }
+                let base;
+                if (parts[0] === "" || parts[0] === "1") {
+                    base = self.bigInt(1);
+                } else {
+                    if(parts[0].includes('.')) {
+                        const floatParts = parts[0].split('.');
+                        const whole = self.bigInt(floatParts[0] || "0");
+                        const frac = floatParts[1] || "0";
+                        const fracLen = frac.length;
+                        const fracBig = self.bigInt(frac);
+                        const exponent = self.bigInt(parts[1]);
+                        return whole.multiply(self.bigInt(10).pow(exponent))
+                               .add(fracBig.multiply(self.bigInt(10).pow(exponent.subtract(fracLen))));
+                    } else {
+                         base = self.bigInt(parts[0]);
+                    }
+                }
+                const exponent = self.bigInt(parts[1]);
+                return base.multiply(self.bigInt(10).pow(exponent));
+            }
+            if (s.includes('^')) {
+                const parts = s.split('^');
+                if (parts.length !== 2) { throw new Error("Invalid power notation"); }
+                const base = self.bigInt(parts[0]);
+                const exponent = self.bigInt(parts[1]);
+                return base.pow(exponent);
+            }
+            if (/^\d+$/.test(s)) {
+                return self.bigInt(s);
+            }
+            throw new Error("Unrecognized number format");
+        } catch (e) {
+            console.error(`Failed to parse "${str}": ${e.message}`);
+            return self.bigInt.zero;
+        }
+    }
+
+
+    // --- GRID FUNCTIONS ---
+    
+    function initWorker() {
+        const blob = new Blob([document.getElementById('worker-code').textContent], { type: "text/javascript" });
+        worker = new Worker(window.URL.createObjectURL(blob));
+        worker.onmessage = (e) => {
+            const results = e.data;
+            results.forEach(res => {
+                const el = document.getElementById(res.id);
+                if(el) {
+                    el.className = 'cell';
+                    if (res.isAxis) {
+                        el.classList.add('axis');
+                        if (res.isPrime) el.classList.add('prime-axis');
+                    }
+                    el.querySelector('.cell-val').textContent = res.val;
+                }
+            });
+        };
+    }
+
+    viewport.addEventListener('click', (e) => {
+        if (isDragging) {
+            isDragging = false;
+            return;
+        }
+        // Info Box is disabled
+    });
+
+    function resize() {
+        canvas.width = viewport.clientWidth;
+        canvas.height = viewport.clientHeight;
+        
+        if(baseCol.equals(1) && baseRow.equals(1) && panX === 0 && panY === 0) centerView();
+        drawGrid();
+        scheduleUpdate();
+    }
+    window.addEventListener('resize', resize);
+
+    function centerView() {
+        baseCol = self.bigInt(1);
+        baseRow = self.bigInt(1);
+        panX = 0;
+        panY = 0;
+        drawGrid();
+        scheduleUpdate();
+    }
+
+    function teleportTo(x, y) {
+        try {
+            baseCol = parseBigIntInput(x || "1");
+            baseRow = parseBigIntInput(y || "1");
+        } catch (e) {
+            console.error("Invalid teleport coordinate");
+            baseCol = self.bigInt(1);
+            baseRow = self.bigInt(1);
+        }
+        
+        if (baseCol.lesser(1)) baseCol = self.bigInt(1);
+        if (baseRow.lesser(1)) baseRow = self.bigInt(1);
+        
+        panX = 0;
+        panY = 0;
+        
+        clearAndRender();
+    }
+    
+    function clearAndRender() {
+        cellLayer.innerHTML = '';
+        colHeaderLayer.innerHTML = '';
+        rowHeaderLayer.innerHTML = '';
+        renderedCells.clear();
+        
+        normalizeView();
+        drawGrid();
+        scheduleUpdate();
+    }
+
+    function drawGrid() {
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const size = cellSize * scale;
+        
+        const showText = size > 35;
+        cellLayer.classList.toggle('show-text', showText);
+        colHeaderLayer.classList.toggle('show-text', showText);
+        rowHeaderLayer.classList.toggle('show-text', showText);
+        originCorner.classList.toggle('show-text', showText);
+
+        cellLayer.style.transform = `translate(${panX}px, ${panY}px)`;
+        colHeaderLayer.style.transform = `translateX(${panX}px)`;
+        rowHeaderLayer.style.transform = `translateY(${panY}px)`;
+        originCorner.style.transform = `translate(0px, 0px)`;
+        
+        originCorner.style.width = size + 'px';
+        originCorner.style.height = size + 'px';
+        originCorner.className = 'cell origin-cell';
+        originCorner.innerHTML = `<span class="cell-val" style="display: block;">(×)</span>`;
+        
+        renderedCells.forEach((data) => {
+            const el = data.el;
+            const s = size + 'px';
+            el.style.width = s; 
+            el.style.height = s;
+            el.style.transform = `translate(${data.c_render * size}px, ${data.r_render * size}px)`;
+            el.style.display = 'flex';
+        });
+        
+        // Calculate Top-Left coordinate
+        const topLeftCol = baseCol.add(Math.floor(-panX / size));
+        const topLeftRow = baseRow.add(Math.floor(-panY / size));
+        
+        infoBar.textContent = `Zoom: ${scale.toFixed(2)} | Top-Left: (${topLeftCol.toString()}, ${topLeftRow.toString()})`;
+    }
+
+    function normalizeView() {
+        const size = cellSize * scale;
+        if (size <= 0) return;
+
+        const colPanCells = Math.floor(-panX / size);
+        const rowPanCells = Math.floor(-panY / size);
+        
+        if (colPanCells !== 0) {
+            baseCol = baseCol.add(colPanCells);
+            panX = panX + (colPanCells * size);
+        }
+        if (rowPanCells !== 0) {
+            baseRow = baseRow.add(rowPanCells);
+            panY = panY + (rowPanCells * size);
+        }
+        
+        if (baseCol.lesser(1)) {
+            const overflowPixels = baseCol.subtract(1).multiply(size).toJSNumber();
+            panX = -overflowPixels;
+            baseCol = self.bigInt(1);
+        }
+        if (baseRow.lesser(1)) {
+            const overflowPixels = baseRow.subtract(1).multiply(size).toJSNumber();
+            panY = -overflowPixels;
+            baseRow = self.bigInt(1);
+        }
+        
+        while (panX > 0) {
+            baseCol = baseCol.subtract(1);
+            panX -= size;
+            if (baseCol.lesser(1)) {
+                 panX = 0;
+                 baseCol = self.bigInt(1);
+                 break;
+            }
+        }
+         while (panY > 0) {
+            baseRow = baseRow.subtract(1);
+            panY -= size;
+             if (baseRow.lesser(1)) {
+                 panY = 0;
+                 baseRow = self.bigInt(1);
+                 break;
+            }
+        }
+    }
+
+
+    // --- RE-WRITTEN updateContent() (FIXED) ---
+    function updateContent() {
+        const size = cellSize * scale;
+        if (size <= 0) return; 
+        
+        // Visual render indices (small numbers)
+        const startCol_render = Math.floor(-panX / size) - 1;
+        const startRow_render = Math.floor(-panY / size) - 1;
+        const endCol_render = startCol_render + Math.ceil(canvas.width / size) + 2;
+        const endRow_render = startRow_render + Math.ceil(canvas.height / size) + 2;
+        
+        const visibleIds = new Set();
+        const tasks = []; 
+
+        // Loop 1: Main Grid
+        for(let r_idx = startRow_render; r_idx < endRow_render; r_idx++) {
+            if (r_idx === 0) continue; // Skip origin row
+            const r_data = baseRow.add(r_idx - 1); // r_idx=1 is baseRow
+            if (r_data.lesser(1)) continue; // Don't render < 1
+            
+            for(let c_idx = startCol_render; c_idx < endCol_render; c_idx++) {
+                if (c_idx === 0) continue; // Skip origin col
+                const c_data = baseCol.add(c_idx - 1); // c_idx=1 is baseCol
+                if (c_data.lesser(1)) continue; // Don't render < 1
+                
+                const id = `cell_${c_data.toString()}_${r_data.toString()}`;
+                visibleIds.add(id);
+                if (!renderedCells.has(id)) {
+                    createCell(c_idx, r_idx, c_data.toString(), r_data.toString(), id, cellLayer, size, tasks);
+                }
+            }
+        }
+        
+        // Loop 2: Column Headers (r_idx = 0)
+        for(let c_idx = startCol_render; c_idx < endCol_render; c_idx++) {
+            if (c_idx === 0) continue; // Skip origin
+            const c_data = baseCol.add(c_idx - 1);
+            if (c_data.lesser(1)) continue; // Don't render < 1
+            
+            const id = `cell_${c_data.toString()}_0`;
+            visibleIds.add(id);
+            if (!renderedCells.has(id)) {
+                createCell(c_idx, 0, c_data.toString(), "0", id, colHeaderLayer, size, tasks);
+            }
+        }
+        
+        // Loop 3: Row Headers (c_idx = 0)
+        for(let r_idx = startRow_render; r_idx < endRow_render; r_idx++) {
+            if (r_idx === 0) continue; // Skip origin
+            const r_data = baseRow.add(r_idx - 1);
+            if (r_data.lesser(1)) continue; // Don't render < 1
+            
+            const id = `cell_0_${r_data.toString()}`;
+            visibleIds.add(id);
+            if (!renderedCells.has(id)) {
+                createCell(0, r_idx, "0", r_data.toString(), id, rowHeaderLayer, size, tasks);
+            }
+        }
+        
+        // Pruning
+        for(const [id, data] of renderedCells){
+            if(!visibleIds.has(id)){
+                if (data.el.parentElement) {
+                    data.el.parentElement.removeChild(data.el);
+                }
+                renderedCells.delete(id);
+            }
+        }
+
+        if(tasks.length > 0) {
+            worker.postMessage({ tasks });
+        }
+        
+        drawGrid();
+    }
+    
+    function createCell(c_render, r_render, c_data, r_data, id, parentLayer, size, tasks) {
+        const el = document.createElement('div');
+        el.id = id;
+        el.className = 'cell';
+        el.dataset.c = c_data; 
+        el.dataset.r = r_data; 
+        
+        let label = `...`; // Default, worker will fill
+        el.innerHTML = `<span class="cell-val">${label}</span>`;
+        
+        el.style.transform = `translate(${c_render * size}px, ${r_render * size}px)`;
+        
+        el.style.width = size+'px';
+        el.style.height = size+'px';
+
+        parentLayer.appendChild(el);
+        renderedCells.set(id, { el, c_render, r_render }); 
+        
+        tasks.push({ id, c: c_data, r: r_data });
+    }
+
+    function scheduleUpdate() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(updateContent, 150);
+    }
+    
+    // --- PAN/ZOOM & KEYBOARD HANDLERS ---
+    
+    function panBy(dx_cells, dy_cells) {
+        baseCol = baseCol.add(dx_cells);
+        baseRow = baseRow.add(dy_cells);
+        
+        if (baseCol.lesser(1)) baseCol = self.bigInt(1);
+        if (baseRow.lesser(1)) baseRow = self.bigInt(1);
+        
+        clearAndRender();
+    }
+    
+    function handleKeyDown(e) {
+        const activeEl = document.activeElement;
+        if (activeEl === colInput || activeEl === rowInput) {
+            return;
+        }
+        switch(e.key) {
+            case 'ArrowUp': e.preventDefault(); panBy(0, -1); break;
+            case 'ArrowDown': e.preventDefault(); panBy(0, 1); break;
+            case 'ArrowLeft': e.preventDefault(); panBy(-1, 0); break;
+            case 'ArrowRight': e.preventDefault(); panBy(1, 0); break;
+        }
+    }
+    
+    function getPanTarget(e) {
+        let target = e.target;
+        if (target.closest('#hud')) { return null; }
+        return viewport;
+    }
+    document.body.addEventListener('mousedown', e => { 
+        if (!getPanTarget(e)) return;
+        isDragging = false; 
+        lastPanPos = {x:e.clientX, y:e.clientY}; 
+        mouseDownPos = {x:e.clientX, y:e.clientY};
+    });
+    window.addEventListener('mousemove', e => {
+        if(lastPanPos === null) return;
+        const dx = e.clientX - mouseDownPos.x;
+        const dy = e.clientY - mouseDownPos.y;
+        if (!isDragging && (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold)) { isDragging = true; }
+        if (isDragging) {
+            panX += e.clientX - lastPanPos.x;
+            panY += e.clientY - lastPanPos.y;
+            lastPanPos={x:e.clientX, y:e.clientY};
+            
+            normalizeView(); 
+            drawGrid();
+            scheduleUpdate();
+        }
+    });
+    window.addEventListener('mouseup', () => { 
+        lastPanPos = null; 
+        mouseDownPos = null; 
+        if(isDragging) {
+            normalizeView();
+            scheduleUpdate();
+        }
+    });
+    window.addEventListener('click', () => { setTimeout(() => { isDragging = false; }, 0); }, true);
+    
+    viewport.addEventListener('wheel', e => {
+        e.preventDefault();
+        const delta = -Math.sign(e.deltaY) * 0.1;
+        const newScale = Math.max(0.1, Math.min(5, scale * (1 + delta)));
+        
+        const rect = viewport.getBoundingClientRect();
+        const mx = e.clientX - rect.left; const my = e.clientY - rect.top;
+        
+        const gx = (mx - panX) / scale;
+        const gy = (my - panY) / scale;
+        
+        scale = newScale;
+        
+        panX = mx - (gx * scale);
+        panY = my - (gy * scale);
+        
+        normalizeView();
+        clearAndRender(); // Zoom requires full rebuild
+    }, {passive:false});
+    
+    // --- Touch Handlers (Full implementation) ---
+    viewport.addEventListener('touchstart', e => {
+        if (!getPanTarget(e)) return;
+        isDragging = false; 
+        if(e.touches.length===1) { 
+            const touch = e.touches[0];
+            lastPanPos={x:touch.clientX, y:touch.clientY}; 
+            mouseDownPos={x:touch.clientX, y:touch.clientY};
+        }
+        else if(e.touches.length===2) {
+            isDragging = true;
+            const p1={x:e.touches[0].clientX, y:e.touches[0].clientY};
+            const p2={x:e.touches[1].clientX, y:e.touches[1].clientY};
+            lastDist = Math.hypot(p1.x-p2.x, p1.y-p2.y);
+            lastPanPos = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
+        }
+    }, {passive:false});
+    
+    viewport.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if(lastPanPos === null) return;
+        
+        if(e.touches.length===1) {
+            const curr = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+            const dx = curr.x - mouseDownPos.x;
+            const dy = curr.y - mouseDownPos.y;
+            if (!isDragging && (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold)) { isDragging = true; }
+            if (isDragging) {
+                panX += curr.x - lastPanPos.x;
+                panY += curr.y - lastPanPos.y;
+                lastPanPos=curr;
+                normalizeView();
+                drawGrid();
+                scheduleUpdate();
+            }
+        } else if(e.touches.length===2) {
+            isDragging = true; 
+            const p1={x:e.touches[0].clientX, y:e.touches[0].clientY};
+            const p2={x:e.touches[1].clientX, y:e.touches[1].clientY};
+            const dist = Math.hypot(p1.x-p2.x, p1.y-p2.y);
+            const center = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
+            
+            panX += center.x - lastPanPos.x;
+            panY += center.y - lastPanPos.y;
+            
+            const zoom = dist / lastDist;
+            const newScale = Math.max(0.1, Math.min(5, scale * zoom));
+            
+            const rect = viewport.getBoundingClientRect();
+            const mx = center.x - rect.left;
+            const my = center.y - rect.top;
+
+            const gx = (mx - panX) / scale;
+            const gy = (my - panY) / scale;
+            scale = newScale;
+            
+            panX = mx - (gx * scale);
+            panY = my - (gy * scale);
+            
+            lastDist = dist;
+            lastPanPos = center;
+            
+            normalizeView();
+            clearAndRender();
+        }
+    }, {passive:false});
+    viewport.addEventListener('touchend', e => { 
+        if(e.touches.length === 0) { 
+            lastPanPos = null; 
+            mouseDownPos = null; 
+            if(isDragging) {
+                normalizeView();
+                scheduleUpdate();
+            }
+        }
+        if(e.touches.length === 1) { 
+            lastPanPos={x:e.touches[0].clientX, y:e.touches[0].clientY}; 
+        }
+    });
+    
+    
+    // --- INFOBOX LOGIC (Disabled) ---
+    function loadInfoBox(n_bigInt) {
+        console.log("Clicked cell for N =", n_bigInt.toString());
+    }
+    function initInfoBox() {}
+    function closeInfoBox() {}
+    
+    // --- INITIALIZATION ---
+    initWorker();
+    initInfoBox();
+    
+    goBtn.addEventListener('click', () => {
+        teleportTo(colInput.value, rowInput.value);
+    });
+    colInput.addEventListener('keyup', e => {
+        if (e.key === 'Enter') teleportTo(colInput.value, rowInput.value);
+    });
+    rowInput.addEventListener('keyup', e => {
+        if (e.key === 'Enter') teleportTo(colInput.value, rowInput.value);
+    });
+    
+    window.addEventListener('keydown', handleKeyDown);
+
+    resize();
+  </script>
+</body>
+</html>

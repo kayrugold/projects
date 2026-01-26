@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factor Hunter - Andy's Forge</title>
+    <meta name="theme-color" content="#000000">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #050505;
+            --card: #141414;
+            --gold: #FFD700;
+            --gold-dim: #998100;
+            --red: #cf3030;
+            --green: #4caf50;
+            --text: #C0C0C0;
+            --border: #333;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Lato', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        /* --- HEADER --- */
+        header {
+            padding: 10px;
+            border-bottom: 2px solid var(--gold-dim);
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--gold);
+            font-family: 'Cinzel', serif;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            color: var(--gold);
+            font-size: 1.2rem;
+            margin: 0;
+            letter-spacing: 1px;
+        }
+
+        .score-display {
+            font-family: 'Cinzel', serif;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+
+        /* --- BATTLE ARENA --- */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .monster-container {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .monster-emoji {
+            font-size: 6rem;
+            filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.1));
+            transition: transform 0.1s;
+        }
+        
+        .hit-effect { animation: shake 0.3s; color: var(--red); }
+        .win-effect { animation: bounce 0.5s; }
+
+        /* The Number to Factor (HP) */
+        .monster-hp {
+            font-family: 'Cinzel', serif;
+            font-size: 3.5rem;
+            color: #fff;
+            margin: 10px 0;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.8);
+            font-weight: bold;
+        }
+
+        .hp-label {
+            font-size: 0.7rem;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* --- WEAPON RACK (Controls) --- */
+        .controls {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card);
+            border-top: 2px solid var(--gold-dim);
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .factor-btn {
+            background: #222;
+            border: 1px solid var(--border);
+            color: var(--gold);
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            padding: 15px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 4px 0 #000;
+        }
+
+        .factor-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #000;
+            background: var(--gold-dim);
+            color: #000;
+        }
+
+        .msg-log {
+            height: 30px;
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-30px);}
+            60% {transform: translateY(-15px);}
+        }
+
+        .flash-red { background-color: rgba(207, 48, 48, 0.2); }
+        .flash-green { background-color: rgba(76, 175, 80, 0.2); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="index.html" class="back-btn">❮ BACK</a>
+        <h1>Factor Hunter</h1>
+        <div class="score-display">Kills: <span id="score">0</span></div>
+    </header>
+
+    <main id="game-arena">
+        <div class="msg-log" id="log">Encounter Started!</div>
+        
+        <div class="monster-container">
+            <div class="monster-emoji" id="monster-icon">👹</div>
+        </div>
+
+        <div>
+            <div class="hp-label">Current Health</div>
+            <div class="monster-hp" id="hp-display">60</div>
+        </div>
+    </main>
+
+    <div class="controls">
+        <button class="factor-btn" onclick="attack(2)">2</button>
+        <button class="factor-btn" onclick="attack(3)">3</button>
+        <button class="factor-btn" onclick="attack(5)">5</button>
+        <button class="factor-btn" onclick="attack(7)">7</button>
+        <button class="factor-btn" onclick="attack(11)">11</button>
+        <button class="factor-btn" onclick="attack(13)">13</button>
+    </div>
+
+    <script>
+        // Game State
+        let currentHP = 60;
+        let score = 0;
+        const primes = [2, 3, 5, 7, 11, 13];
+        const monsters = ['👹', '🐲', '🕷️', '🧟', '🧛', '🐍', '🐺'];
+        
+        const elHP = document.getElementById('hp-display');
+        const elLog = document.getElementById('log');
+        const elIcon = document.getElementById('monster-icon');
+        const elArena = document.getElementById('game-arena');
+
+        // Init
+        generateMonster();
+
+        function generateMonster() {
+            // Create a random composite number from our available primes
+            let num = 1;
+            // Ensure at least 2 factors to start
+            let count = Math.floor(Math.random() * 2) + 2 + (Math.floor(score/3)); 
+            
+            for(let i=0; i<count; i++) {
+                const p = primes[Math.floor(Math.random() * (score > 5 ? 6 : 4))]; // Ease into harder primes
+                if (num * p < 1000) num *= p; 
+            }
+            
+            // If we accidentally got a prime or 1 (rare), fix it
+            if (num === 1 || primes.includes(num)) num = num * 2;
+
+            currentHP = num;
+            updateUI();
+            
+            // Random Monster Icon
+            elIcon.innerText = monsters[Math.floor(Math.random() * monsters.length)];
+            elIcon.style.transform = "scale(1)";
+            elLog.innerText = "A new beast appears!";
+        }
+
+        function attack(factor) {
+            if (currentHP % factor === 0) {
+                // HIT!
+                currentHP = currentHP / factor;
+                triggerVisual('hit');
+                elLog.innerText = "Slash! Divided by " + factor;
+                elLog.style.color = "var(--green)";
+                
+                if (currentHP === 1) {
+                    victory();
+                } else {
+                    updateUI();
+                }
+            } else {
+                // MISS!
+                triggerVisual('miss');
+                elLog.innerText = "Blocked! Not divisible by " + factor;
+                elLog.style.color = "var(--red)";
+            }
+        }
+
+        function victory() {
+            elHP.innerText = "💀"; // Skull for death
+            score++;
+            document.getElementById('score').innerText = score;
+            elLog.innerText = "Enemy Defeated!";
+            elIcon.style.transform = "rotate(180deg) scale(0.5) opacity(0.5)"; // Death animation
+            
+            setTimeout(() => {
+                generateMonster();
+            }, 1200);
+        }
+
+        function updateUI() {
+            elHP.innerText = currentHP;
+        }
+
+        function triggerVisual(type) {
+            if(type === 'hit') {
+                elIcon.classList.remove('hit-effect');
+                void elIcon.offsetWidth; // trigger reflow
+                elIcon.classList.add('hit-effect');
+                document.body.classList.add('flash-green');
+                setTimeout(() => document.body.classList.remove('flash-green'), 100);
+            } else {
+                document.body.classList.add('flash-red');
+                setTimeout(() => document.body.classList.remove('flash-red'), 100);
+            }
+        }
+    </script>
+</body>
+</html>

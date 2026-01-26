@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Square & Stretch</title>
+    <style>
+        :root {
+            --bg: #1c1917;
+            --panel: #292524;
+            --text: #e7e5e4;
+            --square-color: #f59e0b; /* Amber for the Perfect Square */
+            --strip-color: #3b82f6;  /* Blue for the added strips */
+            --border: #44403c;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 { margin: 0 0 10px 0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; color: var(--square-color); }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* INPUT CARD */
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .val-display { font-size: 1.5rem; font-weight: bold; }
+        
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--strip-color);
+        }
+
+        /* VISUALIZATION AREA */
+        .vis-area {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .flex-row { display: flex; gap: 2px; align-items: flex-end; }
+        
+        .block {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: rgba(0,0,0,0.6);
+            font-weight: bold;
+            border-radius: 4px;
+        }
+        
+        .sq-block { background: var(--square-color); }
+        .str-block { background: var(--strip-color); }
+
+        /* EQUATION BREAKDOWN */
+        .eq-box {
+            font-family: monospace;
+            font-size: 1rem;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .highlight-sq { color: var(--square-color); font-weight: bold; }
+        .highlight-str { color: var(--strip-color); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Square & Stretch</h1>
+
+    <div class="container">
+        
+        <!-- Controls -->
+        <div class="card">
+            <div class="input-row">
+                <span>Select Composite Gnomon</span>
+                <span class="val-display" id="val-g">15</span>
+            </div>
+            <!-- Stepper slider that only picks numbers in a Sundaram row -->
+            <input type="range" id="slider" min="0" max="10" value="1">
+            <div style="text-align:center; font-size:0.8rem; color:#888; margin-top:8px;">
+                Browsing Row i=1 (Multiples of 3)
+            </div>
+        </div>
+
+        <!-- The Visual Proof -->
+        <div class="card">
+            <div class="vis-area">
+                <div class="flex-row" id="canvas">
+                    <!-- Blocks go here -->
+                </div>
+            </div>
+            
+            <div class="eq-box" id="equation">
+                <!-- Text goes here -->
+            </div>
+        </div>
+
+        <div style="font-size:0.8rem; color:#666; text-align:center; line-height:1.4;">
+            Every composite odd number is a <span style="color:var(--square-color)">Square</span> plus an even number of <span style="color:var(--strip-color)">Strips</span>.
+        </div>
+
+    </div>
+
+    <script>
+        const slider = document.getElementById('slider');
+        const valG = document.getElementById('val-g');
+        const canvas = document.getElementById('canvas');
+        const eqBox = document.getElementById('equation');
+
+        // We will browse row i=1 (Base 3) for simplicity to demonstrate the "Adding Squares" concept
+        // Sequence: 9, 15, 21, 27, 33...
+        const base = 3;
+
+        function update() {
+            const step = parseInt(slider.value); // 0, 1, 2...
+            
+            // Calculate Value
+            // Start at Square (3x3 = 9)
+            // Add 'step' number of 'double strips' (since we jump by 2*base to stay odd)
+            // Actually, in gnomon values, the jump is 2*i + 1? No.
+            // Row 1 Gnomons: 9, 15, 21... (Jumps of 6)
+            // 6 = 2 * 3.
+            
+            const gnomon = (base * base) + (step * (2 * base));
+            
+            valG.innerText = gnomon;
+
+            // RENDER VISUALS
+            let html = '';
+            
+            // 1. The Square (3x3)
+            // Represented as a block of width 3 (conceptually)
+            // We'll just draw 3 blocks labeled "3" to represent the 3x3 area?
+            // Better: Draw columns.
+            
+            // Draw The Base Square as 'base' columns of height 'base'? 
+            // No, let's keep it abstract: "Chunks".
+            
+            // The Square Chunk
+            html += `<div style="display:flex; flex-direction:column; align-items:center; margin-right:4px;">
+                <div style="display:grid; grid-template-columns:repeat(${base}, 1fr); gap:2px; margin-bottom:5px;">`;
+            
+            // Create a 3x3 grid for the square
+            for(let k=0; k<base*base; k++) {
+                 html += `<div class="block sq-block" style="width:20px; height:20px;"></div>`;
+            }
+            html += `</div><span style="font-size:0.7rem; color:var(--square-color)">${base}²</span></div>`;
+
+
+            // 2. The Added Strips
+            // We add 'step' pairs of strips. Each pair is 2 * base.
+            const strips = step * 2;
+            
+            for(let s=0; s<strips; s++) {
+                html += `<div style="display:flex; flex-direction:column; align-items:center;">
+                    <div style="display:flex; flex-direction:column; gap:2px; margin-bottom:5px;">`;
+                
+                // Draw a strip of height 'base'
+                for(let h=0; h<base; h++) {
+                    html += `<div class="block str-block" style="width:20px; height:20px;"></div>`;
+                }
+                
+                html += `</div><span style="font-size:0.7rem; color:var(--strip-color)">${base}</span></div>`;
+            }
+
+            canvas.innerHTML = html;
+
+            // RENDER EQUATION
+            eqBox.innerHTML = `
+                <span class="highlight-sq">${base}²</span> + 
+                (<span class="highlight-str">${strips}</span> × ${base}) 
+                = ${gnomon}
+            `;
+        }
+
+        slider.addEventListener('input', update);
+        update();
+
+    </script>
+</body>
+</html>
+

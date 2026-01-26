@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v7.7 (Render Fix)</title>
+<style>
+    :root { --bg: #000; --cyan: #22d3ee; --pink: #f472b6; --gold: #fbbf24; --panel: #0f172a; }
+    * { box-sizing: border-box; user-select: none; }
+    body { 
+        background: var(--bg); color: #fff; font-family: 'Courier New', monospace; 
+        height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden; 
+    }
+    .top-bar { background: var(--panel); border-bottom: 2px solid var(--cyan); padding: 8px; z-index: 100; display: flex; gap: 10px; align-items: center; }
+    .btn { background: #334155; color: #fff; border: 1px solid #444; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.7rem; }
+    .btn:active { background: var(--cyan); color: #000; }
+    #canvasWrap { flex: 1; position: relative; background: #000; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .decoder { background: var(--panel); border-top: 3px solid var(--pink); padding: 10px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .stat { text-align: center; border: 1px solid #1e293b; padding: 5px; border-radius: 4px; }
+    .stat-l { font-size: 0.6rem; color: #64748b; display: block; }
+    .stat-v { font-weight: bold; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <button class="btn" onclick="resetTelescope()" style="border-color:var(--pink)">RESET ROWS</button>
+    <button class="btn" onclick="jumpTo(17)">JUMP K17</button>
+    <button class="btn" onclick="jumpTo(36)">JUMP K36</button>
+    <div style="margin-left:auto; color:var(--cyan); font-size:0.7rem;">TELESCOPE v7.7</div>
+</div>
+
+<div id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="stat"><span class="stat-l">CARGO (N)</span><span id="d-n" class="stat-v">--</span></div>
+    <div class="stat"><span class="stat-l">ROW (k)</span><span id="d-k" class="stat-v">--</span></div>
+    <div class="stat"><span class="stat-l">GAP (b)</span><span id="d-b" class="stat-v">--</span></div>
+    <div class="stat"><span class="stat-l">ODO</span><span id="d-o" class="stat-v">--</span></div>
+</div>
+
+<script>
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+
+let cellS = 90;
+let panX = 0, panY = 100;
+let rowOffsets = new Map(); // Map<k, pixelOffset>
+let isDragging = false;
+let lastX, lastY;
+
+function draw() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    const midX = w / 2;
+    
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    // Laser Center Line
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.2)';
+    ctx.beginPath(); ctx.moveTo(midX + panX, 0); ctx.lineTo(midX + panX, h); ctx.stroke();
+
+    // Render 100 rows around the current view
+    const startK = Math.max(0, Math.floor((-panY - 200) / cellS));
+    const endK = startK + Math.ceil(h / cellS) + 10;
+
+    for (let k = startK; k < endK; k++) {
+        const offset = rowOffsets.get(k) || 0;
+        const y = panY + (k * cellS) + offset;
+        if (y < -cellS || y > h + cellS) continue;
+
+        const a = (k === 0) ? 0 : (2 * k - 1);
+        const count = (k === 0) ? 1 : 2 * k;
+        const rowW = count * cellS;
+        const rowStart = midX + panX - (rowW / 2);
+
+        for (let b = 0; b < count; b++) {
+            const x = rowStart + (b * cellS);
+            if (x < -cellS || x > w + cellS) continue;
+
+            // Math
+            const val = (k === 0) ? 0 : a * (a - 2 * b);
+            const odo = (k === 0) ? 0 : (1 + k * (k - 1) + b);
+
+            // Cell Render (90% Transparent)
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.1)';
+            ctx.fillRect(x, y, cellS, cellS);
+            ctx.strokeStyle = (b === 0) ? 'var(--cyan)' : 'rgba(255,255,255,0.1)';
+            ctx.strokeRect(x, y, cellS, cellS);
+
+            // Text
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = (b === 0) ? 'var(--cyan)' : '#888';
+            ctx.font = 'bold 12px monospace';
+            ctx.fillText(val, x + cellS / 2, y + cellS / 2);
+            
+            ctx.fillStyle = 'rgba(244, 114, 182, 0.4)';
+            ctx.font = '8px monospace';
+            ctx.fillText(odo, x + cellS - 15, y + cellS - 10);
+        }
+
+        // Center Controls
+        const ctrlX = midX + panX - (cellS / 2);
+        ctx.fillStyle = 'rgba(10, 10, 10, 0.9)';
+        ctx.fillRect(ctrlX + 5, y + 5, cellS - 10, cellS - 10);
+        ctx.strokeStyle = 'var(--gold)';
+        ctx.strokeRect(ctrlX + 5, y + 5, cellS - 10, cellS - 10);
+        
+        ctx.fillStyle = 'var(--gold)';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText(`k${k}`, ctrlX + cellS / 2, y + cellS / 2);
+        ctx.fillText('▲', ctrlX + cellS / 2, y + 15);
+        ctx.fillText('▼', ctrlX + cellS / 2, y + cellS - 15);
+    }
+}
+
+// Interactions
+wrap.addEventListener('mousedown', e => {
+    isDragging = true; lastX = e.clientX; lastY = e.clientY;
+    checkButtons(e.clientX, e.clientY);
+});
+wrap.addEventListener('touchstart', e => {
+    isDragging = true; lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    checkButtons(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive: false});
+
+window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    panX += e.clientX - lastX; panY += e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY; draw();
+});
+window.addEventListener('touchmove', e => {
+    if (!isDragging) return;
+    panX += e.touches[0].clientX - lastX; panY += e.touches[0].clientY - lastY;
+    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; draw();
+}, {passive: false});
+
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('touchend', () => isDragging = false);
+
+function checkButtons(sx, sy) {
+    const rect = canvas.getBoundingClientRect();
+    const x = (sx - rect.left);
+    const y = (sy - rect.top);
+    const midX = (canvas.width / DPR) / 2;
+    const worldX = x - (midX + panX);
+    
+    // Check if near center column
+    if (Math.abs(worldX) < cellS / 2) {
+        const k = Math.floor((y - panY) / cellS);
+        const rowTop = panY + (k * cellS) + (rowOffsets.get(k) || 0);
+        const relY = y - rowTop;
+        
+        if (relY > 0 && relY < 30) {
+            rowOffsets.set(k, (rowOffsets.get(k) || 0) - cellS);
+        } else if (relY > cellS - 30 && relY < cellS) {
+            rowOffsets.set(k, (rowOffsets.get(k) || 0) + cellS);
+        }
+        draw();
+    }
+}
+
+function resetTelescope() { rowOffsets.clear(); panX = 0; panY = 100; draw(); }
+function jumpTo(k) { panY = -(k * cellS) + 200; draw(); }
+
+function resize() {
+    canvas.width = wrap.clientWidth * DPR;
+    canvas.height = wrap.clientHeight * DPR;
+    draw();
+}
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gnomon Odds Indexer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --accent-color: #38bdf8;
+            --panel-bg: #1e293b;
+            --cell-bg: #1e293b;
+            --cell-hover: #334155;
+            --square-highlight: #0ea5e9;
+            --gnomon-text: #f472b6; /* Pink for Gnomon values */
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h2 { margin-bottom: 10px; color: var(--accent-color); }
+        p { color: #94a3b8; max-width: 600px; text-align: center; margin-bottom: 20px; }
+
+        /* Table Grid Container */
+        .grid-container {
+            display: grid;
+            gap: 4px;
+            margin-bottom: 300px; /* Space for slide-up panel */
+            overflow: auto;
+            max-width: 100%;
+            border: 1px solid #334155;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .cell {
+            background-color: var(--cell-bg);
+            width: 80px;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            border-radius: 4px;
+        }
+
+        .cell:hover {
+            background-color: var(--cell-hover);
+            transform: scale(1.05);
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        /* Header Cells (Row/Col Labels) */
+        .header-cell {
+            background-color: #0f172a;
+            font-weight: bold;
+            color: var(--accent-color);
+            border: 1px solid #334155;
+        }
+
+        /* The Main Number (Product) */
+        .value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* The Equation Subtext (3x5) */
+        .equation {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        /* The Gnomon Badge (Overlay on Squares) */
+        .gnomon-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background-color: rgba(244, 114, 182, 0.2);
+            color: var(--gnomon-text);
+            font-size: 0.6rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 1px solid var(--gnomon-text);
+        }
+
+        /* Highlight Perfect Squares */
+        .perfect-square {
+            border: 1px solid var(--square-highlight);
+            background-color: rgba(14, 165, 233, 0.1);
+        }
+
+        /* Slide-up Panel */
+        #infoPanel {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            height: 40vh;
+            background-color: var(--panel-bg);
+            border-top: 2px solid var(--accent-color);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            transition: bottom 0.3s ease-in-out;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        #infoPanel.active {
+            bottom: 0;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .panel-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            font-size: 0.9rem;
+        }
+
+        .stat-box {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 6px;
+        }
+        
+        .stat-label { color: #94a3b8; font-size: 0.8rem; display: block; margin-bottom: 4px; }
+        .stat-val { font-family: monospace; font-size: 1.1rem; color: var(--accent-color); }
+        .math-block { margin-top: 10px; font-style: italic; color: var(--gnomon-text); }
+
+    </style>
+</head>
+<body>
+
+    <h2>Odd Gnomon Map</h2>
+    <p>Click any cell to inspect its Gnomon Index, Compression Coordinates, and Factor Patterns.</p>
+
+    <div id="grid" class="grid-container">
+        </div>
+
+    <div id="infoPanel">
+        <div class="panel-header">
+            <h3 style="margin:0; color:var(--accent-color)">Cell Inspector</h3>
+            <button class="close-btn" onclick="closePanel()">&times;</button>
+        </div>
+        <div class="panel-content">
+            <div class="stat-box">
+                <span class="stat-label">Value & Equation</span>
+                <div class="stat-val" id="panelValue">--</div>
+                <div id="panelEq" style="color:#fff; margin-top:5px;">--</div>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Compression Coordinates (m, n)</span>
+                <div class="stat-val" id="panelCoords">--</div>
+                <div style="font-size:0.75rem; color:#64748b; margin-top:5px;">Index in odd sequence</div>
+            </div>
+            <div class="stat-box" style="grid-column: span 2;">
+                <span class="stat-label">Gnomon & Rhythm</span>
+                <div class="stat-val" id="panelGnomon">--</div>
+                <div class="math-block" id="panelMath">--</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const GRID_SIZE = 12; // How many odd numbers to show
+        const grid = document.getElementById('grid');
+        
+        // Setup Grid Columns css
+        grid.style.gridTemplateColumns = `50px repeat(${GRID_SIZE}, 1fr)`;
+
+        // Helper to get odd number by index (1-based index)
+        // Index 1 -> 1, Index 2 -> 3, Index 3 -> 5
+        function getOdd(i) {
+            return (i * 2) - 1;
+        }
+
+        function createGrid() {
+            // 1. Create Header Row
+            // Corner blank
+            let corner = document.createElement('div');
+            corner.className = 'cell header-cell';
+            corner.innerText = 'x';
+            grid.appendChild(corner);
+
+            // Top headers
+            for (let c = 1; c <= GRID_SIZE; c++) {
+                let cell = document.createElement('div');
+                cell.className = 'cell header-cell';
+                cell.innerText = getOdd(c);
+                grid.appendChild(cell);
+            }
+
+            // 2. Create Data Rows
+            for (let r = 1; r <= GRID_SIZE; r++) {
+                let oddR = getOdd(r);
+
+                // Row Header
+                let rowHead = document.createElement('div');
+                rowHead.className = 'cell header-cell';
+                rowHead.innerText = oddR;
+                grid.appendChild(rowHead);
+
+                // Cells
+                for (let c = 1; c <= GRID_SIZE; c++) {
+                    let oddC = getOdd(c);
+                    let product = oddR * oddC;
+                    let isSquare = (r === c);
+
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (isSquare) cell.classList.add('perfect-square');
+
+                    // Gnomon Logic for Squares
+                    // User Rule: 5x5 is 25, Gnomon is 9 (because 4+4+1 or 2*5-1)
+                    // The gnomon of 'n' is 2n - 1. Here 'n' is the value 'oddR'.
+                    let gnomonVal = (2 * oddR) - 1; // Wait, standard gnomon for side length X is 2X-1
+                    
+                    // Let's verify user example: "5x5 is 25 but its gnoman is 9"
+                    // If side is 5, gnomon is 2(5)-1 = 9. Correct.
+                    
+                    let html = `<span class="value">${product}</span>`;
+                    html += `<span class="equation">${oddR} &times; ${oddC}</span>`;
+
+                    // Only add Gnomon badge on Squares (the "Corners")
+                    if (isSquare) {
+                        html += `<div class="gnomon-badge">${gnomonVal}</div>`;
+                    }
+
+                    cell.innerHTML = html;
+                    cell.onclick = () => openPanel(r, c, oddR, oddC, product, isSquare, gnomonVal);
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function openPanel(r, c, valR, valC, product, isSquare, gnomonVal) {
+            document.getElementById('infoPanel').classList.add('active');
+            
+            // Basic Info
+            document.getElementById('panelValue').innerText = product;
+            document.getElementById('panelEq').innerText = `${valR} × ${valC}`;
+            
+            // Compression Coords (Index in the odd sequence)
+            // e.g. 1 is idx 1, 3 is idx 2, 5 is idx 3.
+            document.getElementById('panelCoords').innerText = `(${r}, ${c})`;
+
+            // Gnomon Logic
+            const mathContainer = document.getElementById('panelMath');
+            const gnomonContainer = document.getElementById('panelGnomon');
+
+            if (isSquare) {
+                gnomonContainer.innerText = `Gnomon: ${gnomonVal}`;
+                // Explanation: 4+4+1 logic
+                // For side N, (N-1) + (N-1) + 1
+                let prev = valR - 1;
+                mathContainer.innerText = `Logic: ${prev} + ${prev} + 1 = ${gnomonVal} (Arm + Arm + Corner)`;
+            } else {
+                // For non-squares, show the difference from the row's starting square
+                // Difference = Product - Square
+                let rowSquare = valR * valR;
+                let diff = product - rowSquare;
+                gnomonContainer.innerText = `Offset: +${diff}`;
+                mathContainer.innerText = `Extends from corner ${rowSquare} by adding ${valR} × 2 × ${(c-r)/2}?`;
+                // Simplified rhythm: It's just adding 2*RowValue for every step
+                let steps = c - r;
+                mathContainer.innerText = `Rhythm: ${rowSquare} + (${steps} steps × 2×${valR})`;
+            }
+        }
+
+        function closePanel() {
+            document.getElementById('infoPanel').classList.remove('active');
+        }
+
+        createGrid();
+    </script>
+</body>
+</html>

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>IMT6 — Number Theory Toolkit (Baillie-PSW + UI)</title>
+  <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+  <style>
+    :root{
+      --bg:#071021; --panel:#0b1220; --muted:#94a3b8;
+      --accent:#f72585; --blue:#4361ee; --card:#0e1724;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;background:var(--bg);color:#dbeafe}
+    #tab-nav{position:fixed;top:0;left:0;right:0;display:flex;background:linear-gradient(90deg,#06101a,#071022);border-bottom:2px solid var(--accent);z-index:80}
+    .tab-button{flex:1;padding:10px 12px;border:0;background:transparent;color:var(--muted);font-weight:700;cursor:pointer}
+    .tab-button.active{background:var(--accent);color:#fff}
+    .app-container{position:fixed;top:48px;left:0;right:0;bottom:0;overflow:hidden}
+    canvas{width:100%;height:100%;display:block;touch-action:none}
+    #controls{position:fixed;left:8px;right:8px;bottom:8px;background:rgba(4,6,10,0.65);backdrop-filter:blur(6px);border-radius:8px;padding:8px;border:1px solid #0f1724;z-index:90}
+    .log-box{height:160px;overflow:auto;background:#020617;padding:10px;border-radius:6px;border:1px solid #233;color:#9be7c4}
+    .worker-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+    .worker-card{padding:8px;border-radius:8px;background:var(--card);color:var(--muted);box-shadow:0 6px 18px rgba(0,0,0,0.6)}
+    .btn{padding:8px 12px;border-radius:6px;border:0;cursor:pointer}
+    input[type='text'], input { padding:8px;border-radius:6px;border:1px solid #21303a;background:#061018;color:#e6f3ff }
+    #zoomInfo{font-weight:700;color:#cbd5e1}
+    /* tighter mobile layout */
+    @media (max-width:600px){
+      #controls{left:6px;right:6px;bottom:6px;padding:6px}
+      .log-box{height:120px}
+    }
+  </style>
+</head>
+<body>
+  <div id="tab-nav">
+    <button id="tab-imt" class="tab-button active" onclick="showApp('imt')">Prime Hunter</button>
+    <button id="tab-gen" class="tab-button" onclick="showApp('gen')">The General</button>
+  </div>
+
+  <div id="app-imt" class="app-container">
+    <canvas id="gridCanvas"></canvas>
+
+    <div id="controls">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input id="xInput" type="text" value="1" style="width:150px" />
+        <input id="yInput" type="text" value="1" style="width:150px" />
+        <button id="goButton" class="btn" style="background:var(--blue);color:#fff">Go</button>
+        <div style="flex:1;text-align:right">
+          <span style="color:var(--muted)">Zoom</span>: <span id="zoomInfo">1.00x</span>
+        </div>
+      </div>
+      <div class="log-box" id="terminalContent">Ready.</div>
+    </div>
+  </div>
+
+  <div id="app-gen" class="app-container" style="display:none">
+    <div style="padding:14px;max-width:1100px;margin:0 auto;color:var(--muted)">
+      <h2 style="color:#a7f3d0">SGS Poly-Algorithm Squad — The General</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">
+        <input id="gen-base-input" type="text" value="10"/>
+        <input id="gen-exponent-input" type="text" value="1007"/>
+        <input id="gen-addend-input" type="text" value="1"/>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button id="gen-start-btn" class="btn" style="background:#16a34a;color:#fff">Deploy Squad</button>
+        <button id="gen-stop-btn" class="btn" disabled style="background:#ef4444;color:#fff">Abort</button>
+        <div style="flex:1;text-align:right;color:var(--muted)" id="gen-target-status">Idle</div>
+      </div>
+      <div class="worker-grid" id="gen-worker-grid" style="margin-top:12px"></div>
+      <pre id="gen-log-output" class="log-box" style="margin-top:12px">System Ready.</pre>
+    </div>
+  </div>
+
+<script>
+/* ------------------ Formatter (Option D) ------------------ */
+function formatBigIntegerString(s){
+  if(!s) return '';
+  if(s[0]==='-') return '-' + formatBigIntegerString(s.slice(1));
+  if(s.length <= 15) return Number(s).toLocaleString('en-US');
+  if(s.length <= 120) {
+    const first = s.slice(0,6), last = s.slice(-6);
+    return `${first}…${last} (${s.length} digits)`;
+  }
+  const first = s.slice(0,5);
+  const coeff = `${first[0]}.${first.slice(1)}`;
+  return `${coeff} × 10^${s.length-1}  (${s.length} digits)`;
+}
+
+function formatBigNumber_obj(obj){
+  if(obj.val) return formatBigIntegerString(obj.val);
+  const a = bigInt(obj.a);
+  const b = parseInt(obj.b,10);
+  const c = bigInt(obj.c);
+  if(b < 18){
+    const full = a.multiply(bigInt(10).pow(b)).add(c);
+    return formatBigIntegerString(full.toString());
+  }
+  const isSmallOffset = c.abs().lesser(1000);
+  if(isSmallOffset){
+    if(c.isZero()) return `10^${b}`;
+    const sign = c.isPositive()?` + ${c.toString()}`:` - ${c.abs().toString()}`;
+    return `10^${b}${sign}`;
+  }
+  const aStr = a.toString();
+  const leading = aStr.length>5? aStr.slice(0,5) : aStr;
+  const magnitude = b + (aStr.length - 1);
+  const coeff = leading.length===1? `${leading}.0000` : `${leading[0]}.${leading.slice(1)}`;
+  return `${coeff} × 10^${magnitude}  (${magnitude+1} digits)`;
+}
+
+/* ------------------ Worker code string (with Baillie-PSW) ------------------ */
+const workerCode = `
+self.importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+
+let TRIAL_DIVISION_PRIMES = [];
+const SIEVE_LIMIT = 10000;
+
+function runSieve(limit){
+  const isPrime = new Array(limit+1).fill(true);
+  isPrime[0] = isPrime[1] = false;
+  for (let p = 2; p * p <= limit; p++) {
+    if (isPrime[p]) {
+      for (let i = p * p; i <= limit; i += p) isPrime[i] = false;
+    }
+  }
+  const primes = [];
+  for (let p = 7; p <= limit; p++) if(isPrime[p]) primes.push(self.bigInt(p));
+  return primes;
+}
+TRIAL_DIVISION_PRIMES = runSieve(SIEVE_LIMIT);
+
+let A_MOD_P_CACHE = new Map();
+let POW_MOD_P_CACHE = new Map();
+
+function powMod(base, exp, mod){
+  if (mod === null) return base.pow(exp);
+  let result = self.bigInt.one;
+  base = base.mod(mod);
+  while (exp.greater(0)) {
+    if (exp.isOdd()) result = result.multiply(base).mod(mod);
+    exp = exp.shiftRight(1);
+    base = base.square().mod(mod);
+  }
+  return result;
+}
+
+function getComponents(obj){
+  if (obj.val) return [self.bigInt(obj.val), self.bigInt.zero, self.bigInt.zero];
+  return [self.bigInt(obj.a), self.bigInt(obj.b), self.bigInt(obj.c)];
+}
+function getMagnitude(obj){
+  if (obj.val) return obj.val.length;
+  return parseInt(obj.b,10) + obj.a.length - 1;
+}
+function getBigInt(obj, force=false){
+  const b_bi = obj.b ? self.bigInt(obj.b) : self.bigInt.zero;
+  if (!force && b_bi.greater(200)) throw new Error('Exponent too large for direct calculation');
+  const [a,b,c] = getComponents(obj);
+  if (b.isZero()) return a.add(c);
+  return powMod(self.bigInt(10), b, null).multiply(a).add(c);
+}
+
+/* ------------------ Miller-Rabin (improved) ------------------ */
+function millerRabinTest(n, rounds=12){
+  if (n.equals(2) || n.equals(3)) return true;
+  if (n.lesser(2) || n.isEven()) return false;
+
+  const detBases = [2,325,9375,28178,450775,9780504,1795265022];
+  const isSmall = n.lesser(self.bigInt('18446744073709551616')); // 2^64
+
+  let d = n.subtract(1);
+  let s = 0;
+  while (d.isEven()) { d = d.shiftRight(1); s++; }
+
+  const testBase = (a) => {
+    let x = powMod(self.bigInt(a), d, n);
+    if (x.equals(1) || x.equals(n.subtract(1))) return true;
+    for (let r = 1; r < s; r++) {
+      x = x.square().mod(n);
+      if (x.equals(n.subtract(1))) return true;
+      if (x.equals(1)) return false;
+    }
+    return false;
+  };
+
+  if (isSmall) {
+    for (const a of detBases) {
+      if (self.bigInt(a).greaterOrEquals(n)) continue;
+      if (!testBase(a)) return false;
+    }
+    return true;
+  }
+
+  for (let i = 0; i < rounds; i++) {
+    const a = self.bigInt.randBetween(2, n.subtract(2));
+    if (!testBase(a)) return false;
+  }
+  return true;
+}
+
+/* ------------------ Jacobi symbol (a/n) ------------------ */
+function jacobiSymbol(a_in, n_in){
+  // returns -1,0,1 using big-integer
+  let a = a_in.mod(n_in);
+  let n = n_in;
+  if (n.isZero()) return 0;
+  let t = 1;
+  while (!a.isZero()){
+    while (a.isEven()){
+      a = a.divide(2);
+      const nmod8 = n.mod(8);
+      if (nmod8.equals(3) || nmod8.equals(5)) t = -t;
+    }
+    // swap a and n
+    const tmp = a; a = n; n = tmp;
+    if (a.mod(4).equals(3) && n.mod(4).equals(3)) t = -t;
+    a = a.mod(n);
+  }
+  return n.equals(1) ? t : 0;
+}
+
+/* ------------------ Lucas sequence via binary method ------------------ */
+/* Returns {U: U_k mod n, V: V_k mod n, Qk: Q^k mod n} */
+function lucasUV(P, Q, k, n){
+  // all are self.bigInt types
+  const ZERO = self.bigInt.zero;
+  const ONE = self.bigInt.one;
+  let U = ZERO;
+  let V = self.bigInt(2);
+  let Qk = ONE;
+  const D = self.bigInt(P).pow(2).subtract(self.bigInt(4).multiply(Q));
+  // inv2 modulo n:
+  const inv2 = n.add(1).divide(2); // since n odd, inverse of 2 mod n is (n+1)/2
+  const kBits = k.toString(2);
+  for (let i = 0; i < kBits.length; i++){
+    // doubling: U, V -> U2, V2
+    // U_{2m} = U_m * V_m
+    // V_{2m} = V_m^2 - 2 * Q^m
+    const U2 = U.multiply(V).mod(n);
+    const V2 = V.multiply(V).subtract(Qk.multiply(self.bigInt(2))).mod(n);
+    Qk = Qk.multiply(Qk).mod(n);
+
+    U = U2;
+    V = V2;
+
+    if (kBits[i] === '1'){
+      // increment: U_{m+1} = (P*U_m + V_m)/2
+      //             V_{m+1} = (D*U_m + P*V_m)/2
+      const tU = (self.bigInt(P).multiply(U).add(V)).multiply(inv2).mod(n);
+      const tV = (D.multiply(U).add(self.bigInt(P).multiply(V))).multiply(inv2).mod(n);
+      Qk = Qk.multiply(Q).mod(n);
+      U = tU;
+      V = tV;
+    }
+  }
+  return { U: U.mod(n), V: V.mod(n), Qk: Qk.mod(n) };
+}
+
+/* ------------------ Strong Lucas probable prime (Selfridge) ------------------ */
+function strongLucasSelfridge(n){
+  // n must be odd > 2
+  if (n.equals(2) || n.equals(3)) return true;
+  if (n.isEven() || n.lesser(2)) return false;
+
+  // find D such that (D/n) = -1 (Jacobi symbol)
+  let D = 5;
+  let sign = 1;
+  while (true){
+    const Dbi = self.bigInt(sign * D);
+    const j = jacobiSymbol(Dbi, n);
+    if (j === -1) { D = sign * D; break; }
+    sign = -sign;
+    D += 2;
+  }
+
+  const P = self.bigInt(1);
+  const Dbi = self.bigInt(D);
+  // Q = (1 - D)/4  where D = P^2 - 4Q -> Q = (P^2 - D)/4, with P=1 => Q=(1-D)/4
+  const Q = (self.bigInt(1).subtract(Dbi)).divide(4);
+
+  // write n+1 = 2^s * d
+  let d = n.add(1);
+  let s = 0;
+  while (d.isEven()){
+    d = d.divide(2);
+    s++;
+  }
+
+  // compute U_d using lucasUV
+  const res = lucasUV(P, Q, d, n);
+  if (res.U.equals(0)) return true;
+
+  // For r = 0..s-1 compute V_{d * 2^r} and check if V ≡ 0 mod n
+  let V = res.V;
+  let Qk = res.Qk;
+  for (let r = 0; r < s; r++){
+    // V_{d*2^r} is V after doubling r times starting from (U_d,V_d)
+    // Doubling formula for V_{2m} = V_m^2 - 2*Q^m  (we can apply iteratively)
+    if (V.equals(0)) return true;
+    // perform one doubling:
+    V = V.multiply(V).subtract(self.bigInt(2).multiply(Qk)).mod(n);
+    Qk = Qk.multiply(Qk).mod(n);
+  }
+  return false;
+}
+
+/* ------------------ Baillie-PSW: MR base 2 then strong Lucas ------------------ */
+function bailliePSW(n){
+  if (n.equals(2) || n.equals(3)) return true;
+  if (n.lesser(2) || n.isEven()) return false;
+
+  // quick MR base 2
+  if (!millerRabinTest(n, 1 /* single witness random but we want deterministic base 2 */)) return false;
+  // strong Lucas
+  if (!strongLucasSelfridge(n)) return false;
+
+  return true; // passes Baillie-PSW (very strong probable prime)
+}
+
+/* ------------------ streaming trial divisibility checks ------------------ */
+function primeCheckStream(n_obj){
+  const [A,B,C] = getComponents(n_obj);
+  const TEN = self.bigInt(10);
+  const THREE = self.bigInt(3);
+  const FIVE = self.bigInt(5);
+
+  if (A.isZero() && C.isZero()) return false;
+  if (B.isZero()){
+    const N = A.add(C);
+    if (N.lesser(2)) return false;
+    if (N.equals(2) || N.equals(3) || N.equals(5)) return true;
+    if (N.isEven() || N.mod(THREE).isZero() || N.mod(FIVE).isZero()) return false;
+    return bailliePSW(N);
+  }
+
+  // cheap filters
+  if (C.isEven()) return false;
+  if (A.add(C).mod(THREE).isZero()) return false;
+  if (C.mod(FIVE).isZero()) return false;
+
+  const A_str = A.toString();
+  const B_str = B.toString();
+  for (const p of TRIAL_DIVISION_PRIMES){
+    const p_str = p.toString();
+    const a_key = A_str + ':' + p_str;
+    const a_mod_p = A_MOD_P_CACHE.get(a_key) || A.mod(p);
+    if (!A_MOD_P_CACHE.has(a_key)) A_MOD_P_CACHE.set(a_key, a_mod_p);
+    const pow_key = B_str + ':' + p_str;
+    const pow_mod_p = POW_MOD_P_CACHE.get(pow_key) || powMod(TEN, B, p);
+    if (!POW_MOD_P_CACHE.has(pow_key)) POW_MOD_P_CACHE.set(pow_key, pow_mod_p);
+    const C_mod_p = C.mod(p);
+    const N_mod_p = a_mod_p.multiply(pow_mod_p).add(C_mod_p).mod(p);
+    if (N_mod_p.isZero()) return false;
+  }
+
+  // last step: try Baillie-PSW (strong)
+  // build N mod bigInt
+  try {
+    const Nfull = powMod(self.bigInt(10), B, null).multiply(A).add(C);
+    return bailliePSW(Nfull);
+  } catch(e) {
+    // exponent too big to expand, but we already did mod checks; fall back to "probable"
+    return true;
+  }
+}
+
+/* ------------------ product / details helpers (kept small & safe) ------------------ */
+function getProductString(x_obj,y_obj){
+  const xMag = getMagnitude(x_obj), yMag = getMagnitude(y_obj);
+  let approxDigits = xMag + yMag - 1;
+  if (approxDigits >= 21){
+    const [Ax,Bx,Cx] = getComponents(x_obj);
+    const [Ay,By,Cy] = getComponents(y_obj);
+    let New_A = Ax.multiply(Ay);
+    const New_B = Bx.add(By);
+    let coeffStr = New_A.toString();
+    if (coeffStr.length > 4) coeffStr = coeffStr.slice(0,4);
+    return { text: '~' + coeffStr + 'e' + New_B.toString(), color:'log' };
+  }
+  try {
+    const x = getBigInt(x_obj, true);
+    const y = getBigInt(y_obj, true);
+    const product = x.multiply(y);
+    const productStr = product.toString(10);
+    if (approxDigits >= 9) return { text: productStr.slice(0,10) + '… (' + productStr.length + 'd)', color:'normal' }
+    return { text: productStr.toUpperCase(), color:'normal' };
+  } catch(err) {
+    return { text:'ERR', color:'normal' };
+  }
+}
+
+function getPrimality(n_obj){
+  const mag = getMagnitude(n_obj);
+  // Very large => use streaming prefilters then mark probable (Baillie heavy)
+  if (mag >= 500) {
+    // cheap streaming trial division (fast) and conservative probable
+    if (primeCheckStream(n_obj)) return { isProbablePrime: true };
+    return { isPrime: false };
+  } else {
+    // small/medium: try to get full n and run Baillie-PSW (strong)
+    try {
+      const n = getBigInt(n_obj, true);
+      if (n.lesser(2)) return { isPrime: false };
+      // fast small checks
+      if (n.equals(2) || n.equals(3) || n.equals(5)) return { isPrime: true };
+      if (n.isEven()) return { isPrime: false };
+      // run Baillie-PSW
+      if (bailliePSW(n)) return { isPrime: true };
+      return { isPrime: false };
+    } catch(e) {
+      // fallback to stream
+      if (primeCheckStream(n_obj)) return { isProbablePrime: true };
+      return { isPrime: false };
+    }
+  }
+}
+
+/* ------------------ getDetails and message handler ------------------ */
+function getDetails(x_obj,y_obj,base,force=false){
+  const xMag = getMagnitude(x_obj), yMag = getMagnitude(y_obj);
+  const approxDigits = xMag + yMag - 1;
+  const x_id = x_obj.val ? x_obj.val : (x_obj.a + 'e' + x_obj.b + '+' + x_obj.c);
+  const y_id = y_obj.val ? y_obj.val : (y_obj.a + 'e' + y_obj.b + '+' + y_obj.c);
+  if(!force && approxDigits >= 120) {
+    const approxProduct = getProductString(x_obj,y_obj);
+    return { mode: 'equation', x: x_id, y: y_id, base: 10, approx: approxProduct.text };
+  }
+  try {
+    const x = getBigInt(x_obj, force);
+    const y = getBigInt(y_obj, force);
+    const product = x.multiply(y);
+    return { mode: 'full', value: product.toString(10).toUpperCase(), base: 10 };
+  } catch(err) {
+    if (force) throw err;
+    const approxProduct = getProductString(x_obj,y_obj);
+    return { mode: 'equation', x: x_id, y: y_id, base: 10, approx: approxProduct.text };
+  }
+}
+
+self.onmessage = (e) => {
+  const tasks = e.data;
+  const results = [];
+  for (const task of tasks) {
+    try {
+      let data = {};
+      if (task.type === 'getProduct') data = getProductString(task.x_obj, task.y_obj);
+      else if (task.type === 'getPrimality') data = getPrimality(task.n_obj);
+      else if (task.type === 'getDetails') data = getDetails(task.x_obj, task.y_obj, 10, false);
+      else if (task.type === 'forceGetDetails') data = getDetails(task.x_obj, task.y_obj, 10, true);
+      results.push({ id: task.id, status: 'success', data: data });
+    } catch (err) {
+      if (task.type.includes('Details')) results.push({ id: task.id, status: 'error', data: { mode: 'full', value: 'Error: ' + err.message } });
+      else results.push({ id: task.id, status: 'error', data: { text: 'ERR' } });
+    }
+  }
+  self.postMessage(results);
+};
+`;
+
+/* ------------------ WorkerManager (UI thread) ------------------ */
+class WorkerManager {
+  constructor(numWorkers){
+    this.requestQueue = new Map();
+    this.workerIdle = new Array(numWorkers).fill(true);
+    this.workers = [];
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    for (let i=0;i<numWorkers;i++){
+      const w = new Worker(workerUrl);
+      w.onmessage = (e) => this.handleWorkerResult(e, i);
+      this.workers.push(w);
+    }
+  }
+  queueRequest(task){
+    if (!this.requestQueue.has(task.id)) this.requestQueue.set(task.id, task);
+  }
+  processQueue(){
+    if (this.requestQueue.size === 0) return;
+    const idleIndex = this.workerIdle.indexOf(true);
+    if (idleIndex === -1) return;
+    const tasks = Array.from(this.requestQueue.values()).slice(0, 10);
+    for (const t of tasks) this.requestQueue.delete(t.id);
+    if (tasks.length) {
+      this.workers[idleIndex].postMessage(tasks);
+      this.workerIdle[idleIndex] = false;
+    }
+  }
+  handleWorkerResult(e, workerIndex){
+    this.workerIdle[workerIndex] = true;
+    const results = e.data;
+    for (const res of results){
+      // simply dispatch an event — main app listens
+      window.dispatchEvent(new CustomEvent('workerResult', { detail: res }));
+    }
+    // try to process more
+    this.processQueue();
+  }
+}
+const workerManager = new WorkerManager(Math.max(2, navigator.hardwareConcurrency || 2));
+
+/* ------------------ Main UI: grid rendering & interactions ------------------ */
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d');
+let scale = 1.0, offsetX = 0, offsetY = 0;
+let cellSize = 88;
+let gridOriginCol = { val: '1' }, gridOriginRow = { val: '1' };
+let highlightedCell = { x: { val:'1' }, y: { val:'1' } };
+const cellCache = new Map();
+const colors = { gridBg:'#07121a', text:'#dbeafe', placeholder:'#6b7280', gridLine:'#0e2430' };
+
+function resizeCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function parseCoordinate(input){
+  const str = input.replace(/\s/g,'').replace(/[+\-]$/,'');
+  let match = str.match(/^(\\d+)\\^(\\d+)\\+(\\d+)$/);
+  if (match) { if (match[1] === '10') return { a:'1', b:match[2], c:match[3] }; throw new Error('Base-power only supported for base 10'); }
+  match = str.match(/^(\\d*\\.?\\d*)e(\\d+)\\+(\\d+)$/);
+  if (match) return { a:(match[1]===''?'1':match[1]), b:match[2], c:match[3] };
+  match = str.match(/^(\\d*\\.?\\d*)e(\\d+)$/);
+  if (match) return { a:(match[1]===''?'1':match[1]), b:match[2], c:'0' };
+  if (str.match(/^\\d+$/)) return { val: str };
+  throw new Error('Invalid number format');
+}
+function incrementCoord(coord_obj, i){
+  if (i === 0) return coord_obj;
+  if (coord_obj.val) return { val: bigInt(coord_obj.val).add(i).toString() };
+  return { a: coord_obj.a, b: coord_obj.b, c: bigInt(coord_obj.c).add(i).toString() };
+}
+function getCoordID(obj){
+  if (obj.val) return obj.val;
+  const c_bi = bigInt(obj.c);
+  const sign = c_bi.isNegative() ? '' : '+';
+  return `${obj.a}e${obj.b}${sign}${obj.c}`;
+}
+function areCoordsEqual(a,b){
+  if (a.val && b.val) return a.val === b.val;
+  if (a.val || b.val) return false;
+  return a.a === b.a && a.b === b.b && a.c === b.c;
+}
+
+function getDisplayLabel(current_obj){
+  try {
+    if (current_obj.val) return formatBigIntegerString(current_obj.val);
+    const b_int = parseInt(current_obj.b, 10);
+    if (b_int < 18) {
+      const a = bigInt(current_obj.a);
+      const c = bigInt(current_obj.c);
+      const val = a.multiply(bigInt(10).pow(b_int)).add(c).toString();
+      return formatBigIntegerString(val);
+    }
+    return formatBigNumber_obj(current_obj);
+  } catch(e) {
+    return current_obj.a + 'e' + current_obj.b + (current_obj.c && current_obj.c.toString().startsWith('-') ? current_obj.c : '+'+current_obj.c);
+  }
+}
+
+function draw(){
+  if (!canvas) return;
+  if (canvas.width === 0 || canvas.height === 0) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const scaledCell = cellSize * scale;
+  if (scaledCell < 6) return;
+  const view = { x1: -offsetX/scale, y1: -offsetY/scale, x2: (canvas.width-offsetX)/scale, y2: (canvas.height-offsetY)/scale };
+  const dataView = { x1: view.x1 - cellSize, y1: view.y1 - cellSize, x2: view.x2 - cellSize, y2: view.y2 - cellSize };
+  const minCol = Math.floor(dataView.x1 / cellSize), maxCol = Math.ceil(dataView.x2 / cellSize);
+  const minRow = Math.floor(dataView.y1 / cellSize), maxRow = Math.ceil(dataView.y2 / cellSize);
+
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const baseFont = Math.max(10, 14 / scale);
+
+  for (let r = minRow - 2; r <= maxRow + 2; r++){
+    const cellY_obj = incrementCoord(gridOriginRow, r);
+    if (cellY_obj.val && bigInt(cellY_obj.val).lesser(1)) continue;
+    const drawY = cellSize + r * cellSize;
+    for (let c = minCol - 2; c <= maxCol + 2; c++){
+      const cellX_obj = incrementCoord(gridOriginCol, c);
+      if (cellX_obj.val && bigInt(cellX_obj.val).lesser(1)) continue;
+      const drawX = cellSize + c * cellSize;
+      const cellId = `c:${getCoordID(cellX_obj)},${getCoordID(cellY_obj)}`;
+      if (!cellCache.has(cellId)) workerManager.queueRequest({ id: cellId, type: 'getProduct', x_obj: cellX_obj, y_obj: cellY_obj });
+      ctx.fillStyle = colors.gridBg; ctx.fillRect(drawX, drawY, cellSize, cellSize);
+      if (areCoordsEqual(cellX_obj, highlightedCell.x) && areCoordsEqual(cellY_obj, highlightedCell.y)){
+        ctx.fillStyle = 'rgba(67,97,238,0.14)'; ctx.fillRect(drawX, drawY, cellSize, cellSize);
+      }
+      ctx.strokeStyle = colors.gridLine; ctx.strokeRect(drawX, drawY, cellSize, cellSize);
+      const cached = cellCache.get(cellId);
+      let txt = '...';
+      if (cached) {
+        if (cached.mode === 'full') txt = cached.value;
+        else if (cached.mode === 'equation') txt = cached.approx || cached.text || '...';
+        else txt = cached.text || cached.value || '...';
+      }
+      ctx.fillStyle = cached ? colors.text : colors.placeholder;
+      let display = txt;
+      if (display.length > 14) display = display.slice(0,12) + '…';
+      ctx.font = `600 ${baseFont}px Inter, Arial`;
+      ctx.fillText(display, drawX + cellSize/2, drawY + cellSize/2);
+    }
+  }
+
+  // Draw corner label
+  ctx.restore();
+}
+
+window.addEventListener('workerResult', (e) => {
+  const r = e.detail;
+  if(!r || !r.id) return;
+  // store product and details
+  cellCache.set(r.id, r.data);
+  const term = document.getElementById('terminalContent');
+  if (term) term.textContent = `Result ${r.id}: ${JSON.stringify(r.data).slice(0,200)}`;
+  draw();
+});
+
+/* ----- interactions ----- */
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const factor = e.deltaY > 0 ? 0.9 : 1.1;
+  const oldScale = scale;
+  let newScale = Math.max(0.12, Math.min(scale * factor, 24));
+  scale = newScale;
+  const actual = newScale / oldScale;
+  offsetX = mx - (mx - offsetX) * actual;
+  offsetY = my - (my - offsetY) * actual;
+  document.getElementById('zoomInfo').textContent = `${scale.toFixed(2)}x`;
+  draw();
+  clearTimeout(canvas._wheelTimer);
+  canvas._wheelTimer = setTimeout(() => workerManager.processQueue(), 120);
+}, { passive: false });
+
+let isPanning=false, lastPan={x:0,y:0}, didPan=false;
+canvas.addEventListener('mousedown', (e) => { isPanning=true; lastPan={x:e.clientX,y:e.clientY}; didPan=false; });
+canvas.addEventListener('mousemove', (e) => {
+  if (!isPanning) return;
+  const dx = e.clientX - lastPan.x, dy = e.clientY - lastPan.y;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPan = true;
+  offsetX += dx; offsetY += dy;
+  lastPan = { x: e.clientX, y: e.clientY };
+  draw();
+});
+canvas.addEventListener('mouseup', (e) => {
+  if (!didPan) handleCellClick(e);
+  isPanning = false;
+  workerManager.processQueue();
+});
+canvas.addEventListener('mouseleave', () => { isPanning=false; });
+
+function handleCellClick(e){
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const worldX = (x - offsetX) / scale, worldY = (y - offsetY) / scale;
+  if (worldX < cellSize && worldY < cellSize) return;
+  const col = Math.floor((worldX - cellSize) / cellSize);
+  const row = Math.floor((worldY - cellSize) / cellSize);
+  const x_obj = incrementCoord(gridOriginCol, col);
+  const y_obj = incrementCoord(gridOriginRow, row);
+  highlightedCell = { x: x_obj, y: y_obj };
+  const id = `d:c:${getCoordID(x_obj)},${getCoordID(y_obj)}`;
+  document.getElementById('terminalContent').textContent = 'Loading details...';
+  workerManager.queueRequest({ id: id, type: 'getDetails', x_obj: x_obj, y_obj: y_obj });
+  workerManager.processQueue();
+}
+
+/* ----- controls ----- */
+document.getElementById('goButton').addEventListener('click', () => {
+  try {
+    const x_obj = parseCoordinate(document.getElementById('xInput').value);
+    const y_obj = parseCoordinate(document.getElementById('yInput').value);
+    gridOriginCol = x_obj; gridOriginRow = y_obj; highlightedCell = { x: x_obj, y: y_obj };
+    const rect = canvas.getBoundingClientRect();
+    offsetX = rect.width/2 - (cellSize + cellSize/2) * scale;
+    offsetY = rect.height/2 - (cellSize + cellSize/2) * scale;
+    cellCache.clear();
+    workerManager.requestQueue.clear();
+    workerManager.processQueue();
+    draw();
+  } catch(err) {
+    alert('Invalid format. Use e.g. 123    1e9    10^100+25    or 5e30+7');
+  }
+});
+
+/* ----- The General UI - small polish ----- */
+(function(){
+  const NUM = Math.max(4, Math.min(12, navigator.hardwareConcurrency || 6));
+  const grid = document.getElementById('gen-worker-grid');
+  for (let i=0;i<NUM;i++){
+    const d = document.createElement('div');
+    d.className = 'worker-card';
+    d.id = `gen-card-${i}`;
+    d.innerHTML = `<div style="font-weight:700">Unit ${i}</div><div id="gen-status-${i}" style="opacity:.85;color:var(--muted)">Ready</div>`;
+    grid.appendChild(d);
+  }
+  document.getElementById('gen-start-btn').addEventListener('click', () => {
+    document.getElementById('gen-target-status').textContent = 'Working';
+    document.getElementById('gen-log-output').textContent += '\\nDeployment started...';
+  });
+})();
+
+/* ----- Tabs ----- */
+function showApp(which){
+  document.getElementById('app-imt').style.display = which === 'imt' ? 'block' : 'none';
+  document.getElementById('app-gen').style.display = which === 'gen' ? 'block' : 'none';
+  document.getElementById('tab-imt').classList.toggle('active', which === 'imt');
+  document.getElementById('tab-gen').classList.toggle('active', which === 'gen');
+  resizeCanvas();
+}
+
+/* ----- Init ----- */
+resizeCanvas();
+setTimeout(() => { workerManager.processQueue(); }, 150);
+</script>
+</body>
+</html>

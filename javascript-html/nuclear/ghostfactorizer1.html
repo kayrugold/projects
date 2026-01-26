@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stride Hunter v14 (Ghost Architect)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --bg: #0f172a;
+        --card: #1e293b;
+        --text: #e2e8f0;
+        --accent: #10b981; /* Emerald */
+        --highlight: #3b82f6; /* Blue */
+        --danger: #ef4444;
+        --warning: #f59e0b;
+    }
+    body { background-color: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 10px; }
+    .card { max-width: 800px; margin: 0 auto; background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 0 30px rgba(16, 185, 129, 0.15); border: 1px solid #334155; }
+    
+    /* Dashboard Grid */
+    .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+    .stat-box { background: #0f172a; padding: 10px; border-radius: 8px; border: 1px solid #334155; text-align: center; }
+    .stat-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-val { font-size: 1.2rem; font-weight: bold; color: var(--accent); }
+    .stat-val.blue { color: var(--highlight); }
+    
+    /* Inputs */
+    .input-group { margin-bottom: 10px; }
+    label { font-size: 0.75rem; color: #64748b; font-weight: bold; display: block; margin-bottom: 4px; }
+    input { width: 100%; background: #334155; border: 1px solid #475569; color: white; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 1rem; text-align: center; }
+    input:focus { outline: none; border-color: var(--accent); }
+
+    /* Controls */
+    .btn-main { width: 100%; padding: 15px; background: var(--accent); color: #000; font-weight: 900; border-radius: 8px; text-transform: uppercase; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+    .btn-main:hover { background: #34d399; }
+    .btn-sqr { background: var(--highlight); color: white; }
+    .btn-sqr:hover { background: #60a5fa; }
+    .btn-stop { background: var(--danger); color: white; display: none; }
+    .btn-save { background: var(--warning); color: #000; display: none; margin-top: 10px; }
+
+    /* Core Visualization */
+    .cores-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 20px; }
+    .core-card { background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #334155; position: relative; overflow: hidden; }
+    .core-card.active { border-color: var(--accent); box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); }
+    .core-title { font-size: 0.7rem; color: #94a3b8; display: flex; justify-content: space-between; }
+    .core-progress { height: 4px; background: #334155; margin-top: 8px; border-radius: 2px; }
+    .core-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
+    .core-status { font-size: 0.65rem; color: #64748b; margin-top: 4px; }
+
+    /* Log */
+    .log-window { height: 150px; overflow-y: auto; background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 10px; font-size: 0.75rem; margin-top: 20px; color: #cbd5e1; }
+    .log-line { margin-bottom: 4px; border-bottom: 1px solid #1e293b; padding-bottom: 2px; }
+    .hit-line { color: var(--danger); font-weight: bold; background: rgba(239, 68, 68, 0.1); padding: 4px; }
+    .success-line { color: var(--accent); }
+    .info-line { color: var(--highlight); }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <div class="text-center mb-6">
+        <h1 class="text-2xl font-black text-emerald-400 tracking-tighter">GHOST FACTORIZER v1.3</h1>
+        <p class="text-xs text-slate-500">ARCHITECT EDITION • SQUARING & HOLOGRAPHIC ENGINE</p>
+    </div>
+
+    <!-- Live Stats -->
+    <div class="dashboard">
+        <div class="stat-box">
+            <div class="stat-label">Mission Timer</div>
+            <div id="clock" class="stat-val">00:00:00</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Operation</div>
+            <div id="opStatus" class="stat-val blue">IDLE</div>
+        </div>
+    </div>
+
+    <!-- Inputs -->
+    <div class="grid grid-cols-2 gap-4">
+        <div class="input-group">
+            <label>TARGET EXPONENT (10^N)</label>
+            <input id="inpExp" value="1000000000">
+        </div>
+        <div class="input-group">
+            <label>ADD CONSTANT (+C)</label>
+            <input id="inpAdd" value="61">
+        </div>
+    </div>
+    
+    <div class="input-group" id="rangeGroup">
+        <label>SEARCH RANGE (START - END)</label>
+        <div class="flex gap-2">
+            <input id="inpStart" value="100000000000">
+            <input id="inpEnd" value="100500000000">
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="grid grid-cols-1 gap-2">
+        <button id="btnStart" class="btn-main" onclick="startMission()">INITIALIZE GHOST PROTOCOL (PRIME CHECK)</button>
+        <button id="btnSquare" class="btn-main btn-sqr" onclick="startSquaring()">CALCULATE SQUARE & ROOT</button>
+        <button id="btnStop" class="btn-main btn-stop" onclick="stopMission()">ABORT MISSION</button>
+        <button id="btnSave" class="btn-main btn-save" onclick="saveSquareFile()">💾 SAVE SQUARED RESULT</button>
+    </div>
+
+    <!-- Cores / Progress -->
+    <div id="coreGrid" class="cores-container"></div>
+
+    <!-- Log -->
+    <div id="logBox" class="log-window">
+        <div class="log-line">> System Online.</div>
+        <div class="log-line">> Ready for 10^1,000,000,000 + 61.</div>
+        <div class="log-line">> Choose Protocol: Ghost Scan or Linear Squaring.</div>
+    </div>
+</div>
+
+<!-- WORKER SCRIPT (SAFE CONTAINER) -->
+<script id="worker-source" type="text/worker">
+/* GHOST WORKER v1.3 - Unified Engine */
+
+// Helper: Power Modulo
+function powMod(b, e, m) {
+    let res = 1n; 
+    b %= m;
+    while (e > 0n) {
+        if ((e & 1n) === 1n) res = (res * b) % m;
+        e >>= 1n; 
+        b = (b * b) % m;
+    }
+    return res;
+}
+
+// Helper: Modular Inverse of 2
+function modInverse2(p) {
+    return (p + 1n) / 2n;
+}
+
+// Helper: Pad Chunk for Squaring
+function padChunk(chunk) {
+    return chunk.toString().padStart(9, '0');
+}
+
+// Main Loop
+self.onmessage = async function(e) {
+    const { mode, expStr, addStr, startStr, endStr, id } = e.data;
+    const E = BigInt(expStr);
+    const C = BigInt(addStr);
+
+    if (mode === 'scan') {
+        // --- GHOST PRIME SCANNER ---
+        const start = BigInt(startStr);
+        const end = BigInt(endStr);
+        const wheel = [1, 7, 11, 13, 17, 19, 23, 29];
+        let count = 0;
+        let pBase = start - (start % 30n);
+        if(pBase < start) pBase += 30n;
+        let lastReport = Date.now();
+
+        while(pBase < end) {
+            for(let w of wheel) {
+                const p = pBase + BigInt(w);
+                if (p < start) continue;
+                if (p > end) break;
+
+                const nMod = (powMod(10n, E, p) + C) % p;
+                const inv2 = modInverse2(p);
+                const iMod = ((nMod + 1n) * inv2) % p;
+                
+                if (iMod === inv2) {
+                    self.postMessage({ type: 'hit', p: p.toString() });
+                }
+                count++;
+            }
+            pBase += 30n;
+            
+            if(count % 500 === 0) {
+                const now = Date.now();
+                if (now - lastReport > 500) {
+                    const range = end - start;
+                    const current = pBase - start;
+                    const pct = Number(current * 100n / range);
+                    self.postMessage({ type: 'status', pct: pct, count: count });
+                    count = 0;
+                    lastReport = now;
+                }
+            }
+        }
+        self.postMessage({ type: 'done' });
+
+    } else if (mode === 'square') {
+        // --- LINEAR SQUARING ENGINE (O(N)) ---
+        // Formula: N^2 = 10^(2E) + 2C*10^E + C^2
+        const C_SQUARED = C * C;
+        const TWO_C = 2n * C;
+        const BASE = 1000000000n; // 10^9
+        
+        // Safety Limit Check inside worker
+        if (E > 2000000n) {
+             self.postMessage({ type: 'error', msg: 'Exponent too large for in-memory squaring. Use Ghost Scan.' });
+             return;
+        }
+
+        const TOTAL_DIGITS = Number(2n * E);
+        const E_chunks = Math.ceil(Number(E) / 9);
+        const totalChunks = Math.ceil(TOTAL_DIGITS / 9);
+        
+        let carry = 0n;
+        let chunksProcessed = 0;
+        
+        // 1. C^2
+        let cSq = C_SQUARED;
+        let cEndChunks = [];
+        while (cSq > 0n) { cEndChunks.push(cSq % BASE); cSq /= BASE; }
+
+        for (const chunk of cEndChunks) {
+            let val = chunk + carry;
+            let resultChunk = val % BASE;
+            carry = val / BASE;
+            self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk) });
+            chunksProcessed++;
+        }
+
+        // 2. Padding
+        for(let i=chunksProcessed; i < E_chunks; i++) {
+             let val = carry;
+             let resultChunk = val % BASE;
+             carry = val / BASE;
+             self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk) });
+             
+             if (i % 1000 === 0) self.postMessage({ type: 'status', pct: (i / totalChunks) * 100 });
+             await new Promise(r => setTimeout(r, 0));
+        }
+
+        // 3. 2C Term
+        let P2_val = TWO_C;
+        while (P2_val > 0n || carry > 0n) {
+            let p2Chunk = P2_val % BASE;
+            P2_val /= BASE;
+            let val = p2Chunk + carry;
+            let resultChunk = val % BASE;
+            carry = val / BASE;
+            self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk) });
+            chunksProcessed++;
+        }
+        
+        // 4. High Zeros
+        for(let i = chunksProcessed; i < totalChunks - 1; i++) {
+            let val = carry;
+            let resultChunk = val % BASE;
+            carry = val / BASE;
+            self.postMessage({ type: 'chunk', chunk: padChunk(resultChunk) });
+            if (i % 10000 === 0) self.postMessage({ type: 'status', pct: (i / totalChunks) * 100 });
+            await new Promise(r => setTimeout(r, 0));
+        }
+
+        // 5. MSB
+        let val = 1n + carry; 
+        self.postMessage({ type: 'chunk', chunk: padChunk(val % BASE) });
+        
+        self.postMessage({ type: 'done', mode: 'square' });
+    }
+};
+</script>
+
+<script>
+// --- MAIN THREAD ---
+let workers = [];
+let startTime = 0;
+let timerInterval = null;
+let factorsFound = new Set();
+let chunkedSquare = [];
+
+function log(msg, style='') {
+    const box = document.getElementById('logBox');
+    const line = document.createElement('div');
+    line.className = `log-line ${style}`;
+    line.innerText = `> ${msg}`;
+    box.prepend(line);
+}
+
+function formatTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    return `${h.toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+}
+
+function toggleUI(running) {
+    document.getElementById('btnStart').style.display = running ? 'none' : 'block';
+    document.getElementById('btnSquare').style.display = running ? 'none' : 'block';
+    document.getElementById('btnStop').style.display = running ? 'block' : 'none';
+    document.getElementById('inpExp').disabled = running;
+}
+
+// --- MODE 1: PRIME SCAN ---
+function startMission() {
+    if(workers.length > 0) return;
+    
+    chunkedSquare = []; // Clear square memory
+    document.getElementById('btnSave').style.display = 'none';
+    document.getElementById('coreGrid').innerHTML = '';
+    document.getElementById('logBox').innerHTML = '';
+    factorsFound.clear();
+    
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    const startVal = BigInt(document.getElementById('inpStart').value);
+    const endVal = BigInt(document.getElementById('inpEnd').value);
+    
+    toggleUI(true);
+    document.getElementById('opStatus').innerText = "SCANNING";
+    document.getElementById('opStatus').className = "stat-val text-emerald-400";
+
+    const coreCount = navigator.hardwareConcurrency || 4;
+    const totalRange = endVal - startVal;
+    const rangePerCore = totalRange / BigInt(coreCount);
+
+    log(`Mission Start. Target: 10^${exp} + ${add}`);
+    log(`Holographic Scan Range: ${(Number(totalRange)/1e9).toFixed(2)} Billion`);
+
+    // Sqrt Calculation (The Index)
+    const eBig = BigInt(exp);
+    const cBig = BigInt(add);
+    // Index I = (N+1)/2 = 5*10^(E-1) + (C+1)/2
+    const rootApprox = `5e${Number(eBig)-1}`;
+    log(`Integer Sqrt (Index): ~${rootApprox}`, 'info-line');
+
+    const blob = new Blob([document.getElementById('worker-source').textContent], {type: 'application/javascript'});
+    const workerUrl = URL.createObjectURL(blob);
+
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+        document.getElementById('clock').innerText = formatTime(Date.now() - startTime);
+    }, 1000);
+
+    for(let i=0; i<coreCount; i++) {
+        const div = document.createElement('div');
+        div.className = 'core-card active';
+        div.id = `core-${i}`;
+        div.innerHTML = `<div class="core-title"><span>CORE ${i+1}</span><span id="pct-${i}">0%</span></div><div class="core-progress"><div id="bar-${i}" class="core-fill"></div></div>`;
+        document.getElementById('coreGrid').appendChild(div);
+
+        const wStart = startVal + (rangePerCore * BigInt(i));
+        const wEnd = (i === coreCount - 1) ? endVal : wStart + rangePerCore;
+
+        const w = new Worker(workerUrl);
+        w.onmessage = (e) => handleWorkerMsg(e, i);
+        w.postMessage({ mode: 'scan', expStr: exp, addStr: add, startStr: wStart.toString(), endStr: wEnd.toString(), id: i });
+        workers.push(w);
+    }
+}
+
+// --- MODE 2: SQUARING ---
+function startSquaring() {
+    if(workers.length > 0) return;
+    
+    chunkedSquare = [];
+    document.getElementById('btnSave').style.display = 'none';
+    document.getElementById('coreGrid').innerHTML = '';
+    document.getElementById('logBox').innerHTML = '';
+    
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    const eBig = BigInt(exp);
+
+    // Initial Output Form
+    log(`Algebraic Form: (10^${exp} + ${add})^2`, 'info-line');
+    log(`= 10^(2*${exp}) + ${2*Number(add)}*10^${exp} + ${Number(add)**2}`, 'info-line');
+
+    if (eBig > 2000000n) {
+        log(`EXPONENT TOO LARGE for browser storage.`, 'hit-line');
+        log(`Limit is E=2,000,000 (~4MB file).`, 'hit-line');
+        return;
+    }
+
+    toggleUI(true);
+    document.getElementById('opStatus').innerText = "SQUARING";
+    document.getElementById('opStatus').className = "stat-val blue";
+
+    // Setup Single Core UI
+    const div = document.createElement('div');
+    div.className = 'core-card active';
+    div.id = `core-0`;
+    div.innerHTML = `<div class="core-title"><span>SQUARING ENGINE</span><span id="pct-0">0%</span></div><div class="core-progress"><div id="bar-0" class="core-fill"></div></div>`;
+    document.getElementById('coreGrid').appendChild(div);
+
+    const blob = new Blob([document.getElementById('worker-source').textContent], {type: 'application/javascript'});
+    const workerUrl = URL.createObjectURL(blob);
+
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+        document.getElementById('clock').innerText = formatTime(Date.now() - startTime);
+    }, 100);
+
+    const w = new Worker(workerUrl);
+    w.onmessage = (e) => handleWorkerMsg(e, 0);
+    w.postMessage({ mode: 'square', expStr: exp, addStr: add });
+    workers.push(w);
+}
+
+function handleWorkerMsg(e, id) {
+    const data = e.data;
+    if(data.type === 'status') {
+        document.getElementById(`pct-${id}`).innerText = data.pct.toFixed(1) + '%';
+        document.getElementById(`bar-${id}`).style.width = data.pct + '%';
+    } 
+    else if (data.type === 'hit') {
+        const p = data.p;
+        if(!factorsFound.has(p)) {
+            factorsFound.add(p);
+            log(`FACTOR CONFIRMED: ${p}`, 'hit-line');
+            document.getElementById(`core-${id}`).style.borderColor = '#ef4444';
+        }
+    }
+    else if (data.type === 'chunk') {
+        chunkedSquare.push(data.chunk);
+    }
+    else if (data.type === 'done') {
+        if (data.mode === 'square') {
+            log(`Squaring Complete. Chunks: ${chunkedSquare.length}`);
+            log(`Result Ready (~${(chunkedSquare.length*9/1000000).toFixed(2)} MB)`, 'success-line');
+            document.getElementById('btnSave').style.display = 'block';
+        } else {
+            document.getElementById(`bar-${id}`).style.background = '#10b981';
+        }
+        workers[id].terminate();
+        workers[id] = null;
+        checkAllDone();
+    }
+    else if (data.type === 'error') {
+        log(data.msg, 'hit-line');
+        stopMission();
+    }
+}
+
+function checkAllDone() {
+    if(workers.every(w => w === null)) {
+        stopMission();
+        log('Operation Complete.', 'success-line');
+        toggleUI(false);
+    }
+}
+
+function stopMission() {
+    workers.forEach(w => w && w.terminate());
+    workers = [];
+    clearInterval(timerInterval);
+    toggleUI(false);
+    document.getElementById('opStatus').innerText = "IDLE";
+}
+
+function saveSquareFile() {
+    if (chunkedSquare.length === 0) return;
+    const blob = new Blob(chunkedSquare.reverse(), {type: 'text/plain'}); // Reverse because calculation is LSB->MSB
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `square_result.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    log('File Saved.');
+}
+</script>
+</body>
+</html>
+

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNOMON SPECTROMETER</title>
+<style>
+    :root {
+        --bg: #050505;
+        --scan: #00ff41;
+        --match: #ff003c;
+        --text: #e2e8f0;
+        --panel: #111;
+        --dim: #444;
+    }
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+    
+    /* HUD */
+    .hud {
+        background: var(--panel); border-bottom: 2px solid var(--scan);
+        padding: 15px; z-index: 100; display: flex; gap: 10px;
+        align-items: center; justify-content: space-between;
+    }
+    .hud-title { font-weight: 900; font-size: 1.2rem; color: var(--scan); }
+    
+    .input-row { display: flex; gap: 10px; flex: 1; max-width: 800px; }
+    input {
+        background: #000; border: 1px solid var(--dim); color: #fff;
+        padding: 10px; font-family: inherit; font-size: 1rem; flex: 1;
+        font-weight: bold;
+    }
+    button {
+        background: var(--scan); color: #000; border: none; padding: 0 20px;
+        font-weight: 900; cursor: pointer; text-transform: uppercase;
+    }
+    button:hover { background: #fff; }
+
+    /* MAIN VIEW */
+    .main-view {
+        flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+        overflow: hidden; position: relative;
+    }
+    
+    /* LEFT: TARGET DNA */
+    .panel-left {
+        border-right: 1px solid var(--dim);
+        display: flex; flex-direction: column;
+        padding: 20px; overflow-y: auto;
+        background: linear-gradient(90deg, #050505 0%, #0a0a0a 100%);
+    }
+    .dna-strand {
+        display: flex; flex-direction: column; gap: 2px;
+        margin-top: 20px;
+    }
+    .dna-bit {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 0.8rem; color: #666;
+        padding: 4px; border-bottom: 1px solid #222;
+    }
+    .bit-val { color: var(--scan); font-weight: bold; width: 30px; }
+    .bit-q { color: #888; font-size: 0.7rem; }
+
+    /* RIGHT: LIBRARY MATCHING */
+    .panel-right {
+        padding: 20px; display: flex; flex-direction: column;
+        background: #000; overflow-y: auto;
+    }
+    .match-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 5px; margin-top: 20px;
+    }
+    .candidate {
+        background: #111; border: 1px solid #333; padding: 5px;
+        font-size: 0.7rem; text-align: center; cursor: pointer;
+        transition: all 0.2s;
+    }
+    .candidate:hover { border-color: #fff; }
+    .candidate.match { border-color: var(--match); background: rgba(255,0,60,0.1); color: var(--match); font-weight: bold; }
+    
+    .spectrum-bar {
+        height: 20px; background: #222; margin-bottom: 20px;
+        position: relative; overflow: hidden;
+    }
+    .spectrum-fill {
+        height: 100%; background: var(--scan); width: 0%;
+        transition: width 0.5s;
+    }
+
+    /* LABELS */
+    .section-head {
+        color: #fff; font-weight: bold; border-bottom: 1px solid var(--dim);
+        padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between;
+    }
+
+</style>
+</head>
+<body>
+
+<div class="hud">
+    <div class="hud-title">GNOMON SPECTROMETER</div>
+    <div class="input-row">
+        <input type="text" id="inpN" value="71641520761751435455133616475667090434063332228247871795429">
+        <button onclick="analyze()">RUN SPECTRUM ANALYSIS</button>
+    </div>
+</div>
+
+<div class="main-view">
+    <div class="panel-left">
+        <div class="section-head">
+            <span>TARGET SIGNATURE (The Drill Sequence)</span>
+            <span id="targetLen" style="color:var(--scan)">0 GENS</span>
+        </div>
+        <div style="font-size:0.8rem; color:#888; margin-bottom:10px;">
+            Logic: Quotient(n) % Remainder(n-1)
+        </div>
+        <div id="targetDNA" class="dna-strand"></div>
+    </div>
+
+    <div class="panel-right">
+        <div class="section-head">
+            <span>FACTOR RESONANCE LIBRARY</span>
+            <span id="libStatus">IDLE</span>
+        </div>
+        
+        <div class="spectrum-bar"><div class="spectrum-fill" id="progBar"></div></div>
+        
+        <div style="font-size:0.8rem; color:#888;">
+            Scanning small odd integers for matching sequence fragments...
+        </div>
+        
+        <div id="matches" class="match-grid"></div>
+    </div>
+</div>
+
+<script>
+    // --- ENGINE ---
+    
+    function getSignature(N_bigint) {
+        // The "Drill Down" Sequence
+        // Step 0: N % 9.
+        // Step 1: Quotient % Remainder.
+        // Step 2...
+        
+        const seq = [];
+        let curr = N_bigint;
+        let lastMod = 9n; // Start with Mod 9
+        
+        // Limit depth to avoid infinite loops on 0/1
+        for(let i=0; i<50; i++) {
+            if(lastMod <= 1n) lastMod = 9n; // Reset floor logic as per previous tool
+            
+            let rem = curr % lastMod;
+            let quo = curr / lastMod;
+            
+            seq.push({ gen: i, mod: lastMod, rem: rem, quo: quo });
+            
+            if(quo === 0n) break; // End of number
+            
+            curr = quo;
+            lastMod = rem; // "Divide quotient mod remainder" -> Next mod is current rem
+            if(lastMod === 0n) lastMod = 9n; // Safety
+        }
+        return seq;
+    }
+
+    function analyze() {
+        const nStr = document.getElementById('inpN').value.trim();
+        if(!nStr) return;
+        const N = BigInt(nStr);
+        
+        // 1. GENERATE TARGET DNA
+        const dna = getSignature(N);
+        renderDNA(dna);
+        
+        // 2. SCAN LIBRARY
+        // We look for small numbers that generate SIMILAR sequences.
+        // Similarity Metric: The "Remainder Stream".
+        // If Target Remainder Stream is [8, 7, 3, 1...]
+        // And Number 17 Remainder Stream is [8, 0...] (Example)
+        // We look for overlaps.
+        
+        document.getElementById('matches').innerHTML = '';
+        document.getElementById('progBar').style.width = '0%';
+        document.getElementById('libStatus').innerText = "SCANNING...";
+        
+        // Extract plain remainder array for comparison
+        const targetRems = dna.map(d => Number(d.rem));
+        
+        // Run Async Scan
+        setTimeout(() => runLibraryScan(targetRems), 100);
+    }
+
+    function renderDNA(seq) {
+        const box = document.getElementById('targetDNA');
+        box.innerHTML = '';
+        document.getElementById('targetLen').innerText = seq.length + " GENS";
+        
+        seq.forEach(s => {
+            const row = document.createElement('div');
+            row.className = 'dna-bit';
+            // Visualizing the Drill: Mod -> Rem
+            // e.g. "Mod 9 -> 8"
+            row.innerHTML = `
+                <span style="color:#666; width:30px;">G${s.gen}</span>
+                <span style="color:#888;">MOD ${s.mod}</span>
+                <span style="color:#666;">&rarr;</span>
+                <span class="bit-val">${s.rem}</span>
+                <span class="bit-q">(Q=${s.quo.toString().slice(0,8)}..)</span>
+            `;
+            box.appendChild(row);
+        });
+    }
+
+    function runLibraryScan(targetSig) {
+        const batch = 2000;
+        let hits = 0;
+        const grid = document.getElementById('matches');
+        
+        // We scan odd numbers 3..5000
+        for(let i=3; i<batch; i+=2) {
+            // Get DNA of 'i'
+            // But 'i' is small, so we treat it as the Target
+            // N = i.
+            // Wait, we want to know if 'i' is a factor of N.
+            // If i is a factor, N % i == 0.
+            // The signature might not be identical, but mathematically related.
+            // However, the user asked "What do I make of this sequence?".
+            // The hypothesis is: The sequence reveals the "family".
+            
+            // Let's check for direct matches in the FIRST FEW GENS.
+            // If N's first ray is 8, maybe it matches numbers that also start with Ray 8.
+            
+            const sig = getSignature(BigInt(i));
+            const sigRems = sig.map(d => Number(d.rem));
+            
+            // Compare
+            // Calculate a "Resonance Score"
+            // How many sequential Remainders match?
+            let matchCount = 0;
+            const len = Math.min(targetSig.length, sigRems.length);
+            for(let k=0; k<len; k++) {
+                if(targetSig[k] === sigRems[k]) matchCount++;
+                else break; // Strict prefix matching?
+            }
+            
+            // Or maybe just the first one?
+            // Mod 9 is a strong filter.
+            
+            if(matchCount >= 2) { // Show strong matches (at least 2 gens match)
+                const d = document.createElement('div');
+                d.className = 'candidate match';
+                d.innerHTML = `
+                    <div style="font-size:1.2rem;">${i}</div>
+                    <div>MATCH: ${matchCount}</div>
+                `;
+                grid.appendChild(d);
+                hits++;
+            } else if (matchCount === 1) {
+                 // Weak match, maybe just show as gray
+                 // Too many for Mod 9 (1/9th of all numbers match gen 0)
+            }
+        }
+        
+        document.getElementById('progBar').style.width = '100%';
+        document.getElementById('libStatus').innerText = hits + " RESONANT CANDIDATES";
+        
+        if(hits === 0) {
+            grid.innerHTML = '<div style="padding:20px; color:#666;">No strong signature matches found in library (3..2000).<br>The sequence is unique or complex.</div>';
+        }
+    }
+
+</script>
+</body>
+</html>

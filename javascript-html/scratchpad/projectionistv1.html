@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architect v17: The Projectionist</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #020617; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 20px; }
+    
+    /* MAIN CONTAINER */
+    .scanner-box { 
+        background: #0f172a; border: 1px solid #1e293b; padding: 20px; 
+        border-radius: 12px; max-width: 1000px; margin: 0 auto; 
+        box-shadow: 0 0 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* INPUTS */
+    .control-panel { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    .input-group { position: relative; }
+    input { 
+        background: #1e293b; border: 1px solid #334155; color: white; padding: 15px; 
+        font-size: 1.2rem; width: 100%; border-radius: 8px; font-family: inherit; font-weight: bold;
+    }
+    input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+    
+    .btn-scan { 
+        background: #3b82f6; color: white; padding: 0 30px; font-size: 1.2rem; 
+        font-weight: 900; border-radius: 8px; border: none; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-scan:hover { background: #2563eb; transform: translateY(-2px); }
+    .btn-scan:disabled { background: #334155; color: #64748b; cursor: not-allowed; transform: none; }
+
+    /* CORE SETTINGS */
+    .core-settings { display: flex; gap: 15px; align-items: center; background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #1e293b; }
+    .core-select { background: transparent; color: #34d399; border: none; font-weight: bold; cursor: pointer; }
+    .progress-container { flex-grow: 1; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; position: relative;}
+    .progress-bar { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
+    .timer { font-size: 0.8rem; color: #fbbf24; font-weight: bold; min-width: 60px; text-align: right; }
+
+    /* VISUAL STRIP */
+    .gap-strip {
+        display: flex; gap: 4px; overflow-x: auto; padding: 20px 0;
+        align-items: center; min-height: 120px;
+        border-top: 1px dashed #334155; border-bottom: 1px dashed #334155;
+    }
+    .gap-strip::-webkit-scrollbar { height: 8px; }
+    .gap-strip::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    .block {
+        flex-shrink: 0; padding: 10px; border-radius: 6px; text-align: center;
+        min-width: 80px; cursor: pointer; border: 1px solid transparent;
+        transition: transform 0.1s; position: relative;
+    }
+    .block:hover { transform: scale(1.05); z-index: 10; }
+    .block.center { border: 2px solid #fff; box-shadow: 0 0 20px rgba(255,255,255,0.2); z-index: 5; }
+    
+    .b-wall { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
+    .b-gap { background: #064e3b; color: #34d399; border-color: #059669; }
+    .b-unknown { background: #1e293b; color: #64748b; border-color: #334155; }
+
+    .b-val { font-size: 0.7rem; opacity: 0.7; margin-bottom: 4px; }
+    .b-status { font-weight: bold; font-size: 1rem; }
+    .b-factor { font-size: 0.65rem; color: #fbbf24; margin-top: 4px; }
+
+    /* TRACE PANEL */
+    .trace-panel { 
+        display: none; background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 20px;
+        animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .trace-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #1e293b; padding-bottom: 10px; }
+    .trace-title { color: #94a3b8; font-size: 0.8rem; font-weight: bold; letter-spacing: 1px; }
+    
+    .trace-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .t-box { background: #0f172a; padding: 15px; border-radius: 6px; border: 1px solid #1e293b; }
+    .t-lbl { font-size: 0.7rem; color: #64748b; margin-bottom: 5px; display: block; }
+    .t-val { font-size: 1.1rem; font-weight: bold; color: #e2e8f0; word-break: break-all; }
+    .t-hl { color: #fbbf24; }
+
+    .formula { font-family: monospace; color: #a78bfa; background: rgba(167, 139, 250, 0.1); padding: 10px; border-radius: 4px; margin-top: 15px; text-align: center; font-size: 0.9rem; }
+
+</style>
+</head>
+<body>
+
+<div class="scanner-box">
+    <h1 class="text-xl font-bold text-center text-blue-400 tracking-widest">ARCHITECT v17: THE PROJECTIONIST</h1>
+    
+    <div class="control-panel">
+        <div class="input-group">
+            <input id="inpExpr" type="text" value="10^100 + 1" placeholder="Enter Massive Odd Number (e.g. 2^127 - 1)">
+        </div>
+        <button id="btnScan" class="btn-scan" onclick="startScan()">SCAN SECTOR</button>
+    </div>
+
+    <div class="core-settings">
+        <div class="text-xs text-slate-500 font-bold mr-2">CORES:</div>
+        <select id="selCores" class="core-select">
+            <option value="2">2</option>
+            <option value="4" selected>4</option>
+            <option value="8">8</option>
+            <option value="16">16</option>
+        </select>
+        <div class="progress-container">
+            <div id="progBar" class="progress-bar"></div>
+        </div>
+        <div id="timer" class="timer">0.00s</div>
+    </div>
+
+    <!-- THE STRIP -->
+    <div id="strip" class="gap-strip">
+        <div class="text-center w-full text-slate-600 italic">Ready to project...</div>
+    </div>
+
+    <!-- TRACEBACK PANEL -->
+    <div id="tracePanel" class="trace-panel">
+        <div class="trace-header">
+            <span class="trace-title">REVERSE PROJECTION TRACE</span>
+            <button onclick="document.getElementById('tracePanel').style.display='none'" class="text-red-400 font-bold">×</button>
+        </div>
+        
+        <div class="trace-grid">
+            <div class="t-box">
+                <span class="t-lbl">TARGET WALL (N)</span>
+                <div id="tN" class="t-val">--</div>
+            </div>
+            <div class="t-box">
+                <span class="t-lbl">IMPACT FACTOR (P)</span>
+                <div id="tP" class="t-val t-hl">--</div>
+            </div>
+        </div>
+
+        <div class="t-box mt-4">
+            <span class="t-lbl">3-ENGINE ORIGIN (The Source)</span>
+            <div class="flex justify-between items-center mt-2">
+                <div class="text-blue-400 font-bold text-lg">3 × <span id="tM">--</span></div>
+                <div class="text-slate-500 text-xs">Steps: <span id="tSteps" class="text-white">--</span></div>
+            </div>
+        </div>
+
+        <div id="tFormula" class="formula">
+            --
+        </div>
+    </div>
+</div>
+
+<script>
+// --- BIGINT MATH ---
+function parseInput(str) {
+    str = str.toLowerCase().replace(/\s/g, '');
+    try {
+        if (str.includes('^')) {
+            let parts = str.split('^');
+            let base = BigInt(parts[0]);
+            let rest = parts[1];
+            let exp, add = 0n;
+            
+            if (rest.includes('+')) {
+                let p = rest.split('+');
+                exp = BigInt(p[0]);
+                add = BigInt(p[1]);
+            } else if (rest.includes('-')) {
+                let p = rest.split('-');
+                exp = BigInt(p[0]);
+                add = -BigInt(p[1]);
+            } else { exp = BigInt(rest); }
+            
+            // Check parity immediately
+            let valPreview = (base % 2n === 0n) ? 0n : 1n; // Base parity
+            // If base is even, val is even. If base is odd, val is odd.
+            // Add parity:
+            let totalParity = (valPreview + add) % 2n;
+            if(totalParity === 0n) add += 1n; // Fix parity
+            
+            return { base, exp, add, val: null, isMassive: true };
+        } 
+        else {
+            let val = BigInt(str);
+            if(val % 2n === 0n) val += 1n;
+            return { base: val, exp: 1n, add: 0n, val: val, isMassive: false };
+        }
+    } catch (e) { alert("Invalid Format"); return null; }
+}
+
+function formatBig(n) {
+    let s = n.toString();
+    if(s.length < 12) return s;
+    return s.slice(0,4) + "..." + s.slice(-4);
+}
+
+// --- WORKER BLOB ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { id, startData, range, scanLimit } = e.data;
+    const { base, exp, add, isMassive } = startData;
+    
+    const BASE = BigInt(base);
+    const EXP = BigInt(exp);
+    const ADD = BigInt(add);
+    
+    // We are scanning a small window around the target
+    // range = [-4, -2, 0, 2, 4] offsets from Target
+    
+    // Local Results
+    const results = {};
+
+    function powMod(b, e, m) {
+        let res = 1n; b %= m;
+        while (e > 0n) { if (e & 1n) res = (res * b) % m; b = (b * b) % m; e >>= 1n; }
+        return res;
+    }
+
+    // Prepare Sieve for Factors (Scan Limit)
+    // We generate primes up to scanLimit to check divisibility
+    // For massive numbers, we can't check all factors, but we check "Projection Beams" up to limit
+    
+    const limit = Math.min(scanLimit, 10000000); // 10M Limit per worker
+    const sieveSize = Math.floor(Math.sqrt(limit)) + 1;
+    const sieve = new Uint8Array(sieveSize);
+    const primes = [];
+    for(let i=3; i<sieveSize; i+=2) {
+        if(!sieve[i]) {
+            primes.push(i);
+            for(let j=i*i; j<sieveSize; j+=2*i) sieve[j]=1;
+        }
+    }
+
+    // Check each offset in our chunk
+    range.forEach(offset => {
+        const offBig = BigInt(offset);
+        let factor = 0n;
+        
+        // We need to check if (N + offset) is divisible by any P
+        // N = Base^Exp + Add
+        // Check: (Base^Exp + Add + Offset) % P == 0
+        
+        // 1. Check small primes first (fast)
+        for(let p of primes) {
+            const P = BigInt(p);
+            let mod = 0n;
+            if(isMassive) {
+                const term = powMod(BASE, EXP, P);
+                mod = (term + ADD + offBig) % P;
+            } else {
+                mod = (BASE + offBig) % P; // Simple int
+            }
+            if(mod === 0n) { factor = P; break; }
+        }
+        
+        // 2. If no small factor, scan up to limit
+        if(factor === 0n) {
+            // Brute force projection check
+            let startP = BigInt(primes[primes.length-1]) + 2n;
+            const endP = BigInt(limit);
+            
+            // Optimization: We define a "Window" of primes.
+            // In a real app, this would be segmented. 
+            // For this visualizer, we just perform the modular checks.
+            
+            for(let p=startP; p<endP; p+=2n) {
+                // Determine if p is prime (simple check)
+                // Actually, just checking odd numbers is okay for "Projection Beam" logic
+                // The 3-Engine creates ALL odd composites, so checking odd factors is valid.
+                
+                let mod = 0n;
+                if(isMassive) {
+                    const term = powMod(BASE, EXP, p);
+                    mod = (term + ADD + offBig) % p;
+                } else {
+                    mod = (BASE + offBig) % p;
+                }
+                
+                if(mod === 0n) { factor = p; break; }
+            }
+        }
+        
+        results[offset] = factor === 0n ? "GAP" : factor.toString();
+    });
+
+    self.postMessage({ id, results });
+};
+`;
+
+const blob = new Blob([workerCode], {type:'application/javascript'});
+const workerUrl = URL.createObjectURL(blob);
+
+// --- APP STATE ---
+let workers = [];
+let scanResults = {};
+let targetData = null;
+let timer = null;
+let startTime = 0;
+
+function init() {
+    const cores = navigator.hardwareConcurrency || 4;
+    const sel = document.getElementById('selCores');
+    // Select nearest option
+    for(let i=0; i<sel.options.length; i++) {
+        if(parseInt(sel.options[i].value) <= cores) sel.selectedIndex = i;
+    }
+}
+
+function startScan() {
+    const raw = document.getElementById('inpExpr').value;
+    targetData = parseInput(raw);
+    if(!targetData) return;
+
+    // UI Reset
+    document.getElementById('strip').innerHTML = '';
+    document.getElementById('tracePanel').style.display = 'none';
+    document.getElementById('btnScan').disabled = true;
+    document.getElementById('progBar').style.width = '0%';
+    
+    // Timer
+    startTime = Date.now();
+    if(timer) clearInterval(timer);
+    timer = setInterval(() => {
+        document.getElementById('timer').innerText = ((Date.now()-startTime)/1000).toFixed(2) + "s";
+    }, 50);
+
+    // Define Sector Range (Neighboring Odds)
+    // -10 to +10 (11 blocks centered on 0)
+    const offsets = [];
+    for(let i=-10; i<=10; i+=2) offsets.push(i);
+    
+    // Prepare Workers
+    const coreCount = parseInt(document.getElementById('selCores').value);
+    scanResults = {};
+    workers.forEach(w => w.terminate());
+    workers = [];
+    
+    let completed = 0;
+    
+    // Distribute offsets
+    const chunkSize = Math.ceil(offsets.length / coreCount);
+    
+    for(let i=0; i<coreCount; i++) {
+        const w = new Worker(workerUrl);
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, offsets.length);
+        const myRange = offsets.slice(start, end);
+        
+        if(myRange.length === 0) continue; // No work for this core
+
+        w.postMessage({
+            id: i,
+            startData: { 
+                base: targetData.base.toString(),
+                exp: targetData.exp.toString(),
+                add: targetData.add.toString(),
+                isMassive: targetData.isMassive
+            },
+            range: myRange,
+            scanLimit: 50000000 // Scan factors up to 50M
+        });
+
+        w.onmessage = (e) => {
+            Object.assign(scanResults, e.data.results);
+            completed++;
+            updateProgress(completed, coreCount);
+            
+            if(completed >= coreCount) {
+                finishScan();
+            }
+            w.terminate();
+        };
+        
+        workers.push(w);
+    }
+}
+
+function updateProgress(done, total) {
+    const pct = (done / total) * 100;
+    document.getElementById('progBar').style.width = pct + "%";
+}
+
+function finishScan() {
+    clearInterval(timer);
+    document.getElementById('btnScan').disabled = false;
+    document.getElementById('progBar').style.backgroundColor = "#10b981";
+    renderStrip();
+}
+
+function renderStrip() {
+    const strip = document.getElementById('strip');
+    strip.innerHTML = '';
+    
+    // Sort offsets
+    const offsets = Object.keys(scanResults).map(Number).sort((a,b) => a-b);
+    
+    offsets.forEach(off => {
+        const res = scanResults[off];
+        const isCenter = (off === 0);
+        const div = document.createElement('div');
+        
+        let typeClass = 'b-unknown';
+        let statusText = "?";
+        let factorText = "";
+        
+        if (res === "GAP") {
+            typeClass = 'b-gap';
+            statusText = "GAP";
+            factorText = "Scan Clear";
+        } else {
+            typeClass = 'b-wall';
+            statusText = "WALL";
+            factorText = `Hit: ${formatBig(res)}`;
+        }
+        
+        div.className = `block ${typeClass} ${isCenter ? 'center' : ''}`;
+        
+        // HTML Content
+        div.innerHTML = `
+            <div class="b-val">${off > 0 ? '+'+off : off}</div>
+            <div class="b-status">${statusText}</div>
+            <div class="b-factor">${factorText}</div>
+        `;
+        
+        div.onclick = () => showTrace(off, res);
+        
+        strip.appendChild(div);
+        
+        if(isCenter) {
+            setTimeout(() => div.scrollIntoView({behavior:'smooth', inline:'center'}), 100);
+        }
+    });
+}
+
+// --- REVERSE PROJECTION LOGIC ---
+function showTrace(offset, factorStr) {
+    const panel = document.getElementById('tracePanel');
+    
+    if (factorStr === "GAP") {
+        // Handle Gap click? Maybe show "No Origin Found"
+        return;
+    }
+    
+    panel.style.display = 'block';
+    
+    const P = BigInt(factorStr);
+    const offBig = BigInt(offset);
+    
+    // Calculate N (The Wall)
+    // N = Base^Exp + Add + Offset
+    // Note: We can't display N fully if it's massive. We display symbolic.
+    
+    let nDisplay = "";
+    if(targetData.isMassive) {
+        let totalAdd = targetData.add + offBig;
+        nDisplay = `10^${targetData.exp} + ${totalAdd}`;
+    } else {
+        let val = targetData.val + offBig;
+        nDisplay = val.toString();
+    }
+    
+    document.getElementById('tN').innerText = nDisplay;
+    document.getElementById('tP').innerText = P.toString();
+    
+    // THE 3-ENGINE TRACEBACK
+    // P originated from 3.
+    // Steps = (P - 3) / 2
+    // The "Other Factor" (Q) = N / P.
+    // Origin m = Q - 2*(Steps)
+    
+    const steps = (P - 3n) / 2n;
+    document.getElementById('tSteps').innerText = steps.toString();
+    
+    // We can only calculate 'm' if we know Q.
+    // If N is massive, we can't divide N/P easily in JS without big libraries for symbolic division.
+    // BUT we can explain the logic.
+    
+    if(!targetData.isMassive) {
+        const N_val = targetData.val + offBig;
+        const Q = N_val / P;
+        const m = Q - (2n * steps);
+        document.getElementById('tM').innerText = m.toString();
+        document.getElementById('tFormula').innerHTML = `
+            N = ${P} × ${Q} <br>
+            Derivation: (3 + 2(${steps})) × (${m} + 2(${steps}))
+        `;
+    } else {
+        document.getElementById('tM').innerText = "Unknown (Massive Q)";
+        document.getElementById('tFormula').innerHTML = `
+            Projection Beam ${P} confirmed.<br>
+            Source: 3-Engine (+${steps} increments).
+        `;
+    }
+}
+
+init();
+
+</script>
+</body>
+</html>
+

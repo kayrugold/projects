@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Infinite Gap Scanner</title>
+<style>
+    :root {
+        --bg: #020617;
+        --grid-line: #1e293b;
+        --text-main: #94a3b8;
+        --text-bright: #fff;
+        --accent: #f59e0b;  /* Amber for Target/Select */
+        --wall: #ef4444;    /* Red for Walls */
+        --prime-bg: #064e3b;/* Dark Green */
+        --square: #3b82f6;  /* Blue */
+        --panel-bg: rgba(15, 23, 42, 0.85);
+    }
+
+    body {
+        margin: 0;
+        overflow: hidden; /* Prevent native scroll */
+        background-color: var(--bg);
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        color: var(--text-main);
+        touch-action: none; /* Crucial for custom gestures */
+    }
+
+    /* Full Screen Canvas */
+    canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+    }
+
+    /* HUD Overlay */
+    #ui-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none; /* Let touches pass through to canvas */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    /* Top Bar */
+    .top-bar {
+        pointer-events: auto;
+        padding: 12px 16px;
+        background: var(--panel-bg);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid #334155;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .title {
+        font-weight: 700;
+        color: #e2e8f0;
+        font-size: 0.9rem;
+    }
+
+    .controls {
+        display: flex;
+        gap: 8px;
+    }
+
+    button {
+        background: #1e293b;
+        border: 1px solid #475569;
+        color: #e2e8f0;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    button.active {
+        background: var(--accent);
+        color: #0f172a;
+        border-color: var(--accent);
+    }
+
+    /* Bottom Info Panel */
+    .info-panel {
+        pointer-events: auto;
+        margin: 16px;
+        padding: 16px;
+        background: var(--panel-bg);
+        backdrop-filter: blur(8px);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        transition: opacity 0.2s;
+        opacity: 0; /* Hidden by default */
+        transform: translateY(10px);
+    }
+    .info-panel.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .info-header {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-bright);
+        margin-bottom: 4px;
+        font-family: monospace;
+    }
+
+    .info-detail {
+        font-size: 1rem;
+        color: var(--accent);
+        font-family: monospace;
+        margin-bottom: 8px;
+    }
+
+    .tag {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .tag.wall { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid var(--wall); }
+    .tag.square { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid var(--square); }
+
+    /* Target Input Modal */
+    #jump-modal {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        background: #1e293b;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #475569;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+        display: none;
+        pointer-events: auto;
+        z-index: 100;
+    }
+    #jump-modal.open { display: block; }
+    
+    .modal-input {
+        background: #0f172a;
+        border: 1px solid #334155;
+        color: white;
+        font-size: 1.2rem;
+        padding: 8px;
+        border-radius: 6px;
+        width: 120px;
+        text-align: center;
+        margin-right: 8px;
+    }
+
+</style>
+</head>
+<body>
+
+<canvas id="gridCanvas"></canvas>
+
+<div id="ui-layer">
+    <div class="top-bar">
+        <div class="title">GAP SCANNER</div>
+        <div class="controls">
+            <button id="btnSym" class="active">Sym</button>
+            <button id="btnJump">Jump</button>
+            <button id="btnReset">Reset</button>
+        </div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+        <div class="info-header" id="infoVal">0</div>
+        <div class="info-detail" id="infoEq">0 × 0</div>
+        <div id="infoTags"></div>
+    </div>
+</div>
+
+<div id="jump-modal">
+    <div style="margin-bottom:10px; color:#cbd5e1; font-size:0.9rem;">Target Center (Odd)</div>
+    <div style="display:flex;">
+        <input type="number" id="jumpInput" class="modal-input" value="101">
+        <button id="btnGo" style="background:var(--accent); color:black;">GO</button>
+    </div>
+</div>
+
+<script>
+    /**
+     * INFINITE SCROLL & ZOOM ENGINE
+     * Coordinate System:
+     * - "World Space": The odd number indices. Index 0 = 3, Index 1 = 5, etc.
+     * - "Screen Space": Pixels on the screen.
+     */
+
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimize
+    
+    // State
+    const state = {
+        offsetX: -20, // World coordinates (pixels)
+        offsetY: -20,
+        scale: 60,    // Pixels per cell
+        minScale: 5,
+        maxScale: 200,
+        symmetry: true,
+        selected: null // {r: odd, c: odd, val: num}
+    };
+
+    // Touch Handling State
+    let isDragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    let lastDist = 0; // For pinch
+
+    // --- Core Logic ---
+
+    // Convert Screen Pixel -> Odd Number Index
+    function screenToGrid(sx, sy) {
+        const gridX = Math.floor((sx + state.offsetX) / state.scale);
+        const gridY = Math.floor((sy + state.offsetY) / state.scale);
+        return {
+            colIdx: gridX,
+            rowIdx: gridY,
+            colVal: (gridX * 2) + 3,
+            rowVal: (gridY * 2) + 3
+        };
+    }
+
+    // Convert Odd Number Index -> Screen Pixel
+    function gridToScreen(gIdxX, gIdxY) {
+        return {
+            x: (gIdxX * state.scale) - state.offsetX,
+            y: (gIdxY * state.scale) - state.offsetY
+        };
+    }
+
+    function render() {
+        // 1. Clear
+        ctx.fillStyle = '#020617'; // Match CSS var --bg
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. Determine Viewport in Grid Indices
+        const startColIdx = Math.floor(state.offsetX / state.scale);
+        const startRowIdx = Math.floor(state.offsetY / state.scale);
+        
+        const visibleCols = Math.ceil(canvas.width / state.scale) + 1;
+        const visibleRows = Math.ceil(canvas.height / state.scale) + 1;
+
+        // 3. Grid Lines (Optional optimization: only draw if scale is large enough)
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#1e293b';
+
+        // 4. Cell Loop
+        ctx.font = `bold ${Math.min(state.scale * 0.4, 24)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let r = startRowIdx; r < startRowIdx + visibleRows; r++) {
+            // Optimization: If symmetry on, and we are way below diagonal, skip row? 
+            // Actually, easier to check per cell for the exact diagonal cut.
+            const rowVal = (r * 2) + 3;
+            if (rowVal < 3) continue;
+
+            const yPos = (r * state.scale) - state.offsetY;
+
+            for (let c = startColIdx; c < startColIdx + visibleCols; c++) {
+                const colVal = (c * 2) + 3;
+                if (colVal < 3) continue;
+
+                // Symmetry Check
+                if (state.symmetry && rowVal > colVal) {
+                    // Draw "Void" or nothing
+                    continue; 
+                }
+
+                const xPos = (c * state.scale) - state.offsetX;
+                const val = rowVal * colVal;
+
+                // Check Selection
+                let isSelected = false;
+                if (state.selected && state.selected.r === rowVal && state.selected.c === colVal) {
+                    isSelected = true;
+                }
+
+                // Backgrounds
+                if (isSelected) {
+                    ctx.fillStyle = '#f59e0b'; // Amber
+                    ctx.fillRect(xPos, yPos, state.scale, state.scale);
+                } else if (rowVal === colVal) {
+                    // Square
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+                    ctx.fillRect(xPos, yPos, state.scale, state.scale);
+                    ctx.strokeStyle = '#1e3a8a';
+                    ctx.strokeRect(xPos, yPos, state.scale, state.scale);
+                } else {
+                    // Normal Wall
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.strokeRect(xPos, yPos, state.scale, state.scale);
+                }
+
+                // Text (LOD - Level of Detail)
+                if (state.scale > 25) {
+                    if (isSelected) ctx.fillStyle = '#000';
+                    else if (rowVal === colVal) ctx.fillStyle = '#60a5fa'; // Blue text
+                    else ctx.fillStyle = '#64748b'; // Slate text
+                    
+                    // If zoomed out too much, numbers overlap. 
+                    // Simple check: if number string length * char width > cell width, hide
+                    const txt = val.toString();
+                    if (ctx.measureText(txt).width < state.scale - 4) {
+                        ctx.fillText(txt, xPos + state.scale/2, yPos + state.scale/2);
+                    } else if (state.scale > 10) {
+                        // Draw a dot if text doesn't fit
+                         ctx.fillRect(xPos + state.scale/2 - 2, yPos + state.scale/2 - 2, 4, 4);
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Interactions ---
+
+    function handleResize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        render();
+    }
+    window.addEventListener('resize', handleResize);
+
+    // Mouse / Touch Logic
+    
+    function onStart(x, y) {
+        isDragging = true;
+        lastX = x;
+        lastY = y;
+    }
+
+    function onMove(x, y) {
+        if (!isDragging) return;
+        const dx = x - lastX;
+        const dy = y - lastY;
+        
+        state.offsetX -= dx;
+        state.offsetY -= dy;
+        
+        lastX = x;
+        lastY = y;
+        render();
+    }
+
+    function onEnd() {
+        isDragging = false;
+    }
+
+    function onZoom(delta, centerX, centerY) {
+        const zoomSpeed = 0.001; // For wheel
+        const newScale = Math.max(state.minScale, Math.min(state.maxScale, state.scale * (1 - delta * zoomSpeed)));
+        
+        // Zoom towards pointer:
+        // worldPos = screenPos + offset
+        // offset = worldPos - screenPos
+        // We want worldPos to stay same relative to screenPos
+        
+        const worldX = centerX + state.offsetX;
+        const worldY = centerY + state.offsetY;
+        
+        const ratio = newScale / state.scale;
+        
+        state.offsetX = (worldX * ratio) - centerX;
+        state.offsetY = (worldY * ratio) - centerY;
+        state.scale = newScale;
+        
+        render();
+    }
+
+    function onTap(x, y) {
+        const grid = screenToGrid(x, y);
+        if (grid.colVal < 3 || grid.rowVal < 3) return;
+        if (state.symmetry && grid.rowVal > grid.colVal) return; // Ignore void
+
+        // Update Selection
+        const val = grid.rowVal * grid.colVal;
+        state.selected = { r: grid.rowVal, c: grid.colVal, val: val };
+        
+        // Update UI
+        updateInfoPanel(grid.rowVal, grid.colVal, val);
+        render();
+    }
+
+    // -- Event Listeners --
+
+    // Mouse
+    canvas.addEventListener('mousedown', e => onStart(e.clientX, e.clientY));
+    window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', onEnd);
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        // Normalize wheel delta
+        const delta = e.deltaY;
+        onZoom(delta, e.clientX, e.clientY);
+    }, { passive: false });
+    
+    canvas.addEventListener('click', e => {
+        // Simple heuristic to distinguish click from drag
+        // (For now assuming click if not moved much, but native click works fine usually)
+        if (!isDragging) onTap(e.clientX, e.clientY);
+    });
+
+    // Touch
+    canvas.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+            onStart(e.touches[0].clientX, e.touches[0].clientY);
+        } else if (e.touches.length === 2) {
+            // Pinch Start
+            isDragging = false; // Stop panning
+            const t1 = e.touches[0];
+            const t2 = e.touches[1];
+            lastDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault(); // Stop browser scroll
+        if (e.touches.length === 1) {
+            onMove(e.touches[0].clientX, e.touches[0].clientY);
+        } else if (e.touches.length === 2) {
+            // Pinch Move
+            const t1 = e.touches[0];
+            const t2 = e.touches[1];
+            const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+            
+            const centerX = (t1.clientX + t2.clientX) / 2;
+            const centerY = (t1.clientY + t2.clientY) / 2;
+
+            // Calculate scale factor
+            const scaleFactor = dist / lastDist;
+            const newScale = Math.max(state.minScale, Math.min(state.maxScale, state.scale * scaleFactor));
+            
+            // Apply Zoom Math
+            const worldX = centerX + state.offsetX;
+            const worldY = centerY + state.offsetY;
+            const ratio = newScale / state.scale;
+            state.offsetX = (worldX * ratio) - centerX;
+            state.offsetY = (worldY * ratio) - centerY;
+            state.scale = newScale;
+
+            lastDist = dist;
+            render();
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+        if (e.touches.length === 0 && !isDragging) {
+             // If it was a quick tap
+             // Need better tap logic for touch, but for now relies on 'click'
+        }
+        onEnd();
+    });
+
+    // --- UI Logic ---
+
+    const ui = {
+        panel: document.getElementById('infoPanel'),
+        val: document.getElementById('infoVal'),
+        eq: document.getElementById('infoEq'),
+        tags: document.getElementById('infoTags'),
+        btnSym: document.getElementById('btnSym'),
+        btnJump: document.getElementById('btnJump'),
+        btnReset: document.getElementById('btnReset'),
+        modal: document.getElementById('jump-modal'),
+        jumpInput: document.getElementById('jumpInput'),
+        btnGo: document.getElementById('btnGo')
+    };
+
+    function updateInfoPanel(r, c, val) {
+        ui.val.innerText = val;
+        ui.eq.innerText = `${r} × ${c}`;
+        ui.panel.classList.add('visible');
+        
+        let tagsHtml = '';
+        if (r === c) {
+            tagsHtml += `<span class="tag square">Perfect Square</span>`;
+        } else {
+            tagsHtml += `<span class="tag wall">Odd Composite</span>`;
+        }
+        ui.tags.innerHTML = tagsHtml;
+    }
+
+    ui.btnSym.onclick = () => {
+        state.symmetry = !state.symmetry;
+        ui.btnSym.classList.toggle('active');
+        render();
+    };
+
+    ui.btnReset.onclick = () => {
+        state.offsetX = -20;
+        state.offsetY = -20;
+        state.scale = 60;
+        state.selected = null;
+        ui.panel.classList.remove('visible');
+        render();
+    };
+
+    ui.btnJump.onclick = () => {
+        ui.modal.classList.add('open');
+    };
+
+    ui.btnGo.onclick = () => {
+        const target = parseInt(ui.jumpInput.value);
+        if (target && target >= 3) {
+            // Jump Logic
+            // We want to center on sqrt(target)
+            const root = Math.floor(Math.sqrt(target));
+            // Find closest odd
+            let center = (root % 2 === 0) ? root - 1 : root; 
+            
+            // Grid Index for 'center'
+            // val = 2*idx + 3  =>  idx = (val - 3)/2
+            const idx = (center - 3) / 2;
+            
+            // We want this idx to be in center of screen
+            // offsetX = (idx * scale) - (screenW / 2)
+            state.offsetX = (idx * state.scale) - (canvas.width / 2) + (state.scale/2);
+            state.offsetY = (idx * state.scale) - (canvas.height / 2) + (state.scale/2);
+            
+            state.selected = null;
+            render();
+        }
+        ui.modal.classList.remove('open');
+    };
+
+    // Initialize
+    handleResize();
+    render();
+
+</script>
+</body>
+</html>

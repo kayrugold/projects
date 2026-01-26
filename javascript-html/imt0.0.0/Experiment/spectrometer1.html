@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNOMON RELATION MAPPER</title>
+<style>
+    :root {
+        --bg: #020617;
+        --panel: #0f172a;
+        --border: #1e293b;
+        --cyan: #22d3ee;
+        --gold: #facc15;
+        --pink: #f472b6;
+        --green: #4ade80;
+        --text: #e2e8f0;
+    }
+    body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Courier New', monospace;
+        margin: 0; height: 100vh; display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* --- HUD --- */
+    .hud {
+        padding: 15px; border-bottom: 2px solid var(--cyan);
+        background: var(--panel); z-index: 10;
+        display: grid; grid-template-columns: 1fr auto; gap: 20px;
+    }
+    .hud-header { display: flex; flex-direction: column; gap: 5px; }
+    .title { font-weight: 900; font-size: 1.2rem; color: var(--cyan); letter-spacing: 2px; }
+    .subtitle { font-size: 0.8rem; color: #64748b; }
+    
+    input {
+        background: #000; border: 1px solid var(--border); color: var(--gold);
+        padding: 10px; font-family: inherit; font-size: 1rem; font-weight: bold;
+        width: 100%; min-width: 300px;
+    }
+    
+    /* --- MAIN GRID --- */
+    .main-grid {
+        flex: 1; display: grid; grid-template-columns: 300px 1fr;
+        overflow: hidden;
+    }
+    
+    /* LEFT: CONTROL LANES */
+    .lane-panel {
+        background: rgba(15, 23, 42, 0.5); border-right: 1px solid var(--border);
+        overflow-y: auto; display: flex; flex-direction: column;
+    }
+    .lane-header {
+        padding: 10px; background: rgba(0,0,0,0.5); color: #94a3b8;
+        font-size: 0.7rem; font-weight: bold; text-transform: uppercase;
+        position: sticky; top: 0; backdrop-filter: blur(5px);
+    }
+    
+    .lane-card {
+        padding: 15px; border-bottom: 1px solid var(--border);
+        cursor: pointer; transition: all 0.2s; position: relative;
+        overflow: hidden;
+    }
+    .lane-card:hover { background: rgba(34, 211, 238, 0.05); }
+    .lane-card.active { background: rgba(34, 211, 238, 0.1); border-left: 4px solid var(--cyan); }
+    
+    .lane-title { font-size: 1.2rem; font-weight: bold; color: #fff; margin-bottom: 5px; }
+    .lane-meta { font-size: 0.75rem; color: #64748b; display: flex; justify-content: space-between; }
+    .lane-status { font-size: 0.7rem; font-weight: bold; color: var(--cyan); margin-top: 5px; }
+
+    /* RIGHT: SCANNER */
+    .scanner-panel {
+        position: relative; background: radial-gradient(circle at center, #1e293b 0%, #020617 80%);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        perspective: 1000px;
+    }
+    
+    .scanner-hud {
+        position: absolute; top: 20px; left: 20px;
+        font-size: 0.8rem; color: var(--cyan);
+        display: flex; gap: 20px;
+    }
+    
+    /* DIALS */
+    .dial-container {
+        display: flex; gap: 50px; align-items: center;
+        transform-style: preserve-3d; transition: transform 0.5s;
+    }
+    .dial-group {
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .dial-ring {
+        width: 150px; height: 150px; border: 4px dashed #334155;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        position: relative; transition: all 0.5s;
+    }
+    .dial-val { font-size: 3rem; font-weight: 900; color: #fff; }
+    .dial-label { color: #64748b; font-size: 0.8rem; letter-spacing: 2px; }
+    
+    .link-chain {
+        height: 4px; width: 100px; background: #334155;
+        position: relative;
+    }
+    .link-node {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 20px; height: 20px; background: #000; border: 2px solid #334155;
+        border-radius: 50%;
+    }
+
+    /* ACTIVE STATE */
+    .scanner-panel.scanning .dial-ring { border-color: var(--cyan); border-style: solid; animation: spin 2s linear infinite; }
+    .scanner-panel.scanning .dial-val { color: var(--cyan); }
+    .scanner-panel.scanning .link-chain { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+    .scanner-panel.scanning .link-node { border-color: var(--cyan); background: var(--cyan); }
+
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* LOG */
+    .scan-log {
+        position: absolute; bottom: 0; left: 0; right: 0;
+        height: 150px; background: rgba(0,0,0,0.8);
+        border-top: 1px solid var(--border);
+        padding: 10px; font-family: monospace; font-size: 0.8rem; color: #94a3b8;
+        overflow-y: auto; display: none;
+    }
+    .log-hit { color: var(--green); font-weight: bold; border: 1px solid var(--green); padding: 5px; margin: 5px 0; }
+
+</style>
+</head>
+<body>
+
+<div class="hud">
+    <div class="hud-header">
+        <div class="title">RELATION MAPPER</div>
+        <div class="subtitle">SELECT FACTOR LANE // SCAN FREQUENCY</div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <input type="text" id="inpN" value="71641520761751435455133616475667090434063332228247871795429">
+        <button onclick="analyzeTarget()" style="background:var(--cyan); border:none; padding:10px 20px; font-weight:bold; cursor:pointer;">ANALYZE</button>
+    </div>
+</div>
+
+<div class="main-grid">
+    <div class="lane-panel" id="laneList">
+        <div class="lane-header">WAITING FOR TARGET ANALYSIS...</div>
+    </div>
+
+    <div class="scanner-panel" id="scanner">
+        <div class="scanner-hud">
+            <div>TARGET RAY: <span id="targetRay" style="color:#fff">-</span></div>
+            <div>STATUS: <span id="scanStatus">IDLE</span></div>
+        </div>
+
+        <div class="dial-container">
+            <div class="dial-group">
+                <div class="dial-ring" id="ringA"><div class="dial-val" id="valA">-</div></div>
+                <div class="dial-label">FACTOR A</div>
+            </div>
+
+            <div class="link-chain"><div class="link-node"></div></div>
+
+            <div class="dial-group">
+                <div class="dial-ring" id="ringB"><div class="dial-val" id="valB">-</div></div>
+                <div class="dial-label">FACTOR B</div>
+            </div>
+        </div>
+        
+        <button id="btnEngage" onclick="engageScan()" disabled 
+            style="margin-top:50px; background:#334155; color:#fff; border:none; padding:15px 40px; font-size:1.2rem; font-weight:900; letter-spacing:2px; cursor:not-allowed;">
+            SELECT A LANE
+        </button>
+
+        <div class="scan-log" id="scanLog"></div>
+    </div>
+</div>
+
+<script id="worker-code" type="javascript/worker">
+    self.onmessage = function(e) {
+        const { cmd, N_str, rayA, rayB } = e.data;
+        
+        if (cmd === 'scan') {
+            const N = BigInt(N_str);
+            const rA = BigInt(rayA);
+            const batch = 100000;
+            
+            // We search for Factor A such that A % 9 == rayA
+            // Start at rayA. Step by 9.
+            // But we need to be smarter. Small factors?
+            // User implies N is huge. So factors are huge.
+            // But this tool maps "Resonant Candidates".
+            // We scan small integers with the DNA of 'rayA' to see if they are related.
+            // Or we try to divide? 
+            // "Probability to Proof" -> Check divisibility.
+            
+            let a = rA;
+            if (a === 0n) a = 9n; // Skip 0
+            if (a === 1n) a = 10n; // Start a bit higher? No, 1 is valid ray.
+            
+            // Let's scan the first 10M numbers on this ray.
+            // A = 9k + rA.
+            
+            const t0 = performance.now();
+            let checked = 0;
+            
+            while(checked < 2000000) {
+                // Check if 'a' divides N
+                if (a > 1n && N % a === 0n) {
+                    self.postMessage({ type: 'found', factor: a.toString() });
+                    return;
+                }
+                a += 9n;
+                checked++;
+                
+                if(checked % 50000 === 0) {
+                     self.postMessage({ type: 'prog', count: checked });
+                }
+            }
+            self.postMessage({ type: 'done', count: checked });
+        }
+    };
+</script>
+
+<script>
+    let currentN = 0n;
+    let targetRay = 0;
+    let selectedLane = null; // { a: 2, b: 4 }
+    let worker;
+
+    function analyzeTarget() {
+        const str = document.getElementById('inpN').value.trim();
+        if(!str) return;
+        currentN = BigInt(str);
+        
+        // 1. Calc Ray
+        targetRay = Number(currentN % 9n);
+        document.getElementById('targetRay').innerText = targetRay;
+        
+        // 2. Generate Lanes (Pairs that mult to targetRay mod 9)
+        generateLanes(targetRay);
+        
+        // UI Reset
+        document.getElementById('scanner').className = 'scanner-panel';
+        document.getElementById('valA').innerText = '-';
+        document.getElementById('valB').innerText = '-';
+        document.getElementById('btnEngage').innerText = "SELECT A LANE";
+        document.getElementById('btnEngage').style.background = "#334155";
+        document.getElementById('btnEngage').disabled = true;
+        document.getElementById('scanLog').style.display = 'none';
+    }
+
+    function generateLanes(ray) {
+        const list = document.getElementById('laneList');
+        list.innerHTML = `<div class="lane-header">COMPATIBLE FACTOR PAIRS (MOD 9)</div>`;
+        
+        const pairs = [];
+        // Iterate A from 1 to 8 (mod 9 residues, 0 is usually not main factor unless div by 3)
+        // Actually check 0..8. 
+        for(let a=0; a<9; a++) {
+            for(let b=0; b<9; b++) {
+                if( (a*b)%9 === ray ) {
+                    // Unique pairs only? (2,4) is same as (4,2) effectively for scanning
+                    // But maybe user wants to "drive" A as 2 vs A as 4.
+                    // Let's keep all permutations for the "Safe Cracker" feel.
+                    pairs.push({a,b});
+                }
+            }
+        }
+        
+        pairs.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'lane-card';
+            div.innerHTML = `
+                <div class="lane-title">${p.a} &times; ${p.b}</div>
+                <div class="lane-meta">
+                    <span>RAY A: ${p.a}</span>
+                    <span>RAY B: ${p.b}</span>
+                </div>
+                <div class="lane-status">READY TO ENGAGE</div>
+            `;
+            div.onclick = () => selectLane(p, div);
+            list.appendChild(div);
+        });
+    }
+
+    function selectLane(pair, el) {
+        // Highlight UI
+        document.querySelectorAll('.lane-card').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        
+        selectedLane = pair;
+        
+        // Update Dials
+        document.getElementById('valA').innerText = pair.a;
+        document.getElementById('valB').innerText = pair.b;
+        
+        // Enable Button
+        const btn = document.getElementById('btnEngage');
+        btn.disabled = false;
+        btn.innerText = `ENGAGE LANE ${pair.a}x${pair.b}`;
+        btn.style.background = "var(--cyan)";
+        btn.style.color = "#000";
+        btn.style.cursor = "pointer";
+        
+        document.getElementById('scanStatus').innerText = "LOCKED ON FREQUENCY";
+        document.getElementById('scanner').className = 'scanner-panel'; // stop scanning if running
+    }
+
+    function engageScan() {
+        if(!selectedLane) return;
+        
+        // UI FX
+        document.getElementById('scanner').classList.add('scanning');
+        document.getElementById('scanStatus').innerText = "SCANNING SECTOR " + selectedLane.a;
+        document.getElementById('btnEngage').innerText = "SCANNING...";
+        
+        const log = document.getElementById('scanLog');
+        log.style.display = 'block';
+        log.innerHTML = '';
+        addToLog(`Initializing Search on Ray ${selectedLane.a}...`);
+        addToLog(`Constraint: Factor % 9 == ${selectedLane.a}`);
+        
+        // Start Worker
+        const blob = new Blob([document.getElementById('worker-code').textContent], { type: "text/javascript" });
+        worker = new Worker(window.URL.createObjectURL(blob));
+        
+        worker.onmessage = function(e) {
+            if(e.data.type === 'found') {
+                document.getElementById('scanner').classList.remove('scanning');
+                document.getElementById('scanStatus').innerText = "TARGET ACQUIRED";
+                addToLog(`!!! FACTOR FOUND: ${e.data.factor} !!!`, true);
+                const B = currentN / BigInt(e.data.factor);
+                addToLog(`Partner Factor: ${B}`);
+                
+                // Visual Win
+                document.getElementById('ringA').style.borderColor = "var(--green)";
+                document.getElementById('ringB').style.borderColor = "var(--green)";
+                document.getElementById('valA').style.color = "var(--green)";
+                document.getElementById('valB').style.color = "var(--green)";
+                
+                worker.terminate();
+            } else if (e.data.type === 'done') {
+                document.getElementById('scanner').classList.remove('scanning');
+                document.getElementById('scanStatus').innerText = "SECTOR CLEAR";
+                addToLog(`Scan complete. No small factors found in this lane.`);
+                document.getElementById('btnEngage').innerText = "RE-ENGAGE";
+            }
+        };
+        
+        worker.postMessage({ 
+            cmd: 'scan', 
+            N_str: currentN.toString(), 
+            rayA: selectedLane.a, 
+            rayB: selectedLane.b 
+        });
+    }
+    
+    function addToLog(msg, isHit=false) {
+        const d = document.createElement('div');
+        d.innerText = `>> ${msg}`;
+        if(isHit) d.className = 'log-hit';
+        document.getElementById('scanLog').prepend(d);
+    }
+
+</script>
+</body>
+</html>

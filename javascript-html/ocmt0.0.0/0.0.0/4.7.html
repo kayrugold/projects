@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ANDY'S DEV STUDIO: GNOMON NAVIGATOR v4.18 (Triple Search)</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --pink: #f472b6; --green: #34d399;
+        --input-bg: rgba(0,0,0,0.3);
+        --mod-highlight: #3b82f6; 
+        --dim-color: rgba(30, 41, 59, 0.4);
+    }
+    * { box-sizing: border-box; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; 
+        margin: 0; 
+        display: flex; 
+        flex-direction: column; 
+        overflow: hidden; 
+        overscroll-behavior: none; 
+    }
+
+    /* --- TOP BAR (Redesigned for optimal input and control access) --- */
+    .top-section {
+        background: var(--panel);
+        border-bottom: 2px solid var(--cyan);
+        padding: 4px 8px;
+        flex-shrink: 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        z-index: 200;
+    }
+    
+    /* Row 1: Controls (Help, Zoom, Mirror, Layout) */
+    .controls { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    .control-toggles-left, .control-toggles-right {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
+    /* Row 2: Action Buttons (SCAN, LOCATE ROW, INTERCEPT) */
+    .find-actions-row {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    /* Primary Action Buttons */
+    .btn-find, #btnLocateRow, #btnIntercept { 
+        background: var(--cyan); 
+        color: #000; 
+        border: none; 
+        border-radius: 4px; 
+        font-weight: bold; 
+        cursor: pointer; 
+        padding: 6px 10px; 
+        font-size: 0.75rem; 
+        flex: 1; 
+    }
+    #btnLocateRow { 
+        background: var(--pink); 
+        color: #000;
+    }
+    #btnIntercept {
+        background: var(--green); 
+        color: #000;
+    }
+    .btn-find:active, #btnLocateRow:active, #btnIntercept:active { transform: translateY(1px); }
+    
+    .toggle-btn { 
+        background: #334155; color: #94a3b8; width: 32px; height: 32px; 
+        display: grid; place-items: center; border-radius: 4px; border:none; 
+        cursor: pointer; font-weight:bold; font-size:0.75rem;
+        transition: all 0.2s;
+    }
+    .toggle-btn.active { background: var(--cyan); color: #000; box-shadow: 0 0 5px var(--cyan); }
+
+    /* Row 3: Full-Width Input Field (Cargo N) */
+    .cargo-input-row {
+        display: flex;
+        align-items: center;
+        padding-bottom: 4px; 
+    }
+    #inpFind { 
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: #fff; 
+        padding: 8px; 
+        width: 100%; 
+        font-family: 'Courier New', monospace; 
+        font-weight: 800; 
+        font-size: 1.1rem;
+        outline: none; 
+        text-align: center;
+        border-radius: 4px;
+        -webkit-font-smoothing: antialiased; 
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+
+    /* --- CANVAS LAYOUT (Priority Space) --- */
+    .layout { 
+        flex: 1; 
+        position: relative; 
+        overflow: hidden; 
+        background: #000;
+        min-height: 0; 
+        touch-action: none; 
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* --- DECODER PANEL (Standard) --- */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--pink); 
+        display: flex; flex-direction: column; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8); z-index: 150;
+        flex-shrink: 0; 
+    }
+    .panel-sec { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 2px; }
+    
+    .big-math { background: #0b1120; }
+    .bm-val { 
+        font-size: 1.2rem; font-weight: 900; color: #fff; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; 
+        cursor: pointer; border-bottom: 1px dotted #334155;
+    }
+    .bm-val:hover { color: var(--cyan); border-color: var(--cyan); }
+    .bm-sub { font-size: 0.8rem; color: var(--pink); font-weight: bold; margin-top: 2px; cursor: pointer; }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; padding: 8px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 3px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; margin-bottom: 1px; }
+    
+    .info-input {
+        width: 100%; background: var(--input-bg); border: 1px solid #334155;
+        color: #fff; font-family: inherit; font-weight: bold; font-size: 0.8rem;
+        text-align: center; padding: 2px; border-radius: 4px; outline: none;
+    }
+    .info-input:focus { border-color: var(--cyan); background: #000; }
+    .inp-k { color: var(--green); } .inp-b { color: var(--pink); } .inp-a { color: #3b82f6; } .inp-g { color: #fbbf24; }
+
+    /* --- TECH PANEL (Collapsible, starts collapsed) --- */
+    .tech-panel { 
+        background: #020617; border-top: 1px solid var(--border); 
+        padding: 0; z-index: 150; flex-shrink: 0; 
+    }
+    .tech-header {
+        padding: 6px 10px; background: #0f172a; color: var(--cyan); font-size: 0.75rem; font-weight: bold;
+        display: flex; justify-content: space-between; cursor: pointer; border-bottom: 1px solid var(--border);
+    }
+    .tech-content { padding: 8px; display: none; }
+    .tech-content.open { display: block; }
+
+    .tech-controls { 
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px; 
+        margin-bottom: 8px;
+    }
+    .tech-controls select {
+        background: #1e293b; border: 1px solid #334155; color: var(--text); 
+        padding: 6px; border-radius: 4px; font-size: 0.8rem;
+    }
+    .core-progress-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr);
+        gap: 4px; max-height: 80px; overflow-y: auto;
+    }
+    .progress-item { background: #0b1120; border: 1px solid #1e293b; padding: 4px; border-radius: 2px; }
+    .progress-text { font-size: 0.6rem; color: #94a3b8; display: flex; justify-content: space-between; }
+    .progress-bar-bg { height: 4px; background: #1e293b; margin-top: 2px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--green); width: 0%; transition: width 0.2s; }
+    
+    /* MODULAR FILTERS */
+    .mod-filter-group { 
+        margin-top: 10px; padding: 8px; border: 1px solid #1e293b; border-radius: 4px;
+        background: #0b1120;
+    }
+    .mod-filter-group h4 {
+        color: var(--mod-highlight); font-size: 0.75rem; margin: 0 0 5px 0; border-bottom: 1px dashed #334155; padding-bottom: 3px;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .filter-input-row { display: flex; gap: 5px; margin-bottom: 5px; }
+    #inpModulus { flex: 1; padding: 4px; font-size: 0.8rem; background: #1e293b; border: 1px solid #334155; color: #fff; }
+    #btnAddFilter { width: 60px; background: var(--mod-highlight); color: #000; border: none; font-size: 0.75rem; font-weight: bold; padding: 4px 8px; }
+    
+    #activeFilters {
+        display: flex; flex-wrap: wrap; gap: 5px; min-height: 20px;
+    }
+    .filter-tag {
+        background: var(--mod-highlight); color: #000; padding: 2px 6px; border-radius: 10px;
+        font-size: 0.7rem; font-weight: bold; cursor: pointer;
+        display: flex; align-items: center;
+    }
+    .filter-tag span { margin-left: 4px; font-weight: 900; }
+
+
+    /* --- TOAST --- */
+    #toast {
+        position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.95); border: 1px solid var(--cyan);
+        color: var(--cyan); padding: 10px 20px; border-radius: 30px;
+        font-size: 0.9rem; font-weight: bold; z-index: 500;
+        opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+    }
+    #toast.show { opacity: 1; }
+
+    /* --- MODALS (Unchanged) --- */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(2, 6, 23, 0.95); z-index: 300;
+        display: none; justify-content: center; align-items: center;
+        padding: 20px; backdrop-filter: blur(5px);
+    }
+    .modal-card {
+        background: #0f172a; border: 1px solid var(--cyan);
+        width: 100%; max-width: 600px; max-height: 85vh;
+        border-radius: 12px; display: flex; flex-direction: column;
+        box-shadow: 0 0 50px rgba(0,0,0,0.8); color: #cbd5e1;
+    }
+    .modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-weight: bold; color: var(--cyan); font-size: 1.1rem; }
+    .modal-close { color: #fff; cursor: pointer; font-size: 1.5rem; line-height: 1; }
+    .modal-body { padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; word-wrap: break-word; }
+    .modal-body h3 { color: var(--pink); margin-top: 20px; margin-bottom: 8px; font-size: 1rem; border-bottom: 1px dashed #334155; padding-bottom: 4px; }
+    .modal-body h4 { color: var(--green); margin-top: 15px; margin-bottom: 5px; font-size: 0.9rem; }
+    .modal-body code { background: #1e293b; padding: 3px 6px; border-radius: 4px; font-family: monospace; color: #fbbf24; font-size: 0.85rem; display: inline-block; margin: 2px 0;}
+    .modal-body ul { padding-left: 20px; margin: 5px 0; } 
+    .modal-body li { margin-bottom: 8px; }
+    
+    .full-val-box { 
+        background:#0b1120; padding:10px; border-radius:6px; margin-bottom:10px; 
+        border:1px solid #334155; font-family:monospace; font-size:0.8rem; 
+        max-height:150px; overflow-y:auto; color:#fff; word-break: break-all;
+    }
+</style>
+</head>
+<body>
+
+<div id="toast">SCANNING...</div>
+
+<div class="top-section">
+    <div class="controls">
+        <div class="control-toggles-left">
+            <button class="toggle-btn" id="btnHelp" title="Field Guide">?</button>
+            <input id="inpZoom" type="range" min="20" max="150" value="64" style="width: 50px;">
+        </div>
+        
+        <div class="control-toggles-right">
+            <button class="toggle-btn active" id="btnMirror" title="Toggle Mirror">◥</button>
+            <button class="toggle-btn" id="btnLayout" title="Switch Layout">SPINE</button>
+        </div>
+    </div>
+    
+    <div class="find-actions-row">
+        <button class="btn-find" id="btnFind">SCAN</button>
+        <button id="btnLocateRow">LOCATE ROW</button>
+        <button id="btnIntercept">INTERCEPT</button>
+    </div>
+
+    <div class="cargo-input-row">
+        <input id="inpFind" type="text" placeholder="Enter Cargo Number (N)">
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="panel-sec big-math">
+        <div>
+            <div class="sec-lbl">SMART ID (a.b)</div>
+            <div id="dispComp" class="bm-val" title="Tap to Expand">--</div>
+            <div id="dispSq" class="bm-sub">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">CARGO (N)</div>
+            <div id="dispVal" class="bm-val" title="Tap to Expand">--</div>
+            <div id="dispFactors" class="bm-sub" style="color:var(--cyan)">--</div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-lbl">GNOMON</div>
+            <input id="inpGnomon" type="text" class="info-input inp-g" readonly title="2a - 1">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl" id="lblCol">GAP (b)</div>
+            <input id="inpCol" type="text" class="info-input inp-b" onchange="updateFromInput('col')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">ANCHOR (a)</div>
+            <input id="inpA" type="text" class="info-input inp-a" onchange="updateFromInput('a')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">ROW (k)</div>
+            <input id="inpK" type="text" class="info-input inp-k" onchange="updateFromInput('k')">
+        </div>
+    </div>
+</div>
+
+<div class="tech-panel">
+    <div class="tech-header" id="techHeader">
+        <span id="scanStatus">SYSTEM IDLE</span>
+        <span>▼</span>
+    </div>
+    <div class="tech-content" id="techContent">
+        <div class="tech-controls">
+            <select id="coreSelect"></select>
+            <select id="directionSelect">
+                <option value="forward">Fwd</option>
+                <option value="reverse">Rev</option>
+            </select>
+            <button id="btnInvertMods" class="toggle-btn" style="width:100%">INVERT MODS</button>
+        </div>
+        <div id="coreProgressContainer" class="core-progress-grid"></div>
+
+        <div class="mod-filter-group">
+            <h4>MODULAR FILTERS ($N \equiv 0 \pmod M$)</h4>
+            <div class="filter-input-row">
+                <input id="inpModulus" type="number" placeholder="Enter Modulus (e.g. 3, 7)">
+                <button id="btnAddFilter">ADD</button>
+            </div>
+            <div id="activeFilters">
+                </div>
+        </div>
+    </div>
+</div>
+
+<div id="helpModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span class="modal-title">Gnomon Indexing Manual</span>
+            <span class="modal-close" id="closeHelp">×</span>
+        </div>
+        <div class="modal-body">
+            <h3>1. The Philosophy of Indexing</h3>
+            <p>Factoring is not about calculation; it is about finding the unique address <strong>(k, b)</strong> on the infinite multiplication table.</p>
+            <p>Example: <strong>1007</strong> has the unique index <strong>36.17</strong>.
+            <br>This means it is found at Anchor 36, Gap 17.</p>
+            <code>36² - 17² = 1296 - 289 = 1007</code>
+
+            <h3>2. The Gnomon Key (k, b)</h3>
+            <p>The coordinates instantly reveal the factors P1 and P2 without needing to search the value N.</p>
+            <ul>
+                <li><strong>Row Index k:</strong> The Gnomon Key. It determines the larger factor P2 = 2k + 1.</li>
+                <li><strong>Inner Gap b:</strong> This determines the smaller factor P1 = P2 - 2b.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div id="fullValModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header"><span class="modal-title">Manifest Data</span><span class="modal-close" id="closeFull">×</span></div>
+        <div class="modal-body">
+            <div class="sec-lbl">CARGO (N)</div><div class="full-val-box" id="fullN"></div>
+            <div class="sec-lbl">FACTORS</div><div class="full-val-box" id="fullFactors" style="color:#22d3ee"></div>
+            <div class="sec-lbl">SMART ID (Anchor.Gap)</div><div class="full-val-box" id="fullSmart" style="color:#f472b6"></div>
+            <div class="sec-lbl">GNOMON (2a - 1)</div><div class="full-val-box" id="fullGnomon" style="color:#fbbf24"></div>
+            <div class="sec-lbl">TAPE ID (Linear Index)</div><div class="full-val-box" id="fullTape" style="color:#64748b"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- CANVAS & WORKER SETUP ---
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+let cellS = 64; 
+const HDR_S = 30; 
+
+let viewAnchor = { r: 0n, c: 0n };
+let scrollX = 0, scrollY = 0;
+let highlight = { r: 0n, c: 0n };
+let hideMirror = true; 
+let layoutMode = 'spine'; 
+let cellCache = new Map();
+let currentFullData = null; 
+let scanWorkerPool = [];
+let scanActive = false;
+let currentLayoutMode = 'spine';
+
+// NEW: Global modular state
+let activeModuli = []; 
+let isInvertMod = false;
+const MOD_HIGHLIGHT_COLOR = '#3b82f6';
+const DIM_COLOR = 'rgba(30, 41, 59, 0.4)';
+
+
+// --- VIEWPORT WORKER (Updated to calculate Modulo M) ---
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const getTapeID = (row, gap) => { return (row * (row + 1n)) / 2n + gap; }
+    
+    const checkModulus = (N, moduli) => {
+        if (!moduli || moduli.length === 0) return false;
+        try {
+            const N_big = BigInt(N);
+            for(let i=0; i<moduli.length; i++) {
+                const M_big = BigInt(moduli[i]);
+                if (N_big % M_big === 0n) return true;
+            }
+        } catch(e) { }
+        return false;
+    }
+
+    const process = (r_in, c_in, mode) => {
+        const r = BigInt(r_in);
+        const c = BigInt(c_in);
+        let P2, P1, k, a, b, isSq;
+        if (mode === 'spine') {
+            k = r; b = c;
+            P2 = (k * 2n) + 1n;
+            P1 = P2 - (b * 2n);
+            a = P2 - b; 
+            isSq = (c === 0n);
+        } else {
+            let k_raw = r; let j_raw = c;
+            if (k_raw >= j_raw) { P2 = (k_raw * 2n) + 1n; P1 = (j_raw * 2n) + 1n; k = k_raw; } 
+            else { P2 = (j_raw * 2n) + 1n; P1 = (k_raw * 2n) + 1n; k = j_raw; }
+            b = (P2 - P1) / 2n;
+            a = (P2 + P1) / 2n;
+            isSq = (r === c);
+        }
+        if (P1 <= 0n) return null;
+        
+        const val = P2 * P1;
+        const valStr = val.toString();
+        const isModMatch = checkModulus(val, msg.moduli);
+
+        let displayVal = valStr;
+        if (valStr.length > 8) displayVal = ".." + valStr.slice(-6);
+        
+        return {
+            r: r_in, c: c_in,
+            k: k.toString(), a: a.toString(), b: b.toString(),
+            tapeID: getTapeID(k, b).toString(), 
+            g: ((a * 2n) - 1n).toString(),
+            val: displayVal, fullVal: valStr, 
+            isSq: isSq, P2: P2.toString(), P1: P1.toString(),
+            isMod: isModMatch
+        };
+    };
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.r, it.c, msg.mode)).filter(x => x);
+        self.postMessage({ type: 'batch', payload: res });
+    } else if (msg.cmd === 'cell') {
+        const res = process(msg.r, msg.c, msg.mode);
+        self.postMessage({ type: 'cell', payload: res });
+    }
+});
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+
+worker.onmessage = (ev) => {
+    const msg = ev.data;
+    if (msg.type === 'batch') {
+        msg.payload.forEach(p => cellCache.set(`${p.r}|${p.c}`, p));
+        draw();
+    } else if (msg.type === 'cell') {
+        const p = msg.payload;
+        cellCache.set(`${p.r}|${p.c}`, p);
+        if(highlight.r.toString() === p.r && highlight.c.toString() === p.c) updateDecoder(p);
+        draw();
+    }
+};
+
+// --- SCANNER WORKER (Fermat Logic - Omitted for brevity) ---
+const parallelScannerWorkerCode = `
+function sqrtBigInt(n) {
+    if (n < 0n) throw new Error('Negative');
+    if (n < 2n) return n;
+    let x = n;
+    let y = (x + 1n) / 2n;
+    while (y < x) { x = y; y = (x + n / x) / 2n; }
+    return x;
+}
+self.onmessage = (e) => {
+    const { N_str, a_start_str, a_end_str, initial_residue_str, workerId, layoutMode } = e.data;
+    const N = BigInt(N_str);
+    let anchor = BigInt(a_start_str);
+    const a_end = BigInt(a_end_str);
+    let residue = BigInt(initial_residue_str);
+    const reportInterval = 25000n;
+    let processed = 0n;
+
+    while (anchor <= a_end) {
+        let gap = sqrtBigInt(residue);
+        if (gap * gap === residue) {
+            if((anchor - gap) !== 1n) {
+                const big = anchor + gap;
+                const k = (big - 1n) / 2n;
+                const c = (layoutMode === 'diag') ? ((anchor - gap - 1n)/2n) : gap;
+                self.postMessage({ type: 'found', k: k.toString(), c: c.toString(), workerId });
+                break;
+            }
+        }
+        residue += (anchor * 2n) + 1n;
+        anchor++;
+        processed++;
+        if (processed % reportInterval === 0n) {
+            const progress = Number((anchor - BigInt(a_start_str)) * 100n / (a_end - BigInt(a_start_end)));
+            self.postMessage({ type: 'progress', progress: progress.toFixed(1), workerId });
+        }
+    }
+    self.postMessage({ type: 'done', workerId });
+};
+`;
+
+function sqrtBigInt(n) {
+    if (n < 0n) throw 'Negative';
+    if (n < 2n) return n;
+    let x = n; let y = (x + 1n) / 2n;
+    while (y < x) { x = y; y = (x + n / x) / 2n; }
+    return x;
+}
+
+// --- CORE FUNCTIONS ---
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function requestBatch() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    const cols = Math.ceil(w / cellS);
+    const rows = Math.ceil(h / cellS);
+    const items = [];
+    const buffer = 4;
+    for(let r = -buffer; r < rows + buffer; r++) {
+        for (let c = -buffer; c < cols + buffer; c++) {
+            const gridR = viewAnchor.r + BigInt(r);
+            const gridC = viewAnchor.c + BigInt(c);
+            if(gridR<0n || gridC<0n) continue;
+            if(layoutMode==='diag' && hideMirror && gridC > gridR) continue;
+            if(!cellCache.has(`${gridR}|${gridC}`) || (activeModuli.length > 0 && cellCache.get(`${gridR}|${gridC}`).isMod === undefined)) {
+                 items.push({r: gridR.toString(), c: gridC.toString()});
+            }
+        }
+    }
+    if(items.length) worker.postMessage({cmd:'batch', items, mode: layoutMode, moduli: activeModuli});
+}
+
+function pan(dx, dy) {
+    scrollX += dx; scrollY += dy;
+    requestBatch(); draw();
+}
+
+function jumpTo(r, c) {
+    viewAnchor = { r: BigInt(r), c: BigInt(c) };
+    scrollX = 0; scrollY = 0;
+    highlight = { r: BigInt(r), c: BigInt(c) };
+    cellCache.clear();
+    worker.postMessage({cmd:'cell', r: highlight.r.toString(), c: highlight.c.toString(), mode: layoutMode, moduli: activeModuli});
+    requestBatch();
+    draw();
+}
+
+function tapSelect(clickX, clickY) {
+    const rect = wrap.getBoundingClientRect();
+    const relX = clickX - rect.left - HDR_S - scrollX;
+    const relY = clickY - rect.top - HDR_S - scrollY;
+    
+    const cIdx = Math.floor(relX / cellS);
+    const rIdx = Math.floor(relY / cellS);
+    
+    const targetR = viewAnchor.r + BigInt(rIdx);
+    const targetC = viewAnchor.c + BigInt(cIdx);
+    if (targetR < 0n || targetC < 0n) return;
+    highlight = { r: targetR, c: targetC };
+    const key = `${targetR}|${targetC}`;
+    let p = cellCache.get(key);
+    if(p) updateDecoder(p);
+    else worker.postMessage({cmd:'cell', r: targetR.toString(), c: targetC.toString(), mode: layoutMode, moduli: activeModuli});
+    draw();
+}
+
+function updateDecoder(p) {
+    if(!p) return;
+    currentFullData = p;
+    let aShort = p.a.length > 10 ? p.a.slice(0,6)+"..." : p.a;
+    let bShort = p.b.length > 10 ? p.b.slice(0,6)+"..." : p.b;
+    let valShort = p.fullVal.length > 12 ? p.fullVal.slice(0,6)+"..."+p.fullVal.slice(-4) : p.fullVal;
+    
+    document.getElementById('dispComp').innerText = `${aShort}.${bShort}`;
+    document.getElementById('dispSq').innerText = `Smart ID`;
+    document.getElementById('dispVal').innerText = valShort;
+    document.getElementById('dispFactors').innerText = `${p.P2} × ${p.P1}`;
+    
+    setInputValue('inpK', p.k);
+    setInputValue('inpCol', p.c); 
+    setInputValue('inpA', p.a);
+    setInputValue('inpGnomon', p.g);
+    
+    if(layoutMode === 'spine') document.getElementById('lblCol').innerText = "GAP (b)";
+    else document.getElementById('lblCol').innerText = "COL (j)";
+}
+
+function setInputValue(id, val) {
+    const el = document.getElementById(id);
+    if(document.activeElement !== el) el.value = val;
+}
+
+// --- SCAN MODE 1: Direct Address (Fermat) ---
+function startParallelScan(N_str) {
+    stopParallelScan();
+    const btn = document.getElementById('btnFind');
+    btn.disabled = true; btn.innerText = '...';
+    currentLayoutMode = layoutMode;
+    
+    let N;
+    try { N = BigInt(N_str); } catch(e) { showToast("Invalid Number"); btn.disabled=false; btn.innerText='SCAN'; return; }
+    if(N <= 1n) { showToast("Cargo must be > 1"); btn.disabled=false; btn.innerText='SCAN'; return; }
+
+    // QUICK CHECK (Fermat/Cruise Control - works for small N)
+    if (N < 10000000000n) {
+        const startAnchor = sqrtBigInt(N) + 1n;
+        let anchor = startAnchor;
+        let residue = (anchor * anchor) - N;
+        let found = false;
+        
+        for(let i=0; i<5000; i++){
+            let gap = sqrtBigInt(residue);
+            if(gap*gap === residue && (anchor - gap) !== 1n){
+                const b = gap; 
+                const P2 = anchor + b;
+                const k = (P2 - 1n) / 2n; 
+                const c = b; 
+
+                stopParallelScan();
+                jumpTo(k, c); 
+                showToast(`ADDRESS FOUND: ${anchor}.${b}`);
+                found = true;
+                break;
+            }
+            residue += (anchor * 2n) + 1n;
+            anchor++;
+        }
+        if(found) return; 
+    }
+
+    // WORKER SCAN (for large N, continues if quick check fails)
+    const maxAnchor = N > 0n ? sqrtBigInt(N) : 0n;
+    const initialAnchor = maxAnchor + 1n;
+    const safetyCap = 10000000n; 
+    const coreCount = parseInt(document.getElementById('coreSelect').value) || 4;
+    const rangePerCore = safetyCap / BigInt(coreCount);
+    
+    const container = document.getElementById('coreProgressContainer');
+    container.innerHTML = '';
+    document.getElementById('techHeader').click();
+    document.getElementById('scanStatus').innerText = "SCANNING...";
+    
+    const workerBlob = new Blob([parallelScannerWorkerCode], {type:'application/javascript'});
+    
+    for (let i = 0; i < coreCount; i++) {
+        const a_start = initialAnchor + BigInt(i) * rangePerCore;
+        const a_end = a_start + rangePerCore - 1n;
+        const init_residue = (a_start * a_start) - N;
+        
+        const w = new Worker(URL.createObjectURL(workerBlob));
+        w.onmessage = (e) => {
+            if(e.data.type === 'found') {
+                stopParallelScan();
+                jumpTo(e.data.k, e.data.c);
+                showToast("TARGET LOCATED");
+            } else if(e.data.type === 'progress') {
+                const el = document.getElementById(`prog${i}`);
+                if(el) el.style.width = e.data.progress + '%';
+            }
+        };
+        scanWorkerPool.push(w);
+        
+        const div = document.createElement('div');
+        div.className = 'progress-item';
+        div.innerHTML = `<div class="progress-text"><span>CORE ${i+1}</span></div><div class="progress-bar-bg"><div id="prog${i}" class="progress-bar-fill"></div></div>`;
+        container.appendChild(div);
+
+        w.postMessage({
+            N_str: N_str, a_start_str: a_start.toString(), a_end_str: a_end.toString(),
+            initial_residue_str: init_residue.toString(), workerId: i, layoutMode: currentLayoutMode
+        });
+    }
+    scanActive = true;
+}
+
+// --- SCAN MODE 2: Locate Home Row (Indexing Start) ---
+function locateHomeRow() {
+    stopParallelScan();
+    const input = document.getElementById('inpFind');
+    
+    let N;
+    try { N = BigInt(input.value.trim()); } catch(e) { showToast("Invalid Number"); return; }
+    if(N <= 1n) { showToast("Cargo must be > 1"); return; }
+    
+    // Calculate the 'Home Row' index (k)
+    const sqrtN = sqrtBigInt(N);
+    const a_home = sqrtN * sqrtN < N ? sqrtN + 1n : sqrtN;
+    const k_home = (a_home - 1n) / 2n; 
+    
+    jumpTo(k_home, 0n); // Jump to Row k_home, Column 0
+    showToast(`JUMPED TO HOME ROW: k=${k_home}`);
+}
+
+// --- SCAN MODE 3: Intercept (Modular Structural Lookup) ---
+function interceptScan() {
+    stopParallelScan();
+    const input = document.getElementById('inpFind');
+    
+    let N;
+    try { N = BigInt(input.value.trim()); } catch(e) { showToast("Invalid Number"); return; }
+    if(N <= 1n) { showToast("Cargo must be > 1"); return; }
+    
+    // --- Phase 1: Symbolic Search (Find P1 and P2) ---
+    // In a real implementation, this is where the advanced factoring algorithm (Pollard's rho, ECM, etc.)
+    // would run until a small factor P1 is found. For this prototype, we simulate a fast intercept 
+    // by checking a small set of known primes.
+    
+    const smallPrimes = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+    let P1_found = 0n;
+    
+    for (let i = 0; i < smallPrimes.length; i++) {
+        const P = BigInt(smallPrimes[i]);
+        if (N % P === 0n) {
+            P1_found = P;
+            break;
+        }
+    }
+    
+    if (P1_found === 0n) {
+        showToast("INTERCEPT FAILED: No small factor found.");
+        return;
+    }
+    
+    const P2_found = N / P1_found;
+
+    // --- Phase 2: Index Translation (Bypass Search Loop) ---
+    const a = (P2_found + P1_found) / 2n;
+    const b = (P2_found - P1_found) / 2n;
+    const k = (P2_found - 1n) / 2n;
+    const c = b;
+
+    stopParallelScan();
+    jumpTo(k, c); 
+    showToast(`INTERCEPT SUCCESS: ${a}.${b} (Factors: ${P2_found} x ${P1_found})`);
+}
+
+
+function stopParallelScan() {
+    scanWorkerPool.forEach(w => w.terminate());
+    scanWorkerPool = [];
+    scanActive = false;
+    const btn = document.getElementById('btnFind');
+    btn.disabled = false; btn.innerText = 'SCAN';
+    document.getElementById('scanStatus').innerText = "SYSTEM IDLE";
+}
+
+// --- MODULAR FILTER LOGIC ---
+function addFilter() {
+    const input = document.getElementById('inpModulus');
+    const M_raw = input.value.trim();
+    if (!M_raw) return;
+
+    const M = parseInt(M_raw, 10);
+    if (isNaN(M) || M <= 1) {
+        showToast("Modulus must be > 1");
+        return;
+    }
+    if (activeModuli.includes(M)) {
+        showToast(`Filter $\\pmod{${M}}$ already active.`);
+        input.value = '';
+        return;
+    }
+
+    activeModuli.push(M);
+    activeModuli.sort((a, b) => a - b); 
+    input.value = '';
+    renderFilters();
+    cellCache.clear(); 
+    requestBatch(); 
+}
+
+window.removeFilter = function(M) {
+    activeModuli = activeModuli.filter(mod => mod !== M);
+    renderFilters();
+    cellCache.clear();
+    requestBatch();
+}
+
+function renderFilters() {
+    const container = document.getElementById('activeFilters');
+    container.innerHTML = '';
+    
+    if (activeModuli.length === 0) {
+        container.innerHTML = `<span style="font-size:0.7rem; color:#64748b;">No active filters.</span>`;
+        return;
+    }
+
+    activeModuli.forEach(M => {
+        const tag = document.createElement('div');
+        tag.className = 'filter-tag';
+        tag.innerHTML = `$\pmod{${M}}$ <span title="Remove" onclick="window.removeFilter(${M})">×</span>`;
+        container.appendChild(tag);
+    });
+}
+
+// Toggle Invert Mod
+document.getElementById('btnInvertMods').onclick = function() {
+    isInvertMod = !isInvertMod;
+    this.classList.toggle('active');
+    this.innerText = isInvertMod ? 'INVERTED' : 'INVERT MODS';
+    draw();
+};
+
+// --- DRAWING ENGINE (Stabilized) ---
+function draw() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+
+    // RESTORED: Infinite Scroll Logic
+    while (scrollX > 0) { scrollX -= cellS; viewAnchor.c -= 1n; }
+    while (scrollX <= -cellS) { scrollX += cellS; viewAnchor.c += 1n; }
+    while (scrollY > 0) { scrollY -= cellS; viewAnchor.r -= 1n; }
+    while (scrollY <= -cellS) { scrollY += cellS; viewAnchor.r += 1n; }
+
+    const colsToDraw = Math.ceil(w / cellS) + 1;
+    const rowsToDraw = Math.ceil(h / cellS) + 1;
+    const fsBase = Math.floor(cellS * 0.22);
+    const fsSmall = Math.max(6, Math.floor(cellS * 0.15));
+
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.save();
+    ctx.translate(HDR_S + scrollX, HDR_S + scrollY); 
+
+    for (let r = -1; r < rowsToDraw + 1; r++) { 
+        for (let c = -1; c < colsToDraw + 1; c++) {
+            const gridR = viewAnchor.r + BigInt(r);
+            const gridC = viewAnchor.c + BigInt(c);
+            if (layoutMode === 'diag' && hideMirror && gridC > gridR) continue;
+            if (gridR < 0n || gridC < 0n) continue;
+
+            const x = c * cellS;
+            const y = r * cellS;
+            if (x < -cellS || x > w || y < -cellS || y > h) continue;
+
+            const key = `${gridR}|${gridC}`;
+            const cell = cellCache.get(key);
+            const isSel = (gridR === highlight.r && gridC === highlight.c);
+            const isMod = cell ? cell.isMod : false;
+
+            let bg = '#111827';
+            let txt = '#64748b';
+            
+            // --- BACKGROUND COLOR LOGIC (Modified for Inverse) ---
+            
+            // 1. Check if the cell is a square
+            if (cell && cell.isSq) {
+                 bg = 'rgba(59, 130, 246, 0.1)'; 
+                 txt = '#fff';
+            }
+            
+            // 2. Apply Modular Filter Effect (Dim or Highlight)
+            if (isMod) {
+                if (isInvertMod) {
+                    bg = DIM_COLOR; // Dim cells that ARE multiples (Background)
+                } else {
+                    bg = 'rgba(59, 130, 246, 0.2)'; // Highlight cells that ARE multiples (Background)
+                }
+            }
+            
+            // 3. Draw Background
+            ctx.fillStyle = bg; ctx.fillRect(x, y, cellS-1, cellS-1);
+
+            // --- BORDER COLOR LOGIC (Highlight) ---
+            if (cell && cell.isSq) {
+                ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1;
+                ctx.strokeRect(x+2, y+2, cellS-5, cellS-5);
+            }
+            
+            // Apply Modular Filter Highlight (Border)
+            if (!isSel && isMod && !isInvertMod) {
+                ctx.strokeStyle = MOD_HIGHLIGHT_COLOR; 
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x+1, y+1, cellS-3, cellS-3);
+            }
+
+            // Selection Override
+            if (isSel) {
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+                ctx.strokeRect(x+1, y+1, cellS-3, cellS-3);
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.25)';
+                ctx.fillRect(x+1, y+1, cellS-3, cellS-3);
+                txt = '#fff';
+            }
+            
+
+            if (cell) {
+                let label = `${cell.a}.${cell.b}`;
+                if(label.length > 8) label = ".." + label.slice(-6);
+                let fs = fsBase;
+                ctx.font = `bold ${fs}px monospace`;
+                let width = ctx.measureText(label).width;
+                if(width > cellS - 6) {
+                    fs = Math.max(8, Math.floor(fs * (cellS-6)/width));
+                    ctx.font = `bold ${fs}px monospace`;
+                }
+                
+                // --- TEXT COLOR LOGIC ---
+                let textColor = (cell.isSq) ? '#22d3ee' : txt;
+                if(isSel) textColor = '#fff';
+                
+                if (isInvertMod && isMod) {
+                    textColor = 'rgba(100, 100, 100, 0.8)';
+                }
+
+                ctx.fillStyle = textColor;
+                ctx.fillText(label, x + cellS/2, y + cellS/2 - 2);
+                ctx.font = `${fsSmall}px monospace`;
+                
+                let cargoColor = isSel ? '#fff' : '#444';
+                if (isInvertMod && isMod) {
+                    cargoColor = 'rgba(80, 80, 80, 0.6)';
+                }
+
+                ctx.fillStyle = cargoColor;
+                ctx.fillText(cell.val, x + cellS/2, y + cellS/2 + fsSmall + 2);
+            } else {
+                ctx.fillStyle = '#333';
+                ctx.fillText('...', x + cellS/2, y + cellS/2);
+            }
+        }
+    }
+    ctx.restore();
+
+    // Headers
+    ctx.font = 'bold 10px monospace';
+    ctx.save(); ctx.translate(HDR_S + scrollX, 0);
+    for(let c=-1; c<colsToDraw+1; c++) {
+        const val = viewAnchor.c + BigInt(c);
+        if(val<0n) continue;
+        const x = c * cellS;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(x, 0, cellS-1, HDR_S);
+        ctx.fillStyle = (layoutMode==='spine') ? '#f472b6' : '#22d3ee'; 
+        let vStr = val.toString(); if(vStr.length > 6) vStr = ".."+vStr.slice(-4);
+        ctx.fillText(vStr, x+cellS/2, HDR_S/2);
+    }
+    ctx.restore();
+    ctx.save(); ctx.translate(0, HDR_S + scrollY);
+    for(let r=-1; r<rowsToDraw+1; r++) {
+        const val = viewAnchor.r + BigInt(r);
+        if(val<0n) continue;
+        const y = r * cellS;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(0, y, HDR_S, cellS-1);
+        ctx.fillStyle = '#34d399'; 
+        let vStr = val.toString(); if(vStr.length > 6) vStr = ".."+vStr.slice(-4);
+        ctx.fillText(vStr, HDR_S/2, y+cellS/2);
+    }
+    ctx.restore();
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,HDR_S,HDR_S);
+    ctx.fillStyle = '#fff'; ctx.fillText(layoutMode==='spine'?'k\\b':'k\\j', HDR_S/2, HDR_S/2);
+}
+
+function updateFromInput(type) {
+    try {
+        let k = BigInt(document.getElementById('inpK').value);
+        let c = BigInt(document.getElementById('inpCol').value);
+        let a = BigInt(document.getElementById('inpA').value);
+        let targetR, targetC;
+        if(type==='k' || type==='col') { targetR = k; targetC = c; }
+        else if(type==='a') {
+            const nk = (a - 1n)/2n; 
+            targetR = nk; targetC = (layoutMode==='spine') ? 0n : nk;
+        }
+        jumpTo(targetR, targetC);
+    } catch(e){}
+}
+
+// --- TOUCH & MOUSE CONTROLS (Omitted for brevity) ---
+const inpZoom = document.getElementById('inpZoom');
+inpZoom.oninput = (e) => { cellS = parseInt(e.target.value); requestBatch(); draw(); };
+
+let dragging = false, lastX=0, lastY=0, startX=0, startY=0;
+let pinchStartDist=0, pinchStartCellS=64;
+
+function getDist(t1, t2) { return Math.hypot(t1.clientX-t2.clientX, t1.clientY-t2.clientY); }
+
+wrap.addEventListener('touchstart', e => {
+    if(e.touches.length === 2) {
+        dragging = false;
+        pinchStartDist = getDist(e.touches[0], e.touches[1]);
+        pinchStartCellS = cellS;
+    } else if (e.touches.length === 1) {
+        dragging = true;
+        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+        startX = lastX; startY = lastY;
+    }
+}, {passive:false});
+
+wrap.addEventListener('touchmove', e => {
+    if(e.touches.length === 2) {
+        e.preventDefault(); 
+        const dist = getDist(e.touches[0], e.touches[1]);
+        const scale = dist / pinchStartDist;
+        let newS = Math.round(pinchStartCellS * scale);
+        if(newS < 20) newS = 20; if(newS > 150) newS = 150;
+        cellS = newS; inpZoom.value = newS;
+        requestBatch(); draw();
+    } else if (dragging && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - lastX;
+        const dy = e.touches[0].clientY - lastY;
+        pan(dx, dy);
+        lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    }
+}, {passive:false});
+
+wrap.addEventListener('touchend', e => {
+    dragging = false;
+    if(e.changedTouches.length > 0) {
+        const t = e.changedTouches[0];
+        const dist = Math.hypot(t.clientX - startX, t.clientY - startY);
+        if(dist < 10) tapSelect(t.clientX, t.clientY);
+    }
+});
+
+wrap.addEventListener('mousedown', e => { dragging=true; lastX=e.clientX; lastY=e.clientY; startX=e.clientX; startY=e.clientY; });
+wrap.addEventListener('mousemove', e => {
+    if(dragging) { pan(e.clientX-lastX, e.clientY-lastY); lastX=e.clientX; lastY=e.clientY; }
+});
+wrap.addEventListener('mouseup', e => {
+    dragging=false; 
+    if(Math.hypot(e.clientX-startX, e.clientY-startY)<5) tapSelect(e.clientX, e.clientY);
+});
+
+// Modals
+document.getElementById('btnHelp').onclick = () => document.getElementById('helpModal').style.display='flex';
+document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').style.display='none';
+document.getElementById('techHeader').onclick = () => {
+    const c = document.getElementById('techContent');
+    c.classList.toggle('open');
+    document.getElementById('techHeader').lastElementChild.innerText = c.classList.contains('open') ? '▲' : '▼';
+    // FIX: Force redraw when panel opens/closes to prevent warp
+    resize();
+};
+document.getElementById('dispVal').onclick = () => {
+    if(currentFullData) {
+        document.getElementById('fullN').innerText = currentFullData.fullVal;
+        document.getElementById('fullFactors').innerText = `${currentFullData.P2} × ${currentFullData.P1}`;
+        document.getElementById('fullSmart').innerText = `${currentFullData.a}.${currentFullData.b}`;
+        document.getElementById('fullGnomon').innerText = currentFullData.g;
+        document.getElementById('fullTape').innerText = currentFullData.tapeID;
+        document.getElementById('fullValModal').style.display = 'flex';
+    }
+}
+document.getElementById('closeFull').onclick = () => document.getElementById('fullValModal').style.display='none';
+
+// Layout Switch
+const btnLayout = document.getElementById('btnLayout');
+const btnMirror = document.getElementById('btnMirror');
+btnLayout.onclick = () => {
+    layoutMode = (layoutMode === 'spine') ? 'diag' : 'spine';
+    btnLayout.innerText = (layoutMode === 'spine') ? 'SPINE' : 'DIAG';
+    btnMirror.disabled = (layoutMode === 'spine');
+    cellCache.clear(); jumpTo(highlight.r, highlight.c);
+};
+btnMirror.onclick = (e) => {
+    if(layoutMode === 'spine') return;
+    hideMirror = !hideMirror; e.target.classList.toggle('active');
+    cellCache.clear(); requestBatch(); draw();
+};
+
+function resize() {
+    DPR = window.devicePixelRatio || 1;
+    canvas.width = wrap.clientWidth * DPR;
+    canvas.height = wrap.clientHeight * DPR;
+    requestBatch(); draw();
+}
+window.onresize = resize;
+
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', () => {
+    const coreSelect = document.getElementById('coreSelect');
+    const availableCores = navigator.hardwareConcurrency || 4;
+    for (let i = 1; i <= availableCores; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${i} Core${i > 1 ? 's' : ''}`;
+        if (i === availableCores) option.selected = true;
+        coreSelect.appendChild(option);
+    }
+    
+    document.getElementById('btnAddFilter').onclick = addFilter;
+    document.getElementById('btnLocateRow').onclick = locateHomeRow;
+    document.getElementById('btnIntercept').onclick = interceptScan; // Register new button
+    
+    resize();
+    // Default start point: Row 0, Col 0 (Value 1)
+    jumpTo(0n, 0n);
+    renderFilters();
+});
+
+document.getElementById('btnFind').onclick = () => {
+    const raw = document.getElementById('inpFind').value.trim();
+    if(!raw) return;
+    try { BigInt(raw); } catch(e) { showToast("Invalid format"); return; }
+    startParallelScan(raw);
+};
+</script>
+</body>
+</html>

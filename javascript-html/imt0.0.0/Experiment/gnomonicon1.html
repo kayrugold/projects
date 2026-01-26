@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <title>Codex Gnomonicus: Prime Port</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { 
+            margin: 0; overflow: hidden; height: 100vh; width: 100vw; 
+            touch-action: none;
+            background-color: #f3e5ab;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.1'/%3E%3C/svg%3E");
+            font-family: 'Caveat', cursive, sans-serif;
+        }
+
+        #hud {
+            position: absolute; top: 0; left: 0; width: 100%; 
+            padding: 15px; box-sizing: border-box; pointer-events: none;
+            display: flex; justify-content: space-between;
+            color: #5d4037; font-weight: bold; z-index: 10;
+        }
+        .ink-stat { font-size: 1.5rem; }
+        .ink-label { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 2px; opacity: 0.7; }
+
+        #controls {
+            position: absolute; bottom: 30px; right: 20px;
+            display: flex; flex-direction: column; gap: 15px; pointer-events: auto; z-index: 10;
+        }
+        
+        .ink-btn {
+            background: rgba(253, 251, 247, 0.9);
+            border: 3px solid #5d4037;
+            color: #5d4037;
+            padding: 10px 20px;
+            font-family: 'Caveat', cursive;
+            font-size: 1.4rem;
+            font-weight: 700;
+            border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(93, 64, 55, 0.2);
+            user-select: none;
+        }
+        .ink-btn:active { background: #5d4037; color: #f3e5ab; transform: scale(0.95); }
+
+        #holo-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(93, 64, 55, 0.4); backdrop-filter: blur(2px);
+            display: none; justify-content: center; align-items: center; pointer-events: auto; z-index: 20;
+        }
+        #holo-card {
+            background: #fdfbf7; border: 3px solid #5d4037;
+            width: 85%; max-width: 350px; padding: 25px; 
+            box-shadow: 10px 10px 0px rgba(93, 64, 55, 0.3);
+            color: #5d4037; text-align: center;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gridCanvas"></canvas>
+
+    <div id="hud">
+        <div>
+            <div class="ink-label">Row (k)</div>
+            <div id="disp-k" class="ink-stat">0</div>
+        </div>
+        <div style="text-align:right;">
+            <div class="ink-label">Scale</div>
+            <div id="disp-zoom" class="ink-stat">1.0x</div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button class="ink-btn" onclick="resetView()">Origin</button>
+        <button class="ink-btn" onclick="jump()">Jump</button>
+    </div>
+
+    <div id="holo-overlay" onclick="closeHolo()">
+        <div id="holo-card" onclick="event.stopPropagation()">
+            <div style="font-size:2.5rem; margin-bottom:10px; border-bottom:2px solid #5d4037;" id="h-val">--</div>
+            <div style="font-size:1.5rem; margin:5px 0;">Address: <span id="h-addr" style="font-weight:bold">--</span></div>
+            <div style="font-size:1.5rem; margin:5px 0; color:#b45309;">Tape ID: <span id="h-tape">--</span></div>
+            <div style="font-size:1.2rem; margin-top:15px; color:#8d6e63; font-style:italic;" id="h-calc">--</div>
+            <button class="ink-btn" style="width:100%; margin-top:20px;" onclick="closeHolo()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gridCanvas");
+        const ctx = canvas.getContext("2d", { alpha: false });
+
+        // --- CONSTANTS ---
+        const CELL_W = 120;
+        const CELL_H = 70;
+        const C_PAPER = "#f3e5ab";
+        const C_INK = "#5d4037";
+        const C_GOLD = "#b45309";
+
+        // --- STATE (Prime Explorer Logic) ---
+        let scale = 1.0;
+        let offsetX = 0;
+        let offsetY = 0;
+        
+        let lastPan = null;
+        let lastTouchDist = 0;
+        let activeTool = null;
+
+        // --- INITIALIZATION ---
+        function init() {
+            window.addEventListener('resize', onResize);
+            onResize(); // Initial sizing
+            resetView(); // Force valid coordinates
+            requestAnimationFrame(draw); // Start loop
+        }
+
+        function onResize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+
+        function resetView() {
+            scale = 1.0;
+            // Center the "Origin" (Row 0, Col 0) horizontally, 150px from top
+            offsetX = canvas.width / 2;
+            offsetY = 150;
+            draw();
+        }
+
+        // --- DRAW LOOP ---
+        function draw() {
+            // 1. Safety Check (Prevent NaN/Blank Screen)
+            if (!Number.isFinite(scale) || scale <= 0) scale = 1.0;
+            if (!Number.isFinite(offsetX)) offsetX = canvas.width / 2;
+            if (!Number.isFinite(offsetY)) offsetY = 150;
+
+            // 2. Clear
+            ctx.fillStyle = C_PAPER;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 3. Viewport Calculations (World Bounds)
+            // World = (Screen - Offset) / Scale
+            let minX = (0 - offsetX) / scale;
+            let maxX = (canvas.width - offsetX) / scale;
+            let minY = (0 - offsetY) / scale;
+            let maxY = (canvas.height - offsetY) / scale;
+
+            // Row Indices
+            let minK = Math.floor(minY / CELL_H);
+            let maxK = Math.floor(maxY / CELL_H) + 1;
+            
+            // Triangle Limit
+            if (minK < 0) minK = 0;
+
+            // HUD
+            let centerRow = Math.max(0, Math.floor((minK + maxK) / 2));
+            document.getElementById('disp-k').innerText = centerRow;
+            document.getElementById('disp-zoom').innerText = scale.toFixed(2) + "x";
+
+            // 4. Apply Transform
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+
+            // LOD Flags
+            let showText = (scale > 0.35);
+            let showTape = (scale > 0.6);
+            
+            // Stride Logic (For Infinite Zoom)
+            let stride = 1;
+            if (scale < 0.05) stride = 10;
+            if (scale < 0.005) stride = 100;
+
+            // 5. Draw Borders & Spine (Visual Anchor)
+            ctx.strokeStyle = "#3e2723";
+            ctx.lineWidth = 4 / Math.sqrt(scale);
+            ctx.lineCap = "round";
+            
+            let drawK = Math.min(maxK + 100, minK + 5000); // Visual limit
+
+            // Borders
+            ctx.beginPath();
+            ctx.moveTo(0, 0); ctx.lineTo(-drawK * CELL_W, drawK * CELL_H); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, 0); ctx.lineTo(drawK * CELL_W, drawK * CELL_H); ctx.stroke();
+
+            // Spine
+            ctx.strokeStyle = "rgba(180, 83, 9, 0.2)";
+            ctx.lineWidth = 2 / scale;
+            ctx.beginPath();
+            ctx.moveTo(0, 0); ctx.lineTo(0, drawK * CELL_H); ctx.stroke();
+
+            // Origin Star
+            ctx.fillStyle = C_GOLD;
+            ctx.beginPath(); ctx.arc(0, 0, 8 / scale, 0, Math.PI * 2); ctx.fill();
+
+            // 6. Draw Grid Data
+            if (showText) {
+                ctx.font = "bold 28px 'Caveat', monospace";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+            }
+
+            // Align startK to stride
+            let startK = minK - (minK % stride);
+            if(startK < 0) startK = 0;
+
+            for (let k = startK; k <= maxK; k += stride) {
+                let rowY = k * CELL_H;
+                
+                // Horizontal Culling
+                let cMin = Math.floor(minX / CELL_W);
+                let cMax = Math.ceil(maxX / CELL_W);
+                
+                // Triangle Clipping: |col| <= k
+                let startC = Math.max(cMin, -k);
+                let endC = Math.min(cMax, k);
+
+                if (startC > endC) continue;
+
+                // Align Cols to Stride
+                let startC_aligned = startC - (startC % stride);
+
+                for (let c = startC_aligned; c <= endC; c += stride) {
+                    if (Math.abs(c) > k) continue;
+
+                    let cellX = c * CELL_W;
+
+                    if (showText) {
+                        let bigK = BigInt(k);
+                        let A = (bigK << 1n) | 1n; // 2k+1
+                        let spine = A * A;
+                        let step = A << 1n; // 2A
+                        let tapeStart = ((bigK * (bigK + 1n)) >> 1n) + 1n;
+
+                        let val, tapeText = null;
+
+                        if (c === 0) {
+                            // SPINE
+                            val = spine;
+                            tapeText = tapeStart.toString();
+                            ctx.fillStyle = C_GOLD;
+                        } else if (c > 0) {
+                            // RIGHT
+                            let gap = BigInt(c);
+                            val = spine - (gap * step);
+                            tapeText = (tapeStart + gap).toString();
+                            ctx.fillStyle = C_INK;
+                        } else {
+                            // LEFT (Mirror Symmetry)
+                            let gap = BigInt(-c);
+                            let rightVal = spine - (gap * step);
+                            val = rightVal * -1n;
+                            ctx.fillStyle = C_INK;
+                        }
+
+                        ctx.fillText(val.toString(), cellX, rowY);
+
+                        if (showTape && tapeText) {
+                            ctx.save();
+                            ctx.font = "bold 16px 'Caveat', monospace";
+                            ctx.fillStyle = C_GOLD;
+                            ctx.fillText(tapeText, cellX, rowY - 24);
+                            ctx.restore();
+                        }
+                    }
+
+                    // Structure Dots
+                    ctx.beginPath();
+                    ctx.fillStyle = "rgba(93, 64, 55, 0.3)";
+                    let r = showText ? 2 : (5 / scale);
+                    if (r > CELL_W/2) r = CELL_W/2;
+                    ctx.arc(cellX, rowY + (showText ? 20 : 0), r, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // --- INPUT HANDLERS (Prime Explorer Port) ---
+
+        function handleStart(x, y) {
+            activeTool = 'pan';
+            lastPan = { x, y };
+        }
+
+        function handleMove(x, y) {
+            if (activeTool === 'pan') {
+                let dx = x - lastPan.x;
+                let dy = y - lastPan.y;
+                offsetX += dx;
+                offsetY += dy;
+                lastPan = { x, y };
+                requestAnimationFrame(draw);
+            }
+        }
+
+        // MOUSE
+        canvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => {
+            if (activeTool) handleMove(e.clientX, e.clientY);
+        });
+        window.addEventListener('mouseup', () => activeTool = null);
+
+        // WHEEL (Zoom)
+        canvas.addEventListener('wheel', e => {
+            e.preventDefault();
+            let factor = Math.pow(1.001, -e.deltaY);
+            
+            // Zoom towards pointer
+            let mouseX = e.clientX;
+            let mouseY = e.clientY;
+            
+            offsetX = mouseX - (mouseX - offsetX) * factor;
+            offsetY = mouseY - (mouseY - offsetY) * factor;
+            scale *= factor;
+            
+            // Limit zoom
+            if(scale < 0.0001) scale = 0.0001;
+            if(scale > 100) scale = 100;
+            
+            requestAnimationFrame(draw);
+        }, { passive: false });
+
+        // TOUCH
+        canvas.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                handleStart(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (e.touches.length === 2) {
+                activeTool = 'zoom';
+                lastTouchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                lastPan = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX)/2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY)/2
+                };
+            }
+        }, {passive:false});
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (activeTool === 'pan' && e.touches.length === 1) {
+                handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            } else if (activeTool === 'zoom' && e.touches.length === 2) {
+                let dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                let center = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX)/2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY)/2
+                };
+                
+                // Pan
+                offsetX += center.x - lastPan.x;
+                offsetY += center.y - lastPan.y;
+                
+                // Zoom
+                let factor = dist / lastTouchDist;
+                // Clamp sudden zoom jumps
+                if (factor > 1.2) factor = 1.2;
+                if (factor < 0.8) factor = 0.8;
+
+                offsetX = center.x - (center.x - offsetX) * factor;
+                offsetY = center.y - (center.y - offsetY) * factor;
+                scale *= factor;
+
+                lastTouchDist = dist;
+                lastPan = center;
+                requestAnimationFrame(draw);
+            }
+        }, {passive:false});
+
+        canvas.addEventListener('touchend', () => activeTool = null);
+
+        // CLICK (Holo)
+        canvas.addEventListener('click', e => {
+            // Don't trigger if we just dragged
+            // (Simple check: if tool is active, ignore)
+            if (activeTool) return;
+
+            let wx = (e.clientX - offsetX) / scale;
+            let wy = (e.clientY - offsetY) / scale;
+            
+            let c = Math.round(wx / CELL_W);
+            let k = Math.round(wy / CELL_H);
+            
+            if (k < 0) k = 0;
+            if (Math.abs(c) > k) return;
+
+            let bigK = BigInt(k);
+            let A = (bigK << 1n) | 1n;
+            let spine = A * A;
+            let step = A << 1n;
+            let tapeStart = ((bigK * (bigK + 1n)) >> 1n) + 1n;
+            
+            let val, addr, tapeStr="--";
+            
+            if(c === 0) {
+                val = spine; addr = `Anchor ${A}`;
+                tapeStr = tapeStart.toString();
+            } else if (c > 0) {
+                let gap = BigInt(c);
+                val = spine - (gap * step);
+                addr = `Anchor ${A}, Gap ${gap}`;
+                tapeStr = (tapeStart + gap).toString();
+            } else {
+                let gap = BigInt(-c);
+                let rightVal = spine - (gap * step);
+                val = rightVal * -1n;
+                addr = `Anchor ${A}, Gap ${gap} (Mirror)`;
+            }
+            
+            document.getElementById('h-val').innerText = val.toString();
+            document.getElementById('h-addr').innerText = addr;
+            document.getElementById('h-tape').innerText = tapeStr;
+            document.getElementById('h-calc').innerText = `Value: ${val}`;
+            document.getElementById('holo-overlay').style.display = 'flex';
+        });
+
+        function closeHolo() { document.getElementById('holo-overlay').style.display = 'none'; }
+        
+        function jump() {
+            let val = prompt("Enter Row Number:");
+            if (val) {
+                let k = parseInt(val);
+                if (!isNaN(k)) {
+                    let targetY = k * CELL_H;
+                    offsetY = (canvas.height/2) - (targetY * scale);
+                    offsetX = canvas.width/2;
+                    draw();
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

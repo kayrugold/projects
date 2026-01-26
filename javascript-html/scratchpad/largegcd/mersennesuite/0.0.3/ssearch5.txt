@@ -1,0 +1,115 @@
+import math
+import sys
+import time
+
+# --- SYSTEM CONFIGURATION ---
+# Fix for potentially very large numbers (allows printing of massive integers)
+sys.set_int_max_str_digits(10000000)
+# Threshold for printing full factor value (100 digits is usually safe for console display)
+MAX_DIGITS_FOR_DISPLAY = 100 
+
+# --- CONFIGURATION: EDIT THESE VALUES ---
+# Target N = BASE_A ** EXPONENT_B + ADDEND_C
+BASE_A = 2     # Default base (e.g., 10)
+EXPONENT_B = 250000   # Exponent (creates a 75000+ digit number)
+ADDEND_C = -1     # Addend (e.g., -1 for 99...9)
+MAX_K = 100000  # Number of steps to check beyond S_min
+
+def factor_via_corner_reduction(N: int, max_k: int):
+    """
+    Implements the S-Search algorithm, testing the geometric constraint:
+    Is S^2 - 4N a perfect square (D^2)?
+    """
+    if N <= 1:
+        print("Error: N must be greater than 1.")
+        return
+
+    N_digits = len(str(N))
+    print(f"\n--- Starting Corner Reduction Search for N ---")
+    print(f"Target N has {N_digits:,} digits.")
+    
+    # 1. Calculate Initial Box Side (S_min) and 4N
+    N_4 = N * 4
+    
+    # Python's math.isqrt is optimized for this step.
+    sqrt_N = math.isqrt(N)
+    S_min = 2 * sqrt_N
+    
+    # Ensure S_min^2 > 4N (core S-Search rule: D_sq must be positive)
+    while S_min * S_min <= N_4:
+        S_min += 1
+        
+    print(f"Initial Search Start (S_min): {S_min}")
+    
+    S = S_min
+    start_time = time.time()
+    found_factor = False
+
+    # 2. Iterate and check the geometric constraint
+    for k in range(max_k):
+        # Calculate the remaining area: D_sq = S^2 - 4N
+        D_sq = S * S - N_4
+        
+        # Test the constraint: Is the remaining area a perfect square?
+        D = math.isqrt(D_sq)
+        
+        if D * D == D_sq:
+            # Factor found! We found the perfect integer corner point.
+            f1 = (S + D) // 2
+            f2 = (S - D) // 2
+            
+            if f2 > 1:
+                found_factor = True
+                print("\n*** FACTOR FOUND (Perfect Hyperbola Hit) ***")
+                print(f"Iterations (k): {k:,}")
+                print(f"S - S_min (Search Space Examined): {S - S_min:,}")
+                print(f"Final Search Value (S): {S:,}")
+                print("-" * 30)
+                
+                # Report on factor dimensions
+                f1_digits = len(str(f1))
+                f2_digits = len(str(f2))
+                
+                print(f"Factor 1 (Length, f1): {f1_digits:,} digits")
+                print(f"Factor 2 (Width, f2): {f2_digits:,} digits")
+                print(f"Factor Difference (f1 - f2): {D:,}")
+
+                # Only print the full number if it's manageable
+                if f1_digits <= MAX_DIGITS_FOR_DISPLAY:
+                    print("-" * 30)
+                    print(f"f1: {f1}")
+                    print(f"f2: {f2}")
+                else:
+                    print(f"--- Full factor values suppressed (>{MAX_DIGITS_FOR_DISPLAY} digits) ---")
+                    
+                return
+        
+        S += 1 # Increment the side of the container (Corner Reduction)
+        
+        if (k + 1) % 10000 == 0:
+            print(f"...Checked {k + 1:,} steps. S = {S}")
+
+    # 3. Final Statistics (If no factor was found)
+    end_time = time.time()
+    time_elapsed = end_time - start_time
+    
+    print(f"\n--- Search Complete ---")
+    print(f"Search complete. No factors found within {max_k:,} steps.")
+    print(f"Total steps checked (S - S_min): {max_k:,}")
+    print(f"Final S tested: {S - 1:,}")
+    print(f"Time elapsed: {time_elapsed:.2f} seconds.")
+    print(f"Time per step: {time_elapsed / max_k:.6f} seconds.")
+
+
+if __name__ == '__main__':
+    # Calculate N 
+    N_target = BASE_A ** EXPONENT_B + ADDEND_C
+    print(f"Target N = {BASE_A}^{EXPONENT_B} + ({ADDEND_C})")
+    
+    # Run the search
+    factor_via_corner_reduction(N_target, MAX_K)
+
+    # --- Example of immediate success (factors are close together) ---
+    print("\n" + "="*50)
+    print("DEMO: N=1007 (Factors are close: 19 & 53)")
+    factor_via_corner_reduction(1007, 100) # Only needs a few steps (k=8)

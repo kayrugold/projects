@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stride Hunter v14 (Raw Input)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #000; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; }
+    
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; max-width: 700px; margin: 0 auto; box-shadow: 0 0 60px rgba(168, 85, 247, 0.15); }
+    
+    label { display: block; font-size: 0.7rem; color: #64748b; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; }
+    input, select, textarea { width: 100%; background: #1e293b; border: 1px solid #334155; color: #d8b4fe; padding: 12px; border-radius: 6px; font-weight: bold; font-family: monospace; margin-bottom: 15px; font-size: 1.1rem; }
+    textarea { font-size: 0.8rem; height: 80px; word-break: break-all; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #a855f7; }
+    
+    .btn { width: 100%; padding: 16px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 5px; transition: all 0.2s; letter-spacing: 2px; }
+    .btn-run { background: #7e22ce; color: #fff; border: 1px solid #6b21a8; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4); }
+    .btn-run:hover { background: #9333ea; }
+    .btn-stop { background: #ef4444; color: #fff; display: none; }
+    
+    .status-panel { margin-top: 20px; border-top: 1px dashed #334155; padding-top: 15px; }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
+    .stat-val { font-weight: bold; color: #d8b4fe; }
+    
+    .factor-box { background: #1e293b; border: 1px solid #ef4444; padding: 10px; border-radius: 6px; margin-bottom: 15px; display: none; }
+    .factor-header { color: #ef4444; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #ef4444; padding-bottom: 5px; margin-bottom: 5px; }
+    .factor-list { font-family: monospace; color: #fff; font-size: 1rem; max-height: 100px; overflow-y: auto; }
+    
+    .cores-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 15px; max-height: 400px; overflow-y: auto; }
+    .core-row { background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #1e293b; display: flex; flex-direction: column; }
+    .core-active { border-color: #a855f7; box-shadow: 0 0 10px rgba(168, 85, 247, 0.1); }
+    .core-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px; font-weight: bold; }
+    .progress-bg { height: 8px; background: #1e293b; width: 100%; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #a855f7; width: 0%; transition: width 0.2s; box-shadow: 0 0 8px #a855f7; }
+
+    .log-box { height: 120px; overflow-y: auto; font-size: 0.75rem; color: #64748b; margin-top: 15px; font-family: monospace; background: #020617; padding: 10px; border-radius: 6px; border: 1px solid #1e293b; }
+    .hit { color: #ef4444; font-weight: bold; }
+    .safe { color: #22c55e; }
+    .sys { color: #d8b4fe; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-black text-center text-purple-500 mb-1">STRIDE HUNTER v14</h1>
+    <p class="text-center text-xs text-gray-500 mb-6">RAW INPUT EDITION</p>
+
+    <label>TARGET NUMBER (Raw Digits)</label>
+    <textarea id="inpRaw">1522605027922533360535618378132637429718068114961380688657908494580122963258952897654000350692006139</textarea>
+
+    <div class="grid-2">
+        <div>
+            <label>CPU CORES</label>
+            <select id="inpCores">
+                <option value="2">2 Cores</option>
+                <option value="4" selected>4 Cores</option>
+                <option value="6">6 Cores</option>
+                <option value="8">8 Cores</option>
+                <option value="12">12 Cores</option>
+            </select>
+        </div>
+        <div>
+             <label style="color:#d8b4fe">START WALKER</label>
+             <input id="inpStart" value="5000000000" style="border-color:#a855f7; color:#d8b4fe">
+        </div>
+    </div>
+    
+    <label>END WALKER</label>
+    <input id="inpEnd" value="100000000000">
+
+    <button id="btnStart" class="btn btn-run" onclick="startScan()">DEPLOY FLEET</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopScan()">ABORT & REPORT</button>
+    
+    <div class="status-panel">
+        <div class="stat-row"><span>Mission Clock:</span><span id="sTime">00:00:00</span></div>
+        <div class="stat-row"><span>Status:</span><span id="sStatus" class="text-gray-500">DOCKED</span></div>
+        
+        <div id="factorBox" class="factor-box">
+            <div class="factor-header">CONFIRMED FACTORS</div>
+            <div id="factorList" class="factor-list"></div>
+        </div>
+
+        <div id="coresContainer" class="cores-grid"></div>
+
+        <div id="logBox" class="log-box">System Ready.<br>Paste any number above to scan.</div>
+    </div>
+</div>
+
+<script>
+let workers = [];
+let startTime = 0;
+let timerInterval = null;
+let activeWorkers = 0;
+let wakeLock = null;
+let foundFactors = new Set();
+
+document.addEventListener('DOMContentLoaded', () => {
+    const cores = navigator.hardwareConcurrency || 4;
+    const select = document.getElementById('inpCores');
+    for(let i=0; i<select.options.length; i++) {
+        if(parseInt(select.options[i].value) === cores) { select.selectedIndex = i; break; }
+    }
+});
+
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            log("Screen Wake Lock: ACTIVE", 'sys');
+        }
+    } catch (err) { log(`Wake Lock Error: ${err.name}`, 'hit'); }
+}
+
+function releaseWakeLock() {
+    if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); }
+}
+
+// --- WORKER CODE ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { numStr, startStr, endStr } = e.data;
+    
+    try {
+        const N = BigInt(numStr); // The Monster Number
+        const startLimit = parseInt(startStr);
+        const endLimit = parseInt(endStr);
+
+        const sqrtLim = Math.floor(Math.sqrt(endLimit));
+        const sieveLimit = Math.max(sqrtLim, 200); 
+        const baseSieve = new Uint8Array(sieveLimit + 1);
+        const basePrimes = [];
+        
+        for(let i=2; i<=sieveLimit; i++) {
+            if(baseSieve[i] === 0) {
+                if(i >= 7) basePrimes.push(i); 
+                for(let j=i*i; j<=sieveLimit; j+=i) baseSieve[j] = 1;
+            }
+        }
+        
+        postMessage({type: 'init', count: basePrimes.length});
+
+        const BLOCK_SIZE = 300000; 
+        let low = startLimit;
+        
+        // v13.1 Alignment Fix Logic
+        if (startLimit > 1000000) {
+            const rem = low % 30;
+            if(rem !== 0) low += (30 - rem);
+        }
+
+        let processed = 0;
+        let lastReport = Date.now();
+        const wheelOffsets = [1, 7, 11, 13, 17, 19, 23, 29];
+        const segment = new Uint8Array(BLOCK_SIZE); 
+
+        while(low < endLimit) {
+            const high = Math.min(low + BLOCK_SIZE, endLimit);
+            segment.fill(0);
+            
+            for(let i = 0; i < basePrimes.length; i++) {
+                const p = basePrimes[i];
+                let start = Math.floor((low + p - 1) / p) * p;
+                if(start < p*p) start = p*p; 
+                let idx = start - low;
+                for(let j = idx; j < (high - low); j += p) {
+                    segment[j] = 1; 
+                }
+            }
+            
+            // Small Range Safety
+            if (startLimit <= 1000000) {
+                for(let i=0; i<(high-low); i++) {
+                    if(segment[i] === 0) {
+                        const pVal = low + i;
+                        if(pVal < 2) continue;
+                        if(pVal < startLimit) continue;
+                        
+                        if(pVal === 2 || pVal === 3 || pVal === 5) {
+                             const P = BigInt(pVal);
+                             if (N % P === 0n) postMessage({ type: 'hit', p: pVal });
+                             continue;
+                        }
+
+                        if((pVal % 2 !== 0) && (pVal % 3 !== 0) && (pVal % 5 !== 0)) {
+                             const P = BigInt(pVal);
+                             // Direct Modulo Check for Raw Number
+                             if (N % P === 0n) postMessage({ type: 'hit', p: pVal });
+                        }
+                    }
+                }
+            } else {
+                // Wheel 30 Turbo
+                for(let base = 0; base < (high - low); base += 30) {
+                    for(let k = 0; k < 8; k++) {
+                        const off = wheelOffsets[k];
+                        const idx = base + off;
+                        if(idx >= (high - low)) break;
+                        
+                        const pVal = low + idx;
+                        if(pVal < startLimit) continue;
+    
+                        if(segment[idx] === 0) {
+                            const P = BigInt(pVal); 
+                            // Direct Modulo Check
+                            if (N % P === 0n) {
+                                postMessage({ type: 'hit', p: pVal });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            processed += (high - low);
+            low += BLOCK_SIZE;
+            
+            const now = Date.now();
+            if(now - lastReport > 800) {
+                postMessage({ type: 'progress', curr: Math.min(low, endLimit), worked: processed });
+                processed = 0;
+                lastReport = now;
+            }
+        }
+        
+        postMessage({ type: 'done' });
+
+    } catch(err) {
+        postMessage({ type: 'error', msg: err.message });
+    }
+};
+`;
+
+function log(msg, type='') {
+    const box = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.textContent = `> ${msg}`;
+    if(type === 'hit') div.className = 'hit';
+    if(type === 'safe') div.className = 'safe';
+    if(type === 'sys') div.className = 'sys';
+    box.prepend(div);
+}
+
+function updateTimer() {
+    const now = Date.now();
+    const diff = Math.floor((now - startTime) / 1000);
+    const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    document.getElementById('sTime').textContent = `${h}:${m}:${s}`;
+}
+
+function resetSystem() {
+    workers.forEach(w => w.terminate());
+    workers = [];
+    clearInterval(timerInterval);
+    releaseWakeLock();
+    foundFactors.clear();
+    activeWorkers = 0;
+    document.getElementById('logBox').innerHTML = '';
+    document.getElementById('coresContainer').innerHTML = '';
+    document.getElementById('factorList').innerHTML = '';
+    document.getElementById('factorBox').style.display = 'none';
+    document.getElementById('sTime').textContent = "00:00:00";
+    document.getElementById('sStatus').textContent = "SYSTEM RESET";
+    document.getElementById('sStatus').style.color = "#64748b";
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+}
+
+function startScan() {
+    resetSystem();
+    
+    const rawNum = document.getElementById('inpRaw').value.replace(/\s/g, '');
+    const startVal = parseInt(document.getElementById('inpStart').value);
+    const endVal = parseInt(document.getElementById('inpEnd').value);
+    const coreCount = parseInt(document.getElementById('inpCores').value);
+
+    if(endVal <= startVal) { log("Error: End must be > Start", "hit"); return; }
+    if(!rawNum) { log("Error: Paste a number first.", "hit"); return; }
+
+    requestWakeLock();
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'block';
+    document.getElementById('sStatus').textContent = "FLEET DEPLOYED";
+    document.getElementById('sStatus').style.color = "#a855f7";
+    
+    const range = endVal - startVal;
+    const rangePerCore = Math.ceil(range / coreCount);
+    
+    log(`Mission: Scan ${range.toLocaleString()} walkers`, 'sys');
+
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+    activeWorkers = coreCount;
+
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    const workerUrl = URL.createObjectURL(blob);
+
+    for(let i=0; i<coreCount; i++) {
+        const wStart = startVal + (i * rangePerCore);
+        const wEnd = Math.min(wStart + rangePerCore, endVal);
+        
+        const coreDiv = document.createElement('div');
+        coreDiv.className = 'core-row core-active';
+        coreDiv.innerHTML = `
+            <div class="core-header">
+                <span>CORE ${i+1} [${wStart.toLocaleString()} - ${wEnd.toLocaleString()}]</span>
+                <span id="progText-${i}">0%</span>
+            </div>
+            <div class="progress-bg"><div id="progBar-${i}" class="progress-fill"></div></div>
+        `;
+        document.getElementById('coresContainer').appendChild(coreDiv);
+
+        const w = new Worker(workerUrl);
+        w.onmessage = function(e) { handleMessage(e.data, i, wStart, wEnd); };
+        w.postMessage({ numStr: rawNum, startStr: wStart.toString(), endStr: wEnd.toString(), workerId: i });
+        workers.push(w);
+    }
+}
+
+function handleMessage(data, id, start, end) {
+    if(data.type === 'progress') {
+        const total = end - start;
+        const current = data.curr - start;
+        const pct = Math.min((current / total) * 100, 100).toFixed(1);
+        document.getElementById(`progBar-${id}`).style.width = pct + '%';
+        document.getElementById(`progText-${id}`).textContent = `${pct}%`;
+    }
+    else if(data.type === 'hit') {
+        if(!foundFactors.has(data.p)) {
+            foundFactors.add(data.p);
+            log(`CORE ${id+1} FOUND: ${data.p}`, 'hit');
+            document.getElementById('factorBox').style.display = 'block';
+            document.getElementById('factorList').innerHTML += `<div>${data.p}</div>`;
+            document.getElementById('sStatus').textContent = `${foundFactors.size} FACTORS FOUND`;
+            document.getElementById('sStatus').style.color = "#ef4444";
+        }
+    }
+    else if(data.type === 'done') {
+        document.getElementById(`progBar-${id}`).style.width = '100%';
+        document.getElementById(`progText-${id}`).textContent = 'DONE';
+        document.getElementById(`progBar-${id}`).style.backgroundColor = '#22c55e';
+        activeWorkers--;
+        
+        if(activeWorkers <= 0) {
+            finalizeScan();
+        }
+    }
+    else if(data.type === 'error') {
+        log(`Err T${id+1}: ${data.msg}`, 'hit');
+    }
+}
+
+function stopScan() {
+    log("ABORT COMMAND. Stopping Fleet...", 'hit');
+    workers.forEach(w => w.terminate());
+    workers = [];
+    finalizeScan();
+}
+
+function finalizeScan() {
+    clearInterval(timerInterval);
+    releaseWakeLock();
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+    
+    if(foundFactors.size > 0) {
+        log(`MISSION COMPLETE.`, 'hit');
+    } else {
+        document.getElementById('sStatus').textContent = "SECTOR CLEAN";
+        document.getElementById('sStatus').style.color = "#22c55e";
+        log(`Scan Finished. No factors found.`, 'safe');
+    }
+}
+</script>
+</body>
+</html>
+
+

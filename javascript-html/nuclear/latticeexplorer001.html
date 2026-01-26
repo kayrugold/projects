@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holographic Stride Hunter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: "Inter", monospace; background-color: #0f172a; color: #e2e8f0; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1.5rem; max-width: 600px; margin: 2rem auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); }
+        input { background: #0f172a; border: 1px solid #334155; color: #38bdf8; padding: 0.5rem; width: 100%; border-radius: 4px; font-family: monospace; font-size: 1.1rem; }
+        label { display: block; color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        button { width: 100%; padding: 0.75rem; font-weight: bold; border-radius: 4px; text-transform: uppercase; margin-top: 1rem; transition: all 0.2s; }
+        .btn-run { background: #0ea5e9; color: white; }
+        .btn-run:hover { background: #0284c7; }
+        .btn-stop { background: #ef4444; color: white; display: none; }
+        .log-box { background: #020617; padding: 1rem; border-radius: 4px; border: 1px solid #1e293b; height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.85rem; margin-top: 1.5rem; }
+        .hit-row { color: #f43f5e; font-weight: bold; border-bottom: 1px dashed #334155; padding: 4px 0; }
+        .info-row { color: #64748b; padding: 2px 0; }
+        .success-row { color: #22c55e; padding: 4px 0; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-xl font-bold text-sky-400 mb-1">STRIDE HUNTER</h1>
+    <p class="text-xs text-gray-500 mb-6">Holographic Index Check (I ≡ 2⁻¹ mod p)</p>
+
+    <div class="grid grid-cols-4 gap-4 mb-4">
+        <div class="col-span-3">
+            <label>Exponent (10^E)</label>
+            <input id="inpExp" value="1000000000">
+        </div>
+        <div class="col-span-1">
+            <label>Add (+C)</label>
+            <input id="inpAdd" value="61">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-2">
+        <div>
+            <label>Start Scan</label>
+            <input id="inpStart" value="2">
+        </div>
+        <div>
+            <label>End Scan</label>
+            <input id="inpEnd" value="1000000">
+        </div>
+    </div>
+
+    <button id="btnStart" class="btn-run">Deploy Hunter</button>
+    <button id="btnStop" class="btn-stop">Abort Scan</button>
+
+    <div id="logBox" class="log-box">
+        <div class="info-row">> System Ready.</div>
+        <div class="info-row">> Waiting for target coordinates...</div>
+    </div>
+</div>
+
+<script>
+// --- THE HOLOGRAPHIC WORKER ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { expStr, addStr, startVal, endVal } = e.data;
+    const E = BigInt(expStr);
+    const C = BigInt(addStr);
+    const start = parseInt(startVal);
+    const end = parseInt(endVal);
+
+    // 1. Modular Exponentiation (powMod)
+    // Calculates (base^exp) % mod efficiently
+    function powMod(base, exp, mod) {
+        let res = 1n;
+        base = base % mod;
+        while (exp > 0n) {
+            if (exp % 2n === 1n) res = (res * base) % mod;
+            base = (base * base) % mod;
+            exp /= 2n;
+        }
+        return res;
+    }
+
+    // 2. Modular Inverse of 2
+    // Returns (p+1)/2, which is 2^-1 mod p (for odd p)
+    function inv2(p) {
+        return (p + 1n) / 2n;
+    }
+
+    const hits = [];
+    let checked = 0;
+    const reportInterval = 50000; // Report progress every 50k numbers
+
+    // SCAN LOOP
+    // We iterate odd numbers. In a real 'fleet' version, 
+    // we would use a pre-computed prime sieve for speed.
+    // For this tool, a simple odd-number check is sufficient for < 10^9 ranges.
+    
+    // Ensure we start on an odd number
+    let current = (start % 2 === 0) ? start + 1 : start;
+
+    for (let pVal = current; pVal <= end; pVal += 2) {
+        // Simple primality check for the walker (pVal)
+        let isPrime = true;
+        // Basic optimization: check small primes quickly
+        if (pVal > 5) {
+            if (pVal % 3 === 0 || pVal % 5 === 0) isPrime = false;
+            else {
+                const limit = Math.floor(Math.sqrt(pVal));
+                for(let i=7; i<=limit; i+=6) { // 6k +/- 1 optimization
+                    if(pVal % i === 0 || pVal % (i+2) === 0) { isPrime = false; break; }
+                }
+            }
+        }
+        
+        if (isPrime && pVal > 2) {
+            const P = BigInt(pVal);
+
+            // --- THE HOLOGRAPHIC CHECK ---
+            
+            // 1. Calculate N mod P: (10^E + C) % P
+            // This compresses the billion-digit number into a tiny integer.
+            const N_mod_P = (powMod(10n, E, P) + C) % P;
+
+            // 2. Calculate Index mod P: (N + 1) / 2
+            // I_mod_P = (N_mod_P + 1) * 2^-1 % P
+            const I_mod_P = ((N_mod_P + 1n) * inv2(P)) % P;
+
+            // 3. The Universal Start Point: 2^-1 mod P
+            // This is the "Holographic" center of the p-family wave.
+            const Start_mod_P = inv2(P);
+
+            // 4. Collision Check
+            if (I_mod_P === Start_mod_P) {
+                // If the Index hits the Start Point, P divides N.
+                postMessage({ type: 'hit', p: pVal });
+            }
+        }
+        
+        checked++;
+        if (checked % reportInterval === 0) {
+            postMessage({ type: 'progress', current: pVal });
+        }
+    }
+
+    postMessage({ type: 'done', count: checked });
+};
+`;
+
+// --- MAIN THREAD ---
+const logBox = document.getElementById('logBox');
+let worker = null;
+
+function log(msg, type = 'info') {
+    const div = document.createElement('div');
+    div.textContent = msg;
+    if (type === 'hit') div.className = 'hit-row';
+    else if (type === 'success') div.className = 'success-row';
+    else div.className = 'info-row';
+    logBox.appendChild(div);
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+document.getElementById('btnStart').addEventListener('click', () => {
+    const expStr = document.getElementById('inpExp').value;
+    const addStr = document.getElementById('inpAdd').value;
+    const startVal = document.getElementById('inpStart').value;
+    const endVal = document.getElementById('inpEnd').value;
+
+    // UI Updates
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'inline-block';
+    logBox.innerHTML = ''; // Clear log
+    
+    log(`> DEPLOYING SCANNER`, 'success');
+    log(`> Target: 10^${expStr} + ${addStr}`);
+    log(`> Range: ${parseInt(startVal).toLocaleString()} - ${parseInt(endVal).toLocaleString()}`);
+    log(`> --------------------------`);
+
+    // Create Worker
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    worker = new Worker(URL.createObjectURL(blob));
+
+    worker.onmessage = (e) => {
+        const data = e.data;
+        if (data.type === 'hit') {
+            log(`!!! TARGET HIT !!! Factor Found: ${data.p}`, 'hit');
+            // Play a sound or alert if you want
+        } else if (data.type === 'progress') {
+            // Optional: Update a progress bar, currently just silent
+        } else if (data.type === 'done') {
+            log(`> Scan Complete. Checked approx ${data.count} candidates.`, 'success');
+            stopScan();
+        }
+    };
+
+    worker.postMessage({ expStr, addStr, startVal, endVal });
+});
+
+function stopScan() {
+    if (worker) worker.terminate();
+    worker = null;
+    document.getElementById('btnStart').style.display = 'inline-block';
+    document.getElementById('btnStop').style.display = 'none';
+    log(`> Scanner Halted.`, 'info');
+}
+
+document.getElementById('btnStop').addEventListener('click', () => {
+    log(`> Aborting...`, 'hit');
+    stopScan();
+});
+
+</script>
+</body>
+</html>

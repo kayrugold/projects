@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Holographic ALU</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 20px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; max-width: 800px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    h1 { color: #38bdf8; font-weight: 900; letter-spacing: 2px; text-align: center; margin-bottom: 20px; }
+    
+    .register-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .reg-box { background: #020617; padding: 15px; border-radius: 8px; border: 1px solid #475569; display: flex; flex-direction: column; }
+    .reg-label { font-size: 0.7rem; color: #94a3b8; margin-bottom: 5px; font-weight: bold; }
+    .reg-input { background: transparent; color: #fff; font-size: 1.2rem; font-weight: bold; outline: none; border: none; width: 100%; font-family: monospace; }
+    
+    .ops-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .btn { padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; border: 1px solid #475569; background: #334155; color: #fff; transition: all 0.2s; }
+    .btn:hover { background: #475569; border-color: #94a3b8; }
+    .btn-action { background: #0ea5e9; border-color: #0284c7; }
+    .btn-action:hover { background: #0284c7; }
+
+    .stream-log { 
+        background: #020617; border: 1px solid #334155; height: 300px; overflow-y: auto; 
+        padding: 10px; font-size: 0.8rem; color: #34d399; font-family: monospace; border-radius: 8px;
+    }
+    .log-line { margin-bottom: 4px; border-bottom: 1px dashed #1e293b; padding-bottom: 2px; }
+    .log-dim { color: #64748b; }
+    .log-hlt { color: #fbbf24; font-weight: bold; }
+    
+    .result-box { margin-top: 20px; text-align: center; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid #3b82f6; }
+    .res-val { font-size: 1.5rem; font-weight: bold; color: #38bdf8; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1>HOLOGRAPHIC ALU</h1>
+    
+    <div class="register-grid">
+        <div class="reg-box">
+            <span class="reg-label">REGISTER A (Nomad Width)</span>
+            <input id="regA" class="reg-input" value="123456789">
+        </div>
+        <div class="reg-box">
+            <span class="reg-label">REGISTER B (Nomad Height)</span>
+            <input id="regB" class="reg-input" value="987654321">
+        </div>
+    </div>
+
+    <div class="ops-row">
+        <button class="btn" onclick="runAdd()">A + B</button>
+        <button class="btn" onclick="runSub()">A - B</button>
+        <button class="btn btn-action" onclick="runSquareA()">SQUARE A (Gnomon)</button>
+        <button class="btn btn-action" onclick="runMultiply()">MULTIPLY (Diff Squares)</button>
+    </div>
+
+    <div id="logger" class="stream-log">
+        <div class="log-line log-dim">System Ready. L3 Cache Emulation Active.</div>
+    </div>
+
+    <div class="result-box">
+        <div class="reg-label">OUTPUT STREAM</div>
+        <div id="resOutput" class="res-val">0</div>
+    </div>
+</div>
+
+<script>
+// --- HOLOGRAPHIC MATH KERNEL ---
+
+function log(msg, type='') {
+    const box = document.getElementById('logger');
+    const d = document.createElement('div');
+    d.className = 'log-line ' + (type === 'hlt' ? 'log-hlt' : type === 'dim' ? 'log-dim' : '');
+    d.innerText = "> " + msg;
+    box.prepend(d);
+}
+
+// 1. SCALAR ADDITION (The only native op we allow besides shift)
+function add(a, b) { return a + b; }
+function sub(a, b) { return a - b; }
+
+// 2. THE 4X REACTOR (Squaring via Scaling)
+// This proves we can square without multiplying N*N
+function holographicSquare(n) {
+    const nBig = BigInt(n);
+    if (nBig === 0n) return 0n;
+    
+    // Convert to binary string to simulate streaming bits
+    const bits = nBig.toString(2); 
+    
+    let currentArea = 0n;
+    let currentIndex = 0n; // This tracks the "Side Length" so we know the Gnomon size
+    
+    log(`STREAMING ${bits.length} BITS...`, 'hlt');
+    
+    for(let i = 0; i < bits.length; i++) {
+        const bit = bits[i];
+        
+        // STEP 1: THE 4X SCALE (Doubling the Side)
+        // Shifting Area by 2 bits (x4)
+        // Shifting Index by 1 bit (x2)
+        currentArea = currentArea << 2n; // 4x Area
+        currentIndex = currentIndex << 1n; // 2x Side
+        
+        // STEP 2: GNOMON INJECTION
+        if (bit === '1') {
+            // The Gnomon for the next step is 2*Index + 1
+            const gnomon = (currentIndex << 1n) + 1n;
+            
+            // Add Gnomon to Area
+            currentArea = currentArea + gnomon;
+            
+            // Update Index (we grew by 1)
+            currentIndex = currentIndex + 1n;
+            
+            // Log for demo purposes (sampled)
+            if(i % 10 === 0 || i === bits.length-1) {
+               log(`[Bit 1] 4x Scale + Gnomon ${gnomon}`);
+            }
+        } else {
+             if(i % 10 === 0) log(`[Bit 0] 4x Scale Only`);
+        }
+    }
+    return currentArea;
+}
+
+// 3. THE NOMAD MULTIPLIER (Difference of Squares)
+function holographicMultiply(a, b) {
+    const A = BigInt(a);
+    const B = BigInt(b);
+    
+    log("--- INITIALIZING NOMAD PROTOCOL ---", 'hlt');
+    
+    // Step 1: Calculate Average (Midpoint)
+    const sum = A + B;
+    const avg = sum >> 1n; // Divide by 2 (Shift)
+    log(`Midpoint (Square 1): ${avg}`);
+    
+    // Step 2: Calculate Difference (Radius)
+    let diff = A - B;
+    if (diff < 0n) diff = -diff;
+    const radius = diff >> 1n; // Divide by 2
+    log(`Radius (Square 2): ${radius}`);
+    
+    // Step 3: Run the Reactor (Squaring)
+    log("Running Reactor on Midpoint...");
+    const sqAvg = holographicSquare(avg);
+    
+    log("Running Reactor on Radius...");
+    const sqRad = holographicSquare(radius);
+    
+    // Step 4: Subtraction
+    log("Collapsing Geometry...");
+    return sqAvg - sqRad;
+}
+
+// UI HANDLERS
+function getVals() {
+    return [document.getElementById('regA').value, document.getElementById('regB').value];
+}
+
+function runAdd() {
+    const [a, b] = getVals();
+    const res = BigInt(a) + BigInt(b);
+    log(`Computed Sum: ${res}`);
+    document.getElementById('resOutput').innerText = res.toString();
+}
+
+function runSub() {
+    const [a, b] = getVals();
+    const res = BigInt(a) - BigInt(b);
+    log(`Computed Diff: ${res}`);
+    document.getElementById('resOutput').innerText = res.toString();
+}
+
+function runSquareA() {
+    const [a, b] = getVals();
+    const start = performance.now();
+    const res = holographicSquare(a);
+    const end = performance.now();
+    log(`Square Complete (${(end-start).toFixed(2)}ms)`, 'hlt');
+    document.getElementById('resOutput').innerText = res.toString();
+}
+
+function runMultiply() {
+    const [a, b] = getVals();
+    
+    // Parity Check: Difference of squares works best when A and B have same parity
+    // If different, we double both, multiply, then divide result by 4.
+    const A = BigInt(a);
+    const B = BigInt(b);
+    
+    let res;
+    if ((A % 2n) !== (B % 2n)) {
+        log("Parity Mismatch. Scaling Space by 2...", 'dim');
+        res = holographicMultiply(A * 2n, B * 2n) / 4n;
+    } else {
+        res = holographicMultiply(A, B);
+    }
+    
+    document.getElementById('resOutput').innerText = res.toString();
+}
+
+</script>
+</body>
+</html>

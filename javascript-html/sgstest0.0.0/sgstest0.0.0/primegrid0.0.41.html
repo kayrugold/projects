@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Lattice Grid (Click-to-Center)</title>
+  <style>
+    :root {
+      --bg-color: #050505;
+      --grid-line: #1a1a1a;
+      --text-color: #888;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      margin: 0;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      touch-action: none;
+    }
+
+    /* HUD */
+    .hud {
+      position: absolute; top: 0; left: 0; width: 100%;
+      background: rgba(10, 10, 10, 0.95);
+      border-bottom: 1px solid #333;
+      padding: 8px; z-index: 100;
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    }
+
+    .input-group { display: flex; flex-direction: column; }
+    .input-group label { font-size: 8px; color: #666; text-transform: uppercase; font-weight: bold; }
+
+    input {
+      background: #222; border: 1px solid #444; color: #eee;
+      padding: 4px; border-radius: 3px; width: 50px;
+      font-family: inherit; font-size: 11px; outline: none; text-align: center;
+    }
+    .wide { width: 90px; }
+
+    button {
+      background: #2563eb; color: white; border: none;
+      padding: 6px 12px; border-radius: 3px; font-weight: bold;
+      font-size: 11px; cursor: pointer; margin-left: auto;
+    }
+    
+    .secondary-btn { background: #475569; margin-left: 0; }
+
+    /* Viewport */
+    .viewport {
+      position: relative; flex-grow: 1;
+      overflow: hidden; width: 100%; height: 100%;
+      background-color: var(--bg-color);
+    }
+
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+    
+    .cell-layer {
+      position: absolute; top: 0; left: 0;
+      z-index: 1; will-change: transform;
+    }
+
+    /* Cells */
+    .cell {
+      position: absolute;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      box-sizing: border-box;
+      overflow: hidden;
+      background: #111;
+      outline: 1px solid #000; 
+      cursor: pointer; /* Show it's clickable */
+    }
+    
+    /* Hover Effect for Click */
+    .cell:hover {
+        outline: 2px solid white;
+        z-index: 50;
+    }
+
+    .cell-val {
+      font-size: 10px; font-weight: bold; color: white;
+      display: none; 
+      text-shadow: 0 1px 2px black;
+      pointer-events: none; /* Let click pass to cell div */
+    }
+
+    .show-text .cell-val { display: block; }
+
+    .cell.candidate { background: #10b981; } 
+    .cell.composite { background: #3f1313; } 
+    
+    .cell.origin {
+      background: #3b82f6 !important;
+      box-shadow: 0 0 15px #3b82f6;
+      z-index: 10;
+    }
+
+    .info-bar {
+      position: absolute; bottom: 10px; right: 10px;
+      background: rgba(0,0,0,0.8); padding: 4px 8px;
+      border-radius: 4px; color: #888; font-size: 10px; 
+      pointer-events: none; border: 1px solid #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="hud">
+    <div class="input-group">
+      <label>Base</label>
+      <input type="text" id="baseInput" value="10">
+    </div>
+    <div class="input-group">
+      <label>Exp</label>
+      <input type="text" id="expInput" value="1000000000" class="wide">
+    </div>
+    <div class="input-group">
+      <label>Add</label>
+      <input type="text" id="addInput" value="19">
+    </div>
+    <div class="input-group">
+      <label>Width</label>
+      <input type="number" id="widthInput" value="6">
+    </div>
+    <div class="input-group" style="margin-left:10px;">
+        <label>Mode</label>
+        <button id="demoBtn" class="secondary-btn">Demo (0)</button>
+    </div>
+    <button id="updateBtn">Teleport</button>
+  </div>
+
+  <div class="viewport" id="viewport">
+    <canvas id="gridCanvas"></canvas>
+    <div class="cell-layer" id="cellLayer"></div>
+    <div class="info-bar" id="infoBar">Zoom: 1.0 | Center: N+0</div>
+  </div>
+
+  <script id="worker-code" type="javascript/worker">
+    const SIEVE_LIMIT = 10000;
+    const PRIMES = [];
+    {
+        const s = new Uint8Array(SIEVE_LIMIT+1);
+        for(let i=2; i<=SIEVE_LIMIT; i++){
+            if(!s[i]){
+                PRIMES.push(i);
+                for(let j=i*i; j<=SIEVE_LIMIT; j+=i) s[j]=1;
+            }
+        }
+    }
+
+    function powMod(b, e, m) {
+        let r = 1n; b %= m;
+        while(e > 0n){ if((e & 1n) === 1n) r = (r * b) % m; e >>= 1n; b = (b * b) % m; }
+        return r;
+    }
+
+    let cacheKey = "";
+    let startRemainders = null;
+
+    self.onmessage = function(e) {
+        const { tasks, aStr, bStr, cStr, isDemo } = e.data;
+        const results = [];
+        
+        if (isDemo) {
+            for(let task of tasks) {
+                const n = task.offset;
+                if (n < 0) {
+                    results.push({ id: task.id, status: 'composite', val: n });
+                    continue;
+                }
+                let isComp = false;
+                if (n < 2) isComp = true;
+                else {
+                    for(let p of PRIMES) {
+                        if(p*p > n) break;
+                        if(n % p === 0) { isComp = true; break; }
+                    }
+                }
+                results.push({ id: task.id, status: isComp ? 'composite' : 'candidate', val: n });
+            }
+        } else {
+            const currentKey = `${aStr}|${bStr}|${cStr}`;
+            if(currentKey !== cacheKey) {
+                const a = BigInt(aStr);
+                const b = BigInt(bStr);
+                const c = BigInt(cStr);
+                startRemainders = new Int32Array(PRIMES.length);
+                for(let i=0; i<PRIMES.length; i++){
+                    const p = BigInt(PRIMES[i]);
+                    const rem = (powMod(a, b, p) + c) % p;
+                    startRemainders[i] = Number(rem);
+                }
+                cacheKey = currentKey;
+            }
+
+            for(let task of tasks) {
+                const offset = task.offset; 
+                let isComposite = false;
+                for(let i=0; i<PRIMES.length; i++){
+                    const p = PRIMES[i];
+                    const rem = startRemainders[i];
+                    let check = (rem + offset) % p;
+                    if (check < 0) check += p;
+                    if(check === 0) { isComposite = true; break; }
+                }
+                results.push({ id: task.id, status: isComposite ? 'composite' : 'candidate', val: `+${offset}` });
+            }
+        }
+        self.postMessage(results);
+    };
+  </script>
+
+  <script>
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const cellLayer = document.getElementById('cellLayer');
+    const viewport = document.getElementById('viewport');
+    const infoBar = document.getElementById('infoBar');
+    const addInput = document.getElementById('addInput');
+
+    let cellSize = 40; 
+    let scale = 1.0;
+    let panX = 0, panY = 0;
+    let gridWidth = 6;
+    let isDemoMode = false;
+    
+    let worker;
+    const renderedCells = new Map();
+    let debounceTimer = null;
+
+    function initWorker() {
+        const blob = new Blob([document.getElementById('worker-code').textContent], { type: "text/javascript" });
+        worker = new Worker(window.URL.createObjectURL(blob));
+        worker.onmessage = (e) => {
+            const results = e.data;
+            results.forEach(res => {
+                const el = document.getElementById(res.id);
+                if(el) {
+                    el.className = `cell ${res.status}`;
+                    if(res.val == 0 || res.val == '+0') el.classList.add('origin');
+                    el.querySelector('.cell-val').textContent = res.val;
+                }
+            });
+        };
+    }
+    initWorker();
+
+    /* --- CLICK HANDLER --- */
+    cellLayer.addEventListener('click', (e) => {
+        // 1. Find the clicked cell (handle text click bubbling)
+        const cell = e.target.closest('.cell');
+        if (!cell) return;
+
+        // 2. Get the Offset from data attribute
+        const offsetStr = cell.dataset.offset;
+        if (!offsetStr) return;
+
+        const offset = parseInt(offsetStr);
+        if (isNaN(offset)) return;
+
+        // 3. Update the Addend Input
+        // logic: NewAdd = OldAdd + Offset
+        try {
+            const currentAdd = BigInt(addInput.value);
+            const offsetBig = BigInt(offset);
+            const newAdd = currentAdd + offsetBig;
+            
+            addInput.value = newAdd.toString();
+            
+            // 4. Reset View to Center (The clicked cell becomes 0,0)
+            isDemoMode = false; // Clicking implies navigation, usually out of demo
+            cellLayer.innerHTML = '';
+            renderedCells.clear();
+            centerView();
+            
+        } catch(err) {
+            console.error("BigInt Error", err);
+        }
+    });
+
+    function resize() {
+        canvas.width = viewport.clientWidth;
+        canvas.height = viewport.clientHeight;
+        if(panX===0 && panY===0) centerView();
+        drawGrid();
+        scheduleUpdate();
+    }
+    window.addEventListener('resize', resize);
+
+    function centerView() {
+        panX = canvas.width/2 - (cellSize * scale)/2;
+        panY = canvas.height/2 - (cellSize * scale)/2;
+        // Keep scale if user zoomed, or reset? Let's keep scale for smoothness
+        drawGrid();
+        scheduleUpdate();
+    }
+
+    function drawGrid() {
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const size = cellSize * scale;
+        
+        if (size > 35) cellLayer.classList.add('show-text');
+        else cellLayer.classList.remove('show-text');
+
+        renderedCells.forEach((data, id) => {
+            const px = panX + (data.c * size);
+            const py = panY + (data.r * size);
+            
+            if (px < -size || py < -size || px > canvas.width || py > canvas.height) {
+                data.el.style.display = 'none';
+            } else {
+                data.el.style.display = 'flex';
+                data.el.style.transform = `translate(${px}px, ${py}px)`;
+                data.el.style.width = (size)+'px'; 
+                data.el.style.height = (size)+'px';
+            }
+        });
+        
+        const cx = (canvas.width/2 - panX) / size;
+        const cy = (canvas.height/2 - panY) / size;
+        const offset = Math.round(cy) * gridWidth + Math.round(cx);
+        infoBar.textContent = `Zoom: ${scale.toFixed(2)} | Center: ${isDemoMode ? offset : 'N+'+offset}`;
+    }
+
+    function updateContent() {
+        const size = cellSize * scale;
+        const startCol = Math.floor(-panX / size);
+        const startRow = Math.floor(-panY / size);
+        const cols = Math.ceil(canvas.width / size) + 1;
+        const rows = Math.ceil(canvas.height / size) + 1;
+
+        const visibleIds = new Set();
+        const tasks = [];
+
+        for(let r = startRow; r < startRow + rows; r++) {
+            for(let c = startCol; c < startCol + cols; c++) {
+                const id = `cell_${c}_${r}`;
+                visibleIds.add(id);
+
+                const offset = (r * gridWidth) + c;
+
+                if(renderedCells.has(id)){
+                    renderedCells.get(id).el.style.display = 'flex';
+                    continue;
+                }
+
+                const el = document.createElement('div');
+                el.id = id;
+                el.className = 'cell';
+                
+                // STORE OFFSET FOR CLICK HANDLER
+                el.dataset.offset = offset; 
+
+                let label = "...";
+                if(isDemoMode) label = offset;
+                else label = `+${offset}`;
+
+                el.innerHTML = `<span class="cell-val">${label}</span>`;
+                
+                const px = panX + (c * size);
+                const py = panY + (r * size);
+                el.style.transform = `translate(${px}px, ${py}px)`;
+                el.style.width = size+'px';
+                el.style.height = size+'px';
+
+                cellLayer.appendChild(el);
+                renderedCells.set(id, { el, c, r });
+                
+                tasks.push({ id, offset });
+            }
+        }
+
+        for(const [id, data] of renderedCells){
+            if(!visibleIds.has(id)){
+                data.el.remove();
+                renderedCells.delete(id);
+            }
+        }
+
+        if(tasks.length > 0) {
+            worker.postMessage({
+                tasks,
+                aStr: document.getElementById('baseInput').value,
+                bStr: document.getElementById('expInput').value,
+                cStr: document.getElementById('addInput').value,
+                isDemo: isDemoMode
+            });
+        }
+    }
+
+    function scheduleUpdate() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(updateContent, 150);
+    }
+
+    let isDragging = false;
+    let lastPos = {x:0, y:0};
+    let lastDist = 0;
+
+    viewport.addEventListener('mousedown', e => { isDragging=true; lastPos={x:e.clientX, y:e.clientY}; });
+    window.addEventListener('mousemove', e => {
+        if(!isDragging) return;
+        panX += e.clientX - lastPos.x;
+        panY += e.clientY - lastPos.y;
+        lastPos={x:e.clientX, y:e.clientY};
+        drawGrid();
+        scheduleUpdate();
+    });
+    window.addEventListener('mouseup', () => isDragging=false);
+    
+    viewport.addEventListener('wheel', e => {
+        e.preventDefault();
+        const delta = -Math.sign(e.deltaY) * 0.1;
+        const newScale = Math.max(0.1, Math.min(5, scale + delta));
+        const mx = e.clientX, my = e.clientY;
+        const gx = (mx - panX) / scale;
+        const gy = (my - panY) / scale;
+        scale = newScale;
+        panX = mx - (gx * scale);
+        panY = my - (gy * scale);
+        drawGrid();
+        scheduleUpdate();
+    }, {passive:false});
+
+    viewport.addEventListener('touchstart', e => {
+        if(e.touches.length===1) { isDragging=true; lastPos={x:e.touches[0].clientX, y:e.touches[0].clientY}; }
+        else if(e.touches.length===2) {
+            isDragging=true;
+            const p1={x:e.touches[0].clientX, y:e.touches[0].clientY};
+            const p2={x:e.touches[1].clientX, y:e.touches[1].clientY};
+            lastDist = Math.hypot(p1.x-p2.x, p1.y-p2.y);
+            lastPos = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
+        }
+    }, {passive:false});
+
+    viewport.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if(!isDragging) return;
+        if(e.touches.length===1) {
+            const curr = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+            panX += curr.x - lastPos.x;
+            panY += curr.y - lastPos.y;
+            lastPos=curr;
+            drawGrid();
+            scheduleUpdate();
+        } else if(e.touches.length===2) {
+            const p1={x:e.touches[0].clientX, y:e.touches[0].clientY};
+            const p2={x:e.touches[1].clientX, y:e.touches[1].clientY};
+            const dist = Math.hypot(p1.x-p2.x, p1.y-p2.y);
+            const center = {x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2};
+            panX += center.x - lastPos.x;
+            panY += center.y - lastPos.y;
+            const zoom = dist / lastDist;
+            scale = Math.max(0.1, Math.min(5, scale * zoom));
+            const gx = (center.x - panX) / scale;
+            const gy = (center.y - panY) / scale;
+            panX = center.x - (gx * scale);
+            panY = center.y - (gy * scale);
+            lastDist = dist;
+            lastPos = center;
+            drawGrid();
+            scheduleUpdate();
+        }
+    }, {passive:false});
+    viewport.addEventListener('touchend', e => { if(e.touches.length===0) isDragging=false; if(e.touches.length===1) lastPos={x:e.touches[0].clientX, y:e.touches[0].clientY}; });
+
+    function setDemo(val) {
+        gridWidth = parseInt(document.getElementById('widthInput').value) || 6;
+        isDemoMode = val;
+        cellLayer.innerHTML = ''; renderedCells.clear();
+        centerView();
+    }
+
+    document.getElementById('updateBtn').addEventListener('click', () => setDemo(false));
+    document.getElementById('demoBtn').addEventListener('click', () => setDemo(true));
+
+    resize();
+    centerView();
+  </script>
+</body>
+</html>

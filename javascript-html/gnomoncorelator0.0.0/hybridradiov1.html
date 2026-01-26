@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Radio v34: Snap-Action Tuner</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+    body { 
+        background: #020617; color: #e2e8f0; font-family: 'Share Tech Mono', monospace; 
+        height: 100dvh; width: 100vw; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none;
+    }
+
+    .radio-box {
+        background: linear-gradient(180deg, #0f172a, #020617);
+        border: 2px solid #1e293b; border-radius: 16px; box-shadow: 0 0 100px rgba(0,0,0,0.9);
+        padding: 12px; width: 100%; max-width: 550px; height: 100%;
+        display: flex; flex-direction: column; position: relative;
+    }
+
+    /* HELP BTN */
+    .help-btn {
+        position: absolute; top: 12px; right: 12px;
+        width: 28px; height: 28px; border-radius: 50%;
+        background: #1e293b; border: 1px solid #475569; color: #94a3b8;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; cursor: pointer; z-index: 50;
+    }
+
+    /* MODAL */
+    .modal-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(2, 6, 23, 0.98); backdrop-filter: blur(5px);
+        z-index: 100; display: none; flex-direction: column; padding: 20px;
+    }
+    .modal-title { color: #10b981; font-family: 'Orbitron', sans-serif; font-size: 1.2rem; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px; }
+    .help-txt { font-size: 0.8rem; color: #94a3b8; margin-bottom: 10px; line-height: 1.5; }
+    .close-btn { width: 100%; padding: 12px; background: #334155; color: #fff; border-radius: 8px; font-weight: bold; margin-top: auto; }
+
+    /* MODE DOCK */
+    .mode-dock { display: flex; gap: 5px; background: #000; padding: 4px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; margin-right: 35px; flex-shrink: 0; }
+    .mode-btn { flex: 1; padding: 10px; text-align: center; font-weight: bold; font-size: 0.7rem; cursor: pointer; border-radius: 6px; transition: all 0.2s; color: #64748b; border: 1px solid transparent; }
+    .mode-btn.active-res { background: #0ea5e9; color: #000; border-color: #38bdf8; }
+    .mode-btn.active-int { background: #10b981; color: #000; border-color: #34d399; }
+
+    /* SCREEN */
+    .screen {
+        background: #000; border: 2px solid #1e293b; border-radius: 10px; padding: 10px; margin-bottom: 10px;
+        box-shadow: inset 0 0 40px rgba(0,0,0,0.8); flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.3s;
+    }
+    .screen.theme-res { border-color: #0c4a6e; box-shadow: inset 0 0 30px rgba(14, 165, 233, 0.1); }
+    .screen.theme-int { border-color: #064e3b; box-shadow: inset 0 0 30px rgba(16, 185, 129, 0.1); }
+
+    /* INPUTS */
+    .input-grp { display: none; align-items: center; gap: 4px; border-bottom: 1px solid #1e293b; padding-bottom: 8px; }
+    .input-grp.active { display: flex; }
+    
+    input.sym-input {
+        background: transparent; border: 1px solid #334155; border-radius: 4px;
+        color: #e2e8f0; font-family: 'Share Tech Mono', monospace; font-size: 1rem;
+        width: 100%; text-align: center; padding: 8px; font-weight: bold;
+    }
+    input.sym-input:focus { outline: none; border-color: #fff; background: #0f172a; }
+
+    /* READOUT */
+    .readout {
+        display: flex; justify-content: space-between; align-items: flex-end;
+        background: #050505; border: 1px solid #334155; border-radius: 6px; padding: 8px;
+    }
+    .freq-label { font-size: 0.6rem; color: #64748b; letter-spacing: 1px; margin-bottom: 2px; }
+    .freq-val { font-family: 'Orbitron', sans-serif; font-size: 1.6rem; line-height: 1; transition: color 0.3s; letter-spacing: 1px; word-break: break-all; }
+    .text-res { color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
+    .text-int { color: #10b981; text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+
+    .status-val { font-size: 0.9rem; color: #64748b; font-weight: bold; letter-spacing: 1px; }
+    .status-ghost { color: #facc15; text-shadow: 0 0 10px #facc15; }
+    .status-locked { color: #ef4444; text-shadow: 0 0 20px #ef4444; animation: flash 0.1s infinite; }
+    @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+    .meter-container { background: #0f172a; height: 6px; border-radius: 4px; position: relative; overflow: hidden; border: 1px solid #334155; }
+    .signal-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0%; background: linear-gradient(90deg, #1e293b, #10b981); opacity: 0.5; transition: width 0.1s; }
+    .needle { position: absolute; top: 0; bottom: 0; width: 4px; background: #ef4444; box-shadow: 0 0 10px #ef4444; transition: left 0.05s ease-out; z-index: 10; left: 0%; }
+    .needle.ghost { background: #facc15; box-shadow: 0 0 10px #facc15; }
+
+    /* KNOBS - RESIZED */
+    .knob-section { 
+        display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; 
+        align-items: center; justify-items: center; padding: 10px 0; flex-shrink: 0;
+    }
+    .knob-wrapper { display: flex; flex-direction: column; align-items: center; width: 100%; }
+    
+    .knob-base {
+        border-radius: 50%; background: radial-gradient(circle at 30% 30%, #334155, #0f172a);
+        border: 3px solid #1e293b; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        position: relative; touch-action: none; transition: transform 0.05s linear; cursor: grab;
+    }
+    .knob-base:active { cursor: grabbing; }
+    .knob-base::after { content: ''; position: absolute; top: 6px; left: 50%; transform: translateX(-50%); border-radius: 50%; }
+
+    /* 80px Size to fit mobile */
+    .k-macro { width: 80px; height: 80px; border-color: #475569; }
+    .k-macro::after { width: 6px; height: 6px; background: #94a3b8; box-shadow: 0 0 5px #94a3b8; }
+    .k-fine { width: 80px; height: 80px; border-color: #475569; }
+    .k-fine::after { width: 6px; height: 6px; background: #38bdf8; box-shadow: 0 0 5px #38bdf8; }
+    .k-micro { width: 80px; height: 80px; border-color: #f59e0b; }
+    .k-micro::after { width: 6px; height: 6px; background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+    .k-label { font-size: 0.6rem; margin-top: 5px; letter-spacing: 1px; font-weight: bold; }
+
+    /* CONTROLS */
+    .controls { display: grid; grid-template-columns: 1fr 0.8fr 1fr; gap: 10px; margin-top: 10px; flex-shrink: 0; }
+    .btn {
+        background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 15px; border-radius: 8px; font-weight: bold; width: 100%;
+        cursor: pointer; font-size: 0.8rem; letter-spacing: 1px; transition: all 0.1s;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn-active { background: #10b981; color: #000; border-color: #10b981; }
+    .btn-seek { background: #3b82f6; color: #fff; border-color: #2563eb; }
+    .btn-reset { background: #ef4444; color: #fff; border-color: #dc2626; }
+
+    /* FLEXIBLE LOG AREA */
+    .log-area { 
+        margin-top: 10px; flex-grow: 1; min-height: 0; 
+        overflow-y: auto; background: #000; border: 1px solid #1e293b; padding: 10px; 
+        border-radius: 8px; font-size: 0.7rem; color: #64748b; font-family: monospace; 
+        touch-action: pan-y;
+    }
+    .hit { color: #facc15; border-bottom: 1px dashed #333; margin-bottom: 4px; padding-bottom: 2px; }
+    .hit-lock { color: #ef4444; font-weight: bold; border-bottom: 1px solid #ef4444; margin-bottom: 4px; padding-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<div class="radio-box">
+    <div class="help-btn" onclick="app.toggleHelp()">?</div>
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal-title">RADIO v33</div>
+        <div class="help-txt">
+            <span style="color:#10b981">INTERCEPT:</span> Stability improved. Micro-knob now smooth for integer tuning.<br>
+            <span style="color:#38bdf8">RESONANCE:</span> Float drift eliminated (Atomic Tuning). Doppler/Squelch active.
+        </div>
+        <button class="close-btn" onclick="app.toggleHelp()">CLOSE</button>
+    </div>
+
+    <div class="mode-dock">
+        <div id="btnModeRes" class="mode-btn" onclick="app.setMode('RES')">RESONANCE</div>
+        <div id="btnModeInt" class="mode-btn active-int" onclick="app.setMode('INT')">INTERCEPT</div>
+    </div>
+
+    <div id="screenBox" class="screen theme-int">
+        <div id="inpRes" class="input-grp">
+            <input id="nVal" class="sym-input" value="51" placeholder="Target (N)">
+        </div>
+        <div id="inpInt" class="input-grp active">
+            <input id="base" class="sym-input" value="10" placeholder="Base">
+            <span style="color:#64748b">^</span>
+            <input id="exp" class="sym-input" value="3" placeholder="Exp">
+            <span style="color:#64748b">+</span>
+            <input id="add" class="sym-input" value="7" placeholder="Add">
+        </div>
+        
+        <div class="readout">
+            <div>
+                <div class="freq-label" id="mainLabel">SEARCH FREQUENCY</div>
+                <div class="freq-val text-int" id="dispVal">2</div>
+            </div>
+            <div style="text-align:right">
+                <div class="freq-label">STATUS</div>
+                <div class="status-val" id="statusText">IDLE</div>
+            </div>
+        </div>
+
+        <div class="meter-container">
+            <div class="meter-bg"></div>
+            <div class="signal-fill" id="meterFill"></div>
+            <div class="needle" id="meterNeedle"></div>
+        </div>
+    </div>
+
+    <div class="knob-section">
+        <div class="knob-wrapper">
+            <div class="knob-base k-macro" id="knobMacro"></div>
+            <div class="k-label" style="color:#94a3b8">MACRO</div>
+        </div>
+        <div class="knob-wrapper">
+            <div class="knob-base k-fine" id="knobFine"></div>
+            <div class="k-label" style="color:#38bdf8">FINE</div>
+        </div>
+        <div class="knob-wrapper">
+            <div class="knob-base k-micro" id="knobMicro"></div>
+            <div class="k-label" style="color:#fbbf24">MICRO</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-seek" id="seekBtn" onclick="app.toggleSeek()">SCAN</button>
+        <button class="btn btn-reset" id="resetBtn" onclick="app.resetSystem()">RESET</button>
+        <button class="btn" id="audioBtn" onclick="app.toggleAudio()">AUDIO</button>
+    </div>
+    
+    <div id="logArea" class="log-area">
+        > Radio v33 Online.<br>
+        > Stability check COMPLETE.
+    </div>
+</div>
+
+<script>
+    // --- WORKER ---
+    const workerBlob = new Blob([`
+    self.onmessage = function(e) {
+        const d = e.data;
+        const sessionId = d.sid; 
+        
+        try {
+            if (d.cmd === 'intercept') {
+                // Parse inputs, handling small exponents for full numbers
+                let base = BigInt(d.base);
+                let exp = BigInt(d.exp); 
+                const add = BigInt(d.add);
+                let N;
+                
+                // If exponent is small enough (e.g., < 18 digits), calculate N fully for accurate small number checks.
+                if (exp < 18n) {
+                    N = base**exp + add;
+                    base = BigInt(N);
+                    exp = 0n; // Set exp to 0 so powMod returns 1
+                } else {
+                    // Use symbolic method for massive numbers
+                    N = null; 
+                }
+
+                const start = parseInt(d.start);
+                const range = d.range;
+                const limit = start + range;
+                
+                function powMod(b, e, m) {
+                    let r = 1n; b %= m;
+                    while (e > 0n) { if (e & 1n) r = (r * b) % m; b = (b * b) % m; e >>= 1n; }
+                    return r;
+                }
+
+                const sieve = new Uint8Array(range).fill(1);
+                const sqrtLim = Math.floor(Math.sqrt(limit));
+                const isPrimeSmall = new Uint8Array(sqrtLim+1).fill(1);
+                for(let i=2; i*i<=sqrtLim; i++) {
+                    if(isPrimeSmall[i]) for(let j=i*i; j<=sqrtLim; j+=i) isPrimeSmall[j]=0;
+                }
+
+                for(let i=2; i<=sqrtLim; i++) {
+                    if(isPrimeSmall[i]) {
+                        let s = Math.floor((start + i - 1) / i) * i;
+                        if(s < i*i) s = i*i; 
+                        for(let j=s; j<limit; j+=i) if(j >= start) sieve[j-start] = 0;
+                    }
+                }
+
+                const hits = [];
+                for(let i=0; i<range; i++) {
+                    const num = start + i;
+                    if(num < 2) continue;
+                    
+                    if(sieve[i] || (num < sqrtLim && isPrimeSmall[num])) {
+                        const P = BigInt(num);
+                        let rem;
+                        
+                        if (N) { // Small number optimization path
+                             rem = N % P;
+                        } else { // Symbolic path
+                             rem = (powMod(base, exp, P) + add) % P;
+                        }
+                        
+                        if(rem === 0n) hits.push({val: num, type: 'LOCKED', strength: 1.0});
+                    }
+                }
+                
+                self.postMessage({ type: 'result', hits: hits, sid: sessionId });
+            }
+        } catch(err) {}
+    };`], {type: 'application/javascript'});
+
+    const workerUrl = URL.createObjectURL(workerBlob);
+
+    const app = {
+        MODE: 'INT', valInt: 2, valResAtomic: 100, sessionId: 0,
+        isSeeking: false, isAudioOn: false, audioCtx: null, osc: null, gainTone: null, gainNoise: null, knobs: [], worker: null,
+        
+        ui: {
+            screen: document.getElementById('screenBox'),
+            btnRes: document.getElementById('btnModeRes'), btnInt: document.getElementById('btnModeInt'),
+            inpRes: document.getElementById('inpRes'), inpInt: document.getElementById('inpInt'),
+            dispVal: document.getElementById('dispVal'), mainLabel: document.getElementById('mainLabel'),
+            needle: document.getElementById('meterNeedle'), fill: document.getElementById('meterFill'),
+            log: document.getElementById('logArea'), btnSeek: document.getElementById('seekBtn'),
+            btnAudio: document.getElementById('audioBtn'), status: document.getElementById('statusText'),
+            inputs: { base: document.getElementById('base'), exp: document.getElementById('exp'), add: document.getElementById('add'), nVal: document.getElementById('nVal') }
+        },
+
+        init: function() {
+            this.setupKnobs();
+            this.spawnWorker();
+        },
+
+        spawnWorker: function() {
+            if(this.worker) this.worker.terminate();
+            this.worker = new Worker(workerUrl);
+            this.worker.onmessage = (e) => {
+                if(e.data.sid !== this.sessionId) return;
+
+                if(e.data.type === 'result') {
+                    this.handleHit(e.data.hits, 'INT');
+                    
+                    if(this.isSeeking) {
+                        const scannedRange = 200000;
+                        this.valInt += scannedRange;
+                        this.ui.dispVal.innerText = Math.floor(this.valInt).toLocaleString();
+                        
+                        const rot = (Date.now() / 5) % 360;
+                        document.getElementById('knobMacro').style.transform = `rotate(${rot}deg)`;
+                        
+                        requestAnimationFrame(() => this.scanLoop());
+                    }
+                }
+            };
+        },
+
+        setMode: function(m) {
+            if(this.isSeeking) this.toggleSeek(); this.stopAudio();
+            this.MODE = m;
+            this.ui.btnRes.className = `mode-btn ${m==='RES'?'active-res':''}`;
+            this.ui.btnInt.className = `mode-btn ${m==='INT'?'active-int':''}`;
+            this.ui.screen.className = `screen ${m==='RES'?'theme-res':'theme-int'}`;
+            this.ui.dispVal.className = `freq-val ${m==='RES'?'text-res':'text-int'}`;
+            this.ui.inpRes.classList.toggle('active', m==='RES');
+            this.ui.inpInt.classList.toggle('active', m==='INT');
+            this.ui.mainLabel.innerText = m==='RES' ? "MULTIPLIER (k)" : "SEARCH FREQUENCY";
+            this.updateDisplay();
+        },
+
+        updateDisplay: function() {
+            this.ui.status.innerText = "SCANNING"; this.ui.status.className = "status-val";
+            this.ui.needle.style.left = "0%"; this.updateAudioMix(0);
+            
+            if(this.MODE === 'INT') {
+                this.ui.dispVal.innerText = Math.floor(this.valInt).toLocaleString();
+                this.sessionId++;
+                this.worker.postMessage({
+                    cmd: 'intercept',
+                    base: this.ui.inputs.base.value, exp: this.ui.inputs.exp.value, add: this.ui.inputs.add.value,
+                    start: this.valInt, range: 1, sid: this.sessionId
+                });
+            } else {
+                this.ui.dispVal.innerText = (this.valResAtomic/100).toFixed(2);
+                this.runResonanceCheck();
+            }
+        },
+
+        runResonanceCheck: function() {
+            const N = parseFloat(this.ui.inputs.nVal.value);
+            const k = this.valResAtomic / 100; 
+            const scaledN = N * k;
+            let root = Math.ceil(Math.sqrt(scaledN));
+            let gap = root * root - scaledN;
+            let gapRoot = Math.sqrt(gap);
+            let dist = Math.abs(gapRoot - Math.round(gapRoot)); 
+            
+            let strength = Math.max(0, 1.0 - (dist * 5));
+            this.ui.needle.style.left = (strength * 100) + "%";
+            this.ui.fill.style.width = strength * 100 + "%";
+            this.updateAudioMix(strength, gap);
+            
+            if(strength > 0.8) {
+                const displayGap = Math.round(gapRoot);
+                const equation = `${root}^2 - ${displayGap}^2`;
+                
+                if(strength > 0.98) {
+                    this.ui.status.innerText = equation; this.ui.status.className = "status-val status-locked";
+                    this.ui.needle.className = "needle";
+                    this.ping(); 
+                    if(this.isSeeking) this.toggleSeek();
+                } else {
+                    this.ui.status.innerText = equation; 
+                    this.ui.status.className = "status-val status-ghost";
+                    this.ui.needle.className = "needle ghost";
+                }
+            } else {
+                this.ui.status.innerText = "SCANNING"; this.ui.status.className = "status-val"; this.ui.needle.className = "needle";
+            }
+        },
+
+        handleHit: function(hits, sourceMode) {
+            if(hits.length > 0) {
+                hits.forEach(hit => {
+                    this.ui.needle.style.left = "100%"; this.updateAudioMix(1.0);
+                    if(sourceMode === 'INT') {
+                        this.ui.status.innerText = "LOCKED"; this.ui.status.className = "status-val status-locked";
+                        const d = document.createElement('div'); d.className = 'hit-lock'; d.innerText = `>> INTERCEPT: ${hit.val}`; this.ui.log.prepend(d);
+                        this.ping();
+                        if(this.isSeeking) {
+                            this.isSeeking = false; 
+                            this.ui.btnSeek.innerText = "SCAN"; 
+                            this.ui.btnSeek.classList.remove('btn-active');
+                        }
+                    }
+                });
+            } else {
+                if(!this.isSeeking) { this.ui.needle.style.left = "0%"; this.ui.status.innerText = "IDLE"; this.ui.status.className = "status-val"; this.updateAudioMix(0); }
+            }
+        },
+
+        toggleSeek: function() {
+            if(this.isSeeking) {
+                this.isSeeking = false; this.ui.btnSeek.innerText = "SCAN"; this.ui.btnSeek.classList.remove('btn-active');
+            } else {
+                this.isSeeking = true; this.ui.btnSeek.innerText = "STOP"; this.ui.btnSeek.classList.add('btn-active');
+                this.scanLoop();
+            }
+        },
+
+        scanLoop: function() {
+            if(this.MODE === 'INT') {
+                this.sessionId++; 
+                this.worker.postMessage({
+                    cmd: 'intercept', base: this.ui.inputs.base.value, exp: this.ui.inputs.exp.value, add: this.ui.inputs.add.value,
+                    start: this.valInt, range: 200000, sid: this.sessionId
+                });
+            } else {
+                if(!this.isSeeking) return;
+                this.valResAtomic += 1;
+                this.ui.dispVal.innerText = (this.valResAtomic/100).toFixed(2);
+                this.runResonanceCheck();
+                const rot = (Date.now() / 5) % 360;
+                document.getElementById('knobMacro').style.transform = `rotate(${rot}deg)`;
+                setTimeout(() => { if(this.isSeeking) this.scanLoop(); }, 10);
+            }
+        },
+
+        resetSystem: function() {
+            if(this.isSeeking) this.toggleSeek(); this.stopAudio();
+            this.spawnWorker(); this.sessionId = 0;
+            this.valInt = 2; this.valResAtomic = 100;
+            this.updateDisplay(); this.ui.log.innerHTML = "> System Reset (Engine Rebooted).";
+            this.knobs.forEach(k => k.reset());
+        },
+
+        toggleHelp: function() { const m=document.getElementById('helpModal'); m.style.display=m.style.display==='flex'?'none':'flex'; },
+
+        startAudio: function() {
+            if(this.audioCtx) this.audioCtx.close();
+            const AC = window.AudioContext || window.webkitAudioContext;
+            this.audioCtx = new AC();
+            this.osc = this.audioCtx.createOscillator(); this.osc.type = 'sine';
+            this.gainTone = this.audioCtx.createGain(); this.gainTone.gain.value = 0;
+            this.osc.connect(this.gainTone); this.gainTone.connect(this.audioCtx.destination);
+            this.osc.start();
+            
+            const bufSize = this.audioCtx.sampleRate * 2;
+            const buffer = this.audioCtx.createBuffer(1, bufSize, this.audioCtx.sampleRate);
+            const data = buffer.getChannelData(0); for(let i=0; i<bufSize; i++) data[i] = Math.random() * 2 - 1;
+            this.noise = this.audioCtx.createBufferSource(); this.noise.buffer = buffer; this.noise.loop = true;
+            this.gainNoise = this.audioCtx.createGain(); this.gainNoise.gain.value = 0.05;
+            this.noise.connect(this.gainNoise); this.gainNoise.connect(this.audioCtx.destination);
+            this.noise.start();
+            
+            this.isAudioOn = true; this.ui.btnAudio.innerText = "ACTIVE"; this.ui.btnAudio.classList.add('btn-active');
+        },
+
+        updateAudioMix: function(strength, gap) {
+            if(!this.isAudioOn || !this.audioCtx) return;
+            const pitch = 200 + (strength * 600);
+            this.osc.frequency.setTargetAtTime(pitch, this.audioCtx.currentTime, 0.05);
+            this.gainTone.gain.setTargetAtTime(strength * 0.2, this.audioCtx.currentTime, 0.05);
+            this.gainNoise.gain.setTargetAtTime(0.05 * (1.0 - strength), this.audioCtx.currentTime, 0.05);
+        },
+
+        stopAudio: function() {
+            if(this.audioCtx) { try{this.osc.stop(); this.noise.stop();}catch(e){} this.audioCtx.close(); this.audioCtx = null; }
+            this.isAudioOn = false; this.ui.btnAudio.innerText = "AUDIO"; this.ui.btnAudio.classList.remove('btn-active');
+        },
+
+        toggleAudio: function() { if(this.isAudioOn) this.stopAudio(); else this.startAudio(); },
+
+        ping: function() {
+            if(this.audioCtx && this.isAudioOn) {
+                const o = this.audioCtx.createOscillator(); const g = this.audioCtx.createGain();
+                o.connect(g); g.connect(this.audioCtx.destination);
+                o.frequency.value = 880; g.gain.value = 0.2; o.start(); o.stop(this.audioCtx.currentTime + 0.15);
+            }
+        },
+
+        setupKnobs: function() {
+            const makeRotatable = (element, sensitivity, modeType) => {
+                let currentAngle = 0, startAngle = 0, isDragging = false, residual = 0.0;
+                const getAngle = (x, y) => {
+                    const r = element.getBoundingClientRect();
+                    return Math.atan2(y - (r.top + r.height/2), x - (r.left + r.width/2)) * 180 / Math.PI;
+                }
+                const start = (x, y) => { isDragging = true; startAngle = getAngle(x, y) - currentAngle; element.style.cursor = 'grabbing'; element.style.transition = 'none'; }
+                const move = (x, y) => {
+                    if(!isDragging) return;
+                    const newAngle = getAngle(x, y) - startAngle;
+                    let delta = newAngle - currentAngle;
+                    if(delta > 180) delta -= 360; if(delta < -180) delta += 360;
+                    currentAngle = newAngle;
+                    element.style.transform = `rotate(${currentAngle}deg)`;
+                    
+                    if(this.isAudioOn && this.gainNoise) {
+                        this.gainNoise.gain.cancelScheduledValues(this.audioCtx.currentTime);
+                        this.gainNoise.gain.setValueAtTime(0.1, this.audioCtx.currentTime);
+                        this.gainNoise.gain.linearRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.1);
+                    }
+
+                    residual += delta;
+                    let unitSize = 10 / sensitivity; 
+                    
+                    if (Math.abs(residual) > unitSize) {
+                        let steps = residual / unitSize; 
+                        let change = 0;
+                        if(this.MODE === 'INT') {
+                            // INTERCEPT LOGIC: Force high sensitivity on Macro, Low on Micro for stability
+                            if (modeType === 'macro') change = steps * 100;
+                            else if (modeType === 'fine') change = steps * 10;
+                            else change = steps * 0.1; // Slowest 0.1 change per tick
+                        } else {
+                            // RESONANCE LOGIC: Float steps are atomic
+                            change = steps * (sensitivity > 100 ? 10 : 1);
+                        }
+                        
+                        this.applyKnobChange(Math.round(change));
+                        residual = 0;
+                    }
+                }
+                const end = () => { isDragging = false; element.style.cursor = 'grab'; element.style.transition = 'transform 0.1s ease-out'; }
+                const reset = () => { currentAngle=0; residual=0; element.style.transform = `rotate(0deg)`; }
+                element.addEventListener('mousedown', e=>start(e.clientX,e.clientY)); window.addEventListener('mousemove', e=>move(e.clientX,e.clientY)); window.addEventListener('mouseup', end);
+                element.addEventListener('touchstart', e=>{e.preventDefault();start(e.touches[0].clientX,e.touches[0].clientY)},{passive:false});
+                window.addEventListener('touchmove', e=>{if(isDragging)e.preventDefault();move(e.touches[0].clientX,e.touches[0].clientY)},{passive:false});
+                window.addEventListener('touchend', end);
+                return { reset };
+            };
+            this.knobs.push(makeRotatable(document.getElementById('knobMacro'), 200, 'macro'));
+            this.knobs.push(makeRotatable(document.getElementById('knobFine'), 10, 'fine')); 
+            this.knobs.push(makeRotatable(document.getElementById('knobMicro'), 0.5, 'micro'));
+        },
+
+        applyKnobChange: function(delta) {
+            if(this.MODE === 'INT') {
+                this.valInt += delta;
+                if(this.valInt < 2) this.valInt = 2;
+                this.ui.dispVal.innerText = Math.floor(this.valInt).toLocaleString();
+                this.sessionId++;
+                worker.postMessage({
+                    cmd: 'intercept', base: this.ui.inputs.base.value, exp: this.ui.inputs.exp.value, add: this.ui.inputs.add.value,
+                    start: this.valInt, range: 1, sid: this.sessionId
+                });
+            } else {
+                this.valResAtomic += delta;
+                if(this.valResAtomic < 100) this.valResAtomic = 100;
+                this.ui.dispVal.innerText = (this.valResAtomic/100).toFixed(2);
+                this.runResonanceCheck();
+            }
+        }
+    };
+
+    app.init();
+    document.addEventListener("visibilitychange", () => { if (document.hidden) app.stopAudio(); });
+
+</script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Factoring Radio: V5 Auto-Mute</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+    body { 
+        background: #020617; 
+        color: #cbd5e1; 
+        font-family: 'Share Tech Mono', monospace; 
+        min-height: 100vh;
+        margin: 0;
+        padding: 15px;
+        overflow-y: auto; 
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* CHASSIS */
+    .radio-box {
+        background: linear-gradient(145deg, #1e293b, #0f172a);
+        border: 2px solid #334155;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        padding: 15px;
+        max-width: 600px;
+        margin: 0 auto;
+        position: relative;
+    }
+
+    /* HELP BUTTON */
+    .help-btn {
+        position: absolute; top: 15px; right: 15px; width: 30px; height: 30px;
+        border-radius: 50%; background: #334155; border: 1px solid #475569;
+        color: #94a3b8; font-family: 'Orbitron', sans-serif; font-weight: bold;
+        cursor: pointer; z-index: 50;
+    }
+    
+    /* SCREEN */
+    .screen {
+        background: #000; border: 2px solid #475569; border-radius: 8px;
+        padding: 15px; margin-bottom: 20px;
+        box-shadow: inset 0 0 20px rgba(16, 185, 129, 0.1);
+        display: flex; flex-direction: column; gap: 12px;
+    }
+    .screen-row { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid #1e293b; padding-bottom: 5px; }
+    .label { font-size: 0.7rem; color: #64748b; letter-spacing: 1px; text-transform: uppercase; }
+    .value { font-family: 'Orbitron', sans-serif; font-size: 1.8rem; color: #10b981; text-shadow: 0 0 8px rgba(16, 185, 129, 0.4); line-height: 1; }
+    .locked-text { color: #facc15; text-shadow: 0 0 15px rgba(250, 204, 21, 0.8); font-weight: bold; }
+
+    /* METER */
+    .meter-container {
+        background: #0f172a; height: 30px; border-radius: 4px;
+        position: relative; overflow: hidden; border: 1px solid #334155; margin-top: 5px;
+    }
+    .meter-bg {
+        width: 100%; height: 100%;
+        background: repeating-linear-gradient(90deg, transparent, transparent 4px, #1e293b 5px); opacity: 0.5;
+    }
+    .needle {
+        position: absolute; top: 0; bottom: 0; width: 3px; background: #ef4444;
+        box-shadow: 0 0 8px #ef4444; transition: left 0.1s linear; z-index: 10;
+    }
+    .signal-fill {
+        position: absolute; top: 0; bottom: 0; left: 0;
+        background: linear-gradient(90deg, #1e293b, #10b981); opacity: 0.4; transition: width 0.1s;
+    }
+
+    /* KNOBS */
+    .knob-section {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        align-items: center; justify-items: center; padding: 20px 0;
+    }
+    .knob-wrapper { display: flex; flex-direction: column; align-items: center; }
+
+    .knob-container-lg { position: relative; width: 140px; height: 140px; touch-action: none; }
+    .knob-lg {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #475569, #1e293b);
+        border: 6px solid #0f172a;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.15);
+        transform: rotate(0deg);
+    }
+    .knob-lg::after {
+        content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+        width: 10px; height: 10px; background: #fff; border-radius: 50%; box-shadow: 0 0 8px #fff;
+    }
+
+    .knob-container-sm { position: relative; width: 90px; height: 90px; touch-action: none; }
+    .knob-sm {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #334155, #0f172a);
+        border: 4px solid #0f172a;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        transform: rotate(0deg);
+    }
+    .knob-sm::after {
+        content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+        width: 6px; height: 6px; background: #38bdf8; border-radius: 50%; box-shadow: 0 0 5px #38bdf8;
+    }
+
+    /* CONTROLS */
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+    .btn {
+        background: #1e293b; color: #94a3b8; border: 1px solid #334155;
+        padding: 15px; border-radius: 8px; font-weight: bold; width: 100%;
+        text-align: center; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+    }
+    .btn-active { background: #10b981; color: #000; border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+
+    input.number-input {
+        background: transparent; border: none; border-bottom: 2px solid #334155;
+        color: #10b981; font-family: 'Orbitron', sans-serif; font-size: 1.6rem;
+        width: 100%; text-align: right; border-radius: 0; padding: 0;
+    }
+    input.number-input:focus { outline: none; border-color: #10b981; }
+
+    .status-light { width: 14px; height: 14px; border-radius: 50%; background: #333; border: 1px solid #000; transition: all 0.1s; }
+    .light-on { background: #10b981; box-shadow: 0 0 15px #10b981; transform: scale(1.2); }
+    .seeking-anim { animation: pulseRed 0.3s infinite alternate; background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+
+    /* HELP MODAL */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(5px);
+        display: none; align-items: center; justify-content: center;
+        z-index: 100; opacity: 0; transition: opacity 0.3s;
+    }
+    .modal-content {
+        background: #0f172a; border: 2px solid #10b981;
+        padding: 25px; border-radius: 12px;
+        max-width: 90%; width: 500px;
+        color: #e2e8f0; font-size: 0.9rem;
+    }
+    .help-title { color: #10b981; font-family: 'Orbitron', sans-serif; font-size: 1.2rem; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+    .help-header { color: #38bdf8; font-weight: bold; margin-bottom: 5px; }
+    .help-text { color: #94a3b8; line-height: 1.4; margin-bottom: 15px;}
+    .close-btn { 
+        background: #10b981; color: black; border: none; 
+        padding: 10px 20px; border-radius: 6px; font-weight: bold; 
+        cursor: pointer; float: right; 
+    }
+
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="helpModal">
+    <div class="modal-content">
+        <div class="help-title">OPERATOR'S MANUAL</div>
+        <div class="help-header">THE MULTIPLIER (K)</div>
+        <div class="help-text">Zoom Level. If N=51 and K=2.06, we scan around 105.</div>
+        <div class="help-header">SIGNAL LOCK</div>
+        <div class="help-text">Lights up when SCALED NUMBER fits a Perfect Square pattern.</div>
+        <div class="help-header">GHOST SIGNALS</div>
+        <div class="help-text">Locks at decimals (like 2.06) mean you found a "Neighbor" with similar factors.</div>
+        <button class="close-btn" onclick="toggleHelp()">ACKNOWLEDGE</button>
+    </div>
+</div>
+
+<div class="radio-box">
+    <button class="help-btn" onclick="toggleHelp()">?</button>
+
+    <div class="screen">
+        <div class="screen-row">
+            <div class="label">FREQUENCY (N)</div>
+            <input type="number" id="inputN" class="number-input" value="51">
+        </div>
+        <div class="screen-row">
+            <div class="label">MULTIPLIER</div>
+            <div class="value" id="valK">1.00</div>
+        </div>
+        <div class="screen-row" style="border-bottom: none;">
+            <div class="label" style="display:flex; align-items:center; gap:8px;">
+                SIGNAL LOCK <div class="status-light" id="lockLight"></div>
+            </div>
+            <div class="value" id="resultDisplay" style="font-size: 0.9rem; opacity: 0.5; white-space: nowrap;">SCANNING...</div>
+        </div>
+        <div class="meter-container">
+            <div class="meter-bg"></div>
+            <div class="signal-fill" id="meterFill" style="width: 0%"></div>
+            <div class="needle" id="meterNeedle" style="left: 0%"></div>
+        </div>
+    </div>
+
+    <div class="knob-section">
+        <div class="knob-wrapper">
+            <div class="knob-container-lg" id="knobZoneMain">
+                <div class="knob-lg" id="knobMain"></div>
+            </div>
+            <div class="label" style="margin-top: 10px; color: #94a3b8;">COARSE TUNE</div>
+        </div>
+        <div class="knob-wrapper">
+            <div class="knob-container-sm" id="knobZoneFine">
+                <div class="knob-sm" id="knobFine"></div>
+            </div>
+            <div class="label" style="margin-top: 10px; color: #38bdf8;">FINE TUNE</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="seekBtn" onclick="toggleSeek()">AUTO-SEEK</button>
+        <button class="btn" id="audioBtn" onclick="toggleAudio()">AUDIO: OFF</button>
+    </div>
+</div>
+
+<script>
+    // --- STATE ---
+    let multiplier = 1.0;
+    let isSeeking = false;
+    let coarseRot = 0;
+    let fineRot = 0;
+
+    // --- PAGE VISIBILITY HANDLER (THE FIX) ---
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            // User minimized the app -> CUT POWER
+            if (audioCtx && audioCtx.state === 'running') {
+                audioCtx.suspend();
+            }
+        } else {
+            // User came back -> RESUME POWER if switch is ON
+            if (isAudioOn && audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+    });
+
+    // --- HELP MODAL ---
+    function toggleHelp() {
+        const modal = document.getElementById('helpModal');
+        if(modal.style.display === 'flex') {
+            modal.style.opacity = '0';
+            setTimeout(() => modal.style.display = 'none', 300);
+        } else {
+            modal.style.display = 'flex';
+            setTimeout(() => modal.style.opacity = '1', 10);
+        }
+    }
+
+    // --- DRAG HANDLER ---
+    function setupKnob(element, zone, sensitivity, callback) {
+        let startY = 0;
+        let isTouch = false;
+        const start = (y) => { startY = y; };
+        const move = (y) => {
+            const delta = startY - y;
+            callback(delta * sensitivity);
+            startY = y;
+        };
+        zone.addEventListener('touchstart', (e) => { isTouch=true; start(e.touches[0].clientY); e.preventDefault(); }, {passive:false});
+        zone.addEventListener('touchmove', (e) => { if(isTouch) move(e.touches[0].clientY); }, {passive:false});
+        window.addEventListener('touchend', () => { isTouch=false; });
+        zone.addEventListener('mousedown', (e) => { isTouch=true; start(e.clientY); });
+        window.addEventListener('mousemove', (e) => { if(isTouch) move(e.clientY); });
+        window.addEventListener('mouseup', () => { isTouch=false; });
+    }
+
+    setupKnob(document.getElementById('knobMain'), document.getElementById('knobZoneMain'), 0.05, (change) => {
+        if(isSeeking) return;
+        multiplier += change;
+        if(multiplier < 1) multiplier = 1;
+        coarseRot += change * 20;
+        applyMagneticSnap();
+        updateSystem();
+    });
+
+    setupKnob(document.getElementById('knobFine'), document.getElementById('knobZoneFine'), 0.002, (change) => {
+        if(isSeeking) return;
+        multiplier += change;
+        if(multiplier < 1) multiplier = 1;
+        fineRot += change * 100;
+        updateSystem();
+    });
+
+    function applyMagneticSnap() {
+        const rounded = Math.round(multiplier);
+        const dist = Math.abs(multiplier - rounded);
+        if (dist < 0.15) {
+            if(dist < 0.05) { multiplier = rounded; } 
+            else { multiplier += (rounded - multiplier) * 0.2; }
+        }
+    }
+
+    function updateSystem() {
+        document.getElementById('knobMain').style.transform = `rotate(${coarseRot}deg)`;
+        document.getElementById('knobFine').style.transform = `rotate(${fineRot}deg)`;
+        document.getElementById('valK').innerText = multiplier.toFixed(2);
+        calculateSignal();
+    }
+
+    function calculateSignal() {
+        const N = parseFloat(document.getElementById('inputN').value);
+        const k = multiplier;
+        const scaledN = N * k;
+        
+        let root = Math.ceil(Math.sqrt(scaledN));
+        let gap = (root * root) - scaledN;
+        let gapRoot = Math.sqrt(gap);
+        let dist = Math.abs(gapRoot - Math.round(gapRoot));
+
+        let signal = Math.max(0, 1 - (dist * 10)); 
+        
+        let pct = (signal * 100);
+        if(signal > 0) pct += Math.random() * 2;
+        document.getElementById('meterNeedle').style.left = Math.min(pct, 100) + "%";
+        document.getElementById('meterFill').style.width = Math.min(pct, 100) + "%";
+
+        const light = document.getElementById('lockLight');
+        const disp = document.getElementById('resultDisplay');
+
+        if (signal > 0.9) {
+            light.classList.remove('seeking-anim');
+            light.classList.add('light-on');
+            disp.style.opacity = "1";
+            disp.classList.add('locked-text');
+            
+            let a = root;
+            let b = Math.round(gapRoot);
+            disp.innerText = `LOCKED: ${a}^2 - ${b}^2`;
+            
+            if(isAudioOn && !light.dataset.locked) playPing();
+            light.dataset.locked = "true";
+        } else {
+            if(!isSeeking) light.classList.remove('light-on');
+            disp.style.opacity = "0.5";
+            disp.classList.remove('locked-text');
+            if(!isSeeking) disp.innerText = "SCANNING...";
+            light.dataset.locked = "";
+        }
+        updateAudio(signal);
+    }
+
+    // --- SEEK ---
+    function toggleSeek() {
+        if(isSeeking) {
+            isSeeking = false;
+            document.getElementById('seekBtn').classList.remove('btn-active');
+            document.getElementById('seekBtn').innerText = "AUTO-SEEK";
+            document.getElementById('lockLight').classList.remove('seeking-anim');
+        } else {
+            isSeeking = true;
+            document.getElementById('seekBtn').classList.add('btn-active');
+            document.getElementById('seekBtn').innerText = "STOP SEEK";
+            document.getElementById('lockLight').classList.add('seeking-anim');
+            seekLoop();
+        }
+    }
+
+    function seekLoop() {
+        if(!isSeeking) return;
+        multiplier += 0.05; 
+        coarseRot += 1;
+        updateSystem();
+        const needle = parseFloat(document.getElementById('meterNeedle').style.left);
+        if(needle > 95) {
+            toggleSeek();
+            playPing();
+            if(navigator.vibrate) navigator.vibrate([50, 50, 50]);
+        } else {
+            requestAnimationFrame(seekLoop);
+        }
+    }
+
+    // --- AUDIO ---
+    let audioCtx, osc, noise, gainNode, noiseGain, isAudioOn=false;
+    function toggleAudio() {
+        const btn = document.getElementById('audioBtn');
+        if(!isAudioOn) {
+            isAudioOn = true;
+            btn.classList.add('btn-active');
+            btn.innerText = "AUDIO: ON";
+            if(!audioCtx) initAudio();
+            else audioCtx.resume();
+        } else {
+            isAudioOn = false;
+            btn.classList.remove('btn-active');
+            btn.innerText = "AUDIO: OFF";
+            if(audioCtx) audioCtx.suspend();
+        }
+    }
+    
+    function initAudio() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        osc = audioCtx.createOscillator();
+        gainNode = audioCtx.createGain();
+        gainNode.gain.value = 0;
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        osc.start();
+        
+        const size = audioCtx.sampleRate;
+        const buf = audioCtx.createBuffer(1, size, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for(let i=0; i<size; i++) data[i] = Math.random() * 2 - 1;
+        noise = audioCtx.createBufferSource();
+        noise.buffer = buf;
+        noise.loop = true;
+        noiseGain = audioCtx.createGain();
+        noiseGain.gain.value = 0;
+        noise.connect(noiseGain);
+        noiseGain.connect(audioCtx.destination);
+        noise.start();
+    }
+
+    function updateAudio(signal) {
+        if(!isAudioOn) return;
+        noiseGain.gain.setTargetAtTime((1-signal)*0.1, audioCtx.currentTime, 0.1);
+        gainNode.gain.setTargetAtTime(signal*0.15, audioCtx.currentTime, 0.1);
+        osc.frequency.setTargetAtTime(220 + (signal * 440), audioCtx.currentTime, 0.1);
+    }
+    
+    function playPing() {
+        if(!isAudioOn) return;
+        const p = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        p.connect(g); g.connect(audioCtx.destination);
+        p.type='triangle'; p.frequency.value=880;
+        g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.5);
+        p.start(); p.stop(audioCtx.currentTime+0.5);
+    }
+    
+    updateSystem();
+</script>
+</body>
+</html>

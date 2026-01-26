@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghost Hunter V11: Fleet Command</title>
+<style>
+    /* MILITARY / INDUSTRIAL THEME */
+    body { background-color: #050505; color: #888; font-family: 'Courier New', monospace; padding: 15px; margin: 0; }
+    
+    .card { 
+        background: #0a0a0a; border: 1px solid #222; border-radius: 12px; 
+        padding: 20px; max-width: 700px; margin: 0 auto; 
+        box-shadow: 0 0 40px rgba(0, 255, 0, 0.05); 
+    }
+    
+    h1 { color: #0f0; text-align: center; margin: 0 0 5px 0; letter-spacing: 2px; text-transform: uppercase; font-size: 1.4rem; }
+    p { text-align: center; color: #444; font-size: 0.7rem; margin-bottom: 20px; text-transform: uppercase; }
+
+    label { display: block; font-size: 0.7rem; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+    
+    input, select { 
+        width: 100%; background: #111; border: 1px solid #333; color: #0f0; 
+        padding: 12px; border-radius: 4px; font-weight: bold; font-family: 'Courier New', monospace; 
+        text-align: center; margin-bottom: 15px; font-size: 1.1rem; 
+        box-sizing: border-box;
+    }
+    input:focus { outline: none; border-color: #0f0; box-shadow: 0 0 10px rgba(0,255,0,0.2); }
+    
+    .btn { 
+        width: 100%; padding: 16px; border-radius: 6px; font-weight: 900; 
+        cursor: pointer; text-transform: uppercase; margin-top: 5px; 
+        letter-spacing: 2px; border: none; font-size: 1rem;
+    }
+    .btn-run { background: #003300; color: #0f0; border: 1px solid #005500; }
+    .btn-run:active { background: #0f0; color: #000; }
+    .btn-stop { background: #330000; color: #f00; border: 1px solid #550000; display: none; }
+    .btn-stop:active { background: #f00; color: #fff; }
+    
+    .status-panel { margin-top: 20px; border-top: 1px dashed #333; padding-top: 15px; }
+    .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.8rem; }
+    
+    /* FOUND FACTORS BOX */
+    .factor-box { 
+        background: #111; border: 1px solid #0f0; padding: 10px; 
+        border-radius: 4px; margin-bottom: 15px; display: none; 
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0% {box-shadow: 0 0 5px #003300;} 50% {box-shadow: 0 0 20px #00ff00;} 100% {box-shadow: 0 0 5px #003300;} }
+    
+    .factor-header { color: #0f0; font-size: 0.8rem; font-weight: bold; text-align: center; border-bottom: 1px solid #0f0; padding-bottom: 5px; margin-bottom: 5px; }
+    .factor-list { color: #fff; font-size: 1.2rem; text-align: center; font-weight: bold; }
+    
+    /* CORES GRID */
+    .cores-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 15px; }
+    .core-row { 
+        background: #080808; padding: 8px; border-radius: 4px; border: 1px solid #222; 
+        display: flex; flex-direction: column; 
+    }
+    .core-header { display: flex; justify-content: space-between; font-size: 0.65rem; color: #666; margin-bottom: 4px; font-weight: bold; }
+    .progress-bg { height: 6px; background: #222; width: 100%; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #005500; width: 0%; transition: width 0.2s; }
+    
+    .log-box { 
+        height: 120px; overflow-y: auto; font-size: 0.7rem; color: #555; 
+        margin-top: 15px; background: #000; padding: 10px; border: 1px solid #222; 
+    }
+    .hit { color: #0f0; font-weight: bold; } /* GREEN ALERT */
+    .sys { color: #444; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1>GHOST HUNTER V11</h1>
+    <p>FLEET COMMAND // OCTA-CORE SCANNER</p>
+
+    <label>TARGET NUMBER (N)</label>
+    <input id="inpTarget" type="text" value="1007">
+
+    <div class="grid-2">
+        <div>
+            <label>CPU CORES</label>
+            <select id="inpCores">
+                <option value="2">2 Units</option>
+                <option value="4">4 Units</option>
+                <option value="8" selected>8 Units (FULL)</option>
+            </select>
+        </div>
+        <div>
+            <label>SCAN DIRECTION</label>
+            <select id="inpDir" disabled>
+                <option>Forward (Linear)</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="grid-2">
+        <div>
+            <label style="color:#0f0">START ANCHOR</label>
+            <input id="inpStart" type="number" value="1" style="border-color:#005500; color:#0f0">
+        </div>
+        <div>
+            <label>END ANCHOR</label>
+            <input id="inpEnd" type="number" value="1000">
+        </div>
+    </div>
+
+    <button id="btnStart" class="btn btn-run" onclick="startScan()">DEPLOY FLEET</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopScan()">ABORT MISSION</button>
+    
+    <div class="status-panel">
+        <div class="stat-row"><span>MISSION CLOCK:</span><span id="sTime" style="color:#0f0">00:00:00</span></div>
+        <div class="stat-row"><span>FLEET STATUS:</span><span id="sStatus">STANDING BY</span></div>
+        
+        <div id="factorBox" class="factor-box">
+            <div class="factor-header">TARGET ACQUIRED</div>
+            <div id="factorList" class="factor-list"></div>
+        </div>
+
+        <div id="coresContainer" class="cores-grid"></div>
+        <div id="logBox" class="log-box">System Initialized. Awaiting Target.</div>
+    </div>
+</div>
+
+<script>
+/**
+ * GHOST HUNTER V11 - WORKER LOGIC
+ * The engine that runs on every core.
+ */
+const workerCode = `
+self.onmessage = function(e) {
+    const { targetStr, startIdx, endIdx, workerId } = e.data;
+    
+    try {
+        const N = BigInt(targetStr);
+        const start = parseInt(startIdx);
+        const end = parseInt(endIdx);
+        
+        // Report interval
+        let processed = 0;
+        let lastReport = Date.now();
+        const reportRate = 500; // ms
+
+        // BigInt Sqrt Function (Integer only)
+        function bigSqrt(value) {
+            if (value < 0n) return 0n;
+            if (value < 2n) return value;
+            let x = value;
+            let y = (x + 1n) / 2n;
+            while (y < x) {
+                x = y;
+                y = (value / x + x) / 2n;
+            }
+            return x;
+        }
+
+        // GCD Function
+        function gcd(a, b) {
+            if (!b) return a;
+            return gcd(b, a % b);
+        }
+
+        // --- THE SQUARE SCAN LOOP ---
+        for (let A = start; A < end; A++) {
+            
+            // 1. Calculate Anchor Square
+            const An = BigInt(A);
+            const Sq = An * An;
+            
+            // 2. Calculate Remainder (Distance to Target)
+            let R = (N > Sq) ? (N - Sq) : (Sq - N);
+            
+            // 3. DNA CHECK (The "Weigh Station")
+            // Instead of full recursion, we do a "Top Level" check for factors.
+            // We strip the largest square out of R and check resonance.
+            
+            if (R === 0n) {
+                // Direct Hit (Target is a perfect square)
+                postMessage({ type: 'hit', val: A.toString(), method: 'Perfect Square' });
+                break;
+            }
+
+            // Decompose R (Greedy)
+            // We grab the largest root inside R
+            let rRoot = bigSqrt(R);
+            
+            if (rRoot > 0n) {
+                // CHECK 1: Is the Remainder Root a factor?
+                // (Like finding 19 inside the remainder 382)
+                let g1 = gcd(rRoot, N);
+                if (g1 > 1n && g1 < N) {
+                    postMessage({ type: 'hit', val: g1.toString(), method: 'Remainder DNA' });
+                }
+
+                // CHECK 2: Is (Anchor + RemainderRoot) a factor?
+                // This is the A+B logic.
+                let sum = An + rRoot;
+                let g2 = gcd(sum, N);
+                if (g2 > 1n && g2 < N) {
+                     postMessage({ type: 'hit', val: g2.toString(), method: 'A+B Resonance' });
+                }
+
+                // CHECK 3: Is (Anchor - RemainderRoot) a factor?
+                let diff = (An > rRoot) ? (An - rRoot) : (rRoot - An);
+                if (diff > 0n) {
+                    let g3 = gcd(diff, N);
+                    if (g3 > 1n && g3 < N) {
+                        postMessage({ type: 'hit', val: g3.toString(), method: 'A-B Resonance' });
+                    }
+                }
+            }
+
+            // Update Progress
+            processed++;
+            const now = Date.now();
+            if (now - lastReport > reportRate) {
+                postMessage({ type: 'progress', curr: A, worked: processed });
+                processed = 0;
+                lastReport = now;
+            }
+        }
+        
+        postMessage({ type: 'done' });
+
+    } catch(err) {
+        postMessage({ type: 'error', msg: err.message });
+    }
+};
+`;
+
+// --- MAIN THREAD CONTROL ---
+let workers = [];
+let startTime = 0;
+let timerInterval = null;
+let activeWorkers = 0;
+let wakeLock = null;
+let foundFactors = new Set();
+
+// Wake Lock to keep screen on while driving
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            log("Screen Wake Lock: ENGAGED", 'sys');
+        }
+    } catch (err) { console.log(err); }
+}
+function releaseWakeLock() {
+    if (wakeLock !== null) { wakeLock.release(); wakeLock = null; }
+}
+
+function log(msg, type='') {
+    const box = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.innerHTML = `> ${msg}`;
+    if(type === 'hit') div.className = 'hit';
+    if(type === 'sys') div.className = 'sys';
+    box.prepend(div);
+}
+
+function updateTimer() {
+    const now = Date.now();
+    const diff = Math.floor((now - startTime) / 1000);
+    const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    document.getElementById('sTime').innerText = `${h}:${m}:${s}`;
+}
+
+function startScan() {
+    // Reset
+    workers.forEach(w => w.terminate());
+    workers = [];
+    foundFactors.clear();
+    document.getElementById('factorBox').style.display = 'none';
+    document.getElementById('factorList').innerHTML = '';
+    document.getElementById('coresContainer').innerHTML = '';
+    document.getElementById('logBox').innerHTML = '';
+    
+    const targetStr = document.getElementById('inpTarget').value;
+    const startAnchor = parseInt(document.getElementById('inpStart').value);
+    const endAnchor = parseInt(document.getElementById('inpEnd').value);
+    const cores = parseInt(document.getElementById('inpCores').value);
+
+    // Validation
+    if(endAnchor <= startAnchor) { log("Error: End Anchor must be > Start", "sys"); return; }
+
+    // UI Updates
+    document.getElementById('btnStart').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'block';
+    document.getElementById('sStatus').innerText = "SCANNING SECTOR...";
+    document.getElementById('sStatus').style.color = "#0f0";
+    requestWakeLock();
+    
+    log(`Target: ${targetStr}`, 'sys');
+    log(`Fleet: ${cores} Units deployed`, 'sys');
+
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+    activeWorkers = cores;
+
+    // Build Worker Blob
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    const workerUrl = URL.createObjectURL(blob);
+
+    // Distribute Workload
+    const totalRange = endAnchor - startAnchor;
+    const chunk = Math.ceil(totalRange / cores);
+
+    for(let i=0; i<cores; i++) {
+        const wStart = startAnchor + (i * chunk);
+        const wEnd = Math.min(wStart + chunk, endAnchor);
+        
+        // Create UI for Core
+        const coreDiv = document.createElement('div');
+        coreDiv.className = 'core-row';
+        coreDiv.innerHTML = `
+            <div class="core-header">
+                <span>UNIT ${i+1} [Anchor ${wStart}-${wEnd}]</span>
+                <span id="progText-${i}">0%</span>
+            </div>
+            <div class="progress-bg"><div id="progBar-${i}" class="progress-fill"></div></div>
+        `;
+        document.getElementById('coresContainer').appendChild(coreDiv);
+
+        // Spawn Worker
+        const w = new Worker(workerUrl);
+        w.onmessage = function(e) { handleMessage(e.data, i, wStart, wEnd); };
+        w.postMessage({ 
+            targetStr: targetStr, 
+            startIdx: wStart, 
+            endIdx: wEnd, 
+            workerId: i 
+        });
+        workers.push(w);
+    }
+}
+
+function handleMessage(data, id, start, end) {
+    if(data.type === 'progress') {
+        const total = end - start;
+        const current = data.curr - start;
+        const pct = Math.min((current / total) * 100, 100).toFixed(1);
+        document.getElementById(`progBar-${id}`).style.width = pct + '%';
+        document.getElementById(`progText-${id}`).textContent = pct + '%';
+    }
+    else if(data.type === 'hit') {
+        if(!foundFactors.has(data.val)) {
+            foundFactors.add(data.val);
+            // Visual Alert
+            document.getElementById('factorBox').style.display = 'block';
+            document.getElementById('factorList').innerHTML += `<div>${data.val}</div>`;
+            log(`UNIT ${id+1} CONFIRMED: ${data.val} (${data.method})`, 'hit');
+            
+            // Optional: Stop on find? 
+            // For now, we keep scanning to find all factors.
+        }
+    }
+    else if(data.type === 'done') {
+        document.getElementById(`progBar-${id}`).style.width = '100%';
+        document.getElementById(`progBar-${id}`).style.background = '#0f0';
+        document.getElementById(`progText-${id}`).textContent = 'IDLE';
+        activeWorkers--;
+        if(activeWorkers <= 0) stopScan();
+    }
+    else if(data.type === 'error') {
+        log(`ERR Unit ${id}: ${data.msg}`);
+    }
+}
+
+function stopScan() {
+    clearInterval(timerInterval);
+    releaseWakeLock();
+    workers.forEach(w => w.terminate());
+    workers = [];
+    document.getElementById('btnStart').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'none';
+    
+    if(foundFactors.size > 0) {
+        document.getElementById('sStatus').innerText = "TARGET NEUTRALIZED";
+        document.getElementById('sStatus').style.color = "#0f0";
+    } else {
+        document.getElementById('sStatus').innerText = "SECTOR CLEAR (No Factors)";
+        document.getElementById('sStatus').style.color = "#444";
+    }
+}
+
+// Auto-select cores
+document.addEventListener('DOMContentLoaded', () => {
+    const cores = navigator.hardwareConcurrency || 4;
+    const sel = document.getElementById('inpCores');
+    for(let i=0; i<sel.options.length; i++) {
+        if(parseInt(sel.options[i].value) === cores) sel.selectedIndex = i;
+    }
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3-ENGINE: SHADOW TRACER</title>
+<style>
+    :root {
+        --bg: #020617;
+        --cyan: #22d3ee;
+        --gold: #facc15;
+        --pink: #f472b6;
+        --slate: #1e293b;
+    }
+    body {
+        background: var(--bg); color: #e2e8f0;
+        font-family: 'Courier New', monospace;
+        display: flex; flex-direction: column;
+        height: 100vh; margin: 0; overflow: hidden;
+    }
+    .hud {
+        padding: 20px; border-bottom: 2px solid var(--gold);
+        background: #0f172a; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        z-index: 10;
+    }
+    .readout {
+        font-size: 2rem; color: var(--gold);
+        text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);
+        margin-bottom: 10px; word-break: break-all;
+    }
+    .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    input {
+        background: #000; border: 1px solid var(--cyan);
+        color: #fff; font-family: inherit; font-size: 1.2rem;
+        flex: 1; padding: 10px;
+    }
+    button {
+        background: var(--cyan); border: none; padding: 0 30px;
+        font-weight: 900; font-size: 1.2rem; cursor: pointer;
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+    button:active { background: var(--gold); }
+    
+    #visualizer {
+        flex: 1; position: relative;
+        background: radial-gradient(circle at center, #1e293b 0%, #000 100%);
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+    }
+    .ring {
+        position: absolute; border: 1px solid var(--cyan);
+        border-radius: 50%; opacity: 0.1;
+        transition: all 0.5s;
+    }
+    .status-text {
+        position: absolute; font-size: 5rem; font-weight: 900;
+        color: #fff; opacity: 0.05; pointer-events: none;
+    }
+    .result-box {
+        position: absolute; bottom: 20px; left: 20px; right: 20px;
+        background: rgba(0,0,0,0.9); border: 1px solid var(--pink);
+        padding: 20px; display: none;
+    }
+    .mono-stat { color: #64748b; font-size: 0.8rem; letter-spacing: 1px; }
+    .val-stat { color: var(--cyan); font-weight: bold; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+
+<div class="hud">
+    <div class="mono-stat">TARGET IDENTITY (N)</div>
+    <div class="readout" id="targetDisp">WAITING FOR INPUT</div>
+    
+    <div class="input-row">
+        <input type="text" id="inpN" value="71641520761751435455133616475667090434063332228247871795429">
+        <button onclick="startTrace()">TRACE ROOT</button>
+    </div>
+    
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <div>
+            <div class="mono-stat">CURRENT ROOT (R) SCANNED</div>
+            <div class="val-stat" id="currR">0</div>
+        </div>
+        <div>
+            <div class="mono-stat">SEARCH VELOCITY</div>
+            <div class="val-stat" id="speed">0 R/sec</div>
+        </div>
+    </div>
+</div>
+
+<div id="visualizer">
+    <div class="status-text">SCANNING</div>
+    </div>
+
+<div class="result-box" id="resultBox">
+    <h2 style="color:var(--gold); margin:0 0 10px 0;">SHADOW LOCKED</h2>
+    <div style="display:grid; grid-template-columns: 100px 1fr; gap:10px; align-items:center;">
+        <div style="color:var(--pink);">ROOT (R):</div>
+        <div id="resR" style="word-break:break-all;">-</div>
+        
+        <div style="color:var(--cyan);">STEPS (k):</div>
+        <div id="resK" style="word-break:break-all;">-</div>
+        
+        <div style="color:var(--gold);">FACTOR A:</div>
+        <div id="resA" style="word-break:break-all; font-weight:bold;">-</div>
+        
+        <div style="color:var(--gold);">FACTOR B:</div>
+        <div id="resB" style="word-break:break-all; font-weight:bold;">-</div>
+    </div>
+</div>
+
+<script id="worker-code" type="javascript/worker">
+    // BigInt Sqrt Helper
+    function sqrt(value) {
+        if (value < 0n) return -1n;
+        if (value < 2n) return value;
+        
+        // Initial estimate (very rough)
+        let x0 = 1n << (BigInt(value.toString(2).length) / 2n + 1n);
+        let x1 = (x0 + value / x0) >> 1n;
+        
+        while (x1 < x0) {
+            x0 = x1;
+            x1 = (x0 + value / x0) >> 1n;
+        }
+        return x0;
+    }
+
+    self.onmessage = function(e) {
+        const N = BigInt(e.data.N);
+        let R = BigInt(e.data.startR);
+        const batch = 10000n;
+        
+        // THE FORMULA:
+        // We need sqrt( (2R-6)^2 + 16N ) to be an integer.
+        // Let Discriminant D = (2R-6)^2 + 16N
+        
+        const N16 = N * 16n;
+        
+        const t0 = performance.now();
+        
+        while(true) {
+            for(let i=0n; i<batch; i++) {
+                // Optimization: R must be odd for odd N in this structure? 
+                // Let's stick to user's 3-Line definition. Roots are usually odd integers on the top row.
+                // We increment R by 2.
+                
+                let term = (2n * R) - 6n;
+                let D = (term * term) + N16;
+                
+                // Fast check for perfect square?
+                // Hard with BigInt. We rely on sqrt for now.
+                // (In C++ we'd check Mod 256, etc. JS BigInt is cleaner to just run).
+                
+                let rootD = sqrt(D);
+                
+                if (rootD * rootD === D) {
+                    // FOUND IT
+                    // k = ( -(2R+6) + rootD ) / 8
+                    // term2 = 2R+6
+                    let term2 = (2n * R) + 6n;
+                    let num = rootD - term2;
+                    
+                    if (num % 8n === 0n) {
+                        let k = num / 8n;
+                        self.postMessage({ found: true, R: R.toString(), k: k.toString() });
+                        return;
+                    }
+                }
+                
+                R += 2n;
+            }
+            
+            // Check in with main thread
+            const t1 = performance.now();
+            self.postMessage({ found: false, currentR: R.toString() });
+            
+            // Allow termination
+            if (t1 - t0 > 2000) { 
+                // Small breather if needed, but worker loops are usually fine
+            }
+        }
+    };
+</script>
+
+<script>
+    let worker;
+    let visualizer = document.getElementById('visualizer');
+
+    function createRings() {
+        visualizer.innerHTML = '<div class="status-text">SCANNING</div>';
+        for(let i=0; i<5; i++) {
+            let d = document.createElement('div');
+            d.className = 'ring';
+            d.style.width = (i*100 + 50) + 'px';
+            d.style.height = (i*100 + 50) + 'px';
+            d.style.animation = `pulse 2s infinite ${i*0.2}s`;
+            visualizer.appendChild(d);
+        }
+    }
+
+    function startTrace() {
+        if(worker) worker.terminate();
+        
+        const nStr = document.getElementById('inpN').value.trim();
+        document.getElementById('targetDisp').innerText = nStr.length > 20 ? nStr.substring(0,20) + "..." : nStr;
+        document.getElementById('resultBox').style.display = 'none';
+        
+        createRings();
+        
+        const blob = new Blob([document.getElementById('worker-code').textContent], { type: "text/javascript" });
+        worker = new Worker(window.URL.createObjectURL(blob));
+        
+        let lastTime = performance.now();
+        let lastR = 0n;
+        
+        worker.onmessage = function(e) {
+            if (e.data.found) {
+                // SUCCESS
+                const N = BigInt(nStr);
+                const R = BigInt(e.data.R);
+                const k = BigInt(e.data.k);
+                
+                const A = 3n + (2n * k);
+                const B = R + (2n * k);
+                
+                document.getElementById('resR').innerText = R.toString();
+                document.getElementById('resK').innerText = k.toString();
+                document.getElementById('resA').innerText = A.toString();
+                document.getElementById('resB').innerText = B.toString();
+                
+                document.getElementById('resultBox').style.display = 'block';
+                document.querySelector('.status-text').innerText = "LOCKED";
+                document.querySelector('.status-text').style.color = "var(--gold)";
+                document.querySelector('.status-text').style.opacity = "0.8";
+                
+                worker.terminate();
+            } else {
+                // UPDATE STATS
+                const currR = BigInt(e.data.currentR);
+                document.getElementById('currR').innerText = currR.toString();
+                
+                const now = performance.now();
+                if (now - lastTime > 1000) {
+                    const diff = currR - lastR;
+                    document.getElementById('speed').innerText = diff.toLocaleString() + " R/s";
+                    lastR = currR;
+                    lastTime = now;
+                }
+            }
+        };
+        
+        // Start from R=1 (or 3, odd numbers)
+        // Note: For huge difference factors, R is large. 
+        // For Balanced Factors (RSA), R is SMALL.
+        // We start small.
+        worker.postMessage({ N: nStr, startR: "1" });
+    }
+    
+    // Auto-start animation style
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.1; border-color: var(--cyan); }
+            50% { transform: scale(1.0); opacity: 0.5; border-color: var(--pink); }
+            100% { transform: scale(0.8); opacity: 0.1; border-color: var(--cyan); }
+        }
+    `;
+    document.head.appendChild(style);
+
+</script>
+</body>
+</html>

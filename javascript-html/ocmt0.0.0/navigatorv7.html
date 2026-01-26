@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v17: ABSTRACT</title>
+<style>
+    :root { --bg: #020617; --a: #facc15; --cyan: #22d3ee; --pink: #f472b6; --text: #e2e8f0; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+    body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden; touch-action: none; }
+    
+    /* TOP */
+    .top { background: #0f172a; border-bottom: 2px solid var(--a); padding: 10px; display: flex; gap: 8px; height: 60px; align-items: center; z-index: 10; }
+    input { background: #000; border: 1px solid var(--a); color: #fff; padding: 10px; flex: 1; font-weight: bold; outline: none; border-radius: 4px; font-size: 18px; min-width: 0; text-align: center; }
+    .btn { border: none; padding: 0 15px; font-weight: 900; cursor: pointer; border-radius: 4px; color: #000; font-size: 12px; height: 40px; display: grid; place-items: center; background: #334155; color: #fff; }
+    .btn-go { background: var(--a); color: #000; }
+
+    /* LAYOUT */
+    .layout { flex: 1; position: relative; background: #000; overflow: hidden; cursor: crosshair; }
+    canvas { display: block; width: 100%; height: 100%; }
+    
+    /* FOOTER */
+    .footer { background: #0b1120; border-top: 1px solid #1e293b; padding: 10px; height: 80px; display: flex; flex-direction: column; justify-content: center; z-index: 10; }
+    .eq-box { font-size: 1.2rem; font-weight: 900; text-align: center; color: var(--cyan); letter-spacing: 1px; }
+    .sub-box { text-align: center; font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="top">
+    <input id="inpN" type="text" value="9" inputmode="numeric">
+    <button class="btn btn-go" onclick="jumpToRoot()">JUMP TO ROOT</button>
+    <button class="btn" onclick="resetView()">RESET</button>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="footer">
+    <div class="eq-box" id="eqOut">TAP A CELL</div>
+    <div class="sub-box" id="subOut">Format: Anchor | Location | Value</div>
+</div>
+
+<script>
+// --- WORKER ---
+var workerBlob = new Blob([
+    "self.onmessage = function(e) {" +
+    "  var items = e.data.items;" +
+    "  var res = items.map(function(it) {" +
+    "    var k = BigInt(it.r), b = BigInt(it.c);" +
+    "    if (b > k) return null;" +
+    "    var P2 = (k * 2n) + 1n, P1 = P2 - (b * 2n);" +
+    "    var a = (P2 + P1) / 2n, N = P2 * P1;" +
+    "    return { r: it.r, c: it.c, a: a.toString(), b: b.toString(), val: N.toString(), isSq: (b === 0n) };" +
+    "  }).filter(function(x){ return x !== null; });" +
+    "  self.postMessage(res);" +
+    "};"
+], {type: 'application/javascript'});
+
+var canvas = document.getElementById('gridCanvas'), ctx = canvas.getContext('2d'), wrap = document.getElementById('canvasWrap');
+var worker = new Worker(URL.createObjectURL(workerBlob));
+var cellS = 100, viewPos = { r: 0n, c: 0n }, scroll = { x: 0, y: 0 };
+var cellCache = {}, selectedCell = null;
+
+worker.onmessage = function(e) { e.data.forEach(function(p) { cellCache[p.r + "|" + p.c] = p; }); draw(); };
+window.onresize = function() { canvas.width = wrap.clientWidth; canvas.height = wrap.clientHeight; draw(); };
+window.onresize(); request();
+
+function jumpToRoot() {
+    var raw = document.getElementById('inpN').value;
+    try {
+        var N = BigInt(raw);
+        var a = BigInt(Math.floor(Math.sqrt(Number(N))));
+        // Center on the "Root Anchor" even if it's not a perfect square match, 
+        // to show the neighborhood.
+        var k = (a - 1n) / 2n;
+        viewPos = { r: k - 2n < 0n ? 0n : k - 2n, c: 0n }; // Jump to Spine of that root
+        scroll = {x:0, y:0};
+        cellCache = {};
+        request();
+    } catch(e){}
+}
+
+function resetView() { viewPos = { r: 0n, c: 0n }; scroll = { x: 0, y: 0 }; cellCache = {}; request(); }
+
+function request() { 
+    var items = []; 
+    var rows = Math.ceil(canvas.height / cellS) + 2, cols = Math.ceil(canvas.width / cellS) + 2;
+    for(var r = -2; r < rows; r++) for(var c = -2; c < cols; c++) 
+        items.push({r: (viewPos.r + BigInt(r)).toString(), c: (viewPos.c + BigInt(c)).toString()}); 
+    worker.postMessage({items: items}); 
+}
+
+function draw() {
+    ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    var rows = Math.ceil(canvas.height / cellS) + 4, cols = Math.ceil(canvas.width / cellS) + 4;
+    for (var r = -2; r < rows; r++) {
+        for (var c = -2; c < cols; c++) {
+            var gr = viewPos.r + BigInt(r), gc = viewPos.c + BigInt(c);
+            if (gc < 0n || gc > gr) continue;
+            var x = c * cellS + scroll.x, y = r * cellS + scroll.y, cell = cellCache[gr + "|" + gc];
+
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1; ctx.strokeRect(x, y, cellS, cellS);
+
+            if (cell) {
+                var isSel = (selectedCell && selectedCell.r === cell.r && selectedCell.c === cell.c);
+                if (isSel) {
+                    ctx.fillStyle = 'rgba(250, 204, 21, 0.1)'; ctx.fillRect(x, y, cellS, cellS);
+                    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.strokeRect(x, y, cellS, cellS);
+                }
+
+                if (cellS > 40) {
+                    ctx.textAlign = 'center'; 
+                    
+                    // 1. THE ANCHOR (Leading)
+                    ctx.fillStyle = '#facc15';
+                    ctx.font = "bold " + Math.floor(cellS/3.5) + "px monospace";
+                    ctx.fillText(cell.a, x + cellS/2, y + cellS/3);
+                    
+                    // 2. THE LOCATION (a.b)
+                    ctx.fillStyle = '#f472b6';
+                    ctx.font = Math.floor(cellS/7) + "px monospace";
+                    ctx.fillText(cell.a + "." + cell.b, x + cellS/2, y + cellS/1.8);
+                    
+                    // 3. THE VALUE (N)
+                    ctx.fillStyle = '#22d3ee'; 
+                    ctx.font = "bold " + Math.floor(cellS/5) + "px monospace";
+                    ctx.fillText(cell.val, x + cellS/2, y + cellS/1.15);
+                }
+            }
+        }
+    }
+}
+
+// --- TOUCH ---
+var touchStart = null, lastPinch = 0, state = 'IDLE';
+wrap.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 1) { state = 'PAN'; touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, sx: scroll.x, sy: scroll.y }; }
+    else if (e.touches.length === 2) { state = 'PINCH'; lastPinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+}, {passive: false});
+
+wrap.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (state === 'PAN') {
+        var dx = e.touches[0].clientX - touchStart.x, dy = e.touches[0].clientY - touchStart.y;
+        scroll.x = touchStart.sx + dx; scroll.y = touchStart.sy + dy;
+        while(scroll.x > 0) { scroll.x -= cellS; viewPos.c -= 1n; touchStart.sx -= cellS; }
+        while(scroll.x < -cellS) { scroll.x += cellS; viewPos.c += 1n; touchStart.sx += cellS; }
+        while(scroll.y > 0) { scroll.y -= cellS; viewPos.r -= 1n; touchStart.sy -= cellS; }
+        while(scroll.y < -cellS) { scroll.y += cellS; viewPos.r += 1n; touchStart.sy += cellS; }
+        request(); draw();
+    } else if (state === 'PINCH') {
+        var dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        if (lastPinch > 0) {
+            var ratio = dist / lastPinch, newS = Math.min(Math.max(cellS * ratio, 40), 200);
+            var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2, cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            scroll.x = cx - (cx - scroll.x) * (newS / cellS); scroll.y = cy - (cy - scroll.y) * (newS / cellS);
+            cellS = newS; draw();
+        }
+        lastPinch = dist;
+    }
+}, {passive: false});
+
+wrap.addEventListener('touchend', function(e) {
+    if (state === 'PAN' && e.changedTouches.length > 0 && Math.abs(e.changedTouches[0].clientX - touchStart.x) < 5) {
+        var rect = canvas.getBoundingClientRect();
+        var c = Math.floor((e.changedTouches[0].clientX - rect.left - scroll.x) / cellS);
+        var r = Math.floor((e.changedTouches[0].clientY - rect.top - scroll.y) / cellS);
+        var k = viewPos.r + BigInt(r), b = viewPos.c + BigInt(c);
+        if(b >= 0n && b <= k) {
+            var cell = cellCache[k + "|" + b];
+            if(cell) {
+                selectedCell = { r: cell.r, c: cell.c };
+                document.getElementById('eqOut').innerHTML = `<span style="color:var(--a)">${cell.a}</span>² - <span style="color:var(--pink)">${cell.b}</span>² = <span style="color:var(--cyan)">${cell.val}</span>`;
+                document.getElementById('subOut').innerText = `Location: ${cell.a}.${cell.b}`;
+                draw();
+            }
+        }
+    }
+    if (e.touches.length === 0) state = 'IDLE';
+});
+</script>
+</body>
+</html>

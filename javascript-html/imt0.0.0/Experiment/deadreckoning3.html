@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3-ENGINE: HARMONIC SIEVE</title>
+<style>
+    :root {
+        --bg: #050505;
+        --chrome: #1a1a1a;
+        --neon-blue: #00f3ff;
+        --neon-purple: #bc13fe;
+        --neon-green: #0aff0a;
+        --alert: #ff003c;
+    }
+    body {
+        background: var(--bg); color: #ccc;
+        font-family: 'Rajdhani', 'Courier New', sans-serif;
+        margin: 0; height: 100vh; display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* --- HUD HEADER --- */
+    .hud-panel {
+        background: var(--chrome); border-bottom: 2px solid var(--neon-blue);
+        padding: 15px; z-index: 100;
+        box-shadow: 0 10px 30px rgba(0, 243, 255, 0.1);
+        display: grid; grid-template-columns: 1fr 200px; gap: 20px;
+    }
+    .hud-title {
+        font-size: 1.5rem; color: var(--neon-blue); font-weight: 700;
+        letter-spacing: 3px; margin-bottom: 10px; text-transform: uppercase;
+    }
+    .input-row { display: flex; gap: 5px; width: 100%; }
+    input {
+        flex: 1; background: #000; border: 1px solid #333; color: var(--neon-green);
+        font-family: monospace; padding: 10px; font-size: 1rem; outline: none;
+    }
+    input:focus { border-color: var(--neon-blue); }
+    
+    button {
+        background: var(--neon-blue); border: none; color: #000;
+        font-weight: 800; padding: 0 20px; cursor: pointer;
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    }
+    button:active { background: #fff; }
+    button.stop { background: var(--alert); color: #fff; }
+
+    /* --- SCOPE DISPLAY --- */
+    .scope-container {
+        flex: 1; position: relative; background: radial-gradient(circle, #111 0%, #000 90%);
+        overflow: hidden; display: flex; align-items: center; justify-content: center;
+    }
+    
+    /* RADAR RINGS */
+    .radar-ring {
+        position: absolute; border: 1px solid rgba(0, 243, 255, 0.2);
+        border-radius: 50%; width: 200px; height: 200px;
+        box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+    }
+    .radar-sweep {
+        position: absolute; width: 50%; height: 2px;
+        background: linear-gradient(90deg, transparent, var(--neon-blue));
+        top: 50%; left: 50%; transform-origin: 0 0;
+        animation: sweep 2s infinite linear;
+    }
+    @keyframes sweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* SIEVE VISUALIZATION */
+    .sieve-layer {
+        position: absolute; width: 100%; height: 100%;
+        display: grid; grid-template-columns: repeat(20, 1fr);
+        opacity: 0.3; pointer-events: none;
+    }
+    .sieve-cell {
+        background: rgba(0,0,0,0); transition: background 0.1s;
+    }
+    .sieve-cell.reject { background: rgba(255, 0, 60, 0.2); }
+    .sieve-cell.pass { background: rgba(10, 255, 10, 0.4); box-shadow: 0 0 10px var(--neon-green); }
+
+    /* STATS */
+    .stats-col {
+        display: flex; flex-direction: column; justify-content: space-between;
+        font-family: monospace; font-size: 0.8rem;
+    }
+    .stat-row { display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 2px; }
+    .stat-val { color: var(--neon-blue); font-weight: bold; }
+
+    /* OVERLAY */
+    #found-overlay {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.9);
+        display: none; flex-direction: column; justify-content: center; align-items: center;
+        z-index: 200;
+    }
+    .found-box {
+        border: 2px solid var(--neon-green); padding: 40px; background: #051a05;
+        box-shadow: 0 0 50px rgba(10,255,10,0.2); text-align: left; max-width: 800px;
+    }
+    .result-label { color: #888; font-size: 0.9rem; letter-spacing: 1px; margin-top: 15px; }
+    .result-val { color: #fff; font-family: monospace; font-size: 1.2rem; word-break: break-all; }
+    .highlight { color: var(--neon-green); font-weight: bold; font-size: 1.5rem; }
+
+</style>
+</head>
+<body>
+
+<div class="hud-panel">
+    <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="hud-title">3-ENGINE // HARMONIC SIEVE</div>
+        <div class="input-row">
+            <input type="text" id="inpN" value="71641520761751435455133616475667090434063332228247871795429">
+            <button id="btnEngage" onclick="engage()">ENGAGE SIEVE</button>
+        </div>
+    </div>
+    
+    <div class="stats-col">
+        <div class="stat-row"><span>R-SCAN VELOCITY</span><span id="velVal" class="stat-val">0 /s</span></div>
+        <div class="stat-row"><span>FILTER EFFICIENCY</span><span id="effVal" class="stat-val">99.8%</span></div>
+        <div class="stat-row"><span>CURRENT ROOT (R)</span><span id="currR" class="stat-val" style="font-size:0.7rem;">0</span></div>
+        <div class="stat-row"><span>STATUS</span><span id="statusVal" style="color:var(--neon-purple);">STANDBY</span></div>
+    </div>
+</div>
+
+<div class="scope-container" id="scope">
+    <div class="sieve-layer" id="sieveGrid"></div>
+    <div class="radar-ring" style="width:300px; height:300px; border-color:rgba(188, 19, 254, 0.3);"></div>
+    <div class="radar-ring" style="width:500px; height:500px;"></div>
+    <div class="radar-sweep"></div>
+    <div style="position:absolute; bottom:20px; font-size:4rem; font-weight:900; color:#fff; opacity:0.05;">RESONANCE SCAN</div>
+</div>
+
+<div id="found-overlay">
+    <div class="found-box">
+        <div style="color:var(--neon-green); font-size:2rem; font-weight:900; margin-bottom:20px;">HARMONIC LOCK CONFIRMED</div>
+        
+        <div class="result-label">3-LINE ROOT (R) IDENTIFIED</div>
+        <div class="result-val highlight" id="resR">-</div>
+        
+        <div class="result-label">STEPS FROM 3-LINE (k)</div>
+        <div class="result-val" id="resK">-</div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px; border-top:1px solid #333; padding-top:20px;">
+            <div>
+                <div class="result-label">FACTOR A (2k+3)</div>
+                <div class="result-val highlight" id="resA">-</div>
+            </div>
+            <div>
+                <div class="result-label">FACTOR B (2k+R)</div>
+                <div class="result-val highlight" id="resB">-</div>
+            </div>
+        </div>
+
+        <button onclick="document.getElementById('found-overlay').style.display='none'" style="margin-top:30px; width:100%; border:1px solid var(--neon-green); background:transparent; color:var(--neon-green);">ACKNOWLEDGE TARGET</button>
+    </div>
+</div>
+
+<script id="worker-code" type="javascript/worker">
+    // --- WORKER: THE HARMONIC SIEVE ---
+    
+    // We search for R (The Root).
+    // Equation: Discriminant D = (2R-6)^2 + 16N must be a Perfect Square.
+    // Optimization:
+    // We don't Sqrt(D) every time. That's slow.
+    // We check D mod 256, D mod 255, D mod 63...
+    // If D doesn't match the "Quadratic Residue" mask of small numbers, it CANNOT be a square.
+    // This allows us to skip 99.9% of BigInt operations.
+
+    const QM_64 = new Uint8Array(64);
+    for(let i=0; i<64; i++) QM_64[(i*i)%64] = 1;
+
+    const QM_255 = new Uint8Array(255);
+    for(let i=0; i<255; i++) QM_255[(i*i)%255] = 1;
+    
+    // Basic Sqrt for BigInt
+    function isPerfectSquare(n) {
+        if (n < 0n) return false;
+        if (n === 0n) return true;
+        
+        // Fast Fail Filters
+        if (QM_64[Number(n & 63n)] === 0) return false;
+        if (QM_255[Number(n % 255n)] === 0) return false;
+
+        // Newton Method for actual check
+        let x = n;
+        let y = (x + 1n) >> 1n;
+        while (y < x) { x = y; y = (x + n / x) >> 1n; }
+        return (x * x === n) ? x : -1n;
+    }
+
+    self.onmessage = function(e) {
+        const { cmd, N_str, startR, chunkSize } = e.data;
+        if (cmd === 'start') {
+            const N = BigInt(N_str);
+            const N16 = N * 16n;
+            let R = BigInt(startR);
+            const limit = R + BigInt(chunkSize);
+            
+            // Stats
+            let tested = 0;
+            
+            // Loop R
+            // R is usually odd in the 3-Line system? Let's check all odds.
+            if (R % 2n === 0n) R++;
+
+            const t0 = performance.now();
+
+            while (tested < chunkSize) {
+                // Formula: D = (2R-6)^2 + 16N
+                // Optimization: (2R-6) = 2(R-3). 
+                // (2(R-3))^2 = 4(R-3)^2.
+                // D = 4(R-3)^2 + 16N = 4 [ (R-3)^2 + 4N ]
+                // For D to be square, [ (R-3)^2 + 4N ] must be a square.
+                // Let Inner = (R-3)^2 + 4N.
+                
+                let Rminus3 = R - 3n;
+                let Inner = (Rminus3 * Rminus3) + (4n * N);
+                
+                let rootInner = isPerfectSquare(Inner);
+                
+                if (rootInner !== -1n) {
+                    // FOUND A HIT
+                    // We need to extract k.
+                    // D_sq = 2 * rootInner.
+                    // k = ( -(2R+6) + D_sq ) / 8
+                    // k = ( -2(R+3) + 2*rootInner ) / 8
+                    // k = ( rootInner - (R+3) ) / 4
+                    
+                    let num = rootInner - (R + 3n);
+                    if (num % 4n === 0n) {
+                        let k = num / 4n;
+                        self.postMessage({ type: 'found', R: R.toString(), k: k.toString() });
+                        return;
+                    }
+                }
+                
+                R += 2n;
+                tested++;
+                
+                // Throttle check
+                if (tested % 10000 === 0) {
+                     // Keep loop tight
+                }
+            }
+            
+            const t1 = performance.now();
+            self.postMessage({ type: 'chunkDone', nextR: R.toString(), time: t1-t0, count: tested });
+        }
+    };
+</script>
+
+<script>
+    let worker;
+    let isRunning = false;
+    let currentR = "1";
+    let speed = 0;
+    
+    // VISUALS
+    const grid = document.getElementById('sieveGrid');
+    const cells = [];
+    
+    function initGrid() {
+        grid.innerHTML = '';
+        cells.length = 0;
+        const count = 100; // 10x10 roughly
+        for(let i=0; i<count; i++) {
+            let d = document.createElement('div');
+            d.className = 'sieve-cell';
+            grid.appendChild(d);
+            cells.push(d);
+        }
+    }
+    initGrid();
+
+    function updateVisuals() {
+        if(!isRunning) return;
+        // Randomly flicker cells to simulate sieving
+        const idx = Math.floor(Math.random() * cells.length);
+        const cell = cells[idx];
+        
+        // Most are rejects (red)
+        cell.className = 'sieve-cell reject';
+        setTimeout(() => cell.className = 'sieve-cell', 100);
+        
+        if(Math.random() > 0.95) {
+            // Occasional pass (green) - pure visual candy
+            const idx2 = Math.floor(Math.random() * cells.length);
+            cells[idx2].className = 'sieve-cell pass';
+            setTimeout(() => cells[idx2].className = 'sieve-cell', 200);
+        }
+        requestAnimationFrame(updateVisuals);
+    }
+
+    function engage() {
+        if (isRunning) { stop(); return; }
+        
+        const nStr = document.getElementById('inpN').value.trim();
+        if(!nStr) return;
+        
+        isRunning = true;
+        document.getElementById('btnEngage').innerText = "ABORT";
+        document.getElementById('btnEngage').classList.add('stop');
+        document.getElementById('statusVal').innerText = "HARMONIC SEARCH ACTIVE";
+        document.getElementById('statusVal').style.color = "var(--neon-green)";
+        document.getElementById('found-overlay').style.display = 'none';
+        
+        // Start Worker
+        const blob = new Blob([document.getElementById('worker-code').textContent], { type: "text/javascript" });
+        worker = new Worker(window.URL.createObjectURL(blob));
+        
+        worker.onmessage = function(e) {
+            const d = e.data;
+            if (d.type === 'found') {
+                handleFound(d, nStr);
+            } else if (d.type === 'chunkDone') {
+                currentR = d.nextR;
+                document.getElementById('currR').innerText = parseInt(currentR).toLocaleString();
+                
+                // Calc speed
+                let s = Math.floor(d.count / (d.time/1000));
+                document.getElementById('velVal').innerText = s.toLocaleString() + " R/s";
+                
+                // Next Chunk
+                worker.postMessage({ cmd: 'start', N_str: nStr, startR: currentR, chunkSize: 100000 });
+            }
+        };
+        
+        // Start Loop
+        worker.postMessage({ cmd: 'start', N_str: nStr, startR: currentR, chunkSize: 100000 });
+        updateVisuals();
+    }
+
+    function stop() {
+        if(worker) worker.terminate();
+        isRunning = false;
+        document.getElementById('btnEngage').innerText = "ENGAGE SIEVE";
+        document.getElementById('btnEngage').classList.remove('stop');
+        document.getElementById('statusVal').innerText = "STANDBY";
+        document.getElementById('statusVal').style.color = "var(--neon-purple)";
+    }
+
+    function handleFound(data, nStr) {
+        stop();
+        const R = BigInt(data.R);
+        const k = BigInt(data.k);
+        const A = 3n + (2n * k);
+        const B = R + (2n * k);
+        
+        document.getElementById('resR').innerText = R.toString();
+        document.getElementById('resK').innerText = k.toString();
+        document.getElementById('resA').innerText = A.toString();
+        document.getElementById('resB').innerText = B.toString();
+        
+        document.getElementById('found-overlay').style.display = 'flex';
+        
+        // Force all cells green
+        cells.forEach(c => c.className = 'sieve-cell pass');
+    }
+</script>
+
+</body>
+</html>

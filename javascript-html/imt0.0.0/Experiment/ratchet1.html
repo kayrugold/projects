@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gnomon Ratchet: Bitshift Processor</title>
+    <style>
+        body { background: #020617; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .dashboard { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; width: 100%; max-width: 900px; margin-top: 20px; }
+        .panel { background: #0f172a; padding: 20px; border: 1px solid #1e293b; border-radius: 8px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .label { color: #94a3b8; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        .value { font-size: 1.8rem; font-weight: bold; color: #fff; word-break: break-all; }
+        .highlight { color: #22d3ee; }
+        .pink { color: #f472b6; }
+        
+        /* Input Styling */
+        .input-group { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+        input { background: #1e293b; border: 1px solid #334155; color: #fff; padding: 8px; font-family: inherit; font-size: 1rem; text-align: center; border-radius: 4px; outline: none; }
+        input:focus { border-color: #22d3ee; box-shadow: 0 0 5px rgba(34, 211, 238, 0.5); }
+
+        .controls { display: flex; gap: 10px; margin: 30px 0; background: #1e293b; padding: 10px; border-radius: 50px; border: 1px solid #334155; }
+        button { background: #334155; color: #fff; border: none; padding: 15px 30px; font-family: inherit; font-size: 1.2rem; cursor: pointer; border-radius: 40px; transition: all 0.2s; font-weight: bold; }
+        button:hover { background: #22d3ee; color: #000; box-shadow: 0 0 15px #22d3ee; }
+        button:active { transform: scale(0.95); }
+
+        .tape-display { width: 100%; max-width: 900px; background: #0f172a; padding: 20px; border-left: 4px solid #f472b6; margin-top: 20px; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <h1 style="border-bottom: 2px solid #22d3ee; padding-bottom: 10px;">GNOMON RATCHET v3</h1>
+    <p style="color: #64748b; font-size: 0.8rem;">ENGINE: BITSHIFT & ADDITION (CPU OPTIMIZED)</p>
+
+    <div class="dashboard">
+        <div class="panel">
+            <div class="label">Row Index (k)</div>
+            <div class="value" id="dispRow">0</div>
+            <div class="input-group">
+                <input type="text" id="inpRow" placeholder="Type Row..." onchange="jumpToRow(this.value)">
+            </div>
+        </div>
+
+        <div class="panel" style="border-color: #f472b6;">
+            <div class="label">Tape Limit (Tn)</div>
+            <div class="value pink" id="dispTape">0</div>
+            <div class="input-group">
+                <input type="text" id="inpTape" placeholder="Type Tape ID..." onchange="jumpToTape(this.value)">
+            </div>
+        </div>
+
+        <div class="panel" style="border-color: #22d3ee;">
+            <div class="label">Anchor (A)</div>
+            <div class="value highlight" id="dispAnchor">1</div>
+            <div class="label" style="margin-top:10px;">(2k + 1)</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="crank(-1)">◀ PREV</button>
+        <button onclick="crank(1)">NEXT ▶</button>
+    </div>
+
+    <div class="tape-display" id="logbook">
+        SYSTEM READY. ENTER VALUE OR CRANK.
+    </div>
+
+    <script>
+        // STATE (BigInt)
+        let state = {
+            k: 0n,      // Current Row
+            Tn: 0n,     // Triangle Number (Total Volume)
+            A: 1n       // Anchor Size (2k + 1)
+        };
+
+        // --- THE ENGINE (BITSHIFT & ADD) ---
+
+        function updateDisplay() {
+            document.getElementById('dispRow').innerText = state.k.toString();
+            document.getElementById('dispTape').innerText = state.Tn.toString();
+            document.getElementById('dispAnchor').innerText = state.A.toString();
+            
+            // Visual Check
+            document.getElementById('logbook').innerHTML = 
+                `STATUS: LOCKED [ROW ${state.k}]\n` +
+                `MEMORY ADDR: ${state.Tn}\n` +
+                `FRAME SIZE:  ${state.A} (Bitshift: ${state.k} << 1 | 1)\n`;
+        }
+
+        // 1. THE CRANK (Pure Enumeration)
+        function crank(direction) {
+            if (direction === 1) {
+                // FORWARD: 
+                // k++
+                state.k += 1n;
+                // Tn += k
+                state.Tn += state.k;
+                // A += 2
+                state.A += 2n;
+            } else {
+                // REVERSE
+                if (state.k <= 0n) return;
+                state.A -= 2n;
+                state.Tn -= state.k;
+                state.k -= 1n;
+            }
+            updateDisplay();
+        }
+
+        // 2. JUMP TO ROW (Procedural Generation)
+        // If user says "Go to Layer 500", we calculate the state instantly.
+        function jumpToRow(val) {
+            try {
+                let k = BigInt(val);
+                if (k < 0n) k = 0n;
+
+                state.k = k;
+                
+                // Tn = k * (k + 1) / 2
+                // OPTIMIZED: (k * (k+1)) >> 1
+                state.Tn = (k * (k + 1n)) >> 1n;
+                
+                // A = 2k + 1
+                // OPTIMIZED: (k << 1) | 1
+                state.A = (k << 1n) | 1n;
+
+                updateDisplay();
+                document.getElementById('inpRow').value = ""; // Clear input
+            } catch (e) {
+                alert("Invalid Integer");
+            }
+        }
+
+        // 3. JUMP TO TAPE ID (Inverse Lookup)
+        // If user says "Find Unit #1000", we find the layer it lives in.
+        function jumpToTape(val) {
+            try {
+                let targetT = BigInt(val);
+                if (targetT < 0n) targetT = 0n;
+
+                // We need to find k such that k(k+1)/2 ≈ T
+                // k ≈ sqrt(2T). We use Integer Sqrt for speed/precision.
+                let kApprox = sqrtBigInt(targetT << 1n); 
+                
+                // Fine tune: if we undershot or overshot due to integer math
+                // We want the layer where Tn >= targetT
+                
+                // Calculate Tn for kApprox
+                let testTn = (kApprox * (kApprox + 1n)) >> 1n;
+                
+                // If testTn is smaller than target, we might be on next row
+                if (testTn < targetT) {
+                    kApprox += 1n;
+                }
+                // (Actually, Tn represents the END of row k. 
+                // So if T is 10, k=4 (Tn=10). If T is 9, k=4 (Tn=10).
+                // We want the row k where Tn >= target)
+                
+                // Set State to this Row
+                jumpToRow(kApprox);
+                
+                // Calculate Offset (Column)
+                // The Row starts at Previous Tn + 1. 
+                // But our Ratchet state sits at the END of the row.
+                let rowEnd = state.Tn;
+                let offset = rowEnd - targetT; // How far back from the end?
+                
+                document.getElementById('logbook').innerHTML += 
+                    `\n>> LOOKUP RESULT:\n` +
+                    `>> TAPE ID ${targetT} LIVES IN ROW ${state.k}\n` +
+                    `>> OFFSET: ${offset} UNITS FROM END OF ROW`;
+                
+                document.getElementById('inpTape').value = "";
+            } catch (e) {
+                console.error(e);
+                alert("Invalid Integer");
+            }
+        }
+
+        // FAST INTEGER SQRT (Newtons Method for BigInt)
+        function sqrtBigInt(n) {
+            if (n < 2n) return n;
+            let x = n;
+            let y = (x + 1n) >> 1n;
+            while (y < x) {
+                x = y;
+                y = (x + n / x) >> 1n;
+            }
+            return x;
+        }
+
+        // Init
+        updateDisplay();
+    </script>
+</body>
+</html>

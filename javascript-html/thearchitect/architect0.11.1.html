@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover">
+<title>Architect v11.3 (Parity Fix)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root { --col-count: 30; --tile-size: 24px; }
+    
+    body { 
+        background-color: #020617; color: #e2e8f0; font-family: 'Courier New', monospace; margin: 0; 
+        height: 100dvh; display: flex; flex-direction: column; overflow: hidden; 
+    }
+    
+    /* GRID AREA */
+    .grid-viewport { 
+        flex: 1; overflow-y: auto; background: #020617; position: relative; 
+        display: flex; justify-content: center; align-items: start; padding: 20px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .sector-grid { 
+        display: grid; grid-template-columns: repeat(var(--col-count), var(--tile-size)); 
+        gap: 2px; padding-bottom: 140px; 
+    }
+    
+    .tile { 
+        width: var(--tile-size); height: var(--tile-size);
+        background: #0f172a; border: 1px solid #1e293b; 
+        display: flex; align-items: center; justify-content: center; 
+        font-size: calc(var(--tile-size) * 0.35); color: #334155; 
+        cursor: pointer; border-radius: 2px; user-select: none; transition: transform 0.1s;
+    }
+    .tile.survivor { 
+        background: #059669; border-color: #10b981; color: #ccfbf1; 
+        font-weight: bold; box-shadow: 0 0 10px rgba(16, 185, 129, 0.2); 
+    }
+    .tile.wall { 
+        background: #1e293b; opacity: 0.6; border-color: #334155; 
+    }
+    .tile.selected { 
+        border: 2px solid #fff; z-index: 50; transform: scale(1.15); 
+        box-shadow: 0 0 15px rgba(255,255,255,0.6); opacity: 1;
+    }
+
+    /* HUD */
+    .hud-bar {
+        background: #0f172a; border-top: 1px solid #1e293b;
+        padding: 10px; padding-bottom: max(16px, env(safe-area-inset-bottom));
+        display: flex; flex-direction: column; gap: 8px;
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.5); z-index: 50; flex-shrink: 0;
+    }
+    
+    .tools-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+    .tool-group { display: flex; gap: 2px; background: #1e293b; padding: 3px; border-radius: 6px; }
+
+    .icon-btn { 
+        width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+        background: transparent; border-radius: 4px; cursor: pointer; color: #94a3b8; font-weight: bold;
+        font-size: 0.8rem;
+    }
+    .icon-btn:hover { background: #334155; }
+    .icon-btn.active { background: #334155; color: #fbbf24; }
+
+    .input-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 6px; width: 100%; align-items: stretch; }
+    
+    .main-input { 
+        background: #1e293b; color: #fff; padding: 0 12px; border-radius: 6px; 
+        font-family: monospace; font-weight: bold; border: 1px solid #334155; 
+        outline: none; font-size: 0.8rem; height: 44px; min-width: 0;
+    }
+    
+    .action-btn {
+        background: #8b5cf6; color: #fff; border: none; padding: 0 20px;
+        border-radius: 6px; font-weight: 900; cursor: pointer;
+        font-size: 0.9rem; height: 44px; flex-shrink: 0; box-shadow: 0 4px 0 #7c3aed;
+    }
+    .action-btn:active { transform: translateY(2px); box-shadow: 0 0 0 #7c3aed; }
+
+    /* INSPECTOR */
+    .inspector {
+        position: absolute; bottom: 180px; left: 50%; transform: translateX(-50%) translateY(20px);
+        width: 95%; max-width: 500px;
+        background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(12px);
+        border: 1px solid #8b5cf6; border-radius: 12px;
+        padding: 15px; display: none; opacity: 0; pointer-events: none;
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        z-index: 100; box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+    }
+    .inspector.visible { display: block; opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    
+    .insp-header { display: flex; justify-content: space-between; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 10px; }
+    .insp-title { font-size: 0.75rem; color: #94a3b8; letter-spacing: 1px; font-weight: bold; }
+    
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-box { background: #020617; padding: 8px; border-radius: 4px; border: 1px solid #1e293b; }
+    .stat-lbl { font-size: 0.6rem; color: #64748b; text-transform: uppercase; display: block; margin-bottom: 2px;}
+    .stat-val { font-size: 0.9rem; color: #e2e8f0; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+    
+    .formula-display { 
+        margin-top: 10px; background: #0f172a; border: 1px dashed #4c1d95; padding: 10px; 
+        border-radius: 6px; font-family: monospace; font-size: 0.8rem; color: #a78bfa; 
+        text-align: center; line-height: 1.4;
+    }
+    .hit-alert { color: #f87171; border-color: #ef4444; }
+    .prime-success { color: #34d399; border-color: #059669; }
+
+</style>
+</head>
+<body>
+
+<div class="grid-viewport" onclick="maybeCloseInspector(event)">
+    <div id="grid" class="sector-grid">
+        <div style="grid-column: span 30; text-align: center; color: #475569; margin-top: 100px;">
+            ARCHITECT v11.3<br>PARITY PATCHED<br><br>READY
+        </div>
+    </div>
+</div>
+
+<div id="inspector" class="inspector">
+    <div class="insp-header">
+        <span class="insp-title">SECTOR ANALYSIS</span>
+        <span onclick="closeInspector()" style="color:#ef4444; cursor:pointer; font-weight:bold;">×</span>
+    </div>
+    
+    <div class="stat-grid">
+        <div class="stat-box">
+            <span class="stat-lbl">REAL VALUE</span>
+            <span id="dReal" class="stat-val text-yellow-400">--</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-lbl">INDEX (k)</span>
+            <span id="dIndex" class="stat-val text-blue-400">--</span>
+        </div>
+    </div>
+    
+    <div id="dFormula" class="formula-display">--</div>
+    <div id="dFactor" style="text-align:center; margin-top:5px; font-size:0.75rem; font-weight:bold; color:#ef4444;"></div>
+</div>
+
+<div class="hud-bar">
+    <div class="tools-row">
+        <div class="tool-group">
+            <div class="icon-btn" onclick="setCols(6)">6</div>
+            <div class="icon-btn" onclick="setCols(12)">12</div>
+            <div class="icon-btn active" onclick="setCols(30)" id="btn30">30</div>
+        </div>
+        <div class="tool-group">
+            <div class="icon-btn" onclick="adjustZoom(-4)">-</div>
+            <div class="icon-btn" onclick="adjustZoom(4)">+</div>
+        </div>
+    </div>
+    
+    <div class="input-row">
+        <input id="inpCoord" class="main-input" value="10^1000000000 + 1" placeholder="Base (e.g. 10^100 + 1)">
+        <input id="inpTarget" class="main-input" placeholder="Jump (+19)" onchange="jumpToTarget()">
+        <button class="action-btn" onclick="fetchSector()">SCAN</button>
+    </div>
+</div>
+
+<script>
+// --- CONFIGURATION ---
+let CONFIG = { zoom: 24, cols: 30 };
+let currentStartData = null;
+let currentStartRaw = "";
+
+// --- WORKER CODE ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { startData, size } = e.data;
+    const ruler = new Uint32Array(size); 
+    
+    const mult = BigInt(startData.mult);
+    const exp = BigInt(startData.exp);
+    const add = BigInt(startData.add);
+    
+    function powMod(b, e, m) {
+        let res = 1n; b %= m;
+        while (e > 0n) { if (e & 1n) res = (res * b) % m; b = (b * b) % m; e >>= 1n; }
+        return res;
+    }
+
+    let isSmall = false;
+    let k_start_val = 0n; 
+    
+    if (exp < 15n) {
+        isSmall = true;
+        let N = (mult * (10n ** exp)) + add;
+        // Even number check is handled in main thread now, but safe to keep
+        if (N % 2n === 0n) N += 1n; 
+        k_start_val = (N - 1n) / 2n;
+        if (k_start_val < 0n) k_start_val = 0n;
+    }
+
+    const LIMIT_I = 2500000; 
+    
+    for (let i = 1; i <= LIMIT_I; i++) {
+        const stride = 2*i + 1; 
+        const P = BigInt(stride);
+        
+        let kStartMod = 0n;
+        if (isSmall) {
+            kStartMod = k_start_val % P;
+        } else {
+            const baseMod = powMod(10n, exp, P);
+            let N_mod = (mult * baseMod + add) % P;
+            const inv2 = (P + 1n) / 2n; 
+            kStartMod = ((N_mod - 1n + P) % P * inv2) % P;
+        }
+        
+        let offset = BigInt(i) - kStartMod;
+        offset = ((offset % P) + P) % P;
+        let localStart = Number(offset);
+        
+        if (isSmall) {
+            const first_composite_k = BigInt(2*i*i + 2*i);
+            if (first_composite_k > k_start_val) {
+                const start_offset = Number(first_composite_k - k_start_val);
+                if (localStart < start_offset) {
+                    const gap = start_offset - localStart;
+                    const jumps = Math.floor((gap + stride - 1) / stride);
+                    localStart += jumps * stride;
+                }
+            }
+        }
+        
+        for(let pos = localStart; pos < size; pos += stride) {
+            if (ruler[pos] === 0) ruler[pos] = stride; 
+        }
+    }
+    self.postMessage({ ruler: ruler });
+};
+`;
+
+function parseVirtualInput(str) {
+    str = str.toLowerCase().replace(/\s/g, '');
+    let mult = 1n, exp = 0n, add = 0n;
+    try {
+        if(str.includes('^')) {
+            let parts = str.split('^');
+            mult = 1n; 
+            let rest = parts[1];
+            if(rest.includes('+')) {
+                let p = rest.split('+');
+                exp = BigInt(p[0]);
+                add = BigInt(p[1]);
+            } else if (rest.includes('-')) {
+                let p = rest.split('-');
+                exp = BigInt(p[0]);
+                add = -BigInt(p[1]);
+            } else { exp = BigInt(rest); }
+        } else if(str.includes('e')) {
+            let parts = str.split('e');
+            mult = BigInt(parts[0] || 1);
+            let rest = parts[1];
+            if(rest.includes('+')) {
+                let sub = rest.split('+');
+                exp = BigInt(sub[0]);
+                add = BigInt(sub[1]);
+            } else { exp = BigInt(rest); }
+        } else {
+            mult = BigInt(str);
+            exp = 0n; 
+        }
+    } catch(e) { alert("Format Error."); throw e; }
+    return { mult, exp, add };
+}
+
+function setCols(n) {
+    CONFIG.cols = n;
+    document.documentElement.style.setProperty('--col-count', n);
+    document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('active'));
+    if(n===30) document.getElementById('btn30').classList.add('active');
+}
+
+function adjustZoom(delta) {
+    CONFIG.zoom = Math.max(12, Math.min(60, CONFIG.zoom + delta));
+    document.documentElement.style.setProperty('--tile-size', CONFIG.zoom + "px");
+}
+
+function fetchSector() {
+    const raw = document.getElementById('inpCoord').value;
+    const limit = 3000; 
+    let startData = null;
+    try { startData = parseVirtualInput(raw); } catch(e) { return; }
+
+    // --- PARITY CHECKER ---
+    // If add is even, bump it to odd
+    if (startData.add % 2n === 0n) {
+        startData.add += 1n;
+        // Update UI to reflect this
+        let newLabel = `10^${startData.exp} + ${startData.add}`;
+        document.getElementById('inpCoord').value = newLabel;
+        // alert("Input was even. Adjusted to next odd number.");
+    }
+    
+    currentStartData = startData;
+
+    document.getElementById('grid').innerHTML = '<div style="color:#8b5cf6; grid-column:span 30; text-align:center; padding:50px;">CALCULATING...</div>';
+    closeInspector();
+
+    const blob = new Blob([workerCode], {type: "application/javascript"});
+    const worker = new Worker(URL.createObjectURL(blob));
+
+    worker.postMessage({ startData: currentStartData, size: limit });
+
+    worker.onmessage = function(e) {
+        renderGrid(e.data.ruler);
+        worker.terminate();
+    };
+}
+
+function renderGrid(ruler) {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    
+    // Base Values for Labeling
+    // We are now guaranteed Start is ODD.
+    // Tile 0 = Start (+0 offset, but shows real value)
+    
+    let isSmall = currentStartData.exp < 15n;
+    let baseVal = 0n;
+    if(isSmall) {
+        baseVal = (currentStartData.mult * (10n ** currentStartData.exp)) + currentStartData.add;
+    }
+
+    for(let i=0; i<ruler.length; i++) {
+        const div = document.createElement('div');
+        const killed = ruler[i] > 0;
+        div.className = killed ? 'tile wall' : 'tile survivor';
+        div.id = `tile-${i}`; 
+        
+        if(!killed) {
+            // Label Logic: 
+            // Previous: "+"+(i*2) (Offset)
+            // New: "+"+(add + i*2) (Actual Adder)
+            
+            const offsetVal = BigInt(i*2);
+            const totalAdd = currentStartData.add + offsetVal;
+            
+            if (isSmall) {
+                div.textContent = (baseVal + offsetVal).toString();
+                div.style.fontSize = "8px";
+            } else {
+                // Show the ADDITIVE part
+                div.textContent = "+" + totalAdd.toString();
+            }
+        }
+        
+        div.onclick = (e) => {
+            e.stopPropagation();
+            inspectTile(div, i, ruler[i], isSmall);
+        };
+        frag.appendChild(div);
+    }
+    grid.appendChild(frag);
+    setCols(CONFIG.cols);
+    
+    jumpToTarget();
+}
+
+function jumpToTarget() {
+    const targetStr = document.getElementById('inpTarget').value;
+    if(!targetStr) return;
+    
+    // User types "+19"
+    // We need to find tile where (StartAdd + 2*i) = 19
+    
+    const targetAdd = BigInt(parseInt(targetStr.replace('+','').replace(/\s/g,'')));
+    const startAdd = currentStartData.add;
+    
+    // 19 - 1 = 18
+    // 18 / 2 = 9 -> Tile 9
+    
+    const diff = targetAdd - startAdd;
+    if (diff < 0n || diff % 2n !== 0n) {
+        // Target is not in this grid (maybe even, or before start)
+        return;
+    }
+    
+    const index = Number(diff / 2n);
+    const tile = document.getElementById(`tile-${index}`);
+    if(tile) tile.click();
+}
+
+function inspectTile(el, offset, killerStride, isSmall) {
+    document.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+    el.classList.add('selected');
+    
+    const panel = document.getElementById('inspector');
+    panel.classList.add('visible');
+    
+    const dIndex = document.getElementById('dIndex');
+    const dReal = document.getElementById('dReal');
+    const dFormula = document.getElementById('dFormula');
+    const dFactor = document.getElementById('dFactor');
+
+    const offsetVal = BigInt(offset * 2);
+    const totalAdd = currentStartData.add + offsetVal;
+
+    if(isSmall) {
+        const baseVal = (currentStartData.mult * (10n ** currentStartData.exp)) + currentStartData.add;
+        let val = baseVal + offsetVal;
+        let k = (val - 1n) / 2n;
+        dIndex.innerText = k.toString();
+        dReal.innerText = val.toString();
+    } else {
+        dIndex.innerText = `Start_k + ${offset}`;
+        dReal.innerText = `10^... + ${totalAdd}`;
+    }
+
+    if(killerStride === 0) {
+        dFormula.className = "formula-display prime-success";
+        dFormula.innerHTML = "NO INTEGER SOLUTION FOUND";
+        dFactor.innerText = "LIKELY PRIME";
+        dFactor.style.color = "#34d399";
+    } else {
+        const P = BigInt(killerStride);
+        dFormula.className = "formula-display hit-alert";
+        
+        const exp = currentStartData.exp;
+        
+        dFormula.innerHTML = `
+            <div style="font-size:0.7rem; color:#94a3b8; margin-bottom:4px;">COFACTOR (Q) FORMULA:</div>
+            (10^${exp} + ${totalAdd}) / <span style="color:#fff; font-weight:bold;">${P}</span>
+        `;
+        
+        dFactor.innerText = `FACTOR P = ${P}`;
+        dFactor.style.color = "#ef4444";
+    }
+}
+
+function closeInspector() {
+    document.getElementById('inspector').classList.remove('visible');
+    document.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
+}
+
+function maybeCloseInspector(e) {
+    if(!e.target.classList.contains('tile')) {
+        closeInspector();
+    }
+}
+
+setCols(30);
+adjustZoom(0);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GNOMON NAVIGATOR v7.2 (Vector Trace)</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --border: #1e293b;
+        --cyan: #22d3ee; --text: #e2e8f0; --pink: #f472b6; --green: #34d399; --gold: #fbbf24;
+        --input-bg: rgba(0,0,0,0.3);
+        --mod-highlight: #3b82f6; 
+    }
+    * { box-sizing: border-box; }
+    body { 
+        background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; 
+        height: 100dvh; margin: 0; display: flex; flex-direction: column; overflow: hidden; 
+    }
+
+    /* --- TOP BAR --- */
+    .top-section {
+        background: var(--panel); border-bottom: 2px solid var(--cyan);
+        padding: 4px 8px; flex-shrink: 0; z-index: 200;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    
+    .controls { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .control-toggles-left, .control-toggles-right { display: flex; gap: 4px; align-items: center; }
+    
+    .toggle-btn { 
+        background: #334155; color: #94a3b8; padding: 0 8px; height: 32px; 
+        display: grid; place-items: center; border-radius: 4px; border:none; 
+        cursor: pointer; font-weight:bold; font-size:0.65rem; transition: all 0.2s; text-transform: uppercase;
+    }
+    .toggle-btn.active { background: var(--cyan); color: #000; box-shadow: 0 0 5px var(--cyan); }
+    #btnGnomon.active { background: var(--pink); color: #000; box-shadow: 0 0 5px var(--pink); }
+    .toggle-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .cargo-input-row { display: flex; align-items: center; gap: 6px; padding-bottom: 4px; }
+    
+    .input-group { display: flex; flex: 1; gap: 2px; }
+    
+    #inpFind, #inpTrace { 
+        background: #1e293b; border: 1px solid #334155; color: #fff; 
+        padding: 8px; width: 100%; font-family: 'Courier New', monospace; 
+        font-weight: 800; font-size: 1.0rem; outline: none; text-align: center; border-radius: 4px;
+    }
+    #inpTrace { border-color: var(--gold); color: var(--gold); }
+    
+    .action-btn {
+        background: var(--cyan); color: #000; border: none; border-radius: 4px;
+        font-weight: bold; cursor: pointer; padding: 0 10px; height: 40px; font-size: 0.75rem; white-space: nowrap;
+    }
+    #btnTrace { background: var(--gold); color: #000; }
+    .action-btn:active { transform: translateY(1px); }
+
+    /* --- CANVAS --- */
+    .layout { flex: 1; position: relative; overflow: hidden; background: #000; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* --- DECODER --- */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--pink); 
+        display: flex; flex-direction: column; flex-shrink: 0; 
+        box-shadow: 0 -10px 40px rgba(0,0,0,0.8); z-index: 150;
+    }
+    .panel-sec { padding: 6px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-lbl { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 2px; }
+    
+    .big-math { background: #0b1120; }
+    .bm-val { 
+        font-size: 1.2rem; font-weight: 900; color: #fff; 
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; 
+        cursor: pointer; border-bottom: 1px dotted #334155;
+    }
+    .bm-sub { font-size: 0.8rem; color: var(--pink); font-weight: bold; margin-top: 2px; cursor: pointer; border-bottom: 1px dotted #334155; display: inline-block;}
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; padding: 8px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 3px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.55rem; color: #94a3b8; font-weight: bold; margin-bottom: 1px; }
+    .info-input { width: 100%; background: var(--input-bg); border: 1px solid #334155; color: #fff; font-family: inherit; font-weight: bold; font-size: 0.8rem; text-align: center; padding: 2px; border-radius: 4px; outline: none; }
+    .inp-k { color: var(--green); } .inp-b { color: var(--pink); } .inp-a { color: #3b82f6; } .inp-g { color: #fbbf24; }
+
+    /* --- TECH PANEL --- */
+    .tech-panel { background: #020617; border-top: 1px solid var(--border); padding: 0; z-index: 150; flex-shrink: 0; }
+    .tech-header { padding: 6px 10px; background: #0f172a; color: var(--cyan); font-size: 0.75rem; font-weight: bold; display: flex; justify-content: space-between; cursor: pointer; border-bottom: 1px solid var(--border); }
+    .tech-content { padding: 8px; display: none; }
+    .tech-content.open { display: block; }
+
+    .filter-tag {
+        background: var(--mod-highlight); color: #000; padding: 2px 6px; border-radius: 10px;
+        font-size: 0.7rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; margin-right: 5px; margin-bottom: 3px;
+    }
+    .filter-tag span { margin-left: 4px; font-weight: 900; }
+
+    #toast {
+        position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.95); border: 1px solid var(--cyan);
+        color: var(--cyan); padding: 10px 20px; border-radius: 30px;
+        font-size: 0.9rem; font-weight: bold; z-index: 1200;
+        opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    #toast.show { opacity: 1; }
+    
+    /* Modals */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(2, 6, 23, 0.95); z-index: 1100;
+        display: none; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(5px);
+    }
+    .modal-card {
+        background: #0f172a; border: 1px solid var(--cyan);
+        width: 100%; max-width: 600px; max-height: 85vh;
+        border-radius: 12px; display: flex; flex-direction: column;
+        box-shadow: 0 0 50px rgba(0,0,0,0.8); color: #cbd5e1;
+    }
+    .modal-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-weight: bold; color: var(--cyan); font-size: 1.1rem; }
+    .modal-close { color: #fff; cursor: pointer; font-size: 1.5rem; line-height: 1; }
+    .modal-body { padding: 20px; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; }
+    .full-val-box { background:#0b1120; padding:10px; border-radius:6px; margin-bottom:10px; border:1px solid #334155; font-family:monospace; font-size:0.8rem; word-break: break-all; color:#fff;}
+</style>
+</head>
+<body>
+
+<div id="toast">SCANNING...</div>
+
+<div class="top-section">
+    <div class="controls">
+        <div class="control-toggles-left">
+            <button class="toggle-btn" id="btnHelp" title="Field Guide">?</button>
+            <input id="inpZoom" type="range" min="20" max="150" value="64" style="width: 50px;">
+        </div>
+        <div class="control-toggles-right">
+            <button class="toggle-btn active" id="btnTrivials">TRIVIALS</button>
+            <button class="toggle-btn" id="btnGnomon">GNOMON</button>
+            <button class="toggle-btn active" id="btnMirror" title="Toggle Mirror">◥</button>
+        </div>
+    </div>
+    <div class="cargo-input-row">
+        <div class="input-group">
+            <button id="btnFind" class="action-btn">JUMP</button>
+            <input id="inpFind" type="text" placeholder="Tape ID">
+        </div>
+        <div class="input-group">
+            <button id="btnTrace" class="action-btn">TRACE</button>
+            <input id="inpTrace" type="text" placeholder="Cargo N">
+        </div>
+    </div>
+</div>
+
+<div class="layout" id="canvasWrap">
+    <canvas id="gridCanvas"></canvas>
+</div>
+
+<div class="decoder">
+    <div class="panel-sec big-math">
+        <div>
+            <div class="sec-lbl">SMART ID (a.b)</div>
+            <div id="dispComp" class="bm-val">--</div>
+            <div id="dispSq" class="bm-sub">--</div>
+        </div>
+        <div style="text-align:right">
+            <div class="sec-lbl">CARGO (N)</div>
+            <div id="dispVal" class="bm-val">--</div>
+            <div id="dispFactors" class="bm-sub" style="color:var(--cyan)">--</div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-lbl">GNOMON INDEX</div>
+            <input id="inpGnomon" type="text" class="info-input inp-g" readonly title="Row # (1-based)">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl" id="lblCol">GAP (b)</div>
+            <input id="inpCol" type="text" class="info-input inp-b" onchange="updateFromInput('col')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl" id="lblAnchor">ANCHOR (a)</div>
+            <input id="inpA" type="text" class="info-input inp-a" onchange="updateFromInput('a')">
+        </div>
+        <div class="info-item">
+            <div class="info-lbl">ROW (k)</div>
+            <input id="inpK" type="text" class="info-input inp-k" onchange="updateFromInput('k')">
+        </div>
+    </div>
+</div>
+
+<div class="tech-panel">
+    <div class="tech-header" id="techHeader">
+        <span id="scanStatus">SYSTEM IDLE</span>
+        <span>▼</span>
+    </div>
+    <div class="tech-content" id="techContent">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+            <select id="coreSelect" style="background:#1e293b; border:1px solid #334155; color:#e2e8f0; padding:6px;"></select>
+            <button id="btnInvertMods" class="toggle-btn" style="width:100%">INVERT MODS</button>
+        </div>
+        <div id="coreProgressContainer" style="display:grid; grid-template-columns:repeat(4,1fr); gap:4px;"></div>
+        <div style="margin-top:10px; padding:8px; border:1px solid #1e293b; background:#0b1120;">
+            <div style="display:flex; gap:5px;">
+                <input id="inpModulus" type="number" placeholder="Modulus" style="flex:1; padding:4px; font-size:0.8rem; background:#1e293b; border:1px solid #334155; color:#fff;">
+                <button id="btnAddFilter" style="background:#3b82f6; border:none; color:#000; font-weight:bold; padding:4px 8px;">ADD</button>
+            </div>
+            <div id="activeFilters" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="helpModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header"><span class="modal-title">Help</span><span class="modal-close" id="closeHelp">×</span></div>
+        <div class="modal-body">
+            <p><strong>Jump:</strong> Enter a Tape ID to teleport.</p>
+            <p><strong>Trace:</strong> Enter a Cargo number (e.g., 1007). System calculates the Slope back to the Spine and draws the factor line.</p>
+            <p><strong>Tri ID:</strong> The pink number in each cell is the Triangular ID ($T_k + b$) from the IMT system.</p>
+            <p><strong>Controls:</strong> Pinch to zoom, Drag to pan.</p>
+        </div>
+    </div>
+</div>
+
+<div id="fullValModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header"><span class="modal-title">Manifest Data</span><span class="modal-close" id="closeFull">×</span></div>
+        <div class="modal-body">
+            <div class="sec-lbl">CARGO (N)</div><div class="full-val-box" id="fullN"></div>
+            <div class="sec-lbl">FACTORS</div><div class="full-val-box" id="fullFactors" style="color:#22d3ee"></div>
+            <div class="sec-lbl">SMART ID (Anchor.Gap)</div><div class="full-val-box" id="fullSmart" style="color:#f472b6"></div>
+            <div class="sec-lbl">TRIANGULAR ID</div><div class="full-val-box" id="fullTri" style="color:#fbbf24"></div>
+            <div class="sec-lbl">SQUARE TAPE ID</div><div class="full-val-box" id="fullTape" style="color:#64748b"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gridCanvas');
+const ctx = canvas.getContext('2d', {alpha: false});
+const wrap = document.getElementById('canvasWrap');
+let DPR = window.devicePixelRatio || 1;
+let cellS = 64; const HDR_S = 30; 
+let viewAnchor = { r: 0n, c: 0n };
+let scrollX = 0, scrollY = 0;
+let highlight = { r: 0n, c: 0n };
+let hideMirror = true; 
+let cellCache = new Map();
+let currentFullData = null;
+let activeModuli = []; let isInvertMod = false;
+let showTrivials = true; let showGnomon = false;
+let activeTrace = null; // { p1: BigInt, valid: bool }
+
+// WORKER CODE
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const checkModulus = (N, moduli) => {
+        if (!moduli || moduli.length === 0) return false;
+        try {
+            const N_big = BigInt(N);
+            for(let i=0; i<moduli.length; i++) {
+                if (N_big % BigInt(moduli[i]) === 0n) return true;
+            }
+        } catch(e) { }
+        return false;
+    }
+
+    const process = (r_in, c_in) => {
+        const r = BigInt(r_in); 
+        const c = BigInt(c_in); 
+
+        // 1. Square Logic (Codex)
+        const R = r + 1n;
+        const halfW = r; 
+        const endID = R * R;
+        const offset = halfW - c; 
+        const tapeID = endID - offset;
+
+        const a = 2n * R - 1n;
+        let gap = c; if (gap < 0n) gap = -gap;
+        const val = a * (a - (2n * gap));
+
+        // 2. Triangular Logic (IMT)
+        // Tri ID = (r * (r + 1)) / 2 + gap
+        const triID = (r * (r + 1n)) / 2n + gap;
+
+        // Factors
+        let f1 = a;
+        let f2 = a - (2n * gap);
+        if (f1 < 0n) f1 = -f1; if (f2 < 0n) f2 = -f2;
+        if (f1 > f2) { let t=f1; f1=f2; f2=t; }
+
+        const isSq = (c === 0n);
+        const isModMatch = checkModulus(val, msg.moduli);
+        
+        let displayVal = val.toString();
+        if (displayVal.length > 8) displayVal = ".." + displayVal.slice(-6);
+        let displayTri = triID.toString();
+        if (displayTri.length > 8) displayTri = ".." + displayTri.slice(-5);
+
+        return {
+            r: r_in, c: c_in, k: r.toString(), 
+            a: a.toString(), b: gap.toString(),
+            tapeID: tapeID.toString(), 
+            triID: triID.toString(),
+            dispTri: displayTri,
+            g: R.toString(),
+            val: displayVal, fullVal: val.toString(), 
+            isSq: isSq, 
+            P2: f1.toString(), P1: f2.toString(), 
+            isMod: isModMatch
+        };
+    };
+
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.r, it.c)).filter(x => x);
+        self.postMessage({ type: 'batch', payload: res });
+    } else if (msg.cmd === 'cell') {
+        const res = process(msg.r, msg.c);
+        self.postMessage({ type: 'cell', payload: res });
+    }
+});
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+worker.onmessage = (ev) => {
+    if (ev.data.type === 'batch') { ev.data.payload.forEach(p => cellCache.set(`${p.r}|${p.c}`, p)); draw(); }
+    else if (ev.data.type === 'cell') {
+        const p = ev.data.payload; cellCache.set(`${p.r}|${p.c}`, p);
+        if(highlight.r.toString() === p.r && highlight.c.toString() === p.c) updateDecoder(p);
+        draw();
+    }
+};
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function requestBatch() {
+    const w = canvas.width/DPR; const h = canvas.height/DPR;
+    const cols = Math.ceil(w/cellS); const rows = Math.ceil(h/cellS);
+    const items = []; const buffer = 4;
+    for(let r = -buffer; r < rows + buffer; r++) {
+        for (let c = -buffer; c < cols + buffer; c++) {
+            const gridR = viewAnchor.r + BigInt(r); const gridC = viewAnchor.c + BigInt(c);
+            if(gridR<0n) continue;
+            if(gridC > gridR || gridC < -gridR) continue; 
+            if(hideMirror && gridC < 0n) continue; 
+
+            if(!cellCache.has(`${gridR}|${gridC}`) || (activeModuli.length>0 && cellCache.get(`${gridR}|${gridC}`).isMod===undefined)) 
+                 items.push({r: gridR.toString(), c: gridC.toString()});
+        }
+    }
+    if(items.length) worker.postMessage({cmd:'batch', items, moduli: activeModuli});
+}
+
+function draw() {
+    const w = canvas.width/DPR; const h = canvas.height/DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+    
+    while (scrollX > 0) { scrollX -= cellS; viewAnchor.c -= 1n; }
+    while (scrollX <= -cellS) { scrollX += cellS; viewAnchor.c += 1n; }
+    while (scrollY > 0) { scrollY -= cellS; viewAnchor.r -= 1n; }
+    while (scrollY <= -cellS) { scrollY += cellS; viewAnchor.r += 1n; }
+    
+    const colsToDraw = Math.ceil(w/cellS)+2; const rowsToDraw = Math.ceil(h/cellS)+2;
+    const fsBase = Math.floor(cellS*0.22); const fsSmall = Math.max(6, Math.floor(cellS*0.15));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.save(); ctx.translate(HDR_S + scrollX, HDR_S + scrollY); 
+
+    // Draw Grid Cells
+    for (let r = -1; r < rowsToDraw + 1; r++) { 
+        for (let c = -1; c < colsToDraw + 1; c++) {
+            const gridR = viewAnchor.r + BigInt(r); const gridC = viewAnchor.c + BigInt(c);
+            if(gridR < 0n) continue;
+            if(gridC > gridR || gridC < -gridR) continue;
+            if(hideMirror && gridC < 0n) continue;
+
+            const x = c * cellS; const y = r * cellS;
+            
+            const key = `${gridR}|${gridC}`; const cell = cellCache.get(key);
+            if (cell && cell.P1 === "1" && !showTrivials) continue;
+            const isSel = (gridR === highlight.r && gridC === highlight.c);
+            const isMod = cell ? cell.isMod : false;
+
+            let bg = '#111827'; let txt = '#64748b';
+            if (cell && cell.isSq) { bg = 'rgba(59, 130, 246, 0.1)'; txt = '#fff'; }
+            if (isMod) { bg = isInvertMod ? 'rgba(30, 41, 59, 0.4)' : 'rgba(59, 130, 246, 0.2)'; }
+            if (showGnomon && cell && !isMod) {
+                if (!cell.isSq) { const hue = (Number(gridR % 100n) * 40) % 360; bg = `hsla(${hue}, 60%, 25%, 0.4)`; }
+            }
+            ctx.fillStyle = bg; ctx.fillRect(x, y, cellS-1, cellS-1);
+            if (cell && cell.isSq) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1; ctx.strokeRect(x+2, y+2, cellS-5, cellS-5); }
+            if (!isSel && isMod && !isInvertMod) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.strokeRect(x+1, y+1, cellS-3, cellS-3); }
+            if (isSel) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.strokeRect(x+1, y+1, cellS-3, cellS-3); ctx.fillStyle = 'rgba(34, 211, 238, 0.25)'; ctx.fillRect(x+1, y+1, cellS-3, cellS-3); txt = '#fff'; }
+            
+            if (cell) {
+                ctx.fillStyle = (showGnomon) ? 'rgba(255,255,255,0.7)' : '#334155';
+                ctx.font = '9px monospace'; ctx.textAlign = 'left'; ctx.fillText(cell.tapeID, x + 4, y + 10);
+                
+                // Show a.b (Gap)
+                let label = `${cell.a}.${cell.b}`; if(label.length>8) label=".."+label.slice(-6);
+                let textColor = (cell.isSq) ? '#22d3ee' : txt;
+                if(isSel) textColor = '#fff'; if(showGnomon) textColor = '#fff'; if(isInvertMod && isMod) textColor = '#555';
+                
+                ctx.textAlign = 'center'; ctx.fillStyle = textColor; ctx.font = `bold ${fsBase}px monospace`;
+                let width = ctx.measureText(label).width;
+                if(width > cellS-6) ctx.font = `bold ${Math.max(8, Math.floor(fsBase * (cellS-6)/width))}px monospace`;
+                ctx.fillText(label, x + cellS/2, y + cellS/2 - 2);
+                
+                // Show Triangular ID (Pink)
+                ctx.fillStyle = '#f472b6'; ctx.font = `bold ${Math.max(8, fsSmall)}px monospace`;
+                ctx.fillText(cell.dispTri, x + cellS/2, y + cellS/2 + fsSmall);
+
+                // Show Cargo (Bottom)
+                ctx.font = `${fsSmall}px monospace`;
+                let cargoColor = isSel ? '#fff' : '#444'; if(showGnomon) cargoColor = '#ccc'; if(isInvertMod && isMod) cargoColor = '#333';
+                ctx.fillStyle = cargoColor; ctx.fillText(cell.val, x + cellS/2, y + cellS - 6);
+            }
+        }
+    }
+
+    // DRAW TRACE LINE (If Active)
+    if (activeTrace) {
+        // Equation: c = r - (P1 - 1)/2
+        // We draw from r_min to r_max visible
+        const P1 = activeTrace.p1;
+        const offset = (P1 - 1n) / 2n; // c = r - offset
+        
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        
+        // Calculate points based on view
+        // Point 1: At top of screen
+        const r1 = viewAnchor.r - 2n;
+        const c1 = r1 - offset;
+        const x1 = Number(c1 - viewAnchor.c) * cellS + cellS/2;
+        const y1 = Number(r1 - viewAnchor.r) * cellS + cellS/2;
+        
+        // Point 2: At bottom of screen
+        const r2 = viewAnchor.r + BigInt(rowsToDraw) + 2n;
+        const c2 = r2 - offset;
+        const x2 = Number(c2 - viewAnchor.c) * cellS + cellS/2;
+        const y2 = Number(r2 - viewAnchor.r) * cellS + cellS/2;
+        
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Glow
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.2)';
+        ctx.lineWidth = 10;
+        ctx.stroke();
+    }
+
+    ctx.restore();
+    
+    // Headers
+    ctx.font = 'bold 10px monospace';
+    ctx.save(); ctx.translate(HDR_S + scrollX, 0);
+    for(let c=-1; c<colsToDraw+1; c++) {
+        const val = viewAnchor.c + BigInt(c);
+        const x = c * cellS;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(x, 0, cellS-1, HDR_S);
+        ctx.fillStyle = '#f472b6'; 
+        let vStr = val.toString(); if(vStr.length > 6) vStr = ".."+vStr.slice(-4);
+        ctx.fillText(vStr, x+cellS/2, HDR_S/2);
+    }
+    ctx.restore();
+    ctx.save(); ctx.translate(0, HDR_S + scrollY);
+    for(let r=-1; r<rowsToDraw+1; r++) {
+        const val = viewAnchor.r + BigInt(r);
+        if(val<0n) continue;
+        const y = r * cellS;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(0, y, HDR_S, cellS-1);
+        ctx.fillStyle = '#34d399'; 
+        let vStr = val.toString(); if(vStr.length > 6) vStr = ".."+vStr.slice(-4);
+        ctx.fillText(vStr, HDR_S/2, y+cellS/2);
+    }
+    ctx.restore();
+
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(0,0,HDR_S,HDR_S); ctx.fillStyle = '#fff'; ctx.font='10px monospace'; ctx.fillText('k\\j', HDR_S/2, HDR_S/2);
+}
+
+// --- INTERACTION ---
+function pan(dx, dy) { scrollX += dx; scrollY += dy; requestBatch(); draw(); }
+function jumpTo(r, c) {
+    viewAnchor = { r: BigInt(r), c: BigInt(c) }; scrollX = 0; scrollY = 0; highlight = { r: BigInt(r), c: BigInt(c) };
+    cellCache.clear(); worker.postMessage({cmd:'cell', r: highlight.r.toString(), c: highlight.c.toString(), moduli: activeModuli}); requestBatch(); draw();
+}
+function tapSelect(clickX, clickY) {
+    const rect = wrap.getBoundingClientRect();
+    const relX = clickX - rect.left - HDR_S - scrollX; const relY = clickY - rect.top - HDR_S - scrollY;
+    const cIdx = Math.floor(relX / cellS); const rIdx = Math.floor(relY / cellS);
+    const targetR = viewAnchor.r + BigInt(rIdx); const targetC = viewAnchor.c + BigInt(cIdx);
+    if (targetR < 0n) return;
+    highlight = { r: targetR, c: targetC }; const key = `${targetR}|${targetC}`; let p = cellCache.get(key);
+    if(p) updateDecoder(p); else worker.postMessage({cmd:'cell', r: targetR.toString(), c: targetC.toString(), moduli: activeModuli});
+    draw();
+}
+
+function zoomAtPoint(newCellS, clientX, clientY) {
+    const rect = wrap.getBoundingClientRect();
+    const relX = clientX - rect.left - HDR_S - scrollX;
+    const relY = clientY - rect.top - HDR_S - scrollY;
+    const oldCellS = cellS;
+    cellS = Math.max(20, Math.min(150, newCellS));
+    document.getElementById('inpZoom').value = cellS;
+    const ratio = cellS / oldCellS;
+    scrollX = (scrollX + relX) - (relX * ratio);
+    scrollY = (scrollY + relY) - (relY * ratio);
+    requestBatch(); draw();
+}
+
+// Touch Handling
+let dragging = false, lastX=0, lastY=0, startX=0, startY=0, pinchStartDist=0, pinchStartCellS=64, pinchCenterX=0, pinchCenterY=0;
+function getDist(t1, t2) { return Math.hypot(t1.clientX-t2.clientX, t1.clientY-t2.clientY); }
+function getCenter(t1, t2) { return { x: (t1.clientX+t2.clientX)/2, y: (t1.clientY+t2.clientY)/2 }; }
+wrap.addEventListener('touchstart', e => {
+    if(e.touches.length===2) { dragging=false; pinchStartDist=getDist(e.touches[0], e.touches[1]); pinchStartCellS=cellS; const c = getCenter(e.touches[0], e.touches[1]); pinchCenterX = c.x; pinchCenterY = c.y; }
+    else if(e.touches.length===1) { dragging=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; startX=lastX; startY=lastY; }
+}, {passive:false});
+wrap.addEventListener('touchmove', e => {
+    if(e.touches.length===2) { e.preventDefault(); const dist = getDist(e.touches[0], e.touches[1]); const scale = dist / pinchStartDist; zoomAtPoint(Math.round(pinchStartCellS * scale), pinchCenterX, pinchCenterY); }
+    else if(dragging && e.touches.length===1) { e.preventDefault(); pan(e.touches[0].clientX-lastX, e.touches[0].clientY-lastY); lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }
+}, {passive:false});
+wrap.addEventListener('touchend', e => { dragging=false; if(e.changedTouches.length>0 && e.touches.length===0 && Math.hypot(e.changedTouches[0].clientX-startX, e.changedTouches[0].clientY-startY)<10) tapSelect(e.changedTouches[0].clientX, e.changedTouches[0].clientY); });
+wrap.addEventListener('mousedown', e => { dragging=true; lastX=e.clientX; lastY=e.clientY; startX=e.clientX; startY=e.clientY; });
+wrap.addEventListener('mousemove', e => { if(dragging) { pan(e.clientX-lastX, e.clientY-lastY); lastX=e.clientX; lastY=e.clientY; } });
+wrap.addEventListener('mouseup', e => { dragging=false; if(Math.hypot(e.clientX-startX, e.clientY-startY)<5) tapSelect(e.clientX, e.clientY); });
+
+// --- UI LOGIC ---
+function sqrtBigInt(n) { if(n<2n) return n; let x=n; let y=(x+1n)/2n; while(y<x){x=y;y=(x+n/x)/2n;} return x; }
+
+// SEARCH / JUMP
+function handleSearch() {
+    const input = document.getElementById('inpFind').value.trim(); if(!input) return;
+    let val; try { val = BigInt(input); } catch(e) { showToast("Invalid ID"); return; }
+    let R = sqrtBigInt(val); 
+    if(R*R < val) R += 1n;
+    const k = R - 1n; // 0-based
+    const endID = R * R;
+    const offset = endID - val;
+    const c = k - offset;
+    jumpTo(k, c); showToast(`JUMPED TO ID ${val}`);
+}
+
+// TRACE LOGIC
+function handleTrace() {
+    const input = document.getElementById('inpTrace').value.trim(); if(!input) return;
+    let val; try { val = BigInt(input); } catch(e) { showToast("Invalid N"); return; }
+    if (val % 2n === 0n) { showToast("Trace needs Odd N"); return; }
+
+    // Factorize to find P1 (Inner Factor)
+    // For visualization, we just need P1. 
+    // Since we don't have a prime library, we rely on the Anchor property:
+    // N = a(a-2b). We assume the user gives us a "Cargo" that exists in the grid.
+    // For 1007, we know P2=53, P1=19.
+    // We can use a simple approximate square root to find P2 (Anchor) near sqrt(N).
+    // Or just brute force small factors? 
+    // Better: Inverse Gnomon map.
+    // a ~= sqrt(N). Loop 'a' upwards (odd) until (a - N/a) is even and non-negative?
+    
+    let a = sqrtBigInt(val);
+    if (a % 2n === 0n) a += 1n;
+    // Walk forward finding first factor pair
+    let limit = 1000n; 
+    let found = false;
+    let P1 = 0n;
+    
+    while (limit > 0n) {
+        if (val % a === 0n) {
+            let other = val / a;
+            // P1 is the smaller factor
+            P1 = (a < other) ? a : other;
+            let P2 = (a > other) ? a : other;
+            // Gap must be integer. 2b = P2 - P1. P2 and P1 are both odd, so P2-P1 is even. OK.
+            // Jump to this location
+            let k = (P2 - 1n) / 2n;
+            let b = (P2 - P1) / 2n;
+            jumpTo(k, b);
+            
+            activeTrace = { p1: P1 };
+            showToast(`TRACING SLOPE P1=${P1}`);
+            found = true;
+            break;
+        }
+        a += 2n;
+        limit--;
+    }
+    
+    if (!found) showToast("Factor scan timeout");
+    draw();
+}
+
+function updateFromInput(type) { 
+    try {
+        let k=BigInt(document.getElementById('inpK').value);
+        let c=BigInt(document.getElementById('inpCol').value); 
+        let a=BigInt(document.getElementById('inpA').value);
+        if(type==='a') { k=(a-1n)/2n; c=0n; } 
+        jumpTo(k, c);
+    } catch(e){}
+}
+
+function updateDecoder(p) {
+    currentFullData = p;
+    const trunc = (s) => s.length > 12 ? s.slice(0,6) + ".." + s.slice(-4) : s;
+    const tapeDisp = p.tapeID.length > 15 ? "ID: " + p.tapeID.slice(0,6) + ".." + p.tapeID.slice(-4) : "ID: " + p.tapeID;
+    
+    document.getElementById('dispComp').innerText = `${trunc(p.a)}.${trunc(p.b)}`;
+    document.getElementById('dispSq').innerText = tapeDisp;
+    document.getElementById('dispVal').innerText = p.val;
+    document.getElementById('dispFactors').innerText = `${p.P2} × ${p.P1}`;
+    document.getElementById('inpK').value=p.k; document.getElementById('inpCol').value=p.c; 
+    document.getElementById('inpA').value=p.a; document.getElementById('inpGnomon').value=p.g;
+}
+function addFilter() {
+    const M=parseInt(document.getElementById('inpModulus').value); if(isNaN(M)||M<=1) return showToast("Invalid");
+    if(!activeModuli.includes(M)) { activeModuli.push(M); renderFilters(); cellCache.clear(); requestBatch(); document.getElementById('inpModulus').value=""; }
+}
+window.removeFilter=function(M) { activeModuli=activeModuli.filter(m=>m!==M); renderFilters(); cellCache.clear(); requestBatch(); }
+function renderFilters() { document.getElementById('activeFilters').innerHTML=activeModuli.map(m=>`<div class="filter-tag" onclick="removeFilter(${m})">Mod ${m} <span>×</span></div>`).join(''); }
+
+// Binds
+document.getElementById('btnAddFilter').onclick=addFilter;
+document.getElementById('btnInvertMods').onclick=(e)=>{ isInvertMod=!isInvertMod; e.target.classList.toggle('active'); draw(); };
+document.getElementById('btnTrivials').onclick=(e)=>{ showTrivials=!showTrivials; e.target.classList.toggle('active'); draw(); };
+document.getElementById('btnGnomon').onclick=(e)=>{ showGnomon=!showGnomon; e.target.classList.toggle('active'); draw(); };
+document.getElementById('btnMirror').onclick=(e)=>{ hideMirror=!hideMirror; e.target.classList.toggle('active'); cellCache.clear(); requestBatch(); draw(); };
+document.getElementById('btnFind').onclick=handleSearch;
+document.getElementById('btnTrace').onclick=handleTrace;
+document.getElementById('btnHelp').onclick = () => document.getElementById('helpModal').style.display='flex';
+document.getElementById('closeHelp').onclick = () => document.getElementById('helpModal').style.display='none';
+
+// Full Details Modal
+const openFullDetails = () => { 
+    if(currentFullData) { 
+        document.getElementById('fullN').innerText = currentFullData.fullVal; 
+        document.getElementById('fullFactors').innerText = `${currentFullData.P2} × ${currentFullData.P1}`; 
+        document.getElementById('fullSmart').innerText = `${currentFullData.a}.${currentFullData.b}`; 
+        document.getElementById('fullGnomon').innerText = currentFullData.g; 
+        document.getElementById('fullTape').innerText = currentFullData.tapeID; 
+        document.getElementById('fullTri').innerText = currentFullData.triID; 
+        document.getElementById('fullValModal').style.display = 'flex'; 
+    } 
+};
+document.getElementById('dispVal').onclick = openFullDetails;
+document.getElementById('dispComp').onclick = openFullDetails;
+document.getElementById('dispSq').onclick = openFullDetails;
+document.getElementById('closeFull').onclick = () => document.getElementById('fullValModal').style.display='none';
+
+document.getElementById('inpZoom').oninput=(e)=>{ 
+    const rect = wrap.getBoundingClientRect();
+    zoomAtPoint(parseInt(e.target.value), rect.left + rect.width/2, rect.top + rect.height/2);
+};
+document.getElementById('techHeader').onclick=()=>{ document.getElementById('techContent').classList.toggle('open'); };
+
+const resizeObserver = new ResizeObserver(entries => {
+    for (const entry of entries) {
+        const width = entry.contentRect.width;
+        const height = entry.contentRect.height;
+        const newDPR = window.devicePixelRatio || 1;
+        canvas.width = width * newDPR;
+        canvas.height = height * newDPR;
+        DPR = newDPR;
+        requestBatch(); draw();
+    }
+});
+
+resizeObserver.observe(wrap);
+
+window.onload=()=>{ 
+    jumpTo(0n, 0n); 
+    document.getElementById('btnTrivials').classList.add('active'); 
+    const s=document.getElementById('coreSelect'); 
+    for(let i=1;i<=(navigator.hardwareConcurrency||4);i++) { 
+        let o=document.createElement('option'); 
+        o.value=i; 
+        o.innerText=`${i} Core${i>1?'s':''}`; 
+        if(i===(navigator.hardwareConcurrency||4)) o.selected=true; 
+        s.appendChild(o); 
+    } 
+};
+</script>
+</body>
+</html>

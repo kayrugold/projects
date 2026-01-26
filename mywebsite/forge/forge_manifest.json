@@ -1,0 +1,52 @@
+[
+  {
+    "id": "factor-hunter",
+    "title": "FACTOR HUNTER",
+    "description": "Strike composite beasts with Prime weapons.",
+    "type": "Games",
+    "version": "V1.2",
+    "status": "LIVE",
+    "statusClass": "badge-live",
+    "buttonText": "HUNT",
+    "icon": "👹",
+    "image": "./assets/factorhunter.png",
+    "action": "launchApp('./apps/factor-hunter.html')"
+  },
+  {
+    "id": "residue-scanner",
+    "title": "RESIDUE SCANNER",
+    "description": "The Gnomon Navigator. Modular visualizer.",
+    "type": "Tools",
+    "version": "V0.8",
+    "status": "BETA",
+    "statusClass": "badge-beta",
+    "buttonText": "SCAN",
+    "icon": "⚗️",
+    "image": "./assets/residuescanner.png",
+    "action": "launchApp('./apps/residue-scanner.html')"
+  },
+  {
+    "id": "pixel-alchemist",
+    "title": "PIXEL ALCHEMIST",
+    "description": "Transmute sprites into code arrays.",
+    "type": "Tools",
+    "version": "V0.1",
+    "status": "TESTING",
+    "statusClass": "badge-alpha",
+    "buttonText": "BREW",
+    "icon": "🧪",
+    "action": "launchApp('./forge/entries/pixel-alchemist/index.html')"
+  },
+  {
+    "id": "void-compass",
+    "title": "VOID COMPASS",
+    "description": "Procedural map generation for dungeons.",
+    "type": "Prototypes",
+    "version": "V0.0.1",
+    "status": "ALPHA",
+    "statusClass": "badge-alpha",
+    "buttonText": "VIEW",
+    "icon": "🧭",
+    "action": "launchApp('./forge/entries/void-compass/index.html')"
+  }
+]

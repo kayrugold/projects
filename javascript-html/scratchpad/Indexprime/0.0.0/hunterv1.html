@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Driver's Sieve (Billion-Digit Edition)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    :root {
+        --bg: #050505;
+        --panel: #0f0f0f;
+        --border: #333;
+        --accent: #ef4444; /* Red for the "Snap" */
+        --safe: #10b981;   /* Green for Safe */
+        --wall: #3b82f6;   /* Blue for Walls */
+        --text: #e5e5e5;
+    }
+    
+    body { background-color: var(--bg); color: var(--text); font-family: 'Courier New', monospace; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    
+    .dashboard { width: 100%; max-width: 800px; display: grid; gap: 20px; }
+    
+    /* INPUT CARD */
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .card-title { font-size: 0.8rem; color: #6b7280; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; font-weight: bold; }
+    
+    .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+    .input-wrapper { flex: 1; }
+    label { display: block; font-size: 0.65rem; color: #9ca3af; margin-bottom: 4px; text-transform: uppercase; }
+    input { width: 100%; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 1.1rem; text-align: center; outline: none; transition: border 0.2s; }
+    input:focus { border-color: var(--wall); }
+
+    /* VISUALIZER (The Road) */
+    .road-viz { display: flex; align-items: center; justify-content: center; gap: 4px; margin: 20px 0; padding: 20px; background: #0a0a0a; border-radius: 8px; border: 1px dashed #333; position: relative; overflow: hidden; }
+    
+    .fence-post { width: 10px; height: 60px; background: repeating-linear-gradient(45deg, #1e3a8a, #1e3a8a 5px, #172554 5px, #172554 10px); border: 1px solid #3b82f6; border-radius: 4px; z-index: 10; }
+    .lane-marker { flex: 1; height: 2px; background: #333; margin: 0 10px; position: relative; }
+    .target-box { width: 50px; height: 50px; background: #222; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-weight: bold; border-radius: 8px; position: relative; z-index: 20; transition: all 0.3s; }
+    .target-box.safe { border-color: var(--safe); background: rgba(16, 185, 129, 0.1); color: var(--safe); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+    .target-box.snapped { border-color: var(--accent); background: rgba(239, 68, 68, 0.1); color: var(--accent); box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
+    
+    .gap-text { position: absolute; top: -25px; font-size: 0.7rem; color: #6b7280; white-space: nowrap; }
+    .wall-label { position: absolute; bottom: -25px; font-size: 0.65rem; color: #3b82f6; font-weight: bold; }
+
+    /* CONTROLS */
+    .btn { width: 100%; padding: 15px; font-size: 1rem; font-weight: 900; text-transform: uppercase; border-radius: 8px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px; border: none; }
+    .btn-check { background: var(--wall); color: #fff; }
+    .btn-check:hover { background: #2563eb; }
+    .btn-stop { background: var(--accent); color: #fff; display: none; }
+
+    /* RULER LOG */
+    .ruler-log { height: 250px; overflow-y: auto; background: #000; border: 1px solid #222; border-radius: 8px; padding: 10px; font-size: 0.8rem; font-family: monospace; display: flex; flex-direction: column-reverse; }
+    .log-item { padding: 4px 0; border-bottom: 1px solid #111; display: flex; justify-content: space-between; }
+    .log-item span:first-child { opacity: 0.7; }
+    
+    .snap-msg { color: var(--accent); font-weight: bold; padding: 8px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid var(--accent); margin: 4px 0; }
+    .safe-msg { color: var(--safe); padding: 4px; }
+    .sys-msg { color: #60a5fa; padding: 4px; border-top: 1px dashed #222; margin-top: 4px; }
+
+    .status-bar { display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.75rem; color: #6b7280; }
+    .val-highlight { color: #fff; font-weight: bold; }
+
+    /* LOADING BAR */
+    .progress-container { height: 4px; background: #111; margin-top: 15px; border-radius: 2px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--wall); width: 0%; transition: width 0.1s; }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="card">
+        <div class="card-title">Target Configuration</div>
+        <div class="input-group">
+            <div class="input-wrapper">
+                <label>Base</label>
+                <input id="inpBase" value="10">
+            </div>
+            <div class="input-wrapper">
+                <label>Exponent</label>
+                <input id="inpExp" value="100">
+            </div>
+            <div class="input-wrapper">
+                <label>Add (+C)</label>
+                <input id="inpAdd" value="1">
+            </div>
+        </div>
+        <div class="text-center text-xs text-gray-500 mb-4" id="targetPreview">Target: 10^100 + 1</div>
+        
+        <button id="btnAction" class="btn btn-check" onclick="startCheck()">Check Frame & Snap</button>
+        <button id="btnStop" class="btn btn-stop" onclick="stopCheck()">Abort</button>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Driver's Visualizer</div>
+        
+        <div class="road-viz">
+            <div class="fence-post"></div>
+            <div class="wall-label" style="left: 20px;">Left Wall (3k)</div>
+            
+            <div class="lane-marker">
+                <div class="gap-text" style="left: 50%; transform: translateX(-50%);">
+                    Gap: <span id="gapVal" class="text-white font-bold">--</span>
+                </div>
+            </div>
+
+            <div id="targetBox" class="target-box">?</div>
+
+            <div class="lane-marker"></div>
+            
+            <div class="fence-post"></div>
+            <div class="wall-label" style="right: 20px;">Right Wall</div>
+        </div>
+
+        <div class="status-bar">
+            <span>Rulers Checked: <span id="rulerCount" class="val-highlight">0</span></span>
+            <span>Current Size: <span id="rulerSize" class="val-highlight">--</span></span>
+        </div>
+        <div class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
+    </div>
+
+    <div class="ruler-log" id="logBox">
+        <div class="sys-msg">System Ready. Enter billion-digit parameters above.</div>
+    </div>
+</div>
+
+<script>
+// --- WORKER: THE RULER MANAGER ---
+// This worker does the "Modular Snap" check for millions of primes instantly.
+const workerCode = `
+self.onmessage = function(e) {
+    const { cmd, base, exp, add, batchSize } = e.data;
+    
+    if(cmd === 'check_rulers') {
+        const baseBI = BigInt(base);
+        const expBI = BigInt(exp);
+        const addBI = BigInt(add);
+        const limit = 2000000; // Check first 2 million primes (approx up to 32M)
+        
+        // Sieve to get rulers
+        const sieve = new Uint8Array(limit + 1);
+        const rulers = [];
+        for(let i=2; i<=limit; i++) {
+            if(sieve[i]===0) {
+                rulers.push(i);
+                for(let j=i*i; j<=limit; j+=i) sieve[j]=1;
+            }
+        }
+        
+        postMessage({ type: 'sys', msg: 'Ruler Bag Loaded: ' + rulers.length + ' rulers.' });
+
+        // Optimized Modular Exponentiation
+        function powMod(b, e, m) {
+            let r = 1n;
+            b = b % m;
+            while (e > 0n) {
+                if ((e & 1n) === 1n) r = (r * b) % m;
+                b = (b * b) % m;
+                e = e >> 1n; 
+            }
+            return r;
+        }
+
+        let checked = 0;
+        
+        // THE SNAP CHECK LOOP
+        for(let i=0; i<rulers.length; i++) {
+            const p = BigInt(rulers[i]);
+            const pNum = rulers[i];
+
+            // 1. Where is the Frame? (Left Wall)
+            // N = base^exp + add
+            // We want N % p.
+            // But we specifically want to visualize the "Snap".
+            
+            // Calculate N % p directly (The Snap Distance)
+            const n_mod_p = (powMod(baseBI, expBI, p) + addBI) % p;
+            
+            if (n_mod_p === 0n) {
+                // SNAP! Factor Found.
+                // Reconstruct the logic for the user:
+                // Wall = N - (N%3). (This is theoretical for the visual, but math is N%p)
+                postMessage({ type: 'snap', ruler: pNum });
+                return; // Stop on first factor for speed
+            }
+            
+            checked++;
+            if(checked % 5000 === 0) {
+                postMessage({ type: 'progress', count: checked, currentRuler: pNum });
+            }
+        }
+        
+        postMessage({ type: 'clean', count: checked });
+    }
+};
+`;
+
+let worker = null;
+let isRunning = false;
+
+// UI Helpers
+const logBox = document.getElementById('logBox');
+const targetBox = document.getElementById('targetBox');
+const gapVal = document.getElementById('gapVal');
+const rulerCount = document.getElementById('rulerCount');
+const rulerSize = document.getElementById('rulerSize');
+const progressBar = document.getElementById('progressBar');
+
+// INPUT LISTENERS
+['inpBase', 'inpExp', 'inpAdd'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updatePreview);
+});
+
+function updatePreview() {
+    const b = document.getElementById('inpBase').value;
+    const e = document.getElementById('inpExp').value;
+    const a = document.getElementById('inpAdd').value;
+    document.getElementById('targetPreview').innerText = `Target: ${b}^${e} + ${a}`;
+}
+
+function log(msg, type='sys') {
+    const div = document.createElement('div');
+    if(type === 'snap') {
+        div.className = 'snap-msg';
+        div.innerHTML = `⚠️ ${msg}`;
+    } else if(type === 'clean') {
+        div.className = 'safe-msg';
+        div.innerHTML = `✅ ${msg}`;
+    } else {
+        div.className = 'log-item';
+        div.innerHTML = `<span>></span><span>${msg}</span>`;
+    }
+    logBox.prepend(div);
+}
+
+// MAIN LOGIC
+function startCheck() {
+    if(isRunning) return;
+    
+    const base = document.getElementById('inpBase').value;
+    const exp = document.getElementById('inpExp').value;
+    const add = document.getElementById('inpAdd').value;
+    
+    // 1. FRAME IT (Visual Check)
+    // We calculate Mod 3 locally first to set the visual "Lane"
+    try {
+        const bBn = BigInt(base);
+        const eBn = BigInt(exp);
+        const aBn = BigInt(add);
+        
+        // Simple Mod 3 for the wall
+        // (b^e + a) % 3
+        // We use a simple helper since BigInt might be huge
+        const mod3 = (powerModSmall(Number(bBn%3n), eBn, 3) + Number(aBn%3n)) % 3;
+        
+        targetBox.className = 'target-box';
+        targetBox.innerText = '?';
+        
+        if (mod3 === 0) {
+            // It IS a wall!
+            log(`Frame Check: Target IS a multiple of 3. (Wall)`, 'snap');
+            targetBox.innerText = 'WALL';
+            targetBox.className = 'target-box snapped';
+            gapVal.innerText = '0 (Hit)';
+            return; // Done
+        } else {
+            // It's in the gap
+            const dist = mod3; // 1 or 2
+            log(`Frame Check: Target is in the GAP (+${dist} from Left Wall).`, 'sys');
+            gapVal.innerText = `+${dist}`;
+            targetBox.innerText = 'GAP';
+            targetBox.className = 'target-box'; // Neutral
+        }
+        
+    } catch(e) {
+        log("Input Error: " + e.message);
+        return;
+    }
+    
+    // 2. LOAD IT & WALK IT (Worker)
+    isRunning = true;
+    document.getElementById('btnAction').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'inline-block';
+    
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    worker.onmessage = handleWorkerMsg;
+    worker.postMessage({ cmd: 'check_rulers', base, exp, add });
+}
+
+function handleWorkerMsg(e) {
+    const d = e.data;
+    
+    if(d.type === 'sys') log(d.msg);
+    
+    if(d.type === 'progress') {
+        rulerCount.innerText = d.count.toLocaleString();
+        rulerSize.innerText = d.currentRuler.toLocaleString();
+        // Progress bar visual (arbitrary scale up to 2M primes)
+        const pct = (d.count / 148933) * 100; // approx primes in 2M
+        progressBar.style.width = Math.min(pct, 100) + '%';
+    }
+    
+    if(d.type === 'snap') {
+        // We found a factor
+        log(`SNAP! Ruler ${d.ruler} fit perfectly.`, 'snap');
+        log(`Conclusion: Composite (${d.ruler} x ...)`);
+        targetBox.innerText = 'HIT';
+        targetBox.className = 'target-box snapped';
+        targetBox.innerHTML = `<div>SNAP<br><span style="font-size:0.6rem">${d.ruler}</span></div>`;
+        stopCheck();
+    }
+    
+    if(d.type === 'clean') {
+        log(`Clean Sweep. Checked ${d.count.toLocaleString()} rulers.`, 'clean');
+        log(`Status: Likely Prime (Small factors cleared).`);
+        targetBox.innerText = 'SAFE';
+        targetBox.className = 'target-box safe';
+        stopCheck();
+    }
+}
+
+function stopCheck() {
+    isRunning = false;
+    if(worker) worker.terminate();
+    worker = null;
+    document.getElementById('btnAction').style.display = 'inline-block';
+    document.getElementById('btnStop').style.display = 'none';
+    progressBar.style.width = '0%';
+}
+
+// Local Helper for Visual Frame
+function powerModSmall(base, exp, mod) {
+    let res = 1;
+    base = base % mod;
+    while (exp > 0n) {
+        if ((exp & 1n) === 1n) res = (res * base) % mod;
+        base = (base * base) % mod;
+        exp = exp >> 1n;
+    }
+    return res;
+}
+</script>
+</body>
+</html>

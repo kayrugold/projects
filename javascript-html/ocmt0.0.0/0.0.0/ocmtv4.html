@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gnomon Indexing Hunter v11</title>
+<style>
+    :root {
+        --bg: #020617;
+        --panel: #0f172a;
+        --border: #1e293b;
+        --cyan: #22d3ee;
+        --gnomon: #f472b6;    
+        --text: #e2e8f0;
+        --sq-glow: #3b82f6;   
+        --header-bg: #1e293b;
+    }
+    
+    * { box-sizing: border-box; }
+
+    body { 
+        background: var(--bg); color: var(--text); 
+        font-family: 'Courier New', monospace; 
+        height: 100dvh; width: 100vw;
+        margin: 0; padding: 0;
+        display: flex; flex-direction: column; 
+        overflow: hidden;
+    }
+
+    /* --- CONTROLS (Top Bar) --- */
+    .controls { 
+        padding: 5px 10px; background: #0f172a; border-bottom: 1px solid var(--border); 
+        display: flex; gap: 4px; align-items: center; justify-content: space-between;
+        flex-shrink: 0; z-index: 200; height: 50px; width: 100%;
+    }
+    .brand { font-weight: 900; color: #fff; font-size: 0.85rem; letter-spacing: 1px; }
+    
+    .input-group { display: flex; gap: 6px; align-items: center; }
+    .head-input { 
+        background: #1e293b; border: 1px solid #334155; 
+        color: var(--cyan); padding: 6px; width: 80px; text-align: center; 
+        border-radius: 4px; font-weight: bold; font-family: monospace; font-size: 0.9rem;
+    }
+    .lbl { font-size:0.7rem; color:#94a3b8; font-weight:bold; }
+    
+    button { 
+        background: var(--cyan); border: none; padding: 6px 12px; 
+        border-radius: 4px; font-weight: bold; cursor: pointer; color: #000; font-size: 0.75rem;
+    }
+
+    /* --- LAYOUT & CANVAS --- */
+    .layout { 
+        display: flex; flex-direction: column; flex: 1; 
+        overflow: hidden; position: relative; width: 100%;
+    }
+    .canvas-wrapper { 
+        flex: 1; position: relative; background: #000; overflow: hidden; touch-action: none;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* --- DECODER PANEL (Bottom Fixed) --- */
+    .decoder { 
+        background: #0f172a; border-top: 3px solid var(--cyan); 
+        display: flex; flex-direction: column; flex-shrink: 0; 
+        height: 35dvh; max-height: 300px;
+        overflow-y: auto; 
+        box-shadow: 0 -10px 50px rgba(0,0,0,0.8); z-index: 150;
+    }
+    @media (min-width: 768px) {
+        .decoder { height: auto; min-height: 200px; }
+    }
+
+    .panel-section { padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .sec-title { font-size: 0.65rem; color: #64748b; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px; }
+
+    /* MATH DISPLAY */
+    .big-math { background: #0b1120; }
+    .bm-val { font-size: 1.6rem; font-weight: 900; color: #fff; }
+    .bm-eq { font-size: 0.85rem; color: var(--cyan); font-weight: bold; margin-top: 4px; }
+    .tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight:bold; }
+
+    /* INFO GRID */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+    .info-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 8px; border-radius: 4px; text-align: center; }
+    .info-lbl { font-size: 0.6rem; color: #94a3b8; font-weight: bold; margin-bottom: 2px; }
+    .info-val { font-size: 1.1rem; color: #fff; font-weight: bold; }
+    .info-val.pink { color: var(--gnomon); }
+    .info-val.blue { color: var(--sq-glow); }
+
+</style>
+</head>
+<body>
+
+<div class="controls">
+    <span class="brand">GNOMON HUNTER v11</span>
+    <div class="input-group">
+        <span class="lbl">JUMP K:</span>
+        <input id="inpK" class="head-input" type="number" value="0" min="0">
+        <button id="btnGo">GO</button>
+    </div>
+</div>
+
+<div class="layout">
+    <div class="canvas-wrapper" id="canvasWrap">
+        <canvas id="gridCanvas"></canvas>
+    </div>
+
+    <div class="decoder">
+        <div class="panel-section big-math">
+            <div>
+                <div class="sec-title">COMPRESSION INDEX (a - b)</div>
+                <div id="dispComp" class="bm-val">--</div>
+            </div>
+            <div style="text-align:right">
+                <div class="sec-title">VALUE (N)</div>
+                <div id="dispVal" class="bm-eq" style="font-size:1.2rem; color:white">--</div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-lbl">SUNDARAM INDEX (k)</div>
+                <div id="dispK" class="info-val">--</div>
+            </div>
+            <div class="info-item">
+                <div class="info-lbl">GNOMON INDEX (2a-1)</div>
+                <div id="dispG" class="info-val blue">--</div>
+            </div>
+            <div class="info-item">
+                <div class="info-lbl">OUTER SQUARE (a)</div>
+                <div id="dispA" class="info-val blue">--</div>
+            </div>
+            <div class="info-item">
+                <div class="info-lbl">INNER GAP (b)</div>
+                <div id="dispB" class="info-val pink">--</div>
+            </div>
+        </div>
+        
+        <div style="padding:10px; text-align:center; font-size:0.7rem; color:#64748b;">
+            Factorization: P₂ = a + b &nbsp;|&nbsp; P₁ = a - b
+        </div>
+    </div>
+</div>
+
+<script>
+/* GNOMON INDEXING HUNTER v11
+   - Virtualized Canvas Engine (Infinite Scroll)
+   - Interface Style: Gnomon Corelator (Dark/Cyan)
+   - Core Logic: Indexing Only (a, b, k)
+*/
+
+// --- DOM ---
+const canvas = document.getElementById('gridCanvas');
+const wrap = document.getElementById('canvasWrap');
+const ctx = canvas.getContext('2d', {alpha: false}); // Optimize
+const inpK = document.getElementById('inpK');
+const btnGo = document.getElementById('btnGo');
+
+// --- STATE ---
+let DPR = window.devicePixelRatio || 1;
+let CELL_PX = 70; // Larger cells for better readability
+let view = { topK: 0, leftB: 0 }; 
+let selected = { k: 0, b: 0 };
+let cellCache = new Map();
+
+// --- WORKER (Pure Indexing Logic) ---
+const workerCode = `
+self.addEventListener('message', (ev) => {
+    const msg = ev.data;
+    const P2_from_k = (k) => k * 2n + 1n;
+
+    const process = (k_in, b_in) => {
+        const k = BigInt(k_in);
+        const b = BigInt(b_in);
+        
+        // 1. Get Factors from Index (Definition)
+        const P2 = P2_from_k(k); // Row Factor
+        const P1 = P2 - (b * 2n); // Col Factor (decrement by 2b)
+
+        if (P1 <= 0n) return null; // Invalid area
+
+        // 2. Get Compression Indices (a, b)
+        // a = (P1 + P2) / 2
+        // b is already known!
+        const a = (P2 + P1) / 2n;
+        
+        // 3. Gnomon Index (of the square row)
+        // For a square row (where b=0), the gnomon is 2a - 1
+        // We use 'a' of the cell.
+        const gnomon = (a * 2n) - 1n;
+
+        // 4. Value (Only for display/confirmation)
+        const val = P2 * P1;
+
+        return {
+            k: k_in, b: b_in,
+            a: a.toString(),
+            b: b.toString(),
+            g: gnomon.toString(),
+            val: val.toString(),
+            isSq: (b === 0n),
+            isWall: (val % 3n === 0n)
+        };
+    };
+
+    if (msg.cmd === 'batch') {
+        const res = msg.items.map(it => process(it.k, it.b)).filter(x => x);
+        self.postMessage({ type: 'batch', payload: res });
+    } else if (msg.cmd === 'cell') {
+        const res = process(msg.k, msg.b);
+        self.postMessage({ type: 'cell', payload: res });
+    }
+});
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], {type:'application/javascript'})));
+
+worker.onmessage = (ev) => {
+    const msg = ev.data;
+    if (msg.type === 'batch') {
+        msg.payload.forEach(p => cellCache.set(`${p.k}|${p.b}`, p));
+        draw();
+    } else if (msg.type === 'cell' && msg.payload) {
+        const p = msg.payload;
+        cellCache.set(`${p.k}|${p.b}`, p);
+        if(selected.k === p.k && selected.b === p.b) updateDecoder(p);
+        draw();
+    }
+};
+
+// --- DRAWING ENGINE ---
+function draw() {
+    // 1. Setup
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    
+    // Background
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, w, h);
+
+    const cols = Math.ceil(w / CELL_PX) + 1;
+    const rows = Math.ceil(h / CELL_PX) + 1;
+
+    // 2. Draw Cells
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const k = view.topK + r;
+            const b = view.leftB + c;
+            
+            // Skip invalid indices
+            if (k < 0 || b < 0) continue; 
+
+            const x = c * CELL_PX;
+            const y = r * CELL_PX;
+
+            const key = `${k}|${b}`;
+            const cell = cellCache.get(key);
+
+            // -- Cell Style --
+            let bg = '#0f172a';
+            let border = '#1e293b';
+            let txtColor = '#94a3b8';
+
+            if (cell) {
+                if (cell.isSq) { // Diagonal / Square
+                    bg = 'rgba(59, 130, 246, 0.15)';
+                    border = '#3b82f6';
+                    txtColor = '#ffffff';
+                } else if (cell.isWall) { // Mod 3
+                    bg = '#1a1005';
+                    border = '#451a03';
+                } else {
+                    bg = '#111827';
+                    txtColor = '#e2e8f0';
+                }
+            }
+
+            // Selection
+            if (k === selected.k && b === selected.b) {
+                bg = '#ffffff';
+                txtColor = '#000000';
+                border = '#22d3ee';
+            }
+
+            // Render Rect
+            ctx.fillStyle = bg;
+            ctx.fillRect(x, y, CELL_PX, CELL_PX);
+            ctx.strokeStyle = border;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, CELL_PX, CELL_PX);
+
+            // Render Text
+            if (cell) {
+                // 1. Main Compression Index (a - b)
+                ctx.font = 'bold 14px monospace';
+                ctx.fillStyle = (k === selected.k && b === selected.b) ? '#000' : txtColor;
+                ctx.fillText(`${cell.a} - ${cell.b}`, x + CELL_PX/2, y + CELL_PX/2);
+
+                // 2. Sundaram Index (Bottom Left)
+                ctx.font = '10px monospace';
+                ctx.fillStyle = (k === selected.k && b === selected.b) ? '#333' : '#64748b';
+                ctx.textAlign = 'left';
+                ctx.fillText(`k:${cell.k}`, x + 4, y + CELL_PX - 8);
+
+                // 3. Gnomon Badge (Top Right)
+                if (cell.isSq) {
+                    const badgeTxt = cell.g;
+                    ctx.font = 'bold 9px monospace';
+                    const tw = ctx.measureText(badgeTxt).width;
+                    
+                    // Badge bg
+                    ctx.fillStyle = (k === selected.k && b === selected.b) ? '#000' : '#3b82f6';
+                    ctx.fillRect(x + CELL_PX - tw - 8, y + 4, tw + 4, 12);
+                    
+                    // Badge text
+                    ctx.fillStyle = '#fff';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(badgeTxt, x + CELL_PX - tw - 6, y + 10);
+                }
+
+                ctx.textAlign = 'center'; // Reset
+
+            } else {
+                // Loading / Placeholder
+                ctx.font = '10px monospace';
+                ctx.fillStyle = '#334155';
+                ctx.fillText('...', x + CELL_PX/2, y + CELL_PX/2);
+            }
+        }
+    }
+}
+
+// --- LOGIC ---
+function requestBatch() {
+    const w = canvas.width / DPR;
+    const h = canvas.height / DPR;
+    const cols = Math.ceil(w / CELL_PX) + 2;
+    const rows = Math.ceil(h / CELL_PX) + 2;
+    const items = [];
+
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+            const k = view.topK + r;
+            const b = view.leftB + c;
+            const key = `${k}|${b}`;
+            if (!cellCache.has(key)) items.push({k, b});
+        }
+    }
+    if (items.length) worker.postMessage({cmd: 'batch', items});
+}
+
+function updateDecoder(p) {
+    if(!p) return;
+    document.getElementById('dispComp').innerText = `${p.a} - ${p.b}`;
+    document.getElementById('dispVal').innerText = p.val;
+    document.getElementById('dispK').innerText = p.k;
+    document.getElementById('dispG').innerText = p.g;
+    document.getElementById('dispA').innerText = p.a;
+    document.getElementById('dispB').innerText = p.b;
+}
+
+function select(k, b) {
+    selected = { k, b };
+    const key = `${k}|${b}`;
+    const p = cellCache.get(key);
+    if(p) updateDecoder(p);
+    else worker.postMessage({cmd: 'cell', k, b});
+    draw();
+}
+
+// --- INTERACTION ---
+let isDragging = false;
+let lastX = 0, lastY = 0;
+
+wrap.addEventListener('pointerdown', e => {
+    isDragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    wrap.setPointerCapture(e.pointerId);
+});
+
+wrap.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    
+    // Pan logic
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        // Move view
+        const dCols = Math.round(dx / CELL_PX);
+        const dRows = Math.round(dy / CELL_PX);
+        if (dCols !== 0 || dRows !== 0) {
+            view.leftB -= dCols;
+            view.topK -= dRows;
+            if(view.leftB < 0) view.leftB = 0;
+            if(view.topK < 0) view.topK = 0;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            requestBatch();
+            draw();
+        }
+    }
+});
+
+wrap.addEventListener('pointerup', e => {
+    isDragging = false;
+    // Click logic
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    
+    // Only select if we didn't drag much
+    const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
+    if(dist < 10) {
+        const c = Math.floor(cx / CELL_PX);
+        const r = Math.floor(cy / CELL_PX);
+        select(view.topK + r, view.leftB + c);
+    }
+});
+
+// Controls
+btnGo.addEventListener('click', () => {
+    const k = parseInt(inpK.value) || 0;
+    view.topK = k;
+    view.leftB = 0;
+    cellCache.clear();
+    requestBatch();
+    select(k, 0);
+});
+
+// Resize
+function resize() {
+    DPR = window.devicePixelRatio || 1;
+    canvas.width = wrap.clientWidth * DPR;
+    canvas.height = wrap.clientHeight * DPR;
+    requestBatch();
+    draw();
+}
+window.addEventListener('resize', resize);
+
+// Boot
+resize();
+select(0, 0); // Start at origin
+
+</script>
+</body>
+</html>

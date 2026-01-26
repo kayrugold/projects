@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fermat's Geometric Factorizer</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: monospace; padding: 20px; }
+    .canvas-container { 
+        display: flex; justify-content: center; align-items: center; 
+        background: #020617; border: 1px solid #334155; border-radius: 8px;
+        height: 400px; position: relative; overflow: hidden;
+    }
+    .grid-layer { display: grid; gap: 1px; position: absolute; transition: all 0.3s; }
+    .cell { width: 10px; height: 10px; border-radius: 1px; }
+    
+    /* Colors */
+    .cell.target { background: #facc15; } /* The number N */
+    .cell.inner { background: #3b82f6; opacity: 0.3; } /* The b^2 square */
+    .cell.success { background: #4ade80; box-shadow: 0 0 5px #4ade80; } /* Match found */
+    
+    input[type=range] { accent-color: #3b82f6; width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="max-w-2xl mx-auto flex flex-col gap-6">
+    <header class="border-b border-slate-700 pb-4">
+        <h1 class="text-2xl font-bold text-yellow-400">Fermat's "Thick Gnomon"</h1>
+        <p class="text-slate-400 text-sm">Visualize N = a² - b² = (a-b)(a+b)</p>
+    </header>
+
+    <div class="flex gap-4 items-center bg-slate-800 p-4 rounded-lg">
+        <div class="flex-1">
+            <label class="text-xs text-slate-500 block">Target Composite (N)</label>
+            <input type="number" id="inpN" value="15" class="bg-slate-900 border border-slate-600 p-2 rounded w-full text-white font-bold" min="3" step="2">
+        </div>
+        <button onclick="init()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold text-white">LOAD</button>
+    </div>
+
+    <div class="bg-slate-800 p-4 rounded-lg">
+        <div class="flex justify-between text-sm mb-2">
+            <span class="text-blue-400">Inner Square (b²): <span id="lblB" class="font-bold text-white">--</span></span>
+            <span class="text-yellow-400">Total Area (a²): <span id="lblA" class="font-bold text-white">--</span></span>
+        </div>
+        <input type="range" id="sliderB" min="1" max="50" step="1" oninput="updateVis()">
+        <div class="text-center mt-2 text-xs text-slate-500">Slide to adjust 'b' (thickness of the frame)</div>
+    </div>
+
+    <div class="canvas-container" id="canvas">
+        </div>
+
+    <div id="status" class="text-center text-lg font-bold min-h-[30px]"></div>
+</div>
+
+<script>
+let N = 15;
+
+function init() {
+    const val = parseInt(document.getElementById('inpN').value);
+    if (val % 2 === 0) { alert("Please enter an odd number"); return; }
+    N = val;
+    
+    // Set slider range
+    // We start searching from b=1 up to roughly N/2
+    const slider = document.getElementById('sliderB');
+    slider.min = 1;
+    slider.max = Math.ceil(N / 2);
+    slider.value = 1;
+    
+    updateVis();
+}
+
+function updateVis() {
+    const b = parseInt(document.getElementById('sliderB').value);
+    const container = document.getElementById('canvas');
+    const lblB = document.getElementById('lblB');
+    const lblA = document.getElementById('lblA');
+    const status = document.getElementById('status');
+    
+    container.innerHTML = '';
+    
+    // Fermat Logic:
+    // We assume N = a^2 - b^2
+    // Therefore a^2 = N + b^2
+    // We check if (N + b^2) is a perfect square.
+    
+    const targetArea = N + (b * b);
+    const a = Math.sqrt(targetArea);
+    const isPerfect = Number.isInteger(a);
+    
+    // Update Labels
+    lblB.innerText = `${b}² (${b*b})`;
+    lblA.innerText = isPerfect ? `${a}² (${targetArea})` : `~${a.toFixed(2)}² (${targetArea})`;
+    
+    // Render
+    // We draw a square of size ceil(a) x ceil(a)
+    const gridSize = Math.ceil(a);
+    const cellSize = Math.min(380 / gridSize, 30); // Adaptive scaling
+    
+    const grid = document.createElement('div');
+    grid.className = 'grid-layer';
+    grid.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
+    
+    // Total cells to draw = gridSize * gridSize
+    // 1. The inner b*b square (Blue)
+    // 2. The N blocks (Yellow) wrapping around
+    // 3. Any "Gap" blocks if not perfect (Empty/Grey)
+    
+    let blocksN = 0;
+    
+    for (let r = 0; r < gridSize; r++) {
+        for (let c = 0; c < gridSize; c++) {
+            const div = document.createElement('div');
+            div.className = 'cell';
+            div.style.width = cellSize + 'px';
+            div.style.height = cellSize + 'px';
+            
+            // Logic to color
+            // Is it inside b x b? (Top Left alignment)
+            if (r < b && c < b) {
+                div.className = 'cell inner'; // b^2
+            } else {
+                // It's part of the Gnomon area
+                blocksN++;
+                if (blocksN <= N) {
+                    div.className = isPerfect ? 'cell target success' : 'cell target';
+                } else {
+                    // This block exceeds N (meaning N + b^2 isn't enough to fill this square)
+                    div.style.background = '#1e293b'; // Empty slot
+                    div.style.border = '1px dashed #334155';
+                }
+            }
+            grid.appendChild(div);
+        }
+    }
+    
+    container.appendChild(grid);
+    
+    if (isPerfect) {
+        const factor1 = a - b;
+        const factor2 = a + b;
+        status.innerHTML = `<span class="text-green-400">PERFECT FIT! Factors: ${factor1} × ${factor2} = ${N}</span>`;
+    } else {
+        const missing = (gridSize * gridSize) - (N + b*b);
+        if (missing > 0) {
+            status.innerHTML = `<span class="text-slate-500">Gap: Missing ${missing} blocks to complete ${gridSize}²</span>`;
+        } else {
+             status.innerHTML = `<span class="text-slate-500">Searching...</span>`;
+        }
+    }
+}
+
+// Start
+init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background: #000; color: #00ff41; font-family: 'Courier New', monospace; padding: 10px; margin: 0; }
+        #output { border: 1px solid #333; height: 420px; overflow-y: auto; padding: 10px; font-size: 12px; background: #050505; margin-bottom: 10px; border-radius: 5px; }
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        input { background: #111; border: 1px solid #00ff41; color: #00ff41; padding: 15px; font-size: 18px; border-radius: 5px; outline: none; }
+        button { background: #00ff41; color: #000; border: none; padding: 15px; font-weight: bold; font-size: 16px; cursor: pointer; border-radius: 5px; }
+        .stat { color: #fff; font-weight: bold; }
+        .residue { color: #0af; font-weight: bold; }
+        .shell { color: #ff8c00; }
+        .snap { color: #000; background: #00ff41; padding: 2px 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div style="border-bottom: 1px solid #00ff41; padding-bottom: 5px; margin-bottom: 10px; font-weight: bold;">PHASE-SHIFT NAVIGATOR v4.1</div>
+    <div id="output">SYSTEM IDLE... ENTER N</div>
+    <div class="input-group">
+        <input type="text" id="target" placeholder="Enter N (e.g. 294701)" inputmode="numeric">
+        <button onclick="calculate()">START RECURSIVE TRACE</button>
+    </div>
+
+<script>
+const out = document.getElementById('output');
+function log(msg) {
+    out.innerHTML += msg + "<br>";
+    out.scrollTop = out.scrollHeight;
+}
+
+// Stable Integer Square Root for BigInt
+function isqrt(value) {
+    if (value < 0n) return null;
+    if (value < 2n) return value;
+    let x = value / 2n + 1n;
+    let y = (x + value / x) / 2n;
+    while (y < x) {
+        x = y;
+        y = (x + value / x) / 2n;
+    }
+    return x;
+}
+
+function calculate() {
+    const inputVal = document.getElementById('target').value.trim();
+    if(!inputVal) return;
+    let N = BigInt(inputVal);
+    out.innerHTML = ""; 
+
+    log(`[1] INITIAL N: <span class="stat">${N}</span>`);
+    const factors = [];
+    
+    // OUTER LOOP: Keep running as long as N is composite
+    let found;
+    do {
+        found = false;
+        let road = 3n; // ALWAYS RESET TO STARTING ROAD
+        
+        while (road * road <= N) {
+            if (N % road === 0n) {
+                factors.push(road);
+                log(`<span class="snap">SNAP! Road ${road}</span> found.`);
+                N = N / road; // REDUCE N
+                log(`<b>RE-SEATING:</b> New Remnant = ${N}`);
+                found = true;
+                break; // Break inner loop to restart road scan at 3n
+            }
+            road += 4n; 
+        }
+    } while (found);
+
+    // Final Prime Remnant
+    if (N > 1n) {
+        factors.push(N);
+        log(`FINAL REMNANT: <span class="stat">${N}</span>`);
+    }
+
+    log(`-------------------------------`);
+    log(`<b>TOTAL HARMONIC SIGNATURE:</b>`);
+    log(`<span class="stat" style="font-size:18px;">${factors.join(" × ")}</span>`);
+}
+
+
+
+
+</script>
+</body>
+</html>

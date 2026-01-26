@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gnomon Blueprint</title>
+    <style>
+        :root {
+            --bg-blueprint: #1e3a8a; /* Deep Blueprint Blue */
+            --line-grid: rgba(255, 255, 255, 0.1);
+            --line-strong: rgba(255, 255, 255, 0.8);
+            --line-weak: rgba(255, 255, 255, 0.4);
+            --text-main: #bfdbfe;
+            --highlight: #60a5fa;
+            --prime-color: #34d399; /* Green for Stable */
+            --comp-color: #f87171;  /* Red for Unstable */
+            --amber: #fbbf24;
+        }
+
+        body {
+            margin: 0;
+            background-color: #0f172a;
+            color: var(--text-main);
+            font-family: "Courier New", Courier, monospace; /* Tech/Drafting font */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- HEADER --- */
+        header {
+            background: #172554;
+            padding: 12px;
+            border-bottom: 2px solid var(--line-weak);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        
+        h1 { 
+            margin: 0; 
+            font-size: 1rem; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-weight: 700;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border: 1px solid var(--line-weak);
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        /* --- BLUEPRINT GRID --- */
+        .blueprint-container {
+            flex: 1;
+            position: relative;
+            background-color: var(--bg-blueprint);
+            background-image: 
+                linear-gradient(var(--line-grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--line-grid) 1px, transparent 1px);
+            background-size: 20px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Decorative Ruler Lines */
+        .ruler-x { position: absolute; bottom: 0; left: 0; width: 100%; height: 20px; border-top: 1px solid var(--line-weak); }
+        .ruler-y { position: absolute; top: 0; left: 0; height: 100%; width: 20px; border-right: 1px solid var(--line-weak); }
+
+        canvas {
+            filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.3));
+        }
+
+        /* --- ANALYSIS PANEL --- */
+        .analysis-panel {
+            background: #0f172a;
+            border-top: 2px solid var(--line-weak);
+            padding: 16px;
+            height: auto;
+            min-height: 220px;
+            display: grid;
+            gap: 12px;
+            z-index: 20;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed var(--line-weak);
+            padding-bottom: 8px;
+        }
+
+        .label { font-size: 0.75rem; color: var(--text-main); text-transform: uppercase; opacity: 0.8; }
+        .value { font-size: 1.1rem; font-weight: bold; color: white; font-family: monospace; }
+        
+        .sieve-box {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--line-weak);
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        .sieve-result {
+            font-size: 0.9rem;
+            margin-top: 4px;
+            font-weight: bold;
+        }
+        .sieve-result.stable { color: var(--prime-color); }
+        .sieve-result.unstable { color: var(--comp-color); }
+
+        /* --- CONTROLS --- */
+        .control-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--line-weak);
+            border-radius: 2px;
+            appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border: 2px solid var(--bg-blueprint);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* Animation for scanning */
+        @keyframes scan {
+            0% { border-color: transparent; }
+            50% { border-color: white; }
+            100% { border-color: transparent; }
+        }
+
+        .highlight-arm { color: var(--highlight); font-weight: bold; }
+        .highlight-corner { color: var(--amber); font-weight: bold; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 22V2h20"/><path d="M2 12h10"/><path d="M12 2v10"/></svg>
+            Gnomon Blueprint
+        </h1>
+        <div class="status-badge" id="sys-status">Ready</div>
+    </header>
+
+    <div class="blueprint-container">
+        <div class="ruler-x"></div>
+        <div class="ruler-y"></div>
+        <canvas id="blueprintCanvas"></canvas>
+    </div>
+
+    <div class="analysis-panel">
+        <!-- Controls -->
+        <div class="control-bar">
+            <span class="label">INDEX (N)</span>
+            <input type="range" id="n-slider" min="2" max="50" value="4">
+            <span class="value" id="val-n">4</span>
+        </div>
+
+        <!-- Structural Breakdown -->
+        <div class="data-row">
+            <span class="label">Structure</span>
+            <div style="font-size: 0.9rem;">
+                <span class="highlight-arm" id="val-arm">3</span> Arm + 
+                <span class="highlight-arm">3</span> Arm + 
+                <span class="highlight-corner">1</span> Crnr
+            </div>
+        </div>
+
+        <div class="data-row">
+            <span class="label">Total Area (Gnomon)</span>
+            <span class="value" id="val-gnomon">7</span>
+        </div>
+
+        <!-- The Sundaram Proof -->
+        <div class="sieve-box">
+            <div class="label" style="display:flex; justify-content:space-between;">
+                <span>SUNDARAM STABILITY CHECK</span>
+                <span>Arm Length k = <span id="val-k">3</span></span>
+            </div>
+            <div style="height: 1px; background: var(--line-weak); margin: 6px 0;"></div>
+            
+            <div id="proof-container">
+                <!-- JS Will Inject Proof Here -->
+                <div class="sieve-result stable">
+                    No solution for k = i + j + 2ij
+                    <br>➔ STRUCTURE IS PRIME
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('blueprintCanvas');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('n-slider');
+        
+        let state = {
+            n: 4
+        };
+
+        // --- THE SUNDARAM ALGORITHM ---
+        function getSundaramProof(k) {
+            // We look for integers 1 <= i <= j such that i + j + 2ij = k
+            // If found, return {found: true, i, j}
+            // If not, return {found: false}
+            
+            // Optimization: i + j + 2ij = k  =>  2i + 2j + 4ij = 2k  => (2i+1)(2j+1) = 2k+1
+            // We can just loop i
+            
+            for (let i = 1; i <= k; i++) {
+                // Derived from k = i + j + 2ij
+                // k - i = j(1 + 2i)
+                // j = (k - i) / (2i + 1)
+                
+                const numerator = k - i;
+                const denominator = 2 * i + 1;
+                
+                if (numerator < 0) break; // j cannot be negative
+                
+                if (numerator % denominator === 0) {
+                    const j = numerator / denominator;
+                    if (j >= i) { // Ensure i <= j to avoid duplicates
+                        return { found: true, i, j };
+                    }
+                }
+            }
+            return { found: false };
+        }
+
+        function isPerfectSquare(num) {
+            return Math.sqrt(num) % 1 === 0;
+        }
+
+        // --- RENDER LOGIC ---
+        function updateUI() {
+            const n = state.n;
+            const k = n - 1; // Arm Length
+            const gnomon = 2 * n - 1;
+
+            document.getElementById('val-n').innerText = n;
+            document.getElementById('val-arm').innerText = k;
+            document.getElementById('val-k').innerText = k;
+            document.getElementById('val-gnomon').innerText = gnomon;
+
+            // Run Sieve Proof
+            const proof = getSundaramProof(k);
+            const proofContainer = document.getElementById('proof-container');
+            const statusBadge = document.getElementById('sys-status');
+
+            if (proof.found) {
+                // COMPOSITE
+                const factor1 = 2 * proof.i + 1;
+                const factor2 = 2 * proof.j + 1;
+                
+                proofContainer.innerHTML = `
+                    <div style="font-family:monospace; color:var(--text-main); font-size:0.8rem;">
+                        Found flaw at: <span style="color:#fff">i=${proof.i}, j=${proof.j}</span>
+                        <br>
+                        Formula: ${proof.i} + ${proof.j} + 2(${proof.i})(${proof.j}) = ${k}
+                    </div>
+                    <div class="sieve-result unstable">
+                        ➔ UNSTABLE (COMPOSITE)
+                        <div style="font-size:0.8rem; font-weight:normal; margin-top:2px; color:var(--text-main)">
+                            Decomposes into: ${factor1} × ${factor2}
+                        </div>
+                    </div>
+                `;
+                statusBadge.innerText = "UNSTABLE";
+                statusBadge.style.color = "var(--comp-color)";
+                statusBadge.style.borderColor = "var(--comp-color)";
+            } else {
+                // PRIME or 1
+                if (gnomon === 1) {
+                     proofContainer.innerHTML = `<div class="sieve-result">UNIT UNITY</div>`;
+                     statusBadge.innerText = "UNIT";
+                } else {
+                    proofContainer.innerHTML = `
+                        <div style="font-family:monospace; color:var(--text-main); font-size:0.8rem;">
+                            Scan complete. No integer pattern fits.
+                            <br>
+                            k ≠ i + j + 2ij
+                        </div>
+                        <div class="sieve-result stable">
+                            ➔ STABLE (PRIME)
+                        </div>
+                    `;
+                    statusBadge.innerText = "STABLE";
+                    statusBadge.style.color = "var(--prime-color)";
+                    statusBadge.style.borderColor = "var(--prime-color)";
+                }
+            }
+
+            renderCanvas(proof.found);
+        }
+
+        function renderCanvas(isComposite) {
+            const size = Math.min(window.innerWidth, 400); // Fixed blueprint width
+            const dpr = window.devicePixelRatio || 2;
+            
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
+            
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, size, size);
+
+            const n = state.n;
+            const maxGrid = Math.max(n + 2, 12);
+            const cellSize = size / maxGrid;
+            const offset = (size - (n * cellSize)) / 2;
+
+            // Blueprint Grid Lines
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            // Verts
+            for(let i=0; i<=n; i++) {
+                ctx.moveTo(offset + i*cellSize, offset);
+                ctx.lineTo(offset + i*cellSize, offset + n*cellSize);
+            }
+            // Horiz
+            for(let i=0; i<=n; i++) {
+                ctx.moveTo(offset, offset + i*cellSize);
+                ctx.lineTo(offset + n*cellSize, offset + i*cellSize);
+            }
+            ctx.stroke();
+
+            // 1. Draw Previous Square (Ghosted)
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            ctx.fillRect(offset, offset, (n-1)*cellSize, (n-1)*cellSize);
+
+            // 2. Draw Gnomon Arms (The Blueprint)
+            // Color Logic: Green if stable, Red if unstable
+            const color = isComposite ? '#f87171' : '#34d399';
+            
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.8;
+
+            // Draw individual cells to look like blueprints
+            const gap = 1; // Small gap for block look
+
+            // Cornerstone
+            ctx.fillRect(
+                offset + (n-1)*cellSize + gap, 
+                offset + (n-1)*cellSize + gap, 
+                cellSize - gap*2, 
+                cellSize - gap*2
+            );
+
+            // Vertical Arm (Right)
+            for(let r=0; r<n-1; r++) {
+                ctx.fillRect(
+                    offset + (n-1)*cellSize + gap, 
+                    offset + r*cellSize + gap, 
+                    cellSize - gap*2, 
+                    cellSize - gap*2
+                );
+            }
+
+            // Horizontal Arm (Bottom)
+            for(let c=0; c<n-1; c++) {
+                ctx.fillRect(
+                    offset + c*cellSize + gap, 
+                    offset + (n-1)*cellSize + gap, 
+                    cellSize - gap*2, 
+                    cellSize - gap*2
+                );
+            }
+
+            // 3. Schematic Lines (Dimensions)
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 1;
+            
+            // Draw dimension line for ARM
+            const armX = offset + (n-1)*cellSize + cellSize/2;
+            const armTop = offset;
+            const armBot = offset + (n-1)*cellSize;
+            
+            // We just draw arrows or lines to signify "k"
+            if (!isComposite) {
+                // Only clutter with dimensions if Prime to show "Strength"
+                // Draw a bracket for the vertical arm
+                ctx.beginPath();
+                ctx.moveTo(offset + n*cellSize + 10, offset);
+                ctx.lineTo(offset + n*cellSize + 15, offset);
+                ctx.lineTo(offset + n*cellSize + 15, offset + (n-1)*cellSize);
+                ctx.lineTo(offset + n*cellSize + 10, offset + (n-1)*cellSize);
+                ctx.stroke();
+                
+                // Label k
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px monospace';
+                ctx.fillText(`k=${n-1}`, offset + n*cellSize + 20, offset + (n-1)*cellSize/2);
+            }
+        }
+
+        slider.addEventListener('input', (e) => {
+            state.n = parseInt(e.target.value);
+            updateUI();
+        });
+
+        // Init
+        updateUI();
+
+    </script>
+</body>
+</html>
+

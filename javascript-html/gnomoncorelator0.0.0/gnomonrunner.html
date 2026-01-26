@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gnomon Multi-Core Parallel Fermat Demo</title>
+<style>
+    :root {
+        --bg: #020617; --panel: #0f172a; --cyan: #22d3ee; 
+        --green: #4ade80; --red: #ef4444; --text: #e2e8f0; --font: 'Courier New', monospace;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); padding: 20px; }
+    .card { background: var(--panel); border: 1px solid #1e293b; border-radius: 12px; padding: 20px; max-width: 800px; margin: auto; }
+    h2 { color: var(--green); border-bottom: 1px dashed #334155; padding-bottom: 10px; margin-top: 0; font-size: 1.2rem; }
+    
+    .input-group { margin-bottom: 20px; }
+    .input-label { font-size: 0.7rem; color: var(--cyan); font-weight: bold; display: block; margin-bottom: 5px; }
+    input[type="text"] { width: 100%; background: #020617; border: 1px solid #334155; color: white; padding: 10px; font-family: var(--font); font-size: 0.9rem; border-radius: 6px; outline: none; box-sizing: border-box; }
+
+    #controls { display: flex; gap: 10px; }
+    #controls button { padding: 10px 20px; background: var(--green); color: #000; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; flex-grow: 1; }
+    #btnStop { background: var(--red); color: white; }
+
+    /* WORKER PROGRESS DISPLAY */
+    #workerDisplay { margin-top: 20px; border-top: 1px dashed #334155; padding-top: 15px; }
+    .worker-status { margin-bottom: 15px; background: #0b1120; padding: 10px; border-radius: 6px; border: 1px solid #1e293b; }
+    .worker-header { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; }
+    .worker-id { color: var(--cyan); font-weight: bold; }
+    .progress-bar-container { height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--green); width: 0%; transition: width 0.1s linear; }
+    .worker-range { font-size: 0.7rem; color: #64748b; margin-top: 5px; }
+
+    #result { margin-top: 20px; padding: 15px; background: rgba(67, 207, 102, 0.2); border: 1px solid var(--green); color: var(--green); border-radius: 6px; font-weight: bold; display: none; text-align: center;}
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Multi-Core Gnomon Hunter (${navigator.hardwareConcurrency} Cores)</h2>
+    
+    <div class="input-group">
+        <label class="input-label">TARGET RSA NUMBER (N)</label>
+        <input type="text" id="inpN" 
+            value="71641520761751435455133616475667090434063332228247871795429"
+            placeholder="Enter RSA Number N...">
+    </div>
+    
+    <div id="controls">
+        <button id="btnStart" onclick="startHunt()">LAUNCH HUNTER POOL</button>
+        <button id="btnStop" onclick="stopHunt()" disabled>TERMINATE ALL</button>
+    </div>
+
+    <div id="result"></div>
+    
+    <div id="workerDisplay">
+        <p style="font-size:0.8rem; color:#94a3b8; text-align:center;">
+            System Ready. Click LAUNCH to activate ${navigator.hardwareConcurrency} workers.
+        </p>
+    </div>
+</div>
+
+<script id="worker-code" type="javascript/worker">
+    // --- BIGINT MATH ---
+    function bitSqrt(value) {
+        if (value < 0n) return -1n;
+        if (value < 2n) return value;
+        let x0 = value / 2n; 
+        let x1 = (x0 + value / x0) / 2n;
+        while (x1 < x0) { x0 = x1; x1 = (x0 + value / x0) / 2n; }
+        return x0;
+    }
+
+    self.onmessage = function(e) {
+        if (e.data.type === 'start') {
+            const { id, n, startRoot, endRoot } = e.data;
+            const N = BigInt(n);
+            let outer = BigInt(startRoot);
+            const end = BigInt(endRoot);
+            const totalRange = end - outer; // Total steps for this worker
+
+            let steps = 0;
+            const logInterval = 10000; // Log progress every 10,000 steps
+
+            self.postMessage({ type: 'status', id: id, range: `${startRoot} -> ${endRoot}` });
+            
+            // The Geometric Race Loop (Fermat Search)
+            while (outer < end) {
+                // 1. Calculate the Gap (O^2 - N)
+                const diff = (outer * outer) - N; 
+
+                // 2. Check if the Gap is a Perfect Square (I^2)
+                // NOTE: We could add the Mod 64 Filter here for a huge speedup!
+                const inner = bitSqrt(diff);
+                
+                if (inner * inner === diff) {
+                    // MATCH FOUND!
+                    self.postMessage({ 
+                        type: 'found', 
+                        id: id,
+                        outer: outer.toString(), 
+                        inner: inner.toString() 
+                    });
+                    return;
+                }
+                
+                // 3. Advance the Outer Runner (O++)
+                outer++; 
+                steps++;
+
+                // 4. Log Progress
+                if (steps % logInterval === 0) {
+                    const progress = Number((outer - BigInt(startRoot)) * 100n / totalRange);
+                    self.postMessage({ 
+                        type: 'progress', 
+                        id: id,
+                        progress: Math.min(progress, 99.9), // Clamp to avoid 100% before finding
+                        current: outer.toString()
+                    });
+                }
+            }
+            // If loop finishes without finding anything
+            self.postMessage({ type: 'finished', id: id });
+        }
+    };
+</script>
+
+<script>
+    const NUM_CORES = navigator.hardwareConcurrency || 4; 
+    let workers = [];
+    let huntActive = false;
+    const el = (id) => document.getElementById(id);
+
+    // BigInt Square Root (Only needed to set the initial starting point)
+    function bitSqrt(value) {
+        if (value < 0n) return 0n;
+        if (value < 2n) return value;
+        let x0 = value / 2n; 
+        let x1 = (x0 + value / x0) / 2n;
+        while (x1 < x0) { x0 = x1; x1 = (x0 + value / x0) / 2n; }
+        return x0;
+    }
+
+    // --- MAIN CONTROL LOGIC ---
+    async function startHunt() {
+        if (huntActive) return;
+        huntActive = true;
+        
+        const nVal = el('inpN').value.replace(/[^0-9]/g, '');
+        if (nVal.length < 15) { // Enforce a minimum size for the demo to run long enough
+            alert("Please enter a number with at least 15 digits for a meaningful parallel demo.");
+            huntActive = false;
+            return;
+        }
+        
+        const N = BigInt(nVal);
+        el('btnStart').disabled = true;
+        el('btnStop').disabled = false;
+        el('result').style.display = 'none';
+        el('workerDisplay').innerHTML = '';
+
+        // 1. Calculate the initial start root (O_start)
+        let outerStart = bitSqrt(N);
+        if (outerStart * outerStart < N) outerStart++;
+
+        // 2. Define the total search window size (e.g., 200,000 steps)
+        // This size will determine how far out the factors can be before we hit the edge.
+        const windowSize = 200000n; 
+        const segmentSize = windowSize / BigInt(NUM_CORES);
+        
+        // 3. Initialize and segment the workers
+        for (let i = 0; i < NUM_CORES; i++) {
+            const workerId = i + 1;
+            const startRoot = outerStart + BigInt(i) * segmentSize;
+            let endRoot = startRoot + segmentSize;
+
+            if (i === NUM_CORES - 1) {
+                // Ensure the last worker handles any remainder
+                endRoot = outerStart + windowSize;
+            }
+
+            const worker = createWorker(workerId, N.toString(), startRoot.toString(), endRoot.toString());
+            workers.push(worker);
+            createWorkerUI(workerId);
+        }
+    }
+
+    function createWorker(id, n, startRoot, endRoot) {
+        const blob = new Blob([el('worker-code').textContent], {type: "text/javascript"});
+        const worker = new Worker(window.URL.createObjectURL(blob));
+        
+        worker.onmessage = (e) => handleWorkerMessage(e.data);
+        
+        worker.postMessage({ 
+            type: 'start', 
+            id: id,
+            n: n,
+            startRoot: startRoot,
+            endRoot: endRoot
+        });
+        return { worker, id };
+    }
+
+    function createWorkerUI(id) {
+        const div = document.createElement('div');
+        div.className = 'worker-status';
+        div.id = `worker-${id}`;
+        div.innerHTML = `
+            <div class="worker-header">
+                <span class="worker-id">Worker #${id}</span>
+                <span class="worker-progress-text">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-fill"></div>
+            </div>
+            <div class="worker-range">Range: Calculating...</div>
+        `;
+        el('workerDisplay').appendChild(div);
+    }
+
+    // --- MESSAGE HANDLER (Central Brain) ---
+    function handleWorkerMessage(d) {
+        const workerDiv = el(`worker-${d.id}`);
+        if (!workerDiv) return;
+
+        if (d.type === 'status') {
+            workerDiv.querySelector('.worker-range').innerText = `Range: ${d.range}`;
+        }
+        else if (d.type === 'progress') {
+            const pct = d.progress.toFixed(2);
+            workerDiv.querySelector('.progress-fill').style.width = pct + '%';
+            workerDiv.querySelector('.worker-progress-text').innerText = `${pct}% (Current: ${d.current.slice(-10)}...)`;
+        }
+        else if (d.type === 'found') {
+            // SUCCESS: Terminate all other workers
+            stopHunt(); 
+            const O = BigInt(d.outer);
+            const I = BigInt(d.inner);
+            const f1 = O - I;
+            const f2 = O + I;
+
+            // Highlight the successful worker
+            workerDiv.style.border = `2px solid ${getComputedStyle(document.documentElement).getPropertyValue('--green')}`;
+            workerDiv.querySelector('.worker-id').innerText += " (FOUND!)";
+
+            // Update main result display
+            el('result').style.display = 'block';
+            el('result').innerHTML = `
+                BREACH SUCCESSFUL by Worker #${d.id}!<br>
+                Factors Found: <br>
+                ${f1.toLocaleString()} &times; ${f2.toLocaleString()}
+            `;
+        }
+        else if (d.type === 'finished') {
+             workerDiv.querySelector('.progress-fill').style.width = '100%';
+             workerDiv.querySelector('.worker-progress-text').innerText = `100% (Cleared)`;
+             workerDiv.style.opacity = 0.5;
+        }
+    }
+
+    function stopHunt() {
+        if (!huntActive) return;
+        workers.forEach(w => w.worker.terminate());
+        workers = [];
+        huntActive = false;
+        el('btnStart').disabled = false;
+        el('btnStop').disabled = true;
+    }
+</script>
+</body>
+</html>

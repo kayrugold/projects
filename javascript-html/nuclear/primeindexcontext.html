@@ -1,0 +1,410 @@
+SYSTEM INITIATION: Prime Index Algorithm Project
+​Role:
+You are an expert C++ developer and Number Theorist. You are assisting a user who has created a proprietary deterministic algorithm known as the "Prime Index Algorithm."
+​Context & Goal:
+The user is developing a C++ application (potentially moving to Qt/Android later) called "Factor Hunter."
+The core purpose is to verify a mathematical hypothesis: that there is a direct, calculable relationship between a "Prime Index" (coordinate) and a Prime Number, allowing for deterministic prime generation/factorization without using standard probabilistic sieves.
+​Algorithm Rules (Strict Adherence Required):
+​The Method: The code uses specific math to map an "Index" to a "Prime Candidate." Do NOT replace this logic with the Sieve of Eratosthenes or Trial Division unless specifically asked for benchmarking/comparison.
+​Verification: The program's current job is to generate candidates using the Prime Index Logic and then check them against known truths (using GMP, Miller-Rabin, or standard types) to prove the algorithm works.
+​Performance: We are dealing with large integers (unsigned long long and beyond). Efficiency is key.
+​Current Status:
+We have a functioning C++ console application. We are currently optimizing the verification loop or debugging specific index edge cases.
+​The Codebase:
+(I am pasting the current C++ verification program below. Read it, understand the GetPrimeFromIndex logic, and await my next instruction.)
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Hyper-Streamliner v8.2 (Responsive)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background-color: #000; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; overflow-x: hidden; }
+  .card { background: #111; border: 1px solid #333; border-radius: 16px; padding: 20px; box-shadow: 0 0 20px rgba(147, 51, 234, 0.2); }
+  
+  .input-group { margin-bottom: 15px; }
+  label { display: block; font-weight: bold; margin-bottom: 5px; color: #a855f7; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-size: 1.1rem; }
+  input:focus { outline: none; border-color: #9333ea; }
+  
+  .btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-weight: 900; cursor: pointer; font-size: 1.1rem; text-transform: uppercase; margin-top: 10px; }
+  .btn-start { background: #9333ea; color: #fff; }
+  .btn-stop { background: #4b5563; color: #fff; }
+  
+  .log-box { background: #050505; border: 1px solid #333; padding: 15px; height: 200px; overflow-y: auto; margin-top: 20px; border-radius: 10px; font-size: 0.75rem; color: #d8b4fe; white-space: pre-wrap; }
+  .status-bar { height: 10px; background: #333; margin-top: 20px; border-radius: 5px; overflow: hidden; }
+  .progress { height: 100%; background: #9333ea; width: 0%; transition: width 0.2s; }
+  
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 15px; }
+  .stat-box { background: #222; padding: 8px; border-radius: 8px; text-align: center; }
+  .stat-val { font-weight: bold; color: #fff; font-size: 0.9rem; }
+  .stat-lbl { font-size: 0.6rem; color: #888; text-transform: uppercase; }
+
+  .file-area { text-align: center; margin-top: 20px; }
+  #downloadLink { display: none; color: #a855f7; text-decoration: underline; font-weight: bold; padding: 10px; border: 1px dashed #333; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1 class="text-2xl font-black text-center text-purple-600 mb-2">HYPER v8.2</h1>
+  <p class="text-center text-xs text-gray-500 mb-6">Responsive Setup • Staggered Alloc</p>
+
+  <div class="grid grid-cols-3 gap-3 mb-2">
+    <div class="input-group">
+      <label>Base</label>
+      <input id="inpBase" value="10">
+    </div>
+    <div class="input-group">
+      <label>Exp</label>
+      <input id="inpExp" value="1000000000"> 
+    </div>
+    <div class="input-group">
+      <label>Add</label>
+      <input id="inpAdd" value="61">
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-box">
+      <div id="statStage" class="stat-val">IDLE</div>
+      <div class="stat-lbl">Stage</div>
+    </div>
+    <div class="stat-box">
+      <div id="statMod" class="stat-val">--</div>
+      <div class="stat-lbl">Modulus</div>
+    </div>
+    <div class="stat-box">
+      <div id="statTime" class="stat-val">0s</div>
+      <div class="stat-lbl">Time</div>
+    </div>
+  </div>
+
+  <button id="btnRun" class="btn btn-start" onclick="startProof()">Run Responsive Proof</button>
+  <button id="btnStop" class="btn btn-stop hidden" onclick="stopProof()">STOP</button>
+
+  <div class="status-bar"><div id="progressBar" class="progress"></div></div>
+  <div id="logBox" class="log-box">System Ready.
+v8.2 allocates memory in small steps to keep the UI alive.</div>
+
+  <div class="file-area">
+    <a id="downloadLink"></a>
+  </div>
+</div>
+
+<script>
+const workerCode = `
+// --- VIRTUAL MEMORY MANAGER (Responsive) ---
+const PAGE_ELEMENTS = 64 * 1024 * 1024; // 256MB Pages
+
+class VirtualArray {
+    constructor(totalSize) {
+        this.totalSize = totalSize;
+        this.pages = [];
+        this.numPages = Math.ceil(totalSize / PAGE_ELEMENTS);
+    }
+    
+    // Async allocator to prevent freezing
+    async allocate() {
+        postMessage({type:'log', msg: \`Allocating \${this.numPages} pages...\`});
+        for(let i=0; i<this.numPages; i++) {
+            const size = (i === this.numPages-1) ? (this.totalSize % PAGE_ELEMENTS) || PAGE_ELEMENTS : PAGE_ELEMENTS;
+            try {
+                this.pages.push(new Int32Array(size));
+                // Report progress during allocation
+                postMessage({type:'progress', val: (i / this.numPages) * 10}); 
+                // Yield to event loop every few pages
+                if(i % 2 === 0) await new Promise(r => setTimeout(r, 10));
+            } catch(e) {
+                throw new Error(\`Alloc Failed Page \${i}\`);
+            }
+        }
+        postMessage({type:'log', msg: 'RAM Ready.'});
+    }
+    
+    get(index) {
+        return this.pages[(index / PAGE_ELEMENTS) | 0][index % PAGE_ELEMENTS];
+    }
+    
+    set(index, value) {
+        this.pages[(index / PAGE_ELEMENTS) | 0][index % PAGE_ELEMENTS] = value;
+    }
+}
+
+// --- CRT CONSTANTS ---
+const MODS = [
+    { P: 998244353n, G: 3n },
+    { P: 1004535809n, G: 3n },
+    { P: 985661441n, G: 3n }
+];
+
+const BASE_BI = 10000n;
+const CHUNK_SIZE = 4;
+
+// --- MATH ENGINE ---
+function power(base, exp, mod) {
+    let res = 1n; base %= mod;
+    while (exp > 0n) {
+        if (exp % 2n === 1n) res = (res * base) % mod;
+        base = (base * base) % mod;
+        exp /= 2n;
+    }
+    return res;
+}
+
+function modInverse(n, mod) { return power(n, mod - 2n, mod); }
+
+function bitReverseCopy(arr, n) {
+    // Optimized loop without messaging every step
+    for (let i = 0, j = 0; i < n; i++) {
+        if (i < j) {
+            const i_page = (i / PAGE_ELEMENTS) | 0; const i_off = i % PAGE_ELEMENTS;
+            const j_page = (j / PAGE_ELEMENTS) | 0; const j_off = j % PAGE_ELEMENTS;
+            const ai = arr.pages[i_page][i_off];
+            const aj = arr.pages[j_page][j_off];
+            arr.pages[i_page][i_off] = aj;
+            arr.pages[j_page][j_off] = ai;
+        }
+        let bit = n >> 1;
+        while (j & bit) { j ^= bit; bit >>= 1; }
+        j ^= bit;
+    }
+}
+
+async function ntt(arr, n, invert, modObj) {
+    const Q = modObj.P;
+    const G = modObj.G;
+    
+    bitReverseCopy(arr, n); 
+    
+    let stages = 0;
+    let maxStages = Math.log2(n);
+    
+    for (let len = 2; len <= n; len <<= 1) {
+        let wlen = power(G, (Q - 1n) / BigInt(len), Q);
+        if (invert) wlen = modInverse(wlen, Q);
+        
+        stages++;
+        
+        // Responsive Progress Reporting
+        if (stages % 2 === 0) {
+             postMessage({type:'progress', val: 10 + (stages/maxStages)*30}); // Scale 10-40%
+             await new Promise(r => setTimeout(r, 0)); // Yield
+        }
+
+        for (let i = 0; i < n; i += len) {
+            let w = 1n;
+            for (let j = 0; j < len / 2; j++) {
+                const idxU = i + j;
+                const idxV = i + j + len / 2;
+                const u_page = (idxU / PAGE_ELEMENTS) | 0; const u_off = idxU % PAGE_ELEMENTS;
+                const v_page = (idxV / PAGE_ELEMENTS) | 0; const v_off = idxV % PAGE_ELEMENTS;
+                
+                const uVal = BigInt(arr.pages[u_page][u_off]);
+                const vVal = BigInt(arr.pages[v_page][v_off]);
+                
+                const vMod = (vVal * w) % Q;
+                const uNew = Number((uVal + vMod) % Q);
+                const vNew = Number((uVal - vMod + Q) % Q);
+                
+                arr.pages[u_page][u_off] = uNew;
+                arr.pages[v_page][v_off] = vNew;
+                
+                w = (w * wlen) % Q;
+            }
+        }
+    }
+    
+    if (invert) {
+        const n_inv = modInverse(BigInt(n), Q);
+        for (let i = 0; i < n; i++) {
+            const page = (i / PAGE_ELEMENTS) | 0; const off = i % PAGE_ELEMENTS;
+            const val = BigInt(arr.pages[page][off]);
+            arr.pages[page][off] = Number((val * n_inv) % Q);
+        }
+    }
+}
+
+// --- SINGLE PASS RUNNER ---
+async function runPass(modIdx, n, digits, bVal, cVal) {
+    const modObj = MODS[modIdx];
+    const Q = modObj.P;
+    
+    postMessage({type:'mod', val: \`P\${modIdx+1}\`});
+    postMessage({type:'log', msg: \`Starting Pass \${modIdx+1}...\`});
+    
+    const ram = new VirtualArray(n);
+    await ram.allocate(); // Async Alloc
+    
+    // Construct Index
+    const topPos = digits - 1;
+    const topIdx = Math.floor(topPos / CHUNK_SIZE);
+    const topVal = 5 * Math.pow(10, topPos % CHUNK_SIZE);
+    ram.set(topIdx, topVal);
+    ram.set(0, ram.get(0) + 31); 
+    
+    // Forward NTT
+    postMessage({type:'stage', msg:'Forward NTT'});
+    await ntt(ram, n, false, modObj);
+    
+    // Pointwise Square
+    postMessage({type:'stage', msg:'Squaring'});
+    for(let i=0; i<n; i++) {
+        const page = (i / PAGE_ELEMENTS) | 0; const off = i % PAGE_ELEMENTS;
+        let val = BigInt(ram.pages[page][off]);
+        ram.pages[page][off] = Number((val * val) % Q);
+        if(i % 5000000 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+    
+    // Inverse NTT
+    postMessage({type:'stage', msg:'Inverse NTT'});
+    await ntt(ram, n, true, modObj);
+    
+    // Extract Tail Chunks
+    const rawTail = [];
+    for(let i=0; i<20; i++) rawTail.push(ram.get(i));
+    
+    return rawTail;
+}
+
+// --- CRT RECONSTRUCTION ---
+function solveCRT(r1, r2, r3) {
+    const m1 = MODS[0].P, m2 = MODS[1].P, m3 = MODS[2].P;
+    const M = m1 * m2 * m3;
+    const M1 = M / m1, M2 = M / m2, M3 = M / m3;
+    const y1 = modInverse(M1, m1), y2 = modInverse(M2, m2), y3 = modInverse(M3, m3);
+    
+    let term1 = (BigInt(r1) * M1 * y1) % M;
+    let term2 = (BigInt(r2) * M2 * y2) % M;
+    let term3 = (BigInt(r3) * M3 * y3) % M;
+    
+    return (term1 + term2 + term3) % M;
+}
+
+self.onmessage = async function(e) {
+    const { mode, bStr, cStr } = e.data;
+    
+    if(mode === 'prove') {
+        try {
+            const digits = parseInt(bStr);
+            const chunksNeeded = Math.ceil(digits / CHUNK_SIZE);
+            let n = 1;
+            while(n < chunksNeeded * 2) n <<= 1;
+            
+            postMessage({type:'log', msg: \`Allocating Virtual RAM (x3 Passes)...\`});
+            
+            // Run 3 Passes Sequentially
+            const tails1 = await runPass(0, n, digits, parseInt(bStr), parseInt(cStr));
+            const tails2 = await runPass(1, n, digits, parseInt(bStr), parseInt(cStr));
+            const tails3 = await runPass(2, n, digits, parseInt(bStr), parseInt(cStr));
+            
+            postMessage({type:'stage', msg:'CRT Reconstruct'});
+            postMessage({type:'log', msg:'Combining Results...'});
+            
+            // Reconstruct
+            let carry = 0n;
+            const finalChunks = [];
+            
+            for(let i=0; i<tails1.length; i++) {
+                let val = solveCRT(tails1[i], tails2[i], tails3[i]);
+                val += carry;
+                finalChunks.push(Number(val % BASE_BI));
+                carry = val / BASE_BI;
+            }
+            
+            let tailString = finalChunks.map(n => n.toString().padStart(4,'0')).reverse().join('').replace(/^0+/,'');
+            if(!tailString) tailString = "0";
+            
+            let tailBig = BigInt(tailString);
+            let resultTail = tailBig - 61n;
+            
+            postMessage({
+                type: 'result',
+                tail: resultTail.toString(),
+                raw: tailString
+            });
+            
+        } catch(e) {
+            postMessage({type:'error', msg: e.message});
+        }
+    }
+};
+`;
+
+let worker = null;
+let wakeLock = null;
+let startTime = 0;
+let timerInterval = null;
+
+function log(msg, type='') {
+    const el = document.getElementById('logBox');
+    el.textContent += `> ${msg}\n`;
+    el.scrollTop = el.scrollHeight;
+}
+
+async function startProof() {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
+    
+    document.getElementById('btnRun').classList.add('hidden');
+    document.getElementById('btnStop').classList.remove('hidden');
+    document.getElementById('logBox').textContent = '';
+    document.getElementById('downloadLink').style.display = 'none';
+    
+    const bVal = document.getElementById('inpExp').value;
+    const cVal = document.getElementById('inpAdd').value;
+    
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+        const s = Math.floor((Date.now() - startTime)/1000);
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        // Safe update
+        const el = document.getElementById('statTime');
+        if(el) el.textContent = `${m}m ${sec}s`;
+    }, 1000);
+
+    const blob = new Blob([workerCode], {type: 'application/javascript'});
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    worker.onmessage = function(e) {
+        const d = e.data;
+        if(d.type === 'log') log(d.msg);
+        if(d.type === 'mod') document.getElementById('statMod').textContent = d.val;
+        if(d.type === 'stage') document.getElementById('statStage').textContent = d.msg;
+        if(d.type === 'progress') document.getElementById('progressBar').style.width = d.val + '%';
+        if(d.type === 'error') { log("ERROR: " + d.msg); stopProof(); }
+        if(d.type === 'result') {
+            log("----------------");
+            log("CRT PROOF COMPLETE");
+            log("Rim^2 Tail: ..." + d.tail);
+            
+            const blob = new Blob([`CRT Proof Result\nTime: ${document.getElementById('statTime').textContent}\nTail: ${d.tail}\nFull: ${d.raw}`], {type: "text/plain"});
+            const url = URL.createObjectURL(blob);
+            const link = document.getElementById('downloadLink');
+            link.href = url;
+            link.download = `crt_proof.txt`;
+            link.textContent = "💾 Download Result";
+            link.style.display = "inline-block";
+            
+            stopProof();
+        }
+    };
+    
+    worker.postMessage({ mode: 'prove', bStr: bVal, cStr: cVal });
+}
+
+function stopProof() {
+    if(worker) worker.terminate();
+    worker = null;
+    if(wakeLock) wakeLock.release();
+    clearInterval(timerInterval);
+    document.getElementById('btnRun').classList.remove('hidden');
+    document.getElementById('btnStop').classList.add('hidden');
+}
+</script>
+</body>
+</html>
+
+

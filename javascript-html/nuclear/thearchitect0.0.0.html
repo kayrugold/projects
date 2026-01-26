@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Architect v2.0</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: 'Courier New', monospace; padding: 15px; }
+    
+    /* CARD & LAYOUT */
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; max-width: 800px; margin: 0 auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6); position: relative; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+
+    /* INPUTS */
+    label { display: block; font-size: 0.7rem; color: #94a3b8; margin-bottom: 4px; font-weight: bold; uppercase; letter-spacing: 0.05em; }
+    input { width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 12px; border-radius: 6px; font-family: monospace; text-align: center; font-weight: bold; }
+    input:focus { outline: none; border-color: #3b82f6; }
+    
+    /* BUTTONS */
+    .btn { width: 100%; padding: 14px; border-radius: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; border: none; transition: all 0.2s; color: white; }
+    .btn-run { background: #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+    .btn-run:hover { background: #2563eb; }
+    .btn-stop { background: #ef4444; display: none; }
+    .btn-dl { background: #10b981; margin-top: 10px; display: none; } /* Download Green */
+    .btn-help { background: transparent; border: 1px dashed #475569; color: #94a3b8; font-size: 0.8rem; padding: 8px; margin-top: 15px; }
+    .btn-help:hover { border-color: #cbd5e1; color: #fff; }
+
+    /* STATS */
+    .stat-box { background: #0f172a; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #1e293b; }
+    .stat-label { font-size: 0.7rem; color: #64748b; }
+    .stat-val { font-size: 1.1rem; font-weight: bold; color: #f1f5f9; }
+    .timer { color: #fbbf24; text-shadow: 0 0 5px rgba(251, 191, 36, 0.2); }
+
+    /* PROGRESS */
+    .progress-track { height: 6px; background: #0f172a; border-radius: 3px; overflow: hidden; margin: 15px 0; border: 1px solid #334155; }
+    .progress-fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
+
+    /* LOGS & OUTPUT */
+    .log-window { background: #020617; border: 1px solid #334155; height: 150px; overflow-y: auto; padding: 10px; font-size: 0.8rem; color: #cbd5e1; border-radius: 6px; font-family: monospace; }
+    .data-preview { background: #020617; border: 1px solid #334155; padding: 10px; margin-top: 10px; border-radius: 6px; color: #4ade80; font-size: 0.8rem; min-height: 60px; display: flex; align-items: center; justify-content: center; text-align: center; }
+
+    /* HELP MODAL */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 50; backdrop-filter: blur(4px); }
+    .modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; width: 90%; max-width: 550px; padding: 25px; box-shadow: 0 0 40px rgba(59, 130, 246, 0.2); max-height: 85vh; overflow-y: auto; }
+    .modal-close { position: absolute; top: 15px; right: 20px; color: #64748b; font-size: 1.5rem; cursor: pointer; }
+    .modal-title { font-size: 1.25rem; font-weight: bold; color: #fff; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 15px; }
+    .modal-p { color: #cbd5e1; font-size: 0.9rem; margin-bottom: 12px; line-height: 1.5; }
+    .modal-ex { background: #0f172a; border-left: 3px solid #3b82f6; padding: 10px; margin: 15px 0; font-size: 0.85rem; color: #93c5fd; font-family: monospace; }
+
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-bold text-center text-blue-400 mb-1">THE ARCHITECT v2.0</h1>
+    <p class="text-center text-xs text-slate-500 mb-6">Index Wall Builder & Prime Sieve</p>
+
+    <div class="grid-2">
+        <div>
+            <label>START INDEX (Ruler Position)</label>
+            <input id="inpStart" value="1">
+        </div>
+        <div>
+            <label>MAX INDEX LIMIT (Stop Here)</label>
+            <input id="inpMax" value="1000" style="border-color: #fbbf24; color: #fbbf24;">
+        </div>
+    </div>
+    
+    <div>
+        <label>CHUNK SIZE (Batch Processing)</label>
+        <input id="inpChunk" value="1000">
+    </div>
+
+    <div class="progress-track"><div id="pBar" class="progress-fill"></div></div>
+
+    <div class="grid-3">
+        <div class="stat-box">
+            <div class="stat-label">Elapsed Time</div>
+            <div id="sTime" class="stat-val timer">00:00:00</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Wall Density</div>
+            <div id="sDensity" class="stat-val">0%</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Primes Found</div>
+            <div id="sCount" class="stat-val text-green-400">0</div>
+        </div>
+    </div>
+
+    <button id="btnStart" class="btn btn-run" onclick="startBuild()">BUILD WALLS</button>
+    <button id="btnStop" class="btn btn-stop" onclick="stopBuild()">HALT CONSTRUCTION</button>
+    <button id="btnDl" class="btn btn-dl" onclick="downloadData()">💾 DOWNLOAD PRIME LIST</button>
+
+    <div class="data-preview" id="livePreview">
+        Live Sample: Waiting to start...
+    </div>
+
+    <div class="log-window" id="logBox">System Ready.<br>Set Limit and Chunk Size above.</div>
+
+    <button class="btn btn-help" onclick="showHelp()">[?] HOW TO USE & THEORY</button>
+</div>
+
+<div id="helpModal" class="modal-overlay">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeHelp()">&times;</span>
+        <div class="modal-title">THE ARCHITECT MANUAL</div>
+        
+        <div class="modal-p">
+            <strong>THE GOAL:</strong><br>
+            To find all Prime Numbers in a range by building "Walls" on composite indices.
+        </div>
+
+        <div class="modal-p">
+            <strong>INDEX vs. NUMBER:</strong><br>
+            This program works on the <strong>Index Ruler</strong>.
+            <br>
+            <span style="color:#fbbf24">Formula: Number = (Index × 2) - 1</span>
+        </div>
+
+        <div class="modal-ex">
+            <strong>CONCRETE EXAMPLE:</strong><br>
+            1. We check <strong>Index 6</strong>.<br>
+            2. Convert: (6 × 2) - 1 = <strong>11</strong>.<br>
+            3. Did any Prime Family (3, 5, etc.) build a wall at Index 6? <strong>NO.</strong><br>
+            4. Result: 11 is Prime.
+        </div>
+        
+        <div class="modal-ex">
+             <strong>WALL EXAMPLE:</strong><br>
+             1. We check <strong>Index 5</strong>.<br>
+             2. Convert: (5 × 2) - 1 = <strong>9</strong>.<br>
+             3. The "3-Family" starts at Index 5. <strong>WALL BUILT.</strong><br>
+             4. Result: 9 is Composite.
+        </div>
+
+        <div class="modal-p">
+            <strong>INPUTS:</strong><br>
+            - <strong>Start/Max:</strong> The range of Indices to scan.<br>
+            - <strong>Chunk Size:</strong> How many indices to process at once.
+        </div>
+
+        <div class="modal-p">
+            <strong>OUTPUT:</strong><br>
+            The program collects every Prime found. Use the <strong>Download</strong> button to save the full list to your phone/PC.
+        </div>
+    </div>
+</div>
+
+<script>
+let isRunning = false;
+let startTime = 0;
+let timerInterval = null;
+let worker = null;
+let totalPrimes = 0;
+let collectedData = []; // Buffer for the download
+
+function showHelp() { document.getElementById('helpModal').style.display = 'block'; }
+function closeHelp() { document.getElementById('helpModal').style.display = 'none'; }
+
+// WORKER CODE
+const workerCode = `
+self.onmessage = function(e) {
+    const { startStr, chunkStr } = e.data;
+    const startIdx = BigInt(startStr);
+    const size = Number(chunkStr);
+
+    // 1. Create The Ruler (0=Prime, 1=Wall)
+    const ruler = new Uint8Array(size);
+    
+    // 2. Determine Max Number to find required Prime Families
+    const maxNum = (startIdx + BigInt(size)) * 2n;
+    const isqrt = (n) => {
+        if (n < 2n) return n;
+        let x = n, y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    };
+    const limit = Number(isqrt(maxNum));
+
+    // 3. Build Walls (The Stride)
+    let walls = 0;
+    
+    // Simple Sieve for Generator Primes
+    const gens = new Uint8Array(limit + 1);
+    for(let p=3; p<=limit; p+=2) {
+        if(gens[p] === 0) {
+            const P = BigInt(p);
+            
+            // Calculate Global Start Index for Family P
+            // Index = (P^2 + 1) / 2
+            const globalStart = (P*P + 1n) / 2n;
+            
+            let localStart = 0;
+            if (globalStart >= startIdx) {
+                if (globalStart < startIdx + BigInt(size)) {
+                    localStart = Number(globalStart - startIdx);
+                } else {
+                    continue; 
+                }
+            } else {
+                // Bridge the gap
+                const dist = startIdx - globalStart;
+                const jumps = (dist + P - 1n) / P;
+                const firstHit = globalStart + (jumps * P);
+                localStart = Number(firstHit - startIdx);
+            }
+
+            // Mark Walls
+            for(let i=localStart; i<size; i+=p) {
+                if(ruler[i] === 0) {
+                    ruler[i] = 1;
+                    walls++;
+                }
+            }
+
+            // Mark Generator multiples
+            if(p*p <= limit) {
+                for(let j=p*p; j<=limit; j+=2*p) gens[j] = 1;
+            }
+        }
+    }
+
+    // 4. Collect Primes
+    const results = [];
+    for(let i=0; i<size; i++) {
+        if(ruler[i] === 0) {
+            const idx = startIdx + BigInt(i);
+            // Special Case: Index 1 -> Number 1 (Not Prime). 
+            // We usually start primes at 2 or 3. 
+            // Index 1 corresponds to 1. 1 is not prime.
+            // Index 2 corresponds to 3. 
+            if(idx > 1n) {
+                const val = (idx * 2n) - 1n;
+                results.push({ i: idx.toString(), v: val.toString() });
+            }
+        }
+    }
+
+    self.postMessage({ 
+        primes: results, 
+        walls: walls, 
+        total: size,
+        nextStart: (startIdx + BigInt(size)).toString() 
+    });
+};
+`;
+
+function log(msg) {
+    const el = document.getElementById('logBox');
+    const div = document.createElement('div');
+    div.innerText = "> " + msg;
+    el.prepend(div);
+}
+
+function updateTimer() {
+    const now = Date.now();
+    const diff = Math.floor((now - startTime) / 1000);
+    const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+    const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+    const s = (diff % 60).toString().padStart(2, '0');
+    document.getElementById('sTime').innerText = `${h}:${m}:${s}`;
+}
+
+function startBuild() {
+    if(isRunning) return;
+    isRunning = true;
+    
+    // Reset Stats
+    totalPrimes = 0;
+    collectedData = [];
+    document.getElementById('sCount').innerText = "0";
+    document.getElementById('pBar').style.width = "0%";
+    document.getElementById('logBox').innerText = "";
+    document.getElementById('btnStart').style.display = "none";
+    document.getElementById('btnStop').style.display = "inline-block";
+    document.getElementById('btnDl').style.display = "none";
+
+    const start = document.getElementById('inpStart').value;
+    const chunk = document.getElementById('inpChunk').value;
+    const max = document.getElementById('inpMax').value;
+
+    log(`Initializing Architect from Index ${start} to ${max}...`);
+    
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 1000);
+
+    const blob = new Blob([workerCode], {type: "application/javascript"});
+    worker = new Worker(URL.createObjectURL(blob));
+
+    // Kickoff
+    worker.postMessage({ startStr: start, chunkStr: chunk });
+
+    worker.onmessage = function(e) {
+        const { primes, walls, total, nextStart } = e.data;
+        
+        // 1. Store Data
+        collectedData = collectedData.concat(primes);
+        totalPrimes += primes.length;
+        
+        // 2. Update UI
+        document.getElementById('sCount').innerText = totalPrimes.toLocaleString();
+        
+        const density = ((walls / total) * 100).toFixed(1);
+        document.getElementById('sDensity').innerText = density + "%";
+
+        const currentIdx = BigInt(nextStart);
+        const maxIdx = BigInt(max);
+        const startIdx = BigInt(start);
+        const progress = Number((currentIdx - startIdx) * 10000n / (maxIdx - startIdx)) / 100;
+        document.getElementById('pBar').style.width = Math.min(progress, 100) + "%";
+
+        // 3. Live Sample (Show last found prime)
+        if(primes.length > 0) {
+            const last = primes[primes.length-1];
+            document.getElementById('livePreview').innerHTML = 
+                `LATEST WALL BUILT<br>Index <span style="color:#fbbf24">${last.i}</span> = Number <span style="color:#fff">${last.v}</span>`;
+        } else {
+            document.getElementById('livePreview').innerText = "Sector completely walled off (No Primes).";
+        }
+        
+        log(`Chunk Complete. Found ${primes.length} primes.`);
+
+        // 4. Loop or Stop
+        if (isRunning) {
+            if (currentIdx < maxIdx) {
+                // Determine next chunk size (don't overshoot max)
+                let nextChunk = BigInt(chunk);
+                if (currentIdx + nextChunk > maxIdx) {
+                    nextChunk = maxIdx - currentIdx + 1n; // +1 to include max
+                }
+                
+                // Small delay for UI breathe
+                setTimeout(() => {
+                    worker.postMessage({ startStr: nextStart, chunkStr: nextChunk.toString() });
+                }, 0);
+            } else {
+                finishBuild();
+            }
+        }
+    };
+}
+
+function stopBuild() {
+    log("Manual Abort triggered.");
+    finishBuild();
+}
+
+function finishBuild() {
+    if(worker) worker.terminate();
+    worker = null;
+    isRunning = false;
+    clearInterval(timerInterval);
+    document.getElementById('btnStart').style.display = "inline-block";
+    document.getElementById('btnStop').style.display = "none";
+    document.getElementById('btnDl').style.display = "block"; // Show download
+    document.getElementById('pBar').style.width = "100%";
+    log("Construction Halted. Data ready for download.");
+}
+
+function downloadData() {
+    let content = "INDEX, NUMBER, STATUS\n";
+    collectedData.forEach(p => {
+        content += `${p.i}, ${p.v}, PRIME\n`;
+    });
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `architect_primes_${totalPrimes}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+</script>
+</body>
+</html>

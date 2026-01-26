@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IMT v23: Robust</title>
+    
+    <script src="https://unpkg.com/big-integer@1.6.48/BigInteger.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* --- Global --- */
+        body { margin: 0; padding: 0; background-color: #050505; color: #e5e7eb; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; font-family: system-ui, -apple-system, sans-serif; }
+        
+        /* --- Nav --- */
+        #tab-nav {
+            position: fixed; top: 0; left: 0; width: 100%; height: 48px;
+            display: flex; background-color: rgba(15,15,15,0.95); border-bottom: 1px solid #333; z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        .tab-button { flex-grow: 1; background: transparent; border: none; color: #666; font-weight: bold; font-size: 0.9rem; cursor: pointer; letter-spacing: 1px; }
+        .tab-button.active { color: #f72585; background-color: rgba(255,255,255,0.05); border-bottom: 2px solid #f72585; }
+
+        .app-container { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; padding-top: 48px; display: none; overflow-y: auto; }
+        .app-container.active { display: block; }
+
+        /* --- APP 1: GRID --- */
+        #app-imt { overflow: hidden; }
+        #app-imt canvas { display: block; width: 100%; height: 100%; background: #050505; touch-action: none; }
+
+        /* --- Controls Overlay --- */
+        #controls {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.9); border: 1px solid #444; border-radius: 24px;
+            padding: 8px 16px; display: flex; gap: 12px; align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); z-index: 50; backdrop-filter: blur(8px);
+        }
+        .ctrl-val-group { display: flex; flex-direction: column; align-items: center; min-width: 50px; cursor: pointer; }
+        .ctrl-val-group:active { opacity: 0.7; }
+        .ctrl-label { font-size: 0.55rem; color: #888; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; text-transform: uppercase; }
+        .ctrl-val { font-family: monospace; color: #fff; font-size: 1.1rem; font-weight: bold; line-height: 1; }
+        
+        .ctrl-btn { 
+            background: #333; width: 36px; height: 36px; border-radius: 50%; border: none; 
+            color: #fff; font-size: 1.2rem; font-weight: bold; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.1s;
+        }
+        .ctrl-btn:active { background: #f72585; transform: scale(0.95); }
+        
+        /* --- Modals --- */
+        .modal-pop {
+            position: fixed; top: 60px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px;
+            background: rgba(15, 15, 15, 0.95); border: 1px solid #f72585; border-radius: 12px;
+            padding: 20px; display: none; z-index: 60; box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+        }
+        .modal-pop.active { display: block; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        
+        #jump-modal { border-color: #4361ee; top: 50%; transform: translate(-50%, -50%); }
+        #jump-modal.active { display: block; animation: popInCenter 0.2s ease-out; }
+
+        @keyframes popIn { from { transform: translateX(-50%) scale(0.9); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+        @keyframes popInCenter { from { transform: translate(-50%, -40%) scale(0.9); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+
+        /* --- APP 2: SQUAD --- */
+        #app-gen { padding: 20px; background: #0f172a; }
+        .gen-card { background: #1e293b; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .worker-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+        .worker-card { padding: 0.75rem; border-radius: 0.5rem; font-size: 0.70rem; font-weight: bold; text-align: center; color: white; transition: all 0.2s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); }
+        
+        .bg-rho { background: #f59e0b; color: black; }
+        .bg-ecm { background: #f97316; color: black; }
+        .bg-qs { background: #0ea5e9; color: black; }
+        .bg-fermat { background: #6366f1; color: white; }
+        .bg-p1 { background: #ec4899; color: white; }
+        .bg-giga { background: #ef4444; color: white; }
+        .bg-offline { background: #334155 !important; color: #64748b !important; opacity: 0.5; box-shadow: none; }
+        .log-box { height: 200px; overflow-y: auto; background: #020617; color: #34d399; padding: 1rem; border-radius: 0.5rem; font-family: monospace; font-size: 0.8rem; border: 1px solid #334155; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div id="tab-nav">
+        <button id="tab-imt" class="tab-button active" onclick="switchTab('imt')">GRID</button>
+        <button id="tab-gen" class="tab-button" onclick="switchTab('gen')">SQUAD</button>
+    </div>
+
+    <div id="app-imt" class="app-container active">
+        <canvas id="gridCanvas"></canvas>
+        <div id="controls">
+            <button class="ctrl-btn" onclick="adjustBase(-1)">-</button>
+            <div class="ctrl-val-group">
+                <span class="ctrl-label">BASE</span>
+                <span id="hud-base" class="ctrl-val">2</span>
+            </div>
+            <button class="ctrl-btn" onclick="adjustBase(1)">+</button>
+            <div style="width: 1px; height: 24px; background: #444; margin: 0 8px;"></div>
+            <div class="ctrl-val-group" style="min-width: 80px;" onclick="openJumpModal()">
+                <span class="ctrl-label">POSITION</span>
+                <span id="hud-origin" class="ctrl-val text-xs text-gray-300">^1 +1</span>
+            </div>
+            <button class="ctrl-btn" id="resetBtn" style="font-size: 0.8rem;">⟲</button>
+        </div>
+        <div id="jump-modal" class="modal-pop" style="border-color: #fff;">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-white font-bold text-sm tracking-widest">TELEPORT</h3><button onclick="closeJumpModal()" class="text-gray-500 hover:text-white text-xl">✕</button></div>
+            <div class="mb-4"><label class="text-[10px] text-blue-400 font-bold uppercase block mb-1">Smart Input</label><input id="jump-val" type="text" class="w-full bg-slate-900 text-white p-3 rounded border border-blue-500 font-mono text-center font-bold outline-none" placeholder="e.g. 1003" oninput="calcFromValue()"></div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div><label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Exp (Y)</label><input id="jump-exp" type="number" class="w-full bg-black text-white p-3 rounded border border-gray-700 font-mono text-center font-bold outline-none"></div>
+                <div><label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Add (X)</label><input id="jump-add" type="number" class="w-full bg-black text-white p-3 rounded border border-gray-700 font-mono text-center font-bold outline-none"></div>
+            </div>
+            <button onclick="executeJump()" class="w-full bg-white text-black font-bold py-3 rounded-lg transition hover:bg-gray-200">WARP</button>
+        </div>
+        <div id="terminal" class="modal-pop">
+            <div class="flex justify-between items-start mb-4"><h3 class="text-pink-500 font-bold text-xs tracking-widest">TARGET ACQUIRED</h3><button onclick="document.getElementById('terminal').classList.remove('active')" class="text-gray-500 hover:text-white text-xl">✕</button></div>
+            <div id="term-val" class="text-white font-mono text-xl break-all mb-2 font-bold">...</div>
+            <div id="term-coords" class="text-gray-400 text-xs font-mono mb-6 bg-black p-2 rounded border border-gray-800">...</div>
+            <button id="drillDownBtn" class="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3 rounded-lg transition shadow-lg">DEPLOY SQUAD</button>
+        </div>
+    </div>
+
+    <div id="app-gen" class="app-container">
+        <div class="gen-card max-w-2xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-xl font-bold text-blue-400">Poly-Algorithm Squad</h1>
+                <span id="gen-target-status" class="text-xs font-bold text-slate-500 uppercase">IDLE</span>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div><label class="block text-[10px] font-bold mb-1 text-gray-500 uppercase">Base</label><input id="gen-base-input" type="text" class="w-full bg-slate-800 p-2 rounded border border-slate-600 text-white font-mono text-center"></div>
+                <div><label class="block text-[10px] font-bold mb-1 text-gray-500 uppercase">Exp</label><input id="gen-exponent-input" type="text" class="w-full bg-slate-800 p-2 rounded border border-slate-600 text-white font-mono text-center"></div>
+                <div><label class="block text-[10px] font-bold mb-1 text-gray-500 uppercase">Add</label><input id="gen-addend-input" type="text" class="w-full bg-slate-800 p-2 rounded border border-slate-600 text-white font-mono text-center"></div>
+            </div>
+            <div class="flex gap-4 mb-6">
+                <button id="gen-start-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded font-bold">Deploy</button>
+                <button id="gen-stop-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold" disabled>Abort</button>
+            </div>
+            <div class="bg-slate-800 p-3 rounded border border-slate-700 mb-4">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-slate-400 font-bold">FACTORS FOUND:</span>
+                    <span id="gen-factors-output" class="text-white font-bold break-all text-right pl-4">None</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-400 font-bold">REMAINING COFACTOR (N):</span>
+                    <span id="gen-cofactor-output" class="text-slate-300 font-mono truncate w-1/2 text-right">—</span>
+                </div>
+            </div>
+            <div id="gen-worker-grid" class="worker-grid"></div>
+            <pre id="gen-log-output" class="log-box">System Ready.</pre>
+        </div>
+    </div>
+
+    <script>
+        /* --- CRITICAL: STATE & FUNCTIONS DEFINED AT TOP TO PREVENT CRASHES --- */
+        const state = { base: null, exp: null, add: null }; // Init with null, set immediately
+        
+        function initApp() {
+            state.base = bigInt(2);
+            state.exp = bigInt(1);
+            state.add = bigInt(1);
+        }
+        initApp();
+
+        function switchTab(id) {
+            document.querySelectorAll('.app-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById(`app-${id}`).classList.add('active');
+            document.getElementById(`tab-${id}`).classList.add('active');
+            if(id === 'imt' && window.resizeGrid) window.resizeGrid();
+            
+            if(id === 'gen') {
+                document.getElementById('gen-base-input').value = state.base.toString();
+                document.getElementById('gen-exponent-input').value = state.exp.toString();
+                document.getElementById('gen-addend-input').value = state.add.toString();
+            }
+        }
+
+        function adjustBase(delta) {
+            state.base = state.base.add(delta);
+            if (state.base.lesser(2)) state.base = bigInt(2);
+            document.getElementById('hud-base').textContent = state.base.toString();
+            if(window.forceRedraw) window.forceRedraw();
+        }
+
+        function updateHud() {
+            const sign = state.add.greaterOrEquals(0) ? "+" : "";
+            document.getElementById('hud-origin').textContent = `^${state.exp} ${sign}${state.add}`;
+        }
+
+        function openJumpModal() {
+            document.getElementById('jump-modal').classList.add('active');
+            document.getElementById('jump-exp').value = state.exp.toString();
+            document.getElementById('jump-add').value = state.add.toString();
+            document.getElementById('jump-val').value = "";
+            document.getElementById('jump-val').focus();
+        }
+
+        function closeJumpModal() { document.getElementById('jump-modal').classList.remove('active'); }
+
+        function calcFromValue() {
+            const valStr = document.getElementById('jump-val').value;
+            if (!valStr) return;
+            try {
+                const val = bigInt(valStr); const base = state.base;
+                let e = 0; let curr = bigInt(1);
+                while (curr.multiply(base).lesserOrEquals(val)) { curr = curr.multiply(base); e++; }
+                const a = val.subtract(curr);
+                document.getElementById('jump-exp').value = e; document.getElementById('jump-add').value = a.toString();
+            } catch(e) {}
+        }
+
+        function executeJump() {
+            const e = document.getElementById('jump-exp').value; const a = document.getElementById('jump-add').value;
+            if(e && a) { state.exp = bigInt(e); state.add = bigInt(a); if(window.resetCamera) window.resetCamera(); closeJumpModal(); }
+        }
+
+        function showTerminal(exp, add) {
+            document.getElementById('terminal').classList.add('active');
+            const b = state.base.toString(); const e = exp.toString(); const a = add.toString();
+            const sign = add.greaterOrEquals(0) ? "+" : "";
+            document.getElementById('term-val').textContent = `${b}^${e}${sign}${a}`;
+            document.getElementById('term-coords').textContent = `BASE: ${b} // EXP: ${e} // ADD: ${a}`;
+            document.getElementById('drillDownBtn').onclick = () => {
+                document.getElementById('gen-base-input').value = b;
+                document.getElementById('gen-exponent-input').value = e;
+                document.getElementById('gen-addend-input').value = a;
+                switchTab('gen');
+            };
+        }
+
+        document.getElementById('resetBtn').onclick = () => {
+            state.exp = bigInt(1);
+            state.add = bigInt(1);
+            if(window.resetCamera) window.resetCamera();
+        };
+
+        /* --- MAIN THREAD MATH UTILS --- */
+        function mt_powMod(b, e, m) {
+            let r = 1n; b = b % m;
+            while (e > 0n) { if ((e & 1n) === 1n) r = (r * b) % m; e >>= 1n; b = (b * b) % m; }
+            return r;
+        }
+        function mt_isPrime(n) {
+            if (n <= 1n) return false; if (n <= 3n) return true; if (n % 2n === 0n) return false;
+            const bases = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
+            let d = n - 1n; let s = 0n; while ((d & 1n) === 0n) { d >>= 1n; s++; }
+            for (const a of bases) {
+                if (a >= n) break;
+                let x = mt_powMod(a, d, n);
+                if (x === 1n || x === n - 1n) continue;
+                let composite = true;
+                for (let r = 1n; r < s; r++) { x = (x * x) % n; if (x === n - 1n) { composite = false; break; } }
+                if (composite) return false;
+            }
+            return true;
+        }
+
+        /* =================================================
+           WORKER 1: THE GENERAL (COMPLEX ALGORITHMS) 
+           ================================================= */
+        const factorWorkerCode = `
+            self.importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+            let spinIdx=0; const spinners=['|','/','-','\\\\']; function getSpin(){spinIdx=(spinIdx+1)%4;return spinners[spinIdx];}
+            const SQ_MOD_4096=new Uint8Array(4096); for(let i=0;i<4096;i++) SQ_MOD_4096[(i*i)%4096]=1;
+            function gcd(a,b){while(b>0n){let t=b;b=a%b;a=t;}return a;}
+            function powMod(b,e,m){let r=1n;b%=m;while(e>0n){if(e&1n)r=(r*b)%m;e>>=1n;b=(b*b)%m;}return r;}
+            function customIntegerSqrt(n){if(n<0n)return null;if(n<2n)return n;let x=n,y=(x+1n)/2n;while(y<x){x=y;y=(x+n/x)/2n;}return x;}
+            function legendreSymbol(a,p){if(a===0n)return 0;if(p===2n)return 1;a=(a%p+p)%p;const ls=powMod(a,(p-1n)/2n,p);return(ls===p-1n)?-1:1;}
+            function montAdd(x1,z1,x2,z2,xDiff,zDiff,N){let u=(x1-z1)*(x2+z2)%N;let v=(x1+z1)*(x2-z2)%N;let add=(u+v)%N;let sub=(u-v)%N;let x3=(zDiff*add*add)%N;let z3=(xDiff*sub*sub)%N;return[x3,z3];}
+            function montDouble(x1,z1,N,A24){let u=(x1+z1);u=(u*u)%N;let v=(x1-z1);v=(v*v)%N;let diff=u-v;let x2=(u*v)%N;let z2=(diff*(v+A24*diff))%N;return[x2,z2];}
+            function montLadder(k,x,N,A24){let x1=x,z1=1n,x2=1n,z2=0n;[x2,z2]=montDouble(x1,z1,N,A24);let bits=k.toString(2);for(let i=1;i<bits.length;i++){if(bits[i]==='1'){[x1,z1]=montAdd(x2,z2,x1,z1,x,1n,N);[x2,z2]=montDouble(x2,z2,N,A24);}else{[x2,z2]=montAdd(x1,z1,x2,z2,x,1n,N);[x1,z1]=montDouble(x1,z1,N,A24);}}return[x1,z1];}
+            function runECM(data){
+              self.postMessage({type:'status',msg:'Deploying ECM...',idx:data.idx, mID:data.mID});
+              const N=BigInt(data.n_str); let B1=2000n,curveCount=parseInt(data.startCurve||0);
+              while(true){
+                for(let batch=0;batch<10;batch++){
+                  curveCount++; let sigma=BigInt(Math.floor(Math.random()*100000000))+6n;
+                  let x=BigInt(Math.floor(Math.random()*1000000)); let A24=BigInt(Math.floor(Math.random()*10000))+100n;
+                  let X=x,Z=1n;
+                  for(let p=2n;p<B1;p++){
+                    let isP=true; if(p>2n&&p%2n===0n)isP=false; else for(let t=3n;t*t<=p;t+=2n)if(p%t===0n)isP=false;
+                    if(isP){let q=p;while(q<B1){[X,Z]=montLadder(p,X,N,A24);q*=p;}}
+                  }
+                  let g=gcd(Z,N); if(g>1n&&g<N){self.postMessage({type:'factor',val:g.toString(),algo:'ECM',idx:data.idx, mID:data.mID});return;}
+                }
+                self.postMessage({type:'status',msg:getSpin()+' Firing Shell #'+curveCount,idx:data.idx,shell:curveCount, mID:data.mID});
+                if(curveCount%50===0)B1+=500n;
+              }
+            }
+            function runRho(data){
+              self.postMessage({type:'status',msg:'Deploying Rho...',idx:data.idx, mID:data.mID});
+              const N=BigInt(data.n_str); let c=1n,m=128n,steps=0;
+              let nextReport = 0; const interval = 100;
+              while(true){
+                let x=BigInt(Math.floor(Math.random()*1000))+2n,y=x,g=1n,r=1n,q=1n;
+                while(g===1n){
+                  x=y; for(let i=0n;i<r;i++)y=(y*y+c)%N;
+                  let k=0n; while(k<r&&g===1n){
+                    let ys=y,lim=(m<(r-k))?m:(r-k);
+                    for(let i=0n;i<lim;i++){y=(y*y+c)%N; let diff=x>y?x-y:y-x; q=(q*diff)%N;}
+                    g=gcd(q,N); k+=m; steps+=Number(lim);
+                    if(steps > nextReport) { self.postMessage({type:'status',msg:getSpin()+' Spin '+steps,idx:data.idx, mID:data.mID}); nextReport = steps + 5000; }
+                  }
+                  r*=2n;
+                }
+                if(g===N){c++;}else{self.postMessage({type:'factor',val:g.toString(),algo:'Rho (Brent)',idx:data.idx, mID:data.mID});return;}
+              }
+            }
+            function runP1(data){
+              self.postMessage({type:'status',msg:'Deploying P-1...',idx:data.idx, mID:data.mID});
+              const N=BigInt(data.n_str); let B=50000n,a=2n;
+              while(true){
+                self.postMessage({type:'status',msg:getSpin()+' Revving to '+B,idx:data.idx, mID:data.mID});
+                a=2n; for(let i=2n;i<=B;i++){a=powMod(a,i,N); if(i%2000n===0n)self.postMessage({type:'status',msg:getSpin()+' Revving '+i+'/'+B,idx:data.idx, mID:data.mID});}
+                const d=gcd(a-1n,N); if(d>1n&&d<N){self.postMessage({type:'factor',val:d.toString(),algo:'P-1',idx:data.idx, mID:data.mID});return;}
+                B*=2n; self.postMessage({type:'status',msg:'Missed. Power -> '+B,idx:data.idx, mID:data.mID});
+              }
+            }
+            function runPPlus1(data){
+              self.postMessage({type:'status',msg:'Deploying P+1...',idx:data.idx, mID:data.mID});
+              const N=BigInt(data.n_str); let B=50000n,P_val=3n;
+              while(true){
+                self.postMessage({type:'status',msg:getSpin()+' Hammering B='+B,idx:data.idx, mID:data.mID});
+                let V=P_val;
+                for(let i=2n;i<=B;i++){
+                  let v0=2n,v1=V,bits=i.toString(2);
+                  for(let b=0;b<bits.length;b++){
+                    if(bits[b]==='1'){let t=(v0*v1-P_val)%N; if(t<0n)t+=N; v0=t; let t2=(v1*v1-2n)%N; if(t2<0n)t2+=N; v1=t2;} else{let t=(v0*v1-P_val)%N; if(t<0n)t+=N; v1=t; let t2=(v0*v0-2n)%N; if(t2<0n)t2+=N; v0=t2;}
+                  }
+                  V=v0; if(i%2000n===0n)self.postMessage({type:'status',msg:getSpin()+' Hammering '+i+'/'+B,idx:data.idx, mID:data.mID});
+                }
+                let g=gcd(V-2n,N); if(g>1n&&g<N){self.postMessage({type:'factor',val:g.toString(),algo:'P+1',idx:data.idx, mID:data.mID});return;}
+                B*=2n; self.postMessage({type:'status',msg:'Wall held. Power -> '+B,idx:data.idx, mID:data.mID});
+              }
+            }
+            function runTrialDiv(data){
+              self.postMessage({type:'status',msg:'Deploying Grunt...',idx:data.idx, mID:data.mID});
+              const N=BigInt(data.n_str);
+              if(N%2n===0n){self.postMessage({type:'factor',val:'2',algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+              if(N%3n===0n){self.postMessage({type:'factor',val:'3',algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+              if(N%5n===0n){self.postMessage({type:'factor',val:'5',algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+              let p=7n; const wheel=[4n,2n,4n,2n,4n,6n,2n,6n]; let w=0,checks=0;
+              while(true){ if(p*p>N)break; if(N%p===0n){self.postMessage({type:'factor',val:p.toString(),algo:'TrialDiv',idx:data.idx, mID:data.mID});return;}
+                p+=wheel[w]; w=(w+1)%8; checks++; if(checks%50000===0)self.postMessage({type:'status',msg:getSpin()+' Checking '+p,idx:data.idx, mID:data.mID});
+              }
+            }
+            function runQS(data){
+              self.postMessage({type:'status',msg:'Deploying QS...',idx:data.idx, mID:data.mID});
+              const N=BigInt(data.n_str),idx=data.idx;
+              if(data.n_str.length > 60) { self.postMessage({type:'requestSwap', newRole:'ecm', reason:'Target > 60 digits', idx:data.idx, mID:data.mID}); return; }
+              let B_size=data.n_str.length>45?15000:data.n_str.length>30?5000:1200;
+              self.postMessage({type:'status',msg:'Building FB ('+B_size+')...',idx, mID:data.mID});
+              const fb=[]; const sieve=new Uint8Array(B_size*15); sieve.fill(1); fb.push(2n); let cnt=1;
+              for(let i=3;cnt<B_size;i+=2){ if(sieve[i]){ if(legendreSymbol(N,BigInt(i))!==-1){fb.push(BigInt(i));cnt++;} for(let j=i*i;j<sieve.length;j+=i)sieve[j]=0; } }
+              self.postMessage({type:'status',msg:'FB Ready: '+fb.length,idx, mID:data.mID});
+              const sqrtN=customIntegerSqrt(N); const target=fb.length+20; const rels=[]; let xOff=0n,limit=500000n,polyK=1n;
+              while(rels.length<target){
+                const curN=N*polyK; const x=customIntegerSqrt(curN)+xOff; const Q=x*x-curN; let tmp=Q<0n?-Q:Q; const vec=new Array(fb.length).fill(0);
+                for(let i=0;i<fb.length;i++){ const p=fb[i]; while(tmp%p===0n){tmp/=p;vec[i]^=1;} if(tmp===1n)break; }
+                if(tmp===1n){rels.push({x,v:vec,q:Q,k:polyK}); self.postMessage({type:'status',msg:getSpin()+' Rels: '+rels.length+'/'+target,idx, mID:data.mID});}
+                xOff=(xOff<=0n)?(-xOff+1n):(-xOff); if(xOff>limit){polyK++;xOff=0n;self.postMessage({type:'status',msg:'Switching Poly -> '+polyK+'N',idx, mID:data.mID});}
+              }
+              const M=rels.length,K=fb.length; const mat=rels.map(r=>[...r.v]); const hist=rels.map((_,i)=>[i]);
+              for(let col=0;col<K;col++){ let piv=-1; for(let row=0;row<M;row++)if(mat[row][col]===1){piv=row;break;} if(piv!==-1)for(let row=0;row<M;row++)if(row!==piv&&mat[row][col]===1){for(let j=0;j<K;j++)mat[row][j]^=mat[piv][j]; hist[row]=hist[row].concat(hist[piv]);}}
+              for(let row=0;row<M;row++)if(mat[row].every(v=>v===0)){
+                let X=1n,Ysq=1n; for(let i of hist[row]){const r=rels[i]; X=(X*r.x)%N; Ysq=(Ysq*r.q)%N;}
+                const Y=customIntegerSqrt(Ysq); if(Y&&Y*Y===Ysq){
+                  const f1=gcd(X>Y?X-Y:Y-X,N),f2=gcd(X+Y,N);
+                  if(f1>1n&&f1<N){self.postMessage({type:'factor',val:f1.toString(),algo:'QS (Poly)',idx, mID:data.mID});return;}
+                  if(f2>1n&&f2<N){self.postMessage({type:'factor',val:f2.toString(),algo:'QS (Poly)',idx, mID:data.mID});return;}
+                }
+              }
+              self.postMessage({type:'status',msg:'QS: No factor found',idx, mID:data.mID});
+            }
+            function runFermat(data){
+              self.postMessage({type:'status',msg:'Scanning 0%',idx:data.idx, mID:data.mID});
+              const N=BigInt(data.n_str),minS=BigInt(data.minS),maxS=BigInt(data.maxS),primes=data.primes.map(BigInt);
+              const fourN=N*4n; let step=(N%2n!==0n)?2n:1n; if(step===2n&&minS%2n!==0n)minS+=1n;
+              let cand=[],proc=0n,total=maxS-minS;
+              for(let S=minS;S<=maxS;S+=step){
+                const Dsq=S*S-fourN; if(Dsq>=0n){ let ok=true; if(SQ_MOD_4096[Number(Dsq&4095n)]!==1)ok=false; else for(const p of primes)if(legendreSymbol(Dsq,p)===-1){ok=false;break;} if(ok)cand.push(S);}
+                proc+=step; if(proc%5000n===0n){const pct=Number(proc*100n/total); self.postMessage({type:'status',msg:getSpin()+' Scanning '+pct+'%',idx:data.idx, mID:data.mID});}
+              }
+              for(const S of cand){ const Dsq=S*S-fourN, D=customIntegerSqrt(Dsq); if(D&&D*D===Dsq){ const f=(S-D)/2n; if(f>1n){self.postMessage({type:'factor',val:f.toString(),algo:'Fermat',idx:data.idx, mID:data.mID});return;}} }
+              self.postMessage({type:'fermatDone',idx:data.idx, mID:data.mID});
+            }
+            function runGigantic(data){
+              self.postMessage({type:'status',msg:'Deploying...',idx:data.idx, mID:data.mID});
+              const a=BigInt(data.a),b=BigInt(data.b),c=BigInt(data.c); let p=BigInt(data.start),end=BigInt(data.end),chk=0;
+              if(p%2n===0n)p++; while(p<=end){ const mod=(powMod(a,b,p)+(c%p)+p)%p; if(mod===0n)self.postMessage({type:'factor',val:p.toString(),algo:'GigaSniper',idx:data.idx, mID:data.mID}); p+=2n; chk++; if(chk%50000===0)self.postMessage({type:'status',msg:getSpin()+' Scan '+p,idx:data.idx, mID:data.mID});}
+              self.postMessage({type:'gigaRangeDone',idx:data.idx, mID:data.mID});
+            }
+            self.onmessage=e=>{
+              const d=e.data;
+              if(d.mode==='gigantic')runGigantic(d); else if(d.mode==='ecm')runECM(d); else if(d.mode==='rho')runRho(d); else if(d.mode==='p1')runP1(d); else if(d.mode==='pp1')runPPlus1(d); else if(d.mode==='trial')runTrialDiv(d); else if(d.mode==='qs')runQS(d); else if(d.mode==='fermat')runFermat(d);
+            };
+        `;
+        const factorWorkerBlob = new Blob([factorWorkerCode], {type:'application/javascript'});
+        const factorWorkerUrl = URL.createObjectURL(factorWorkerBlob);
+
+        /* --- WORKER 2: THE GRID --- */
+        const gridWorkerCode = `
+            self.importScripts('https://unpkg.com/big-integer@1.6.48/BigInteger.min.js');
+            const CACHE = new Map();
+            function powMod(b,e,m){ let r=bigInt.one; b=b.mod(m); while(e.greater(0)){ if(e.isOdd()) r=r.multiply(b).mod(m); e=e.shiftRight(1); b=b.square().mod(m); } return r; }
+            function checkCell(id, baseStr, expStr, addStr) {
+                if(CACHE.has(id)) return CACHE.get(id);
+                const base = bigInt(baseStr); const exp = bigInt(expStr); const add = bigInt(addStr);
+                const primes = [3,5,7,11,13,17,19];
+                for(let p of primes) {
+                    const pBI = bigInt(p);
+                    const rem = powMod(base, exp, pBI).add(add.mod(pBI)).mod(pBI);
+                    if(rem.isZero()) { CACHE.set(id, {status:'composite'}); return {status:'composite'}; }
+                }
+                let status = 'composite';
+                try { if (base.pow(exp).add(add).isPrime()) status = 'prime'; } catch(e) { status = 'unknown'; }
+                const res = { status }; CACHE.set(id, res); return res;
+            }
+            self.onmessage = function(e) { const d = e.data; if (d.type === 'check') { const res = checkCell(d.id, d.base, d.exp, d.add); self.postMessage({type:'result', id:d.id, status:res.status}); } };
+        `;
+        const gridWorkerBlob = new Blob([gridWorkerCode], {type:'application/javascript'});
+        const gridWorkerUrl = URL.createObjectURL(gridWorkerBlob);
+
+        /* --- GRID CONTROLLER --- */
+        (function() {
+            try {
+                const canvas = document.getElementById('gridCanvas');
+                const ctx = canvas.getContext('2d', { alpha: false });
+                let dpr = window.devicePixelRatio || 1;
+                let baseCellSize = 0, panX = 0, panY = 0, zoom = 1.0;
+                const cellData = new Map();
+                const workers = [];
+                const MAX_WORKERS = 4;
+
+                for(let i=0; i<MAX_WORKERS; i++) {
+                    const w = new Worker(gridWorkerUrl);
+                    w.onmessage = (e) => { if(e.data.type === 'result') { cellData.set(e.data.id, {status: e.data.status}); needsDraw = true; } };
+                    workers.push(w);
+                }
+
+                let needsDraw = true;
+                function loop() { if (needsDraw) draw(); requestAnimationFrame(loop); }
+
+                function draw() {
+                    needsDraw = false;
+                    ctx.fillStyle = "#050505"; ctx.fillRect(0,0, canvas.width / dpr, canvas.height / dpr);
+                    const size = Math.floor(baseCellSize * zoom);
+                    const widthCSS = canvas.width / dpr;
+                    const cx = widthCSS / 2, cy = (canvas.height / dpr) / 2;
+                    const colsHalf = Math.ceil(cx / size) + 1, rowsHalf = Math.ceil(cy / size) + 1;
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    const fontSize = Math.max(10, Math.floor(size * 0.22));
+                    ctx.font = "bold " + fontSize + "px monospace";
+
+                    for(let r = -rowsHalf; r <= rowsHalf; r++) {
+                        const expVal = state.exp.add(r);
+                        if(expVal.lesser(0)) continue;
+                        const dy = cy + (r * size) + (panY * zoom);
+                        for(let c = -colsHalf; c <= colsHalf; c++) {
+                            const addVal = state.add.add(c);
+                            const dx = cx + (c * size) + (panX * zoom);
+                            const id = `${state.base}^${expVal}+${addVal}`;
+                            let color = "#111";
+                            const info = cellData.get(id);
+                            if(info) { if(info.status === 'prime') color = "#f72585"; else if(info.status === 'composite') color = "#0a0a0a"; } 
+                            else { const w = workers[(Math.abs(r+c)) % MAX_WORKERS]; cellData.set(id, {status:'pending'}); w.postMessage({type:'check', id, base:state.base.toString(), exp:expVal.toString(), add:addVal.toString()}); }
+                            const px = Math.floor(dx - size/2), py = Math.floor(dy - size/2), pSize = Math.ceil(size);
+                            ctx.fillStyle = color; ctx.fillRect(px, py, pSize, pSize);
+                            ctx.strokeStyle = "#222"; ctx.lineWidth = 1; ctx.strokeRect(px, py, pSize, pSize);
+                            if(zoom > 0.5) {
+                                ctx.fillStyle = (info && info.status === 'prime') ? "#fff" : "#555";
+                                let label;
+                                if(expVal.lesser(5)) label = state.base.pow(expVal).add(addVal).toString();
+                                else {
+                                    const sign = addVal.greaterOrEquals(0) ? "+" : "";
+                                    label = `${state.base}^${expVal}`;
+                                    if(addVal.abs().lesser(1000)) {
+                                        ctx.fillText(label, Math.floor(dx), Math.floor(dy) - fontSize/2);
+                                        ctx.fillStyle = (info && info.status === 'prime') ? "#ffaabf" : "#444";
+                                        ctx.font = (fontSize*0.8) + "px monospace";
+                                        ctx.fillText(sign + addVal.toString(), Math.floor(dx), Math.floor(dy) + fontSize/2);
+                                        ctx.font = "bold " + fontSize + "px monospace"; label = "";
+                                    } else label += sign + addVal.toString();
+                                }
+                                if(label) ctx.fillText(label, Math.floor(dx), Math.floor(dy));
+                            }
+                        }
+                    }
+                }
+
+                let isDragging = false, isZooming = false, lastX=0, lastY=0, lastDist=0, startX=0, startY=0;
+                function handleStart(x, y) { isDragging = true; lastX = x; lastY = y; startX=x; startY=y; }
+                function handleMove(x, y) {
+                    if (!isDragging) return;
+                    const dx = (x - lastX) / zoom; const dy = (y - lastY) / zoom;
+                    panX += dx; panY += dy;
+                    const size = Math.floor(baseCellSize); 
+                    while(panX > size) { panX -= size; state.add = state.add.subtract(1); updateHud(); }
+                    while(panX < -size) { panX += size; state.add = state.add.add(1); updateHud(); }
+                    while(panY > size) { panY -= size; state.exp = state.exp.subtract(1); updateHud(); }
+                    while(panY < -size) { panY += size; state.exp = state.exp.add(1); updateHud(); }
+                    lastX = x; lastY = y; needsDraw = true;
+                }
+                function handleTap(x, y) {
+                    if (isZooming) return;
+                    if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const relY = y - rect.top;
+                    const size = Math.floor(baseCellSize * zoom);
+                    const widthCSS = canvas.width / dpr;
+                    const cx = widthCSS / 2, cy = (canvas.height / dpr) / 2;
+                    const rx = x - cx - (panX * zoom); const ry = relY - cy - (panY * zoom);
+                    const col = Math.round(rx / size); const row = Math.round(ry / size);
+                    const targetExp = state.exp.add(row); const targetAdd = state.add.add(col);
+                    showTerminal(targetExp, targetAdd);
+                }
+
+                canvas.addEventListener('mousedown', e => handleStart(e.clientX, e.clientY));
+                window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+                window.addEventListener('mouseup', e => { handleTap(e.clientX, e.clientY); isDragging = false; });
+                canvas.addEventListener('touchstart', e => { 
+                    if(e.touches.length === 1) handleStart(e.touches[0].clientX, e.touches[0].clientY); 
+                    else if(e.touches.length === 2) { isZooming = true; isDragging = false; const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; lastDist = Math.hypot(dx, dy); }
+                }, {passive:false});
+                canvas.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    if(e.touches.length === 1) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                    else if(e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX; const dy = e.touches[0].clientY - e.touches[1].clientY; const dist = Math.hypot(dx, dy); if(lastDist > 0) { const delta = dist / lastDist; zoom *= delta; zoom = Math.max(0.2, Math.min(3, zoom)); needsDraw = true; } lastDist = dist; }
+                }, {passive:false});
+                canvas.addEventListener('touchend', e => { if (!isZooming && isDragging && e.changedTouches.length > 0) handleTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY); if (e.touches.length === 0) { isDragging = false; isZooming = false; lastDist = 0; } });
+                
+                window.resizeGrid = () => { 
+                    dpr = window.devicePixelRatio || 1;
+                    canvas.width = window.innerWidth * dpr;
+                    canvas.height = (window.innerHeight - 48) * dpr;
+                    ctx.scale(dpr, dpr);
+                    baseCellSize = Math.min(window.innerWidth, window.innerHeight) / 4.5;
+                    needsDraw = true; 
+                };
+                window.forceRedraw = () => { cellData.clear(); needsDraw = true; updateHud(); };
+                window.resetCamera = () => { panX=0; panY=0; zoom=1.0; window.forceRedraw(); };
+                window.addEventListener('resize', window.resizeGrid);
+                requestAnimationFrame(loop);
+                window.resizeGrid();
+                updateHud();
+            } catch(e) { console.error("Grid Error", e); }
+        })();
+
+        /* --- SQUAD CONTROLLER --- */
+        (function() {
+            try {
+                const NUM_WORKERS = 8;
+                const QR_PRIMES = [3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n,41n,43n,47n,53n];
+                const FERMAT_RANGE = 2000000n;
+                const GIGA_CHUNK_SIZE = 5000000n;
+
+                let ecmShellsFired = 0, workers = [], N_current = 0n, foundFactors = new Set(), isRunning = false, SMin = 0n, isGigantic = false, gigaFrontier = 0n, currentMissionID = 0;
+                const logOutput = document.getElementById('gen-log-output');
+                function log(msg){ const t=new Date().toLocaleTimeString(); logOutput.innerHTML+=`[${t}] ${msg}\n`; logOutput.scrollTop=logOutput.scrollHeight; }
+                
+                function initGrid(){
+                  const g=document.getElementById('gen-worker-grid'); g.innerHTML='';
+                  for(let i=0;i<NUM_WORKERS;i++){
+                    const d=document.createElement('div'); d.id=`gen-card-${i}`; d.className='worker-card bg-slate-700';
+                    d.innerHTML=`Worker ${i}<br><span id="gen-status-${i}" class="opacity-75 font-normal">Ready</span>`;
+                    g.appendChild(d);
+                  }
+                }
+
+                function deploySquad(){
+                  workers.forEach(w=>w&&w.terminate()); workers=Array(NUM_WORKERS).fill(null);
+                  currentMissionID++; const thisRunID = currentMissionID; 
+                  const a_str=document.getElementById('gen-base-input').value;
+                  const b_str=document.getElementById('gen-exponent-input').value;
+                  const c_str=document.getElementById('gen-addend-input').value;
+                  let bigA,bigB,bigC;
+                  try{ bigA=BigInt(a_str); bigB=BigInt(b_str); bigC=BigInt(c_str); } catch(e){ log('Invalid Input'); return; }
+
+                  const estimatedDigits = bigB * BigInt(bigA.toString().length);
+                  isGigantic = estimatedDigits > 15000n;
+                  if(isGigantic) log(`Gigantic Mode Engaged (>15k digits).`);
+
+                  if(!isRunning) {
+                      foundFactors.clear(); 
+                      document.getElementById('gen-factors-output').textContent='None';
+                      document.getElementById('gen-cofactor-output').textContent='—'; 
+                      ecmShellsFired=0;
+                      if (isGigantic) { N_current = 0n; document.getElementById('gen-target-status').textContent='GIGANTIC SEARCH'; document.getElementById('gen-cofactor-output').textContent='Implicit'; } 
+                      else { try { N_current = bigA**bigB + bigC; document.getElementById('gen-target-status').textContent='ACTIVE'; log('Digits: '+N_current.toString().length); document.getElementById('gen-cofactor-output').textContent=N_current.toString(); } catch(e){ isGigantic=true; } }
+                  }
+                  isRunning=true;
+                  if(!isGigantic){ const sqrt=n=>{if(n<2n)return n;let x=n,y=(x+1n)/2n;while(y<x){x=y;y=(x+n/x)/2n;}return x;}; const isqrt=sqrt(N_current); SMin=isqrt*2n; if(SMin*SMin<4n*N_current)SMin+=1n; }
+                  
+                  document.getElementById('gen-start-btn').disabled=true; document.getElementById('gen-stop-btn').disabled=false;
+                  const nLen = N_current.toString().length;
+                  let tactic='balanced'; if(nLen<30)tactic='blitz'; if(nLen>60)tactic='siege';
+
+                  for(let i=0;i<NUM_WORKERS;i++){
+                    const card=document.getElementById(`gen-card-${i}`); 
+                    card.className=`worker-card ${isGigantic?'bg-giga':'bg-slate-600'}`; 
+                    let role=`Worker ${i}`;
+                    if(!isGigantic){
+                      if(tactic==='blitz'){ if(i<4){card.classList.add('bg-rho');role=`Rho Scout ${i+1}`;} else if(i<6){card.classList.add('bg-fermat');role=`Fermat Marine ${i-3}`;} else if(i===6){card.classList.add('bg-td');role='Trial Grunt';} else{card.classList.add('bg-p1');role='P-1 Sniper';}
+                      }else if(tactic==='siege'){ if(i<4){card.classList.add('bg-ecm');role=`ECM Artillery ${i+1}`;} else if(i===4){card.classList.add('bg-p1');role='P-1 Sniper';} else if(i===5){card.classList.add('bg-pp1');role='P+1 Breacher';} else if(i===6){card.classList.add('bg-qs');role='QS Mastermind';} else{card.classList.add('bg-rho');role='Rho Scout';}
+                      }else{ if(i<2){card.classList.add('bg-fermat');role=`Fermat Marine ${i+1}`;} else if(i===2){card.classList.add('bg-ecm');role='ECM Artillery';} else if(i===3){card.classList.add('bg-rho');role='Rho Scout';} else if(i===4){card.classList.add('bg-p1');role='P-1 Sniper';} else if(i===5){card.classList.add('bg-pp1');role='P+1 Breacher';} else if(i===6){card.classList.add('bg-qs');role='QS Mastermind';} else if(i===7){card.classList.add('bg-td');role='Trial Grunt';} }
+                    } else role = `Giga Sniper ${i+1}`;
+                    card.innerHTML=`${role}<br><span id="gen-status-${i}" class="opacity-75 font-normal">Deploying</span>`;
+                  }
+
+                  setTimeout(()=>{
+                    if(!isRunning) return;
+                    for(let i=0;i<NUM_WORKERS;i++){
+                      const w=new Worker(factorWorkerUrl); workers[i]=w; w.onmessage=handleMsg;
+                      const payload = {mID: thisRunID, idx: i};
+                      if(isGigantic) {
+                          const start=gigaFrontier; const end=start+GIGA_CHUNK_SIZE; gigaFrontier=end;
+                          w.postMessage({mode:'gigantic',a:bigA.toString(),b:bigB.toString(),c:bigC.toString(),start:start.toString(),end:end.toString(),idx:i,mID:thisRunID});
+                      } else {
+                        payload.n_str = N_current.toString();
+                        if(tactic==='blitz'){ if(i<4) w.postMessage({...payload, mode:'rho'}); else if(i<6) startFermatChunk(w, i, 2, thisRunID); else if(i===6) w.postMessage({...payload, mode:'trial'}); else w.postMessage({...payload, mode:'p1'});
+                        }else if(tactic==='siege'){ if(i<4) w.postMessage({...payload, mode:'ecm', startCurve:ecmShellsFired}); else if(i===4) w.postMessage({...payload, mode:'p1'}); else if(i===5) w.postMessage({...payload, mode:'pp1'}); else if(i===6) w.postMessage({...payload, mode:'qs'}); else w.postMessage({...payload, mode:'rho'});
+                        }else{ if(i<2) startFermatChunk(w, i, 2, thisRunID); else if(i===2) w.postMessage({...payload, mode:'ecm', startCurve:ecmShellsFired}); else if(i===3) w.postMessage({...payload, mode:'rho'}); else if(i===4) w.postMessage({...payload, mode:'p1'}); else if(i===5) w.postMessage({...payload, mode:'pp1'}); else if(i===6) w.postMessage({...payload, mode:'qs'}); else if(i===7) w.postMessage({...payload, mode:'trial'}); }
+                      }
+                    }
+                  },100);
+                }
+
+                function stopAll(){
+                  workers.forEach(w=>w&&w.terminate()); workers=Array(NUM_WORKERS).fill(null); isRunning=false; 
+                  document.getElementById('gen-start-btn').disabled=false; document.getElementById('gen-stop-btn').disabled=true;
+                  document.getElementById('gen-target-status').textContent='IDLE';
+                  for(let i=0;i<NUM_WORKERS;i++){ const card=document.getElementById(`gen-card-${i}`); if(card) { card.className='worker-card bg-offline'; card.innerHTML=`Unit Withdrawn`; } }
+                }
+                function startFermatChunk(w, idx, army, mID){
+                  if(!isRunning)return; const off=BigInt(idx); const range=FERMAT_RANGE; const min=SMin+(off*range); const max=min+range-1n;
+                  w.postMessage({mode:'fermat',n_str:N_current.toString(),minS:min.toString(),maxS:max.toString(),primes:QR_PRIMES.map(String),idx, mID});
+                }
+                function handleMsg(e){
+                  const d=e.data; if(d.mID !== currentMissionID) return;
+                  if(d.algo==='ECM'&&d.shell)ecmShellsFired=d.shell;
+                  if(d.type==='status') { const el=document.getElementById(`gen-status-${d.idx}`); if(el) el.textContent=d.msg; }
+                  else if(d.type==='factor'){
+                    log(`${d.algo} Found: ${d.val}`);
+                    if(!foundFactors.has(d.val)){
+                      foundFactors.add(d.val); 
+                      if (!isGigantic) {
+                          const f=BigInt(d.val); 
+                          if(N_current%f===0n){ N_current/=f; 
+                              document.getElementById('gen-cofactor-output').textContent=N_current.toString();
+                              if(mt_isPrime(N_current)){ foundFactors.add(N_current.toString()); document.getElementById('gen-cofactor-output').textContent="1"; log("GATEKEEPER: COFACTOR IS PRIME!"); stopAll(); document.getElementById('gen-target-status').textContent = "FULLY FACTORED"; } 
+                              else if(N_current > 1n) { log("Factor Found. Redeploying Squad..."); setTimeout(deploySquad, 100); } 
+                              else { log("TARGET FULLY FACTORED."); stopAll(); document.getElementById('gen-target-status').textContent = "FULLY FACTORED"; }
+                              document.getElementById('gen-factors-output').textContent=Array.from(foundFactors).join(' × ');
+                          }
+                      } else { document.getElementById('gen-factors-output').textContent=Array.from(foundFactors).join(', '); }
+                    }
+                  }
+                  else if(d.type==='fermatDone'){ if(isRunning&&!isGigantic){ SMin += (FERMAT_RANGE * 2n); startFermatChunk(workers[d.idx],d.idx,2,d.mID); } }
+                  else if(d.type==='gigaRangeDone'){ if(isRunning&&isGigantic){ const a=document.getElementById('gen-base-input').value; const b=document.getElementById('gen-exponent-input').value; const c=document.getElementById('gen-addend-input').value; const start=gigaFrontier; const end=start+GIGA_CHUNK_SIZE; gigaFrontier=end; workers[d.idx].postMessage({mode:'gigantic',a,b,c,start:start.toString(),end:end.toString(),idx:d.idx,mID:d.mID}); } }
+                  else if(d.type==='requestSwap' && d.newRole === 'ecm') { log(`PROMOTION: Worker ${d.idx} -> ECM.`); const card = document.getElementById(`gen-card-${d.idx}`); if(card) { card.className = 'worker-card bg-ecm'; card.innerHTML = `ECM Artillery<br><span id="gen-status-${d.idx}">Deploying...</span>`; } workers[d.idx].terminate(); const w = new Worker(factorWorkerUrl); workers[d.idx] = w; w.onmessage = handleMsg; w.postMessage({mode:'ecm', n_str:N_current.toString(), idx:d.idx, startCurve:0, mID:d.mID}); }
+                }
+                document.getElementById('gen-start-btn').onclick = deploySquad;
+                document.getElementById('gen-stop-btn').onclick = () => { stopAll(); log('Squad Aborted.'); };
+                initGrid();
+            } catch(e) { console.error("Squad Error", e); }
+        })();
+    </script>
+</body>
+</html>

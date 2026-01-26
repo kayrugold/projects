@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Architect: Deterministic Wall Builder</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: 'Courier New', monospace; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 20px; max-width: 900px; margin: 20px auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }
+    .btn { background: #3b82f6; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; transition: all 0.2s; border: none; cursor: pointer; }
+    .btn:hover { background: #2563eb; }
+    .btn:disabled { background: #475569; cursor: not-allowed; }
+    .input-dark { background: #0f172a; border: 1px solid #334155; color: #cbd5e1; padding: 8px; border-radius: 4px; width: 100%; font-family: monospace; }
+    .log-window { background: #020617; border: 1px solid #1e293b; height: 300px; overflow-y: auto; padding: 10px; font-size: 14px; margin-top: 10px; white-space: pre-wrap; color: #4ade80; }
+    .stat-box { background: #334155; padding: 10px; border-radius: 6px; text-align: center; }
+    .stat-label { font-size: 0.75rem; color: #94a3b8; uppercase; letter-spacing: 0.05em; }
+    .stat-val { font-size: 1.25rem; font-weight: bold; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="card">
+    <h1 class="text-2xl font-bold text-blue-400 mb-2">THE ARCHITECT</h1>
+    <p class="text-gray-400 text-sm mb-6">Deterministic Prime Verification via Index Wall Building</p>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+            <label class="block text-gray-500 text-xs font-bold mb-1">START INDEX (Ruler Position)</label>
+            <input id="start-index" type="text" class="input-dark" value="1000000">
+            <div class="text-xs text-gray-600 mt-1">Target Number ≈ Index × 2</div>
+        </div>
+        <div>
+            <label class="block text-gray-500 text-xs font-bold mb-1">CHUNK SIZE (Indices per Batch)</label>
+            <input id="chunk-size" type="number" class="input-dark" value="1000000">
+        </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2 mb-6">
+        <div class="stat-box">
+            <div class="stat-label">Active Families</div>
+            <div id="fam-count" class="stat-val">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Wall Density</div>
+            <div id="density-val" class="stat-val">0%</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Primes Verified</div>
+            <div id="prime-count" class="stat-val">0</div>
+        </div>
+    </div>
+
+    <div class="flex gap-4 mb-4">
+        <button id="btn-run" class="btn w-full" onclick="toggleArchitect()">Build Walls</button>
+        <button class="btn bg-red-900 hover:bg-red-800 w-1/4" onclick="reset()">Reset</button>
+    </div>
+
+    <div class="log-window" id="logs">System Ready. Awaiting coordinates...</div>
+</div>
+
+<script>
+/* THE ARCHITECT ENGINE
+   Implements the "Segmented Gnomon Sieve"
+*/
+
+let isRunning = false;
+let worker = null;
+let totalPrimes = 0;
+
+const workerCode = `
+self.onmessage = function(e) {
+    const { startIndexStr, chunkSize, mode } = e.data;
+    
+    if (mode === 'stop') return;
+
+    const startIdx = BigInt(startIndexStr);
+    const size = Number(chunkSize);
+    
+    // 1. The Canvas (The Segment)
+    // We create a byte array to represent the Index Ruler for this chunk.
+    // 0 = Empty Space (Prime), 1 = Wall (Composite)
+    const ruler = new Uint8Array(size);
+
+    // 2. The Limit
+    // We only need families up to the square root of the largest number in this chunk.
+    // Max Number = (Start + Size) * 2
+    const maxNum = (startIdx + BigInt(size)) * 2n;
+    
+    // Custom Integer Sqrt for BigInt
+    const isqrt = (n) => {
+        if (n < 2n) return n;
+        let x = n, y = (x + 1n) / 2n;
+        while (y < x) { x = y; y = (x + n / x) / 2n; }
+        return x;
+    };
+
+    const limit = isqrt(maxNum);
+    
+    // 3. The Wall Building (The "Stride" Logic)
+    // We iterate through prime families (3, 5, 7...)
+    // For each family, we calculate where its stride lands in this specific chunk.
+    
+    let familyCount = 0;
+    
+    // Helper to sieve small primes for the "Generators"
+    // We need primes up to 'limit' to act as the Wall Builders
+    // Since 'limit' might be large, we'll do a mini-sieve or just trial div for the generator
+    // For efficiency in this demo, we'll use a segmented approach for generators if needed, 
+    // but here we generate generators on the fly.
+    
+    const limitNum = Number(limit);
+    const generators = new Uint8Array(limitNum + 1);
+    
+    for (let p = 3; p <= limitNum; p += 2) {
+        if (generators[p] === 0) {
+            familyCount++;
+            const prime = BigInt(p);
+            
+            // --- THE CORE LOGIC: PREDICTING THE LANDING ---
+            
+            // A. Where does this family normally start? (Global Start)
+            // Index = (p^2 + 1) / 2
+            const globalStart = (prime * prime + 1n) / 2n;
+            
+            // B. Where is the first landing inside OUR chunk?
+            let localStart = 0;
+            
+            if (globalStart >= startIdx) {
+                // It starts inside or after our chunk
+                if (globalStart < startIdx + BigInt(size)) {
+                    localStart = Number(globalStart - startIdx);
+                } else {
+                    continue; // Starts after this chunk
+                }
+            } else {
+                // It started before. We need to find the next stride that hits us.
+                // Distance to bridge = startIdx - globalStart
+                // Jumps needed = ceil(Distance / prime)
+                const dist = startIdx - globalStart;
+                const jumps = (dist + prime - 1n) / prime;
+                const firstHit = globalStart + (jumps * prime);
+                localStart = Number(firstHit - startIdx);
+            }
+
+            // C. Build the Walls (Mark the Strides)
+            // Stride length = p (on the Index Ruler)
+            const step = p;
+            for (let i = localStart; i < size; i += step) {
+                ruler[i] = 1; // MARK WALL
+            }
+
+            // Mark multiples in generator sieve
+            if (p * p <= limitNum) {
+                for (let j = p * p; j <= limitNum; j += 2 * p) generators[j] = 1;
+            }
+        }
+    }
+
+    // 4. Harvest the Gaps
+    let primesFound = [];
+    let wallsBuilt = 0;
+    
+    for (let i = 0; i < size; i++) {
+        if (ruler[i] === 1) {
+            wallsBuilt++;
+        } else {
+            // Empty Spot! Reconstruct the Prime
+            // Prime = (Index * 2) - 1
+            const actualIndex = startIdx + BigInt(i);
+            // Skip index 0 (if startIdx is 0 or 1 logic) - Index 1 -> 1 (not prime).
+            // Index 1 corresponds to (1*2)-1 = 1.
+            if (actualIndex > 1n) {
+                const pVal = (actualIndex * 2n) - 1n;
+                primesFound.push(pVal.toString());
+            }
+        }
+    }
+
+    self.postMessage({
+        type: 'result',
+        primes: primesFound,
+        families: familyCount,
+        walls: wallsBuilt,
+        total: size,
+        nextStart: (startIdx + BigInt(size)).toString()
+    });
+};
+`;
+
+function log(msg) {
+    const el = document.getElementById('logs');
+    el.innerText += msg + "\n";
+    el.scrollTop = el.scrollHeight;
+}
+
+function updateStats(fam, walls, total, primes) {
+    document.getElementById('fam-count').innerText = fam;
+    const density = ((walls / total) * 100).toFixed(1) + "%";
+    document.getElementById('density-val').innerText = density;
+    totalPrimes += primes;
+    document.getElementById('prime-count').innerText = totalPrimes.toLocaleString();
+}
+
+function toggleArchitect() {
+    const btn = document.getElementById('btn-run');
+    if (isRunning) {
+        // Stop
+        worker.terminate();
+        isRunning = false;
+        btn.innerText = "Resume Building";
+        btn.classList.remove('bg-red-600');
+        btn.classList.add('bg-blue-600');
+        log("[STOPPED]");
+    } else {
+        // Start
+        if (!worker) createWorker();
+        const start = document.getElementById('start-index').value;
+        const size = document.getElementById('chunk-size').value;
+        
+        isRunning = true;
+        btn.innerText = "Pause Architecture";
+        btn.classList.remove('bg-blue-600');
+        btn.classList.add('bg-red-600');
+        
+        log(`[INITIALIZING] Starting at Index ${start}...`);
+        worker.postMessage({ startIndexStr: start, chunkSize: size, mode: 'run' });
+    }
+}
+
+function createWorker() {
+    const blob = new Blob([workerCode], { type: "application/javascript" });
+    worker = new Worker(URL.createObjectURL(blob));
+    
+    worker.onmessage = function(e) {
+        const { primes, families, walls, total, nextStart } = e.data;
+        
+        // Update Stats
+        updateStats(families, walls, total, primes.length);
+        
+        // Log a sample
+        if (primes.length > 0) {
+            log(`[CHUNK COMPLETE] Found ${primes.length} Primes.`);
+            log(`> Samples: ${primes.slice(0, 3).join(', ')} ... ${primes.slice(-3).join(', ')}`);
+        } else {
+            log(`[CHUNK COMPLETE] No Primes found in this sector.`);
+        }
+
+        // Auto-continue
+        if (isRunning) {
+            document.getElementById('start-index').value = nextStart;
+            // Small delay to keep UI responsive
+            setTimeout(() => {
+                worker.postMessage({ startIndexStr: nextStart, chunkSize: document.getElementById('chunk-size').value, mode: 'run' });
+            }, 50);
+        }
+    };
+}
+
+function reset() {
+    if (worker) worker.terminate();
+    worker = null;
+    isRunning = false;
+    totalPrimes = 0;
+    document.getElementById('fam-count').innerText = "0";
+    document.getElementById('density-val').innerText = "0%";
+    document.getElementById('prime-count').innerText = "0";
+    document.getElementById('logs').innerText = "System Reset.\n";
+    document.getElementById('btn-run').innerText = "Build Walls";
+    document.getElementById('btn-run').classList.remove('bg-red-600');
+    document.getElementById('btn-run').classList.add('bg-blue-600');
+}
+</script>
+</body>
+</html>
+

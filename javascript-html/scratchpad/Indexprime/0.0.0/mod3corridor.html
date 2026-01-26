@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ghost Rhythm (Wall Distance)</title>
+    <style>
+        body { background: #0b1120; color: #e2e8f0; font-family: 'Segoe UI', monospace; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .input-group { margin-bottom: 30px; }
+        input { background: #1e293b; border: 1px solid #334155; color: #fff; font-size: 1.5rem; padding: 10px; text-align: center; width: 250px; border-radius: 8px; }
+        
+        .rhythm-board {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 700px;
+        }
+
+        .band-strip {
+            background: #1e293b;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 5px solid #334155;
+            display: grid;
+            grid-template-columns: 80px 1fr 100px;
+            align-items: center;
+        }
+
+        .band-strip.hit { border-left-color: #f472b6; border: 2px solid #f472b6; background: rgba(244, 114, 182, 0.1); }
+        .band-strip.miss { border-left-color: #334155; opacity: 0.6; }
+
+        .row-label { font-size: 1.5rem; font-weight: bold; color: #0ea5e9; }
+        
+        .viz-track {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 15px;
+            height: 40px;
+            position: relative;
+        }
+        
+        .wall-marker { color: #fbbf24; font-weight:bold; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; }
+        .target-marker { color: #fff; font-weight:bold; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; margin-left: auto; }
+        
+        .step-line {
+            flex-grow: 1;
+            height: 2px;
+            background: #475569;
+            position: relative;
+            margin: 0 10px;
+        }
+        
+        .dist-label {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #94a3b8;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+
+        .result-box { font-weight: bold; text-align: right; }
+    </style>
+</head>
+<body>
+
+    <div class="input-group">
+        <input type="text" id="numInput" value="1007" onkeyup="if(event.key==='Enter') runRhythm()">
+    </div>
+
+    <div id="board" class="rhythm-board"></div>
+
+    <script>
+        function runRhythm() {
+            let raw = document.getElementById('numInput').value;
+            if(!raw) return;
+            let T = parseInt(raw.replace(/,/g,''));
+            
+            // Ceiling
+            let ceiling = Math.floor(Math.sqrt(T));
+            if(ceiling % 2 === 0) ceiling--;
+
+            let container = document.getElementById('board');
+            container.innerHTML = '';
+
+            let current = ceiling;
+            let found = false;
+            let safety = 0;
+
+            function checkRow() {
+                if(found || current < 3 || safety > 20) return;
+
+                // Skip Walls (3, 5)
+                if(current % 3 === 0 || (current % 5 === 0 && T % 5 !== 0)) {
+                    current -= 2; safety++; checkRow(); return;
+                }
+
+                // Logic: Find Nearest Wall in this Row
+                // Wall Index must be multiple of 3.
+                // Current Col Estimate = T / Row
+                let estCol = Math.round(T / current);
+                
+                // Find nearest multiple of 3 to estCol
+                let rem = estCol % 3;
+                let wallCol = (rem === 0) ? estCol : (rem === 1 ? estCol - 1 : estCol + 1);
+                // Ensure wallCol is odd? Multiples of 3 can be even (e.g. 6), but in Odds table we usually map 3x3, 3x5... 
+                // Wait, Mod 3 Wall in Row R is R * (3k). 
+                // Since we are in odd table, we need R * (Odd Multiple of 3).
+                // So wallCol must be odd AND div by 3.
+                
+                // Adjustment:
+                if (wallCol % 2 === 0) {
+                     // If nearest multiple of 3 is even, we need nearest ODD multiple.
+                     // It's either +3 or -3 away.
+                     // E.g. est=4. Nearest 3 is 3(odd) or 6(even).
+                     // Simple search:
+                     if ((wallCol + 3 - estCol) < (estCol - (wallCol - 3))) wallCol += 3;
+                     else wallCol -= 3;
+                }
+
+                let wallVal = current * wallCol;
+                let dist = Math.abs(T - wallVal);
+                let stepSize = 2 * current;
+                
+                let isHit = (dist % stepSize === 0 && dist !== 0); // Must be exact step match
+                if (dist === 0) isHit = false; // Target IS the wall (impossible if we filtered Mod 3)
+
+                // If T is actually ON the step
+                if (T === wallVal) isHit = false; // Should have been caught by wall filter
+
+                let stepsAway = dist / stepSize;
+                
+                let div = document.createElement('div');
+                div.className = isHit ? 'band-strip hit' : 'band-strip miss';
+                
+                div.innerHTML = `
+                    <div class="row-label">${current}</div>
+                    <div class="viz-track">
+                        <div class="wall-marker">
+                            <span>WALL</span>
+                            <span style="color:#fbbf24">${wallVal}</span>
+                        </div>
+                        <div class="step-line">
+                            <span class="dist-label">Gap: ${dist} (${stepsAway.toFixed(2)} steps)</span>
+                        </div>
+                        <div class="target-marker">
+                            <span>TARGET</span>
+                            <span>${T}</span>
+                        </div>
+                    </div>
+                    <div class="result-box">
+                        ${isHit ? `<span style="color:#f472b6">Rhythm Match!</span><br>${current}×${T/current}` : 'Miss'}
+                    </div>
+                `;
+                container.appendChild(div);
+
+                if(isHit) found = true;
+
+                current -= 2;
+                safety++;
+                if(!found) setTimeout(checkRow, 150);
+            }
+
+            checkRow();
+        }
+
+        runRhythm();
+    </script>
+</body>
+</html>
