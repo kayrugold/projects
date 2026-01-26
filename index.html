@@ -1,97 +1,149 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Andy's Dev Studio</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="theme-color" content="#1a120b">
+    <link rel="manifest" href="manifest.json">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              'sans': ['Inter', 'sans-serif'],
-              'medieval': ['IM Fell English SC', 'serif'],
-            },
-            colors: {
-              'stone': {
-                'DEFAULT': '#333333',
-                'border': '#555555',
-                'dark': '#1a1a1a',
-              },
-              'plaque': {
-                'DEFAULT': '#4d3c2a',
-                'text': '#f0f0f0',
-                'border': '#5a5a5a',
-              },
-              'amber': {
-                'DEFAULT': '#ffcc66',
-                '300': '#fbbf24',
-                '400': '#f59e0b'
-              },
-              'iron': {
-                'DEFAULT': '#4a4a4a',
-                'hover': '#5a5a5a',
-                'shadow': '#222',
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      body {
-        background-color: #1a1a1a;
-        color: #cccccc;
-      }
-      .medieval-title {
-          text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-      }
-      .stone-frame {
-          background-image:
-              linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-          background-size: 8px 8px;
-          box-shadow:
-              inset 0 0 15px rgba(0, 0, 0, 0.7),
-              0 8px 15px rgba(0, 0, 0, 0.8);
-      }
-      .content-plaque {
-          background-image:
-              linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-          background-size: 4px 4px;
-          box-shadow:
-              inset 0 0 15px rgba(0, 0, 0, 0.8),
-              0 4px 10px rgba(0, 0, 0, 0.5);
-      }
-      .iron-button {
-          box-shadow: 0 4px #222, 0 8px 10px rgba(0, 0, 0, 0.5);
-      }
-      .iron-button:hover:not(:disabled) {
-          box-shadow: 0 2px #222, 0 4px 6px rgba(0, 0, 0, 0.5);
-      }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&family=Share+Tech+Mono&family=Homemade+Apple&display=swap" rel="stylesheet">
 
-  <script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.5"
-  }
-}
-</script>
-  <script type="module" crossorigin src="/assets/index-CmX8ToPz.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-2ZVGvSMz.css">
+    <link rel="stylesheet" href="style.css">
 </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<body>
+
+    <div id="appLayer" class="app-layer">
+        <iframe id="appFrame" src=""></iframe>
+    </div>
+
+    <div id="journalReader" class="journal-reader">
+        <button class="journal-close-btn" onclick="closeJournal()">X CLOSE</button>
+        <div id="journalContent" class="journal-content"></div>
+    </div>
+
+    <div id="infoModal" class="modal-overlay">
+        <div class="info-card">
+            <h2 style="font-family:'Cinzel', serif; margin-top:0;">Andy's Dev Studio</h2>
+            <p style="font-size:0.9rem; margin-bottom:5px;"><strong>Version:</strong> 2.0.2 (Restored)</p>
+            <p style="font-size:0.9rem; margin-bottom:5px;"><strong>System:</strong> Online</p>
+            <p style="font-size:0.9rem; font-style:italic;">"Forged in code, tested on the road."</p>
+            <hr style="border:0; border-top:1px dashed #aaa; margin:15px 0;">
+            <button onclick="goHome()" class="info-btn btn-home">Return to Home</button>
+            <button onclick="toggleInfo()" class="info-btn">Close</button>
+        </div>
+    </div>
+
+    <a href="https://discord.gg/WHhnBXpDSW" target="_blank" class="palantir-btn" title="Open Comm Link">
+        <div class="palantir-icon"></div>
+    </a>
+        
+<div class="status-bar">
+    <img src="./assets/icon.png?v=1" 
+         alt="Studio Logo" 
+         class="status-logo" 
+         onclick="toggleInfo()" 
+         width="32" 
+         height="32">
+        
+        <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" class="icon-btn" style="border-color:var(--gold); color:var(--gold); margin-right:15px; text-decoration:none;"><img src="./assets/coffee.png" alt="Coffee" width="32" height="32"></a>
+        <div class="os-clock" id="clock">12:00</div>
+<button class="icon-btn" id="soundBtn" onclick="toggleSound()"><img id="soundIcon" src="./assets/soundoff.png" alt="sound" width="32" height="32"></button>
+        <button class="icon-btn" onclick="toggleFullscreen()"><img src="./assets/fullscreen.png" width="32" height="32"></button>
+    </div>
+
+    <div id="library-view">
+        <div class="desk-layout">
+            <div class="desk-left">
+                <div class="desk-note">
+                    <div class="note-header">Andy's Dev Studio</div>
+                    <div class="note-hand">
+                        Welcome to the forge. <br><br>
+                        Systems are stable. I am currently working on the physics engine for the new dice roller. <br><br>
+                        Check the Market for the new Asset Pack.
+                    </div>
+                </div>
+                <div class="paper-scrap">
+                    <div class="scrap-title">LATEST UPDATE: v2.0</div>
+                    <div class="scrap-text">
+                        The archives are now open. Procedural audio engine enabled.
+                    </div>
+                </div>
+            </div>
+
+            <div class="desk-right">
+                <div class="shelf">
+                    <div class="book-spine spine-forge" onclick="openBook('forge')">
+                        <div class="spine-title">The Forge</div>
+                        <div class="spine-subtitle">Projects & Prototypes</div>
+                    </div>
+                    <div class="book-spine spine-market" onclick="openBook('market')">
+                        <div class="spine-title">The Ledger</div>
+                        <div class="spine-subtitle">Market & Trade Goods</div>
+                    </div>
+                    <div class="book-spine spine-chronicles" onclick="openBook('chronicles')">
+                        <div class="spine-title">The Chronicles</div>
+                        <div class="spine-subtitle">Developer Logs</div>
+                    </div>
+                    <div class="book-spine spine-guild" onclick="openBook('guild')">
+                        <div class="spine-title">Guild Records</div>
+                        <div class="spine-subtitle">Contact & Testing</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="book-view">
+        <div class="page-content" id="page-content"></div>
+    </div>
+
+<div class="bookmark-container" id="bookmarks" style="display:none;">
+    
+    <div class="bookmark bm-home" onclick="closeBook()">
+        <div class="bookmark-icon">
+            <img src="./assets/icon_home.png" alt="Home">
+        </div>
+    </div>
+
+    <div class="bookmark bm-forge" onclick="switchPage('forge')">
+        <div class="bookmark-icon">
+            <img src="./assets/icon_forge.png" alt="Forge">
+        </div>
+    </div>
+
+    <div class="bookmark bm-market" onclick="switchPage('market')">
+        <div class="bookmark-icon">
+            <img src="./assets/icon_market.png" alt="Market">
+        </div>
+    </div>
+
+    <div class="bookmark bm-chronicles" onclick="switchPage('chronicles')">
+        <div class="bookmark-icon">
+            <img src="./assets/icon_chronicles.png" alt="Chronicles">
+        </div>
+    </div>
+
+    <div class="bookmark bm-guild" onclick="switchPage('guild')">
+        <div class="bookmark-icon">
+            <img src="./assets/icon_guild.png" alt="Guild">
+        </div>
+    </div>
+
+    <div class="bookmark bm-ravens" onclick="switchPage('ravens')">
+        <div class="bookmark-icon">
+            <img src="./assets/icon_raven.png" alt="Rookery">
+        </div>
+    </div>
+
+</div>
+
+
+
+
+
+    <script src="app.js"></script>
+</body>
 </html>
