@@ -1,107 +1,97 @@
 <h1 class="page-title">Guild Records</h1>
 
-<div class="item-card">
-    <h3 class="forge-title" style="margin-top:0;">Send a Raven</h3>
-    
-    <input type="text" id="ravenName" class="ink-input" placeholder="Your Name">
-    <input type="email" id="ravenEmail" class="ink-input" placeholder="Your Email">
-    <textarea id="ravenMsg" class="ink-input" style="height: 100px; resize: none;" placeholder="Your Missive..."></textarea>
-    
-    <button onclick="sendRaven()" class="seal-btn" style="margin-top: 20px;">SEAL & SEND</button>
+<div class="gallery-grid">
+
+    <div class="item-card">
+        <h3 class="forge-title" style="margin-top:0;">Send a Raven</h3>
+        
+        <input type="text" id="ravenName" class="ink-input" placeholder="Your Name">
+        <input type="email" id="ravenEmail" class="ink-input" placeholder="Your Email">
+        <textarea id="ravenMsg" class="ink-input" style="height: 100px; resize: none;" placeholder="Your Missive..."></textarea>
+        
+        <button onclick="sendRaven()" class="seal-btn" style="margin-top: 20px;">SEAL & SEND</button>
+    </div>
+
+    <div class="item-card">
+        <h3 class="forge-title" style="margin-top:0;">🛠️ About Andy's Dev Studio</h3>
+        
+        <p class="log-body">
+            Welcome to The Forge. My name is Andy, and I'm a professional truck driver and a dedicated father. Between long hauls on the road and spending time with my family, my hours at a laptop are extremely limited.
+        </p>
+        <p class="log-body">
+            Because my time is a monopoly, I utilize AI-assisted development to bring my technical visions to life. While I have the programming knowledge, I use AI as my "digital co-pilot" to handle the heavy lifting of coding and debugging while I'm away from my desk. This allows me to focus on the logic, the math, and the design of these tools without needing a 14-person testing team.
+        </p>
+
+        <hr style="border: 0; border-top: 1px dashed var(--ink); margin: 30px 0;">
+
+        <h3 class="forge-title">📜 The Creator's Note</h3>
+        
+        <p class="log-body">
+            <strong>The Logic:</strong> Every mathematical pattern in the Gnomon Navigator or Residue Scanner is my own research and design.
+        </p>
+        <p class="log-body">
+            <strong>The Code:</strong> To save time and stay productive on the road, the implementation of these ideas is done with the help of Generative AI.
+        </p>
+        <p class="log-body">
+            <strong>The Goal:</strong> I'm building these tools for the love of number theory and system design.
+        </p>
+    </div>
+
+    <div class="item-card">
+        <h3 class="forge-title" style="margin-top:0;">📬 Smith's Contact</h3>
+        
+        <p class="log-body" style="margin-bottom: 5px;"><strong>Andy Davis</strong> - Lead Developer</p>
+        <p class="log-body" style="margin-bottom: 5px;">📞 530.255.4137</p>
+        <p class="log-body">📧 andys.dev.studio@gmail.com</p>
+        
+        <hr style="border: 0; border-top: 1px dashed var(--ink); margin: 20px 0;">
+        
+        <p class="log-body" style="font-style: italic;">
+            If you find value in these tools, please consider leaving a donation. Every bit helps me keep the lights on in the Forge while I'm out on the next shift.
+        </p>
+
+        <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" style="text-decoration: none;">
+            <button class="forge-btn" style="background: #FFDD00; color: #000; border: 2px solid #000; font-weight: bold; margin-top: 10px; box-shadow: 3px 3px 0px rgba(0,0,0,1);">
+                ☕ BUY ME A COFFEE
+            </button>
+        </a>
+    </div>
+
+    <div class="item-card">
+        <h3 class="forge-title" style="margin-top:0;">⚖️ The Legal Scrolls</h3>
+        
+        <h4 style="font-family:'Cinzel', serif; margin-bottom: 5px;">🛡️ Privacy Policy</h4>
+        <p style="font-size: 0.8rem; margin-top: 0; font-style: italic;">Effective Date: Oct 24, 2023</p>
+        
+        <p class="log-body">
+            I, Andy Davis, operate "Andy's Forge" as a personal portfolio. I respect your privacy because I have no interest in your data.
+        </p>
+        <ul class="log-body" style="padding-left: 20px;">
+            <li><strong>Data Collection:</strong> This site does not use cookies for tracking or analytics. Any saved data (like Tester progress) stays on your device via <code>localStorage</code>.</li>
+            <li><strong>Communications:</strong> If you email me, I will see your info. I will never sell it or share it.</li>
+        </ul>
+
+        <hr style="border: 0; border-top: 1px dashed var(--ink); margin: 30px 0;">
+
+        <h4 style="font-family:'Cinzel', serif; margin-bottom: 5px;">📜 End User License Agreement (EULA)</h4>
+        <p class="log-body">By downloading software from Andy's Forge, you agree:</p>
+        <ul class="log-body" style="padding-left: 20px;">
+            <li><strong>License:</strong> You are granted a non-exclusive license to use the software. You own the files you download.</li>
+            <li><strong>Warranty:</strong> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. I am a solo dev, not a QA department. Bugs may exist.</li>
+        </ul>
+    </div>
+
+    <div class="item-card">
+        <h3 class="forge-title" style="margin-top:0;">📜 Merchant's License</h3>
+        
+        <p class="log-body">
+            Authorized to trade and operate within the realm of California.
+        </p>
+        
+        <div style="text-align: center; margin-top: 15px; padding: 10px; background: #fff; border: 1px solid var(--ink);">
+            <img src="assets/sellers_permit.jpg" alt="California Seller's Permit" 
+                 style="max-width: 100%; height: auto; display: block; margin: 0 auto;">
+        </div>
+    </div>
+
 </div>
-
-<div class="item-card">
-    <h3 class="forge-title" style="margin-top:0;">🛠️ About Andy's Dev Studio</h3>
-    
-    <p class="log-body">
-        Welcome to The Forge. My name is Andy, and I'm a professional truck driver and a dedicated father. Between long hauls on the road and spending time with my family, my hours at a laptop are extremely limited.
-    </p>
-    <p class="log-body">
-        Because my time is a monopoly, I utilize AI-assisted development to bring my technical visions to life. While I have the programming knowledge, I use AI as my "digital co-pilot" to handle the heavy lifting of coding and debugging while I'm away from my desk. This allows me to focus on the logic, the math, and the design of these tools without needing a 14-person testing team to get moving.
-    </p>
-
-    <hr style="border: 0; border-top: 1px dashed var(--ink); margin: 30px 0;">
-
-    <h3 class="forge-title">📜 The Creator's Note</h3>
-    
-    <p class="log-body">
-        <strong>The Logic:</strong> Every mathematical pattern in the Gnomon Navigator or Residue Scanner is my own research and design.
-    </p>
-    <p class="log-body">
-        <strong>The Code:</strong> To save time and stay productive on the road, the implementation of these ideas is done with the help of Generative AI.
-    </p>
-    <p class="log-body">
-        <strong>The Goal:</strong> I'm building these tools for the love of number theory and system design.
-    </p>
-</div>
-
-<div class="item-card">
-    <h3 class="forge-title" style="margin-top:0;">📬 Smith's Contact</h3>
-    
-    <p class="log-body" style="margin-bottom: 5px;"><strong>Andy Davis</strong> - Lead Developer</p>
-    <p class="log-body" style="margin-bottom: 5px;">📞 530.255.4137</p>
-    <p class="log-body">📧 andys.dev.studio@gmail.com</p>
-    
-    <hr style="border: 0; border-top: 1px dashed var(--ink); margin: 20px 0;">
-    
-    <p class="log-body" style="font-style: italic;">
-        If you find value in these tools, please consider leaving a donation. Every bit helps me keep the lights on in the Forge while I'm out on the next shift.
-    </p>
-    <p class="log-body">Safe travels, and thanks for supporting a solo dev-dad!</p>
-
-    <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" style="text-decoration: none;">
-        <button class="forge-btn" style="background: #FFDD00; color: #000; border: 2px solid #000; font-weight: bold; margin-top: 10px; box-shadow: 3px 3px 0px rgba(0,0,0,1);">
-            ☕ BUY ME A COFFEE
-        </button>
-    </a>
-</div>
-
-<div class="item-card">
-    <h3 class="forge-title" style="margin-top:0;">⚖️ The Legal Scrolls</h3>
-    
-    <h4 style="font-family:'Cinzel', serif; margin-bottom: 5px;">🛡️ Privacy Policy</h4>
-    <p style="font-size: 0.8rem; margin-top: 0; font-style: italic;">Effective Date: Oct 24, 2023</p>
-    
-    <p class="log-body">
-        I, Andy Davis, operate "Andy's Forge" as a personal portfolio. I respect your privacy because I have no interest in your data.
-    </p>
-    <ul class="log-body" style="padding-left: 20px;">
-        <li><strong>Data Collection:</strong> This site does not use cookies for tracking or analytics. Any saved data (like Tester progress) stays on your device via <code>localStorage</code>. I cannot see it.</li>
-        <li><strong>Communications:</strong> If you email me, I will see your info. I will never sell it or share it.</li>
-    </ul>
-
-    <hr style="border: 0; border-top: 1px dashed var(--ink); margin: 30px 0;">
-
-    <h4 style="font-family:'Cinzel', serif; margin-bottom: 5px;">📜 End User License Agreement (EULA)</h4>
-    <p class="log-body">By downloading software from Andy's Forge, you agree:</p>
-    <ul class="log-body" style="padding-left: 20px;">
-        <li><strong>License:</strong> You are granted a non-exclusive license to use the software. You own the files you download.</li>
-        <li><strong>Warranty:</strong> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. I am a solo dev, not a QA department. Bugs may exist.</li>
-        <li><strong>Liability:</strong> In no event shall the author be liable for any damages arising from the use of this software.</li>
-    </ul>
-</div>
-
-<div class="item-card">
-    <h3 class="forge-title" style="margin-top:0;">📜 Merchant's License</h3>
-    
-    <p class="log-body">
-        Authorized to trade and operate within the realm of California.
-    </p>
-</div>
-
-<!--
-<script>
-function sendRaven() {
-    const name = document.getElementById('ravenName').value;
-    const email = document.getElementById('ravenEmail').value;
-    const msg = document.getElementById('ravenMsg').value;
-    
-    if(!msg) { alert("The scroll is blank!"); return; }
-
-    const subject = `Raven from ${name || 'A Traveler'}`;
-    const body = `Name: ${name}%0D%0AEmail: ${email}%0D%0A%0D%0A${msg}`;
-    
-    window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
-}
-</script>
--->
