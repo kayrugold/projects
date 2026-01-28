@@ -396,3 +396,63 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     margin: 20px 0;
     max-width: 100%;
 }
+
+
+/* --- GLOBAL IMAGE SAFETY --- */
+/* Ensures images inside cards never overflow or get cut off */
+.item-card img, 
+.project-card img, 
+.log-body img {
+    max-width: 100%;       /* Force image to fit inside the container width */
+    height: auto;          /* Maintain aspect ratio (don't squish it) */
+    display: block;        /* Removes weird bottom gap */
+    margin: 10px auto;     /* Centers the image with a little breathing room */
+    border-radius: 4px;    /* Optional: Slight rounding to look polished */
+}
+
+/* --- UNIVERSAL IMAGE FIX --- */
+/* This forces every image inside a card to fit the width perfectly */
+.item-card img, 
+.project-card img, 
+.view-section img {
+    max-width: 100%;       /* Never let the image be wider than its box */
+    height: auto;          /* Keep the proportions correct */
+    display: block;        /* Prevents weird spacing issues */
+    margin: 0 auto;        /* Centers the image */
+    border-radius: 4px;    /* Optional: matches the Chronicles rounded corners */
+    object-fit: cover;     /* Ensures it fills the space neatly */
+}
+
+/* Safety net to prevent the card itself from stretching */
+.item-card, .project-card {
+    box-sizing: border-box; /* Ensures padding is calculated correctly */
+}
+
+/* --- DESKTOP GALLERY GRID --- */
+.gallery-grid {
+    display: grid;
+    gap: 25px; /* Space between the cards */
+    padding: 10px;
+    
+    /* THE MAGIC: Auto-fit columns */
+    /* On phones, it's 1 column. On Desktop, it fits as many 350px cards as it can */
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+}
+
+/* --- "SHOW OFF" HOVER EFFECTS (Desktop Only) --- */
+@media (min-width: 1000px) {
+    .item-card, .project-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    /* When hovering, lift the card and make it glow gold */
+    .item-card:hover, .project-card:hover {
+        transform: translateY(-8px); /* Lifts the card up */
+        box-shadow: 0 12px 20px rgba(0,0,0,0.4), 
+                    0 0 15px rgba(255, 215, 0, 0.3); /* Subtle Gold Glow */
+        border-color: #d4af37; /* Turn border gold */
+        z-index: 10; /* Bring to front */
+    }
+}
+
+
