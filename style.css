@@ -428,16 +428,24 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     box-sizing: border-box; /* Ensures padding is calculated correctly */
 }
 
-/* --- DESKTOP GALLERY GRID --- */
+/* --- RESPONSIVE GALLERY GRID --- */
 .gallery-grid {
     display: grid;
-    gap: 25px; /* Space between the cards */
+    gap: 25px;
     padding: 10px;
     
-    /* THE MAGIC: Auto-fit columns */
-    /* On phones, it's 1 column. On Desktop, it fits as many 350px cards as it can */
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    /* MOBILE FIX: Just one flexible column that never overflows */
+    grid-template-columns: 1fr;
 }
+
+/* TABLET & DESKTOP: Switch to the Tile System */
+@media (min-width: 600px) {
+    .gallery-grid {
+        /* Now we can safely force the 350px minimum because the screen is big enough */
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    }
+}
+
 
 /* --- "SHOW OFF" HOVER EFFECTS (Desktop Only) --- */
 @media (min-width: 1000px) {
@@ -455,4 +463,23 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     }
 }
 
+/* --- DESK MODE (Desktop Constraints) --- */
+/* Locks the maximum width so the app feels like a workspace, not a stretched website */
+@media (min-width: 1024px) {
+    
+    /* 1. The Main Container (The Desk Surface) */
+    #book-view, .view-section {
+        max-width: 1100px; /* The "Magic Number" that matches your screenshot */
+        margin: 0 auto;    /* This centers the desk in the middle of the monitor */
+        position: relative; /* Crucial for future drag-and-drop features */
+    }
+
+    /* 2. Fix for the Gallery Grid we made earlier */
+    /* Ensures the cards don't get too wide inside the constrained desk */
+    .gallery-grid {
+        gap: 30px; /* slightly more breathing room on the desk */
+        /* Adjust columns to fit the new desk width nicely */
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    }
+}
 

@@ -62,7 +62,7 @@ async function fetchForge() {
                 <button class="filter-pill" onclick="setFilter('Prototypes', this)">Prototypes</button>
             </div>
         </div>
-        <div id="forgeList">`;
+        <div id="forgeList" class="gallery-grid">`;
 
         forgeItems.forEach(item => {
             // --- NEW LOGIC START ---
@@ -120,7 +120,7 @@ async function fetchMarket() {
                 This ensures maximized support for independent development, with no proprietary launchers or corporate overhead.
             </p>
         </div>
-        <div id="marketList">`;
+        <div id="marketList" class="gallery-grid">`;
 
         // 2. The Dynamic Cards
         marketItems.forEach(item => {
