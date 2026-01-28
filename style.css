@@ -483,3 +483,128 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     }
 }
 
+
+/* --- 3D FLIP CARD ENGINE --- */
+
+/* The Container (Holds the 3D Space) */
+.flip-container {
+    perspective: 1000px; /* Gives the 3D depth */
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Keep the hover pop! */
+}
+
+/* The Flipper (The thing that actually spins) */
+.flipper {
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); /* Smooth 'heavy' flip */
+    transform-style: preserve-3d;
+    position: relative;
+    width: 100%;
+    height: 100%; /* Ensure it fills the card height */
+    min-height: 380px; /* Force a minimum height so cards are uniform */
+}
+
+/* The Trigger Class (Added by JS when you click the arrow) */
+.flip-container.flipped .flipper {
+    transform: rotateY(180deg);
+}
+
+/* Common Face Styles */
+.front, .back {
+    backface-visibility: hidden; /* Hide the back when facing away */
+    -webkit-backface-visibility: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #fdfbf7;
+    border-radius: 8px;
+    border: 1px solid #3e2723;
+    overflow: hidden;
+}
+
+/* Front Face (Default) */
+.front {
+    z-index: 2;
+    transform: rotateY(0deg);
+}
+
+/* Back Face (Hidden) */
+.back {
+    transform: rotateY(180deg);
+    background: var(--parchment); /* Slightly darker/paper texture for the back */
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    text-align: center;
+    justify-content: center;
+    border: 2px solid var(--gold); /* Gold border indicates 'Info Mode' */
+}
+
+/* The Flip Button (Arrow Icon) */
+.flip-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--gold);
+    border-radius: 50%;
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10; /* Must be above the image */
+    transition: all 0.2s;
+    font-size: 1.2rem;
+}
+.flip-btn:hover {
+    background: var(--gold);
+    color: #000;
+    transform: scale(1.1);
+}
+
+/* --- PIN SAFETY FIX --- */
+/* Ensures the red pin is always on top of the 3D card faces */
+.item-card::after {
+    z-index: 20; /* Force it higher than the card faces (z-index 2) */
+}
+
+/* Ensure the container never crops the pin */
+.item-card.flip-container {
+    overflow: visible !important;
+}
+
+/* --- APP BLENDING --- */
+.app-layer {
+    /* Remove padding so the vignette touches the screen edges */
+    padding: 0; 
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+}
+
+.app-vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* CRITICAL: Lets you touch the app underneath */
+    z-index: 5001; /* Sits on top of the iframe */
+    
+    /* The Magic Blend: Radial Gradient */
+    /* Center is transparent. Edges fade to your background color. */
+    background: radial-gradient(
+        circle at center, 
+        transparent 85%, 
+        var(--wood-dark) 100%
+        /*var(--parchment) 100%*/
+    );
+    
+    /* Optional: An inner shadow to roughen the edge */
+    box-shadow: inset 0 0 40px 20px var(--wood-dark);
+}
+
+

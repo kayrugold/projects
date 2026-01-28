@@ -1,4 +1,17 @@
 [
+{
+    "id": "gnomon-navigator",
+    "title": "GNOMON NAVIGATOR",
+    "description": "Visualize the 'DNA' of integers. Navigate the infinite lattice of Gnomon indexing and vector slopes.",
+    "type": "Prototypes",
+    "version": "V0.0.6",
+    "status": "ALPHA",
+    "statusClass": "badge-alpha",
+    "buttonText": "NAVIGATE",
+    "icon": "",
+    "image": "./assets/gnomonnavigator.png",
+    "action": "launchApp('./apps/gnomonnavigator0.0.6.html')"
+  },
   {
     "id": "factor-hunter",
     "title": "FACTOR HUNTER",
