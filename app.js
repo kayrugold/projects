@@ -64,36 +64,55 @@ async function fetchForge() {
         </div>
         <div id="forgeList" class="gallery-grid">`;
 
+        // ... inside fetchForge() ...
+
         forgeItems.forEach(item => {
-            // --- NEW LOGIC START ---
+            // 1. Build the Header (Image or Icon)
             let headerHTML = '';
-            
-            // Check if the manifest has an image link
             if (item.image) {
                 headerHTML = `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`;
             } else {
-                // If no image, fallback to the emoji box
                 headerHTML = `
                 <div class="forge-img-container">
                     <div class="forge-img-emoji">${item.icon}</div>
                 </div>`;
             }
-            // --- NEW LOGIC END ---
 
+            // 2. Build the NEW Flip Structure
+            // Notice: onclick="flipCard(this)" on the arrow button
             html += `
-            <div class="item-card forge-item" data-type="${item.type}">
-                ${headerHTML}
-                <div class="card-inner">
-                    <h3 class="forge-title">${item.title}</h3>
-                    <p class="forge-desc">${item.description}</p>
-                    <div class="meta-row">
-                        <span class="badge badge-ver">${item.version}</span>
-                        <span class="badge ${item.statusClass}">${item.status}</span>
+            <div class="item-card flip-container" data-type="${item.type}">
+                <div class="flipper">
+                    
+                    <div class="front">
+                        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
+                        ${headerHTML}
+                        <div class="card-inner">
+                            <h3 class="forge-title">${item.title}</h3>
+                            <p class="forge-desc" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.description}</p>
+                            <div class="meta-row">
+                                <span class="badge badge-ver">${item.version}</span>
+                                <span class="badge ${item.statusClass}">${item.status}</span>
+                            </div>
+                            <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
+                        </div>
                     </div>
-                    <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
+
+                    <div class="back">
+                        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
+                        <h3 class="forge-title" style="border-bottom:1px solid var(--ink); padding-bottom:10px;">${item.title}</h3>
+                        <p class="forge-desc" style="font-size: 1rem; margin-top: 15px;">
+                            ${item.description}
+                        </p>
+                        <p style="font-size: 0.9rem; font-style: italic; color: #666; margin-top: auto;">
+                            Tap the arrow to return to the main view.
+                        </p>
+                    </div>
+
                 </div>
             </div>`;
         });
+// ... rest of function ...
 
         html += `</div>`;
         return html;
@@ -122,31 +141,57 @@ async function fetchMarket() {
         </div>
         <div id="marketList" class="gallery-grid">`;
 
-        // 2. The Dynamic Cards
+        // 2. The Dynamic Cards (Now with 3D Flip Logic)
         marketItems.forEach(item => {
+            // A. Build Header (Image or Icon)
             let headerHTML = '';
-
-            // Check for Image vs Icon
             if (item.image) {
                 headerHTML = `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`;
             } else {
-                // Fallback: Icon Box (Reusing Forge styling for consistency)
                 headerHTML = `
                 <div class="forge-img-container">
                     <div class="forge-img-emoji">${item.icon}</div>
                 </div>`;
             }
 
+            // B. Build the Flip Structure
             html += `
-            <div class="item-card forge-item">
-                ${headerHTML}
-                <div class="card-inner">
-                    <div class="market-header-row">
-                        <h3 class="forge-title">${item.title}</h3>
-                        <span class="price-tag">${item.price}</span>
+            <div class="item-card forge-item flip-container">
+                <div class="flipper">
+                    
+                    <div class="front">
+                        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
+                        ${headerHTML}
+                        <div class="card-inner">
+                            <div class="market-header-row">
+                                <h3 class="forge-title">${item.title}</h3>
+                                <span class="price-tag">${item.price}</span>
+                            </div>
+                            <p class="forge-desc" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                ${item.description}
+                            </p>
+                            <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
+                        </div>
                     </div>
-                    <p class="forge-desc">${item.description}</p>
-                    <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
+
+                    <div class="back">
+                        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
+                        <h3 class="forge-title" style="border-bottom:1px solid var(--ink); padding-bottom:10px;">${item.title}</h3>
+                        
+                        <p class="forge-desc" style="font-size: 1rem; margin-top: 15px;">
+                            ${item.description}
+                        </p>
+                        
+                        <div style="margin-top:auto; width:100%">
+                            <p style="font-size: 0.9rem; font-style: italic; color: #666; margin-bottom: 10px;">
+                                secure transaction via itch.io
+                            </p>
+                            <button onclick="${item.action}" class="forge-btn" style="background:var(--gold); color:#000; border:1px solid #000; font-weight:bold;">
+                                ${item.buttonText}
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>`;
         });
@@ -157,6 +202,7 @@ async function fetchMarket() {
         return `<h1 class="page-title">The Ledger</h1><p>The ledger is closed.</p>`;
     }
 }
+
 
 
 // --- CHRONICLES ENGINE ---
@@ -612,4 +658,18 @@ function sendBugReport() {
 
     window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
 }
+
+// --- CARD FLIP LOGIC ---
+function flipCard(btn, event) {
+    // Stop the click from bubbling up (prevents triggering other card clicks)
+    event.stopPropagation();
+    
+    // Find the closest "flip-container" parent and toggle the class
+    const card = btn.closest('.flip-container');
+    card.classList.toggle('flipped');
+    
+    // Optional: Play a sound effect!
+    playPageSound(); 
+}
+
 
