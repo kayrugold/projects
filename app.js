@@ -6,6 +6,7 @@ let marketItems = [];
 
 // --- NAVIGATION & FETCHING ---
 async function switchPage(section) {
+	closeApp();
     let content = '';
     
     // We clear the search filter when switching pages
@@ -455,6 +456,7 @@ async function openBook(section) {
 }
 
 function closeBook() {
+	closeApp();
     playPageSound();
     document.body.classList.remove('reading-mode'); 
     document.getElementById('library-view').style.display = 'flex';

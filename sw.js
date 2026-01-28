@@ -1,9 +1,9 @@
-const CACHE_NAME = 'andys-forge-v4.2'; // Change this string to force an update for users
+const CACHE_NAME = 'andys-forge-v4.3'; // Change this string to force an update for users
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=4.2',
-  './app.js?v=4.2',
+  './style.css?v=4.3',
+  './app.js?v=4.3',
   './manifest.json',
   
   // --- CORE PAGES (So tabs work offline) ---
