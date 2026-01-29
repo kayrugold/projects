@@ -26,6 +26,21 @@ body {
     transition: background 0.3s ease;
 }
 
+/* HIDE SCROLLBARS (But keep scrolling) */
+/* Chrome, Safari, Edge */
+#library-view::-webkit-scrollbar, 
+.page-content::-webkit-scrollbar, 
+body::-webkit-scrollbar,
+.desk-layout::-webkit-scrollbar {
+    display: none;
+}
+
+/* Firefox */
+#library-view, .page-content, body, .desk-layout {
+    scrollbar-width: none;
+}
+
+
 /* Reading Mode Override */
 body.reading-mode {
     background-color: var(--parchment);
@@ -496,4 +511,27 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
         margin: 0 auto 20px auto;
     }
 }
+
+/* FORCE DESKTOP DESK LAYOUT */
+@media (min-width: 1024px) {
+    .desk-layout {
+        flex-direction: row; /* Switch from Column to Row */
+        align-items: flex-start; /* Align to top */
+        justify-content: center;
+        gap: 60px; /* Space between Note and Books */
+    }
+
+    .desk-left, .desk-right {
+        width: auto;
+        flex: 1; /* Share the space equally */
+        max-width: 500px;
+    }
+    
+    /* Rotate the note slightly for that "messy desk" feel */
+    .desk-note {
+        transform: rotate(-2deg);
+        margin-top: 20px;
+    }
+}
+
 
