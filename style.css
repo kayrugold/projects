@@ -463,10 +463,12 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     color: var(--gold); display: flex; align-items: center; justify-content: center;
     cursor: pointer; z-index: 10; transition: all 0.2s; font-size: 1.2rem;
 }
-.flip-btn:hover { background: var(--gold
+.flip-btn:hover { 
+    background: var(--gold); 
+    color: var(--wood-dark);
+}
 
-
-/* --- DESKTOP FORGE FIX --- */
+/* --- DESKTOP FORGE FIX (v4.51) --- */
 /* Force the grid to open up on screens wider than a tablet */
 @media (min-width: 768px) {
     
@@ -474,7 +476,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     #forgeList.gallery-grid {
         display: grid;
         width: 100%;
-        max-width: 1200px; /* Allow it to get wide */
+        max-width: 1200px; 
         margin: 0 auto;
         /* Force 2 columns min, 3 or 4 if space permits */
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; 
@@ -483,7 +485,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 
     /* 2. Force the Cards to Fill the Columns */
     .forge-item, .flip-container {
-        width: 100% !important; /* Stop them from shrinking */
+        width: 100% !important;
         max-width: none !important;
     }
 
@@ -494,3 +496,4 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
         margin: 0 auto 20px auto;
     }
 }
+
