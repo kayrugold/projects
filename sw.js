@@ -1,4 +1,4 @@
-const CACHE_NAME = 'andys-forge-v4.53'; // Change this string to force an update for users
+const CACHE_NAME = 'andys-forge-v4.54'; // Change this string to force an update for users
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

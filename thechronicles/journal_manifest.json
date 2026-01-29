@@ -1,5 +1,13 @@
 [
   {
+    "id": "entry_004",
+    "date": "Jan 29, 2026",
+    "title": "Forging Code on the Open Road",
+    "image": "./assets/seminote.png", 
+    "summary": "Why a truck driver is using AI to build number theory tools. The philosophy behind the studio.",
+    "file": "./thechronicles/entries/originstory.html"
+  },
+  {
     "id": "entry_003",
     "date": "Dec 12, 2025",
     "title": "Newton's Dice",
