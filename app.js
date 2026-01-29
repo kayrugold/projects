@@ -1,4 +1,4 @@
-/* app.js - v4.0 Manifest Driven */
+/* app.js - v4.5 Universal Grid Layout */
 
 let journalEntries = [];
 let forgeItems = [];
@@ -6,10 +6,10 @@ let marketItems = [];
 
 // --- NAVIGATION & FETCHING ---
 async function switchPage(section) {
-	closeApp();
+    closeApp(); // Force close any open apps (Gnomon, etc)
     let content = '';
     
-    // We clear the search filter when switching pages
+    // Clear the search filter when switching pages
     window.currentFilter = 'All';
 
     try {
@@ -65,24 +65,15 @@ async function fetchForge() {
         </div>
         <div id="forgeList" class="gallery-grid">`;
 
-        // ... inside fetchForge() ...
-
         forgeItems.forEach(item => {
-            // 1. Build the Header (Image or Icon)
-            let headerHTML = '';
-            if (item.image) {
-                headerHTML = `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`;
-            } else {
-                headerHTML = `
-                <div class="forge-img-container">
-                    <div class="forge-img-emoji">${item.icon}</div>
-                </div>`;
-            }
+            // 1. Build Header
+            let headerHTML = item.image 
+                ? `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`
+                : `<div class="forge-img-container"><div class="forge-img-emoji">${item.icon}</div></div>`;
 
-            // 2. Build the NEW Flip Structure
-            // Notice: onclick="flipCard(this)" on the arrow button
+            // 2. Build Card (Cleaned up for CSS Grid)
             html += `
-            <div class="item-card flip-container" data-type="${item.type}">
+            <div class="item-card forge-item flip-container" data-type="${item.type}">
                 <div class="flipper">
                     
                     <div class="front">
@@ -90,7 +81,7 @@ async function fetchForge() {
                         ${headerHTML}
                         <div class="card-inner">
                             <h3 class="forge-title">${item.title}</h3>
-                            <p class="forge-desc" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.description}</p>
+                            <p class="forge-desc">${item.description}</p>
                             <div class="meta-row">
                                 <span class="badge badge-ver">${item.version}</span>
                                 <span class="badge ${item.statusClass}">${item.status}</span>
@@ -113,7 +104,6 @@ async function fetchForge() {
                 </div>
             </div>`;
         });
-// ... rest of function ...
 
         html += `</div>`;
         return html;
@@ -122,8 +112,6 @@ async function fetchForge() {
     }
 }
 
-
-
 // --- MARKET ENGINE (The Ledger) ---
 async function fetchMarket() {
     try {
@@ -131,7 +119,7 @@ async function fetchMarket() {
         if (!response.ok) throw new Error('Market manifest missing');
         marketItems = await response.json();
 
-        // 1. The Fixed Header (Itch.io Message)
+        // 1. The Fixed Header
         let html = `
         <h1 class="page-title">The Ledger</h1>
         <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--gold);">
@@ -142,20 +130,12 @@ async function fetchMarket() {
         </div>
         <div id="marketList" class="gallery-grid">`;
 
-        // 2. The Dynamic Cards (Now with 3D Flip Logic)
+        // 2. The Dynamic Cards
         marketItems.forEach(item => {
-            // A. Build Header (Image or Icon)
-            let headerHTML = '';
-            if (item.image) {
-                headerHTML = `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`;
-            } else {
-                headerHTML = `
-                <div class="forge-img-container">
-                    <div class="forge-img-emoji">${item.icon}</div>
-                </div>`;
-            }
+            let headerHTML = item.image 
+                ? `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`
+                : `<div class="forge-img-container"><div class="forge-img-emoji">${item.icon}</div></div>`;
 
-            // B. Build the Flip Structure
             html += `
             <div class="item-card forge-item flip-container">
                 <div class="flipper">
@@ -168,9 +148,7 @@ async function fetchMarket() {
                                 <h3 class="forge-title">${item.title}</h3>
                                 <span class="price-tag">${item.price}</span>
                             </div>
-                            <p class="forge-desc" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                ${item.description}
-                            </p>
+                            <p class="forge-desc">${item.description}</p>
                             <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
                         </div>
                     </div>
@@ -203,8 +181,6 @@ async function fetchMarket() {
         return `<h1 class="page-title">The Ledger</h1><p>The ledger is closed.</p>`;
     }
 }
-
-
 
 // --- CHRONICLES ENGINE ---
 async function fetchChronicles() {
@@ -276,18 +252,9 @@ let isPlaying = false;
 let droneOsc1, droneOsc2, droneGain;
 let musicInterval;
 
-// A Medieval "D Dorian" scale (D, E, F, G, A, B, C)
-// These frequencies sound like folk music, not random sci-fi beeps.
+// A Medieval "D Dorian" scale
 const MEDIEVAL_SCALE = [
-    293.66, // D4
-    329.63, // E4
-    349.23, // F4
-    392.00, // G4
-    440.00, // A4
-    493.88, // B4
-    523.25, // C5
-    587.33, // D5 (High)
-    698.46  // F5 (High Flute)
+    293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 698.46
 ];
 
 function initAudio() {
@@ -295,8 +262,7 @@ function initAudio() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
     
-    // Create a reverb effect (Convolver) to make it sound like a large hall
-    // This gives it that "Cathedral" or "Tavern" atmosphere
+    // Reverb Effect
     const rate = audioCtx.sampleRate;
     const length = rate * 2.0; 
     const impulse = audioCtx.createBuffer(2, length, rate);
@@ -310,7 +276,6 @@ function initAudio() {
     window.reverbNode.buffer = impulse;
     window.reverbNode.connect(audioCtx.destination);
     
-    // Master Bus
     window.musicBus = audioCtx.createGain();
     window.musicBus.gain.value = 0.4; 
     window.musicBus.connect(window.reverbNode);
@@ -321,22 +286,20 @@ function startDrone() {
     if (!audioCtx) initAudio();
     
     // The "Drone" (Background String Sound)
-    // We use Sawtooth waves for a "Cello/Violin" texture
     droneOsc1 = audioCtx.createOscillator();
     droneOsc1.type = 'sawtooth';
-    droneOsc1.frequency.value = 73.42; // Low D2 (Cello)
+    droneOsc1.frequency.value = 73.42; // Low D2
     
     droneOsc2 = audioCtx.createOscillator();
     droneOsc2.type = 'sawtooth';
-    droneOsc2.frequency.value = 110.00; // Low A2 (Harmony)
+    droneOsc2.frequency.value = 110.00; // Low A2
 
-    // Filter the drone so it's warm, not buzzy
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 400; // Cut off the harsh buzzing
+    filter.frequency.value = 400;
 
     droneGain = audioCtx.createGain();
-    droneGain.gain.value = 0.15; // Keep it quiet
+    droneGain.gain.value = 0.15;
 
     droneOsc1.connect(filter);
     droneOsc2.connect(filter);
@@ -347,33 +310,24 @@ function startDrone() {
     droneOsc2.start();
 
     playRandomNote();
-    // Faster pace: New note every 1.5 seconds (was 4s)
     musicInterval = setInterval(playRandomNote, 1500); 
 }
 
 function playRandomNote() {
-    if (Math.random() > 0.8) return; // Sometimes pause for breath
+    if (Math.random() > 0.8) return; 
 
     const osc = audioCtx.createOscillator();
-    
-    // TRIANGLE wave sounds like a FLUTE or RECORDER
     osc.type = 'triangle'; 
-    
-    // Pick a note from our Medieval Scale
     const freq = MEDIEVAL_SCALE[Math.floor(Math.random() * MEDIEVAL_SCALE.length)];
     osc.frequency.value = freq;
 
     const gain = audioCtx.createGain();
-    
-    // ENVELOPE (The Shape of the Sound)
-    // Flutes have a soft attack (breath)
     gain.gain.setValueAtTime(0, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.1); // Fade in (Breath)
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8); // Fade out
+    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.1); 
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8); 
 
     osc.connect(gain);
     gain.connect(window.musicBus); 
-    
     osc.start();
     osc.stop(audioCtx.currentTime + 1);
 }
@@ -388,12 +342,10 @@ function stopDrone() {
     }
 }
 
-// --- THE NEW "PAGE FLIP" SOUND ---
 function playPageSound() {
     if (!isPlaying || !audioCtx) return;
-
-    // Create White Noise
-    const bufferSize = audioCtx.sampleRate * 0.5; // Short buffer
+    // Simple "Paper Swish" noise
+    const bufferSize = audioCtx.sampleRate * 0.5; 
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -402,24 +354,18 @@ function playPageSound() {
     const noise = audioCtx.createBufferSource();
     noise.buffer = buffer;
 
-    // FILTER (The "Swish" Maker)
-    // We cut the highs and lows to sound like paper
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 1200; // Removes the "Gunshot" crackle
+    filter.frequency.value = 1200; 
 
     const gain = audioCtx.createGain();
-    
-    // ENVELOPE (The "Swish" Movement)
-    // Instead of instant loud (BANG), we fade in quickly (SWISH)
     gain.gain.setValueAtTime(0, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05); // Attack (Swish up)
-    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2); // Decay (Swish down)
+    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05); 
+    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2); 
 
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(audioCtx.destination);
-    
     noise.start();
 }
 
@@ -429,8 +375,6 @@ function toggleSound() {
     
     isPlaying = !isPlaying;
     const btn = document.getElementById('soundBtn');
-    
-    // Visual Toggle (Optional if you have icons)
     const icon = document.getElementById('soundIcon');
     
     if (isPlaying) {
@@ -456,7 +400,7 @@ async function openBook(section) {
 }
 
 function closeBook() {
-	closeApp();
+    closeApp();
     playPageSound();
     document.body.classList.remove('reading-mode'); 
     document.getElementById('library-view').style.display = 'flex';
@@ -506,24 +450,6 @@ function setFilter(filterType, btnElement) {
     filterForge();
 }
 
-function generateGrid() {
-    let html = '';
-    const saved = JSON.parse(localStorage.getItem('andy_tester_days') || '[]');
-    for(let i=1; i<=14; i++) {
-        const active = saved.includes(i) ? 'background:var(--ink); color:var(--parchment);' : '';
-        html += `<div onclick="toggleDay(${i})" style="aspect-ratio:1; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid var(--ink); ${active}">${i}</div>`;
-    }
-    return html;
-}
-
-function toggleDay(num) {
-    let saved = JSON.parse(localStorage.getItem('andy_tester_days') || '[]');
-    if(saved.includes(num)) saved = saved.filter(n => n !== num);
-    else saved.push(num);
-    localStorage.setItem('andy_tester_days', JSON.stringify(saved));
-    document.getElementById('streak-grid').innerHTML = generateGrid();
-}
-
 function toggleFullscreen() {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(console.log);
     else if (document.exitFullscreen) document.exitFullscreen();
@@ -536,24 +462,19 @@ setInterval(() => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
 // --- SMOOTH DRAGGABLE BOOKMARKS ---
-const bmContainer = document.getElementById('bookmarks'); // DEFINED HERE TO FIX ERROR
+const bmContainer = document.getElementById('bookmarks');
 let isDragging = false;
 let dragOffset = 0;
 
 if (bmContainer) {
     bmContainer.addEventListener('touchstart', (e) => {
-        // FIX: If in Landscape Mode, DISABLE drag so the browser can scroll instead
-        if (window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches) {
-            return; // Stop here. Let the browser handle the scroll.
-        }
+        // Disable drag in landscape to allow browser scrolling
+        if (window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches) return;
 
         isDragging = true;
-        
-        // Standard Drag Logic for Portrait Mode
         const rect = bmContainer.getBoundingClientRect();
         dragOffset = e.touches[0].clientY - rect.top;
         
-        // Lock position to pixels to prevent jumping
         bmContainer.style.top = rect.top + 'px';
         bmContainer.style.transform = 'none'; 
         bmContainer.style.bottom = 'auto'; 
@@ -561,7 +482,7 @@ if (bmContainer) {
 
     document.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
-        e.preventDefault(); // Stop screen scroll
+        e.preventDefault(); 
 
         let newTop = e.touches[0].clientY - dragOffset;
         const maxTop = window.innerHeight - bmContainer.offsetHeight;
@@ -572,48 +493,30 @@ if (bmContainer) {
         bmContainer.style.top = newTop + 'px';
     }, {passive: false});
 
-    document.addEventListener('touchend', () => {
-        isDragging = false;
-    });
+    document.addEventListener('touchend', () => { isDragging = false; });
 }
-// --- GUILD FUNCTIONS ---
+
+// --- GUILD & ROOKERY FUNCTIONS ---
 function sendRaven() {
-    // 1. Get the values from the form inputs
-    // We use optional chaining (?.) just in case the element isn't there yet
     const name = document.getElementById('ravenName')?.value;
     const email = document.getElementById('ravenEmail')?.value;
     const msg = document.getElementById('ravenMsg')?.value;
     
-    // 2. Simple check to ensure they wrote a message
-    if (!msg) { 
-        alert("The scroll is blank! Please write a message."); 
-        return; 
-    }
+    if (!msg) { alert("The scroll is blank! Please write a message."); return; }
 
-    // 3. Construct the email
     const subject = `Raven from ${name || 'A Traveler'}`;
     const body = `Name: ${name || 'N/A'}%0D%0AEmail: ${email || 'N/A'}%0D%0A%0D%0A${msg}`;
-    
-    // 4. Open the user's email client
     window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
 }
 
-// --- ROOKERY FUNCTIONS ---
-
-// 1. Generate the 14-Day Grid
 function generateGrid() {
     let html = '';
-    // Load saved days from local storage
     const saved = JSON.parse(localStorage.getItem('andy_tester_days') || '[]');
-    
     for(let i=1; i<=14; i++) {
-        // If day is saved, make it dark (active). If not, transparent.
         const isActive = saved.includes(i);
         const style = isActive 
             ? 'background:var(--ink); color:var(--parchment); border-color:var(--ink);' 
             : 'background:rgba(0,0,0,0.05); color:var(--ink); border-color:#ccc;';
-        
-        // The checkmark or the number
         const content = isActive ? '✓' : i;
 
         html += `
@@ -625,53 +528,30 @@ function generateGrid() {
     return html;
 }
 
-// 2. Toggle a Day on/off
 function toggleDay(num) {
     let saved = JSON.parse(localStorage.getItem('andy_tester_days') || '[]');
-    
-    if(saved.includes(num)) {
-        // Remove it if already there (toggle off)
-        saved = saved.filter(n => n !== num);
-    } else {
-        // Add it
-        saved.push(num);
-    }
-    
+    if(saved.includes(num)) saved = saved.filter(n => n !== num);
+    else saved.push(num);
     localStorage.setItem('andy_tester_days', JSON.stringify(saved));
-    playPageSound(); // Satisfying click sound
-    
-    // Re-render the grid instantly
+    playPageSound();
     document.getElementById('streak-grid').innerHTML = generateGrid();
 }
 
-// 3. Send Specific Bug Report
 function sendBugReport() {
     const project = document.getElementById('bugProject')?.value;
     const type = document.getElementById('bugType')?.value;
     const msg = document.getElementById('bugMsg')?.value;
 
-    if (!project || !msg) {
-        alert("Please select a project and describe the issue.");
-        return;
-    }
-
+    if (!project || !msg) { alert("Please select a project and describe the issue."); return; }
     const subject = `[${type}] ${project} Report`;
     const body = `Project: ${project}%0D%0Aissue Type: ${type}%0D%0A%0D%0ADetails:%0D%0A${msg}`;
-
     window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
 }
 
 // --- CARD FLIP LOGIC ---
 function flipCard(btn, event) {
-    // Stop the click from bubbling up (prevents triggering other card clicks)
     event.stopPropagation();
-    
-    // Find the closest "flip-container" parent and toggle the class
     const card = btn.closest('.flip-container');
     card.classList.toggle('flipped');
-    
-    // Optional: Play a sound effect!
     playPageSound(); 
 }
-
-

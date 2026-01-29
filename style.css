@@ -37,39 +37,37 @@ body.reading-mode {
 
 /* --- APP LAYER (iFrames) --- */
 .app-layer {
+    padding: 0; 
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: var(--parchment); z-index: 5000; display: none; flex-direction: column;
-    overflow-y: auto; padding: 20px;
+    overflow-y: auto;
 }
 .app-layer.active { display: flex; }
 iframe { width: 100%; height: 100%; border: none; flex: 1; }
+
+.app-vignette {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 5001; 
+    background: radial-gradient(circle at center, transparent 85%, var(--wood-dark) 100%);
+    box-shadow: inset 0 0 40px 20px var(--wood-dark);
+}
 
 /* --- JOURNAL READER (Pop-up) --- */
 .journal-reader {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.85); 
     backdrop-filter: blur(2px);
-    z-index: 5000; 
-    display: none; 
-    overflow-y: auto; 
+    z-index: 5000; display: none; overflow-y: auto; 
 }
 .journal-reader.active { display: block; }
 
 .journal-content { 
-    background: #fff; 
-    width: 90%; 
-    max-width: 600px; 
-    margin: 80px auto 40px auto; 
-    padding: 30px; 
+    background: #fff; width: 90%; max-width: 600px; 
+    margin: 80px auto 40px auto; padding: 30px; 
     box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-    position: relative; 
-    transform: rotate(-1deg); 
-    border-radius: 2px;
-    color: #333;
-    line-height: 1.6;
-    font-size: 1.1rem;
+    position: relative; transform: rotate(-1deg); 
+    border-radius: 2px; color: #333; line-height: 1.6; font-size: 1.1rem;
 }
-
 .journal-content::after { 
     content: ''; position: absolute; top: -12px; left: 50%;
     width: 14px; height: 14px; background: #c00;
@@ -86,17 +84,11 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 
 /* Journal Images */
 .journal-featured-img {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-    background-color: #222;  
-    border: 2px solid var(--ink); 
-    border-radius: 4px;      
-    margin-bottom: 15px;
-    display: block;
+    width: 100%; height: 150px; object-fit: cover;
+    background-color: #222; border: 2px solid var(--ink); 
+    border-radius: 4px; margin-bottom: 15px; display: block;
     box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 }
-
 .journal-content img:not(.journal-featured-img) {
     max-width: 100%; height: auto; display: block;
     margin: 15px 0; border-radius: 4px; border: 1px solid #ddd;
@@ -115,6 +107,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     content: ''; position: absolute; top: -12px; left: 50%;
     width: 14px; height: 14px; background: #c00;
     border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    z-index: 20; /* Force pin above 3D faces */
 }
 
 /* --- TYPOGRAPHY & BUTTONS --- */
@@ -162,15 +155,21 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .icon-btn { background: rgba(43, 29, 14, 0.3); border: 1px solid var(--gold); color: var(--gold); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; text-decoration: none; }
 .icon-btn.active { background: var(--gold); color: #2b1d0e; box-shadow: 0 0 10px var(--gold); }
 
-/* --- FORGE & MARKET ITEMS --- */
+/* --- FORGE & MARKET ITEMS (UPDATED LAYOUT) --- */
 .forge-item {
     padding: 0;
-    overflow: hidden; /* Keeps corners rounded */
+    overflow: hidden; 
     background: #fdfbf7;
     border: 1px solid #3e2723;
     box-shadow: 3px 3px 6px rgba(0,0,0,0.15);
     margin-bottom: 20px;
     border-radius: 8px;
+}
+
+/* Flexbox fix for Faces */
+.front, .back {
+    display: flex;
+    flex-direction: column;
 }
 
 /* Dark Image Header */
@@ -181,6 +180,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     align-items: center;
     justify-content: center;
     border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0; /* Never shrink */
 }
 .forge-img-emoji {
     font-size: 3.5rem;
@@ -195,20 +195,61 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     object-position: center 20%; 
     display: block;
     border-bottom: 1px solid var(--ink);
+    flex-shrink: 0; /* Never shrink */
 }
 
-/* Padding for Text */
+/* --- FLEXIBLE CARD CONTENT --- */
 .card-inner {
     padding: 15px; 
+    flex: 1;                /* Fill whatever space is left after the image */
+    display: flex;          /* Turn on Flexbox layout */
+    flex-direction: column; /* Stack items vertically */
+    min-height: 0;          /* Allow scrolling/overflow handling inside */
+    overflow: hidden;       /* Hide extra text if needed */
 }
 
-.forge-title { font-family: 'Cinzel', serif; font-size: 1.2rem; margin: 0 0 5px 0; letter-spacing: 1px; color: var(--ink); }
-.forge-desc { font-size: 0.95rem; color: #555; margin-bottom: 15px; font-style: normal; }
-.forge-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--ink); font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+.forge-title { 
+    font-family: 'Cinzel', serif; 
+    font-size: 1.2rem; 
+    margin: 0 0 5px 0; 
+    letter-spacing: 1px; 
+    color: var(--ink);
+    flex-shrink: 0;         /* Title never shrinks */
+}
+
+/* Description: Shrinks & Clamps */
+.forge-desc { 
+    font-size: 0.95rem; 
+    color: #555; 
+    display: -webkit-box;
+    -webkit-line-clamp: 3;  /* Limit to 3 lines max */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 10px;
+    white-space: normal;
+    flex-shrink: 1;         /* Allow text to shrink if space is tight */
+}
+
+/* Buttons: Always Visible at Bottom */
+.forge-btn { 
+    width: 100%; 
+    padding: 10px; 
+    background: transparent; 
+    border: 1px solid var(--ink); 
+    font-family: 'Cinzel', serif; 
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: all 0.2s; 
+    margin-top: auto;       /* PUSH to the bottom of the card */
+    flex-shrink: 0;         /* NEVER allow the button to shrink or hide */
+    z-index: 10;
+}
+
 .forge-btn:active { background: var(--ink); color: var(--parchment); }
 
 /* Badges */
-.meta-row { display: flex; gap: 10px; margin-bottom: 15px; }
+.meta-row { display: flex; gap: 10px; margin-bottom: 15px; flex-shrink: 0; }
 .badge { font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; padding: 2px 6px; border: 1px solid #333; border-radius: 4px; text-transform: uppercase; }
 .badge-ver { background: #eee; color: #333; }
 .badge-live { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
@@ -223,82 +264,40 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 #forgeList, #marketList { margin-top: 25px; padding-bottom: 40px; }
 
 /* Market Specifics */
-.market-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0; margin-bottom: 5px; }
+.market-header-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0; margin-bottom: 5px; flex-shrink: 0; }
 .market-header-row .forge-title { margin: 0; font-size: 1.2rem; }
 .price-tag { font-family: 'Cinzel', serif; font-weight: bold; color: #8b0000; font-size: 1.1rem; white-space: nowrap; }
 
 /* --- FIXED BOOKMARKS BAR (Classic) --- */
 .bookmark-container {
-    position: fixed;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%); /* Centers vertically by default */
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end; /* Pins tabs to the right edge */
-    z-index: 10000; /* Stays on top of everything */
-    max-height: 100vh;
+    position: fixed; top: 50%; right: 0; transform: translateY(-50%); 
+    display: flex; flex-direction: column; align-items: flex-end; 
+    z-index: 10000; max-height: 100vh;
 }
-
 .bookmark {
-    width: 50px;
-    height: 45px;
-    margin-bottom: 4px;
-    border-radius: 6px 0 0 6px; /* Round corners on LEFT only */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: -2px 1px 4px rgba(0,0,0,0.4);
+    width: 50px; height: 45px; margin-bottom: 4px;
+    border-radius: 6px 0 0 6px; 
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: -2px 1px 4px rgba(0,0,0,0.4);
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    position: relative;
-    right: 0;
+    position: relative; right: 0;
 }
-
-/* The "Nudge" Effect */
-.bookmark:active,
-.bookmark.active {
-    width: 65px; /* Pops out */
-    transform: translateX(-5px);
-    background: var(--gold) !important;
+.bookmark:active, .bookmark.active {
+    width: 65px; transform: translateX(-5px); background: var(--gold) !important;
 }
-
-/* Colors */
-.bm-home       { background: #5d4037; }
-.bm-forge      { background: #8b0000; }
-.bm-market     { background: #1b5e20; }
+.bm-home { background: #5d4037; }
+.bm-forge { background: #8b0000; }
+.bm-market { background: #1b5e20; }
 .bm-chronicles { background: #1a237e; }
-.bm-guild      { background: #4a148c; }
-.bm-ravens     { background: #212121; }
+.bm-guild { background: #4a148c; }
+.bm-ravens { background: #212121; }
 
-/* Container for the image */
-.bookmark-icon {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none; /* Clicks pass through to the tab */
-}
+.bookmark-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.bookmark-icon img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); display: block; }
 
-/* The Image itself */
-.bookmark-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain; /* Keeps the circle round, doesn't stretch */
-    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); /* Adds depth to the coin */
-    display: block;
-}
-
-/* LANDSCAPE TWEAK */
-/* When the tabs get smaller in landscape, shrink the icons slightly */
 @media (orientation: landscape) and (max-height: 500px) {
-    .bookmark-icon {
-        width: 26px;
-        height: 26px;
-    }
+    .bookmark-icon { width: 26px; height: 26px; }
 }
-
 
 /* --- MODAL --- */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
@@ -310,301 +309,158 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .palantir-btn { position: fixed; left: 20px; bottom: 20px; width: 50px; height: 50px; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(80, 20, 180, 0.8), rgba(0,0,0,0.9)); border-radius: 50%; box-shadow: 0 0 15px rgba(80, 20, 180, 0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: 2px solid #4a3b2a; }
 .palantir-icon { font-size: 1.5rem; }
 
-/* --- LANDSCAPE MODE: TRUE SINGLE FILE (FIXED) --- */
-@media (min-width: 800px) {
-    /* Tablet/Desktop Logic */
-    .desk-layout { flex-direction: row; align-items: flex-start; justify-content: center; gap: 60px; }
-    .desk-left { flex: 1; max-width: 400px; padding-top: 20px; }
-    .desk-right { flex: 1; max-width: 450px; }
-}
-
-/* Mobile Landscape Specifics */
+/* Mobile Landscape: Dashboard Mode + Safe Cards */
 @media (orientation: landscape) and (max-height: 500px) {
     
-    /* 1. FORCE VERTICAL STACK */
+    /* 1. DASHBOARD LAYOUT (Home Screen) */
     .desk-layout {
-        display: flex;
-        flex-direction: column; /* Stack top-to-bottom */
-        align-items: center;    /* Center everything */
-        padding-top: 60px;      /* Space for status bar */
-        width: 100%;
-        gap: 50px;              /* BIG GAP between note and books */
-        height: 100%;           /* Ensure it can scroll */
+        display: flex; 
+        flex-direction: row; /* Side-by-Side! */
+        align-items: flex-start; /* Align top */
+        justify-content: center;
+        padding-top: 70px; 
+        width: 100%; 
+        gap: 20px; 
+        height: 100%; 
         overflow-y: auto; 
+        padding-bottom: 80px;
     }
-
-    /* 2. EXPAND CONTENT TO FULL WIDTH */
+    
+    /* Split the screen 50/50 */
     .desk-left, .desk-right {
-        width: 96%;        /* Fill the screen */
-        max-width: none;   /* REMOVE limits */
-        flex: none;        /* Stop flexing */
-        margin: 0 auto;
-        padding: 0;
-        overflow: visible;
+        flex: 1;
+        width: 50%; 
+        max-width: none; /* UNLOCK the width cap */
+        margin: 0; padding: 0;
     }
 
-    /* 3. STRETCH THE ITEMS */
-    .desk-note, 
-    .paper-scrap, 
-    .shelf, 
-    .book-spine {
-        width: 100%;       /* Force inner items to full width */
-        max-width: none;   /* Remove limits */
-        transform: none;   /* Remove rotations for clean alignment */
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    /* 4. POSTER STYLE FOR CARDS (Forge/Market) */
-    .forge-item {
-        display: block; 
+    /* Force the Note and Shelf to fill their columns */
+    .desk-note, .shelf {
         width: 100%;
-        margin-bottom: 30px;
+        max-width: none !important; /* Crucial: Overrides the global 450px limit */
+        transform: none; /* Remove rotation for clean grid look */
     }
+
+    /* 2. CARD FIX (Keeps your buttons safe in the Forge) */
+    .flipper { min-height: 0 !important; }
+
+    .front {
+        position: relative !important;
+        height: auto !important;
+        flex: 1;
+        display: flex; flex-direction: column;
+    }
+
+    .back {
+        position: absolute !important;
+        top: 0; left: 0; height: 100%; width: 100%;
+    }
+
+    /* Compact Visuals */
     .forge-header-img, .forge-img-container {
-        width: 100%;
-        height: auto;
-        min-height: 200px;
-        border-right: none;
-        border-bottom: 2px solid var(--ink);
+        height: 85px; 
+        min-height: 85px;
     }
-    .price-tag { font-size: 1.4rem; }
+    
+    .card-inner { padding: 10px; }
 
-    /* 5. UNLOCK BOOKMARKS */
-    .bookmark-container {
-        top: 0;
-        bottom: 0;
-        right: 0;
-        height: 100vh;
-        transform: none;
-        overflow-y: auto;       /* ENABLE SCROLLING */
-        justify-content: flex-start;
-        padding-top: 60px;
-        align-items: flex-end;
+    /* UI Clean Up */
+    .palantir-btn { 
+        display: flex !important; 
+        transform: scale(0.8); 
+        left: 10px; bottom: 10px; 
     }
-    .bookmark {
-        flex-shrink: 0;
-        height: 45px;
-    }
+    
+    .item-card::after { display: none; }
+    .forge-item { perspective: 1000px; }
 }
+
+
 
 /* --- ROOKERY GRID --- */
 .streak-grid-container {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr); /* 7 Days per row */
-    gap: 10px;
-    margin: 20px 0;
-    max-width: 100%;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin: 20px 0; max-width: 100%;
 }
-
 
 /* --- GLOBAL IMAGE SAFETY --- */
-/* Ensures images inside cards never overflow or get cut off */
-.item-card img, 
-.project-card img, 
-.log-body img {
-    max-width: 100%;       /* Force image to fit inside the container width */
-    height: auto;          /* Maintain aspect ratio (don't squish it) */
-    display: block;        /* Removes weird bottom gap */
-    margin: 10px auto;     /* Centers the image with a little breathing room */
-    border-radius: 4px;    /* Optional: Slight rounding to look polished */
+.item-card img, .project-card img, .log-body img, .view-section img {
+    max-width: 100%; height: auto; display: block; margin: 0 auto; border-radius: 4px; object-fit: cover;
 }
+.item-card, .project-card { box-sizing: border-box; }
 
-/* --- UNIVERSAL IMAGE FIX --- */
-/* This forces every image inside a card to fit the width perfectly */
-.item-card img, 
-.project-card img, 
-.view-section img {
-    max-width: 100%;       /* Never let the image be wider than its box */
-    height: auto;          /* Keep the proportions correct */
-    display: block;        /* Prevents weird spacing issues */
-    margin: 0 auto;        /* Centers the image */
-    border-radius: 4px;    /* Optional: matches the Chronicles rounded corners */
-    object-fit: cover;     /* Ensures it fills the space neatly */
-}
-
-/* Safety net to prevent the card itself from stretching */
-.item-card, .project-card {
-    box-sizing: border-box; /* Ensures padding is calculated correctly */
-}
-
-/* --- RESPONSIVE GALLERY GRID --- */
+/* --- RESPONSIVE GALLERY GRID (UNIVERSAL FIX) --- */
+/* This replaces the old media queries. It works everywhere. */
 .gallery-grid {
     display: grid;
     gap: 25px;
     padding: 10px;
-    
-    /* MOBILE FIX: Just one flexible column that never overflows */
-    grid-template-columns: 1fr;
+    /* This rule automatically fits as many 280px cards as possible */
+    /* On mobile (<560px), it creates 1 column. On desktop, it creates 2, 3, or 4 */
+    justify-content: center;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
-
-/* TABLET & DESKTOP: Switch to the Tile System */
-@media (min-width: 600px) {
-    .gallery-grid {
-        /* Now we can safely force the 350px minimum because the screen is big enough */
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    }
-}
-
 
 /* --- "SHOW OFF" HOVER EFFECTS (Desktop Only) --- */
 @media (min-width: 1000px) {
     .item-card, .project-card {
         transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-
-    /* When hovering, lift the card and make it glow gold */
     .item-card:hover, .project-card:hover {
-        transform: translateY(-8px); /* Lifts the card up */
-        box-shadow: 0 12px 20px rgba(0,0,0,0.4), 
-                    0 0 15px rgba(255, 215, 0, 0.3); /* Subtle Gold Glow */
-        border-color: #d4af37; /* Turn border gold */
-        z-index: 10; /* Bring to front */
+        transform: translateY(-8px); 
+        box-shadow: 0 12px 20px rgba(0,0,0,0.4), 0 0 15px rgba(255, 215, 0, 0.3);
+        border-color: #d4af37; z-index: 10;
     }
 }
 
 /* --- DESK MODE (Desktop Constraints) --- */
-/* Locks the maximum width so the app feels like a workspace, not a stretched website */
 @media (min-width: 1024px) {
-    
-    /* 1. The Main Container (The Desk Surface) */
     #book-view, .view-section {
-        max-width: 1100px; /* The "Magic Number" that matches your screenshot */
-        margin: 0 auto;    /* This centers the desk in the middle of the monitor */
-        position: relative; /* Crucial for future drag-and-drop features */
+        max-width: 1100px; /* Constrain main width */
+        margin: 0 auto;    
+        position: relative; 
     }
-
-    /* 2. Fix for the Gallery Grid we made earlier */
-    /* Ensures the cards don't get too wide inside the constrained desk */
     .gallery-grid {
-        gap: 30px; /* slightly more breathing room on the desk */
-        /* Adjust columns to fit the new desk width nicely */
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+        gap: 30px; 
+        /* Inherits the 'auto-fit' rule from above, no override needed! */
     }
 }
-
 
 /* --- 3D FLIP CARD ENGINE --- */
-
-/* The Container (Holds the 3D Space) */
 .flip-container {
-    perspective: 1000px; /* Gives the 3D depth */
-    position: relative;
-    transition: transform 0.3s ease, box-shadow 0.3s ease; /* Keep the hover pop! */
+    perspective: 1000px; position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: visible !important; /* Allow Pin to stick out */
 }
 
-/* The Flipper (The thing that actually spins) */
 .flipper {
-    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); /* Smooth 'heavy' flip */
-    transform-style: preserve-3d;
-    position: relative;
-    width: 100%;
-    height: 100%; /* Ensure it fills the card height */
-    min-height: 380px; /* Force a minimum height so cards are uniform */
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d; position: relative;
+    width: 100%; height: 100%; min-height: 380px; 
 }
 
-/* The Trigger Class (Added by JS when you click the arrow) */
-.flip-container.flipped .flipper {
-    transform: rotateY(180deg);
-}
+.flip-container.flipped .flipper { transform: rotateY(180deg); }
 
-/* Common Face Styles */
 .front, .back {
-    backface-visibility: hidden; /* Hide the back when facing away */
-    -webkit-backface-visibility: hidden;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #fdfbf7;
-    border-radius: 8px;
-    border: 1px solid #3e2723;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: #fdfbf7; border-radius: 8px; border: 1px solid #3e2723;
     overflow: hidden;
 }
 
-/* Front Face (Default) */
-.front {
-    z-index: 2;
-    transform: rotateY(0deg);
-}
-
-/* Back Face (Hidden) */
+.front { z-index: 2; transform: rotateY(0deg); }
 .back {
     transform: rotateY(180deg);
-    background: var(--parchment); /* Slightly darker/paper texture for the back */
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    text-align: center;
-    justify-content: center;
-    border: 2px solid var(--gold); /* Gold border indicates 'Info Mode' */
+    background: var(--parchment); 
+    display: flex; flex-direction: column;
+    padding: 20px; text-align: center; justify-content: center;
+    border: 2px solid var(--gold); 
 }
 
-/* The Flip Button (Arrow Icon) */
 .flip-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 32px;
-    height: 32px;
-    background: rgba(0,0,0,0.6);
-    border: 1px solid var(--gold);
-    border-radius: 50%;
-    color: var(--gold);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 10; /* Must be above the image */
-    transition: all 0.2s;
-    font-size: 1.2rem;
+    position: absolute; top: 10px; right: 10px;
+    width: 32px; height: 32px; background: rgba(0,0,0,0.6);
+    border: 1px solid var(--gold); border-radius: 50%;
+    color: var(--gold); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 10; transition: all 0.2s; font-size: 1.2rem;
 }
-.flip-btn:hover {
-    background: var(--gold);
-    color: #000;
-    transform: scale(1.1);
-}
-
-/* --- PIN SAFETY FIX --- */
-/* Ensures the red pin is always on top of the 3D card faces */
-.item-card::after {
-    z-index: 20; /* Force it higher than the card faces (z-index 2) */
-}
-
-/* Ensure the container never crops the pin */
-.item-card.flip-container {
-    overflow: visible !important;
-}
-
-/* --- APP BLENDING --- */
-.app-layer {
-    /* Remove padding so the vignette touches the screen edges */
-    padding: 0; 
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-}
-
-.app-vignette {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none; /* CRITICAL: Lets you touch the app underneath */
-    z-index: 5001; /* Sits on top of the iframe */
-    
-    /* The Magic Blend: Radial Gradient */
-    /* Center is transparent. Edges fade to your background color. */
-    background: radial-gradient(
-        circle at center, 
-        transparent 85%, 
-        var(--wood-dark) 100%
-        /*var(--parchment) 100%*/
-    );
-    
-    /* Optional: An inner shadow to roughen the edge */
-    box-shadow: inset 0 0 40px 20px var(--wood-dark);
-}
-
-
+.flip-btn:hover { background: var(--gold
