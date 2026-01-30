@@ -1,4 +1,4 @@
-/* app.js - v4.54Universal Grid Layout */
+/* app.js - v4.55Universal Grid Layout */
 
 let journalEntries = [];
 let forgeItems = [];
@@ -61,6 +61,7 @@ async function fetchForge() {
                 <button class="filter-pill" onclick="setFilter('Games', this)">Games</button>
                 <button class="filter-pill" onclick="setFilter('Tools', this)">Tools</button>
                 <button class="filter-pill" onclick="setFilter('Prototypes', this)">Prototypes</button>
+                <button class="filter-pill" onclick="setFilter('Math', this)">Math</button>
             </div>
         </div>
         <div id="forgeList" class="gallery-grid">`;
