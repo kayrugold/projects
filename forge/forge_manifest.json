@@ -1,5 +1,18 @@
 [
 {
+    "id": "thegeneral",
+    "title": "THE GENERAL",
+    "description": "Hunt factors with the SGS Poly-algo squad in real time in your browser and fast.",
+    "type": "Math",
+    "version": "V0.0.34",
+    "status": "ALPHA",
+    "statusClass": "badge-alpha",
+    "buttonText": "HUNT",
+    "icon": "",
+    "image": "./assets/thegeneral.png",
+    "action": "launchApp('./apps/thegeneral0.0.34.html')"
+  },
+{
     "id": "gnomon-navigator",
     "title": "GNOMON NAVIGATOR",
     "description": "Visualize the 'DNA' of integers. Navigate the infinite lattice of Gnomon indexing and vector slopes.",

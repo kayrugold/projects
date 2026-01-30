@@ -1,5 +1,13 @@
 [
   {
+    "id": "entry-general",
+    "date": "Jan 30, 2026",
+    "title": "The General: Commanding the Poly-Algo Squad",
+    "summary": "Brute force is a blunt instrument. To conquer 60-digit composites, we need a tactical squad. Introducing 'The General,' a multi-threaded factorization command center.",
+    "file": "./thechronicles/entries/entry_general.html",
+    "image": "./assets/journalgeneral.png"
+  },
+  {
     "id": "entry_004",
     "date": "Jan 29, 2026",
     "title": "Forging Code on the Open Road",
