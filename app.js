@@ -1,15 +1,19 @@
-/* app.js - v4.55Universal Grid Layout */
+/* app.js - v4.56 Cleaned & Stable */
 
 let journalEntries = [];
 let forgeItems = [];
 let marketItems = [];
+let audioCtx = null;
+let isPlaying = false;
+let droneOsc1, droneOsc2, droneGain, musicInterval;
 
-// --- NAVIGATION & FETCHING ---
+// ==========================================
+// 1. NAVIGATION & PAGE LOADING
+// ==========================================
+
 async function switchPage(section) {
-    closeApp(); // Force close any open apps (Gnomon, etc)
+    closeApp(); 
     let content = '';
-    
-    // Clear the search filter when switching pages
     window.currentFilter = 'All';
 
     try {
@@ -24,28 +28,96 @@ async function switchPage(section) {
             if(!res.ok) throw new Error('Page missing');
             content = await res.text();
         } else {
-            // Guild and others
             const res = await fetch(`pages/${section}.html`);
             if(!res.ok) throw new Error('Page missing');
             content = await res.text();
         }
     } catch (err) {
         console.error(err);
-        content = `<div class="item-card"><h3>Error 404</h3><p>This scroll is missing from the archives.</p></div>`;
+        content = `<div class="item-card"><h3>Error 404</h3><p>The archives are incomplete.</p></div>`;
     }
     
     document.getElementById('page-content').innerHTML = content;
     
-    // UI Updates
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const active = document.querySelector(`.bm-${section}`);
     if(active) active.classList.add('active');
 
-    // Re-init Logic for specific pages
     if (section === 'ravens') document.getElementById('streak-grid').innerHTML = generateGrid();
 }
 
-// --- FORGE ENGINE ---
+async function openProjectPage(url, event) {
+  if (event) event.stopPropagation();
+  playPageSound();
+
+  if (!url) {
+    alert("No documentation available for this item yet.");
+    return;
+  }
+
+  closeApp(); 
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Missing project page");
+    const html = await res.text();
+
+    document.body.classList.add('reading-mode');
+    document.getElementById('library-view').style.display = 'none';
+    document.getElementById('book-view').className = 'open';
+    document.getElementById('bookmarks').style.display = 'flex';
+
+    document.getElementById('page-content').innerHTML = html;
+
+    document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
+    const forgeBm = document.querySelector('.bm-forge'); 
+    // Default to highlighting forge, or keep current if logic allows
+    if (forgeBm) forgeBm.classList.add('active');
+
+    window.scrollTo(0, 0);
+  } catch (e) {
+    console.error(e);
+    alert("The archives for this project are currently sealed.");
+  }
+}
+
+// ==========================================
+// 2. CARD TEMPLATES (Shared Engine)
+// ==========================================
+
+function generateCardBack(item) {
+    const longHTML = item.longDescription || item.moreInfo || item.description;
+
+    const featuresHTML = Array.isArray(item.features) && item.features.length
+      ? `<div class="card-section">
+            <div class="card-section-title">Features</div>
+            <ul class="card-bullets">${item.features.map(f => `<li>${f}</li>`).join('')}</ul>
+         </div>`
+      : '';
+
+    const techHTML = Array.isArray(item.tech) && item.tech.length
+      ? `<div class="card-section">
+            <div class="card-section-title">Specs</div>
+            <div class="chip-row">${item.tech.map(t => `<span class="chip">${t}</span>`).join('')}</div>
+         </div>`
+      : '';
+
+    return `
+        <div class="project-btn" onclick="openProjectPage('${item.projectPage || ''}', event)" title="View Docs">↗</div>
+        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
+        
+        <h3 class="forge-title" style="border-bottom:1px solid var(--ink); padding-bottom:10px;">${item.title}</h3>
+        
+        <div style="overflow-y: auto; flex: 1; padding-right: 5px; margin-top: 10px;">
+            <p class="forge-desc" style="-webkit-line-clamp: unset; font-size: 0.95rem;">${longHTML}</p>
+            ${featuresHTML}
+            ${techHTML}
+        </div>
+        
+        <p style="font-size: 0.8rem; font-style: italic; color: #666; margin-top: 10px; flex-shrink: 0;">Tap ↺ to flip back</p>
+    `;
+}
+
 async function fetchForge() {
     try {
         const response = await fetch('./forge/forge_manifest.json');
@@ -67,17 +139,15 @@ async function fetchForge() {
         <div id="forgeList" class="gallery-grid">`;
 
         forgeItems.forEach(item => {
-            // 1. Build Header
             let headerHTML = item.image 
                 ? `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`
                 : `<div class="forge-img-container"><div class="forge-img-emoji">${item.icon}</div></div>`;
 
-            // 2. Build Card (Cleaned up for CSS Grid)
             html += `
             <div class="item-card forge-item flip-container" data-type="${item.type}">
                 <div class="flipper">
-                    
                     <div class="front">
+                        <div class="project-btn" onclick="openProjectPage('${item.projectPage || ''}', event)" title="Open Project">↗</div>
                         <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
                         ${headerHTML}
                         <div class="card-inner">
@@ -90,48 +160,30 @@ async function fetchForge() {
                             <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
                         </div>
                     </div>
-
-                    <div class="back">
-                        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
-                        <h3 class="forge-title" style="border-bottom:1px solid var(--ink); padding-bottom:10px;">${item.title}</h3>
-                        <p class="forge-desc" style="font-size: 1rem; margin-top: 15px;">
-                            ${item.description}
-                        </p>
-                        <p style="font-size: 0.9rem; font-style: italic; color: #666; margin-top: auto;">
-                            Tap the arrow to return to the main view.
-                        </p>
-                    </div>
-
+                    <div class="back">${generateCardBack(item)}</div>
                 </div>
             </div>`;
         });
-
         html += `</div>`;
         return html;
-    } catch (error) {
-        return `<h1 class="page-title">The Forge</h1><p>The fires are cold. (Manifest load error)</p>`;
-    }
+    } catch (error) { return `<h1 class="page-title">The Forge</h1><p>The fires are cold.</p>`; }
 }
 
-// --- MARKET ENGINE (The Ledger) ---
 async function fetchMarket() {
     try {
         const response = await fetch('./market/market_manifest.json');
         if (!response.ok) throw new Error('Market manifest missing');
         marketItems = await response.json();
 
-        // 1. The Fixed Header
         let html = `
         <h1 class="page-title">The Ledger</h1>
-        <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--gold);">
+        <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--gold); transform:none;">
             <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
-                We utilize the <strong>itch.io</strong> marketplace for all secure transactions. 
-                This ensures maximized support for independent development, with no proprietary launchers or corporate overhead.
+                We utilize the <strongitch.io</strong> marketplace for all secure transactions. This ensures maximized support for independent development, with no proprietary launchers or corporate overhead.
             </p>
         </div>
         <div id="marketList" class="gallery-grid">`;
 
-        // 2. The Dynamic Cards
         marketItems.forEach(item => {
             let headerHTML = item.image 
                 ? `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`
@@ -140,8 +192,8 @@ async function fetchMarket() {
             html += `
             <div class="item-card forge-item flip-container">
                 <div class="flipper">
-                    
                     <div class="front">
+                        <div class="project-btn" onclick="openProjectPage('${item.projectPage || ''}', event)" title="Asset Info">↗</div>
                         <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
                         ${headerHTML}
                         <div class="card-inner">
@@ -153,37 +205,25 @@ async function fetchMarket() {
                             <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
                         </div>
                     </div>
-
                     <div class="back">
-                        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
-                        <h3 class="forge-title" style="border-bottom:1px solid var(--ink); padding-bottom:10px;">${item.title}</h3>
-                        
-                        <p class="forge-desc" style="font-size: 1rem; margin-top: 15px;">
-                            ${item.description}
-                        </p>
-                        
-                        <div style="margin-top:auto; width:100%">
-                            <p style="font-size: 0.9rem; font-style: italic; color: #666; margin-bottom: 10px;">
-                                secure transaction via itch.io
-                            </p>
+                        ${generateCardBack(item)}
+                        <div style="margin-top:10px; width:100%; flex-shrink:0;">
                             <button onclick="${item.action}" class="forge-btn" style="background:var(--gold); color:#000; border:1px solid #000; font-weight:bold;">
-                                ${item.buttonText}
+                                ${item.buttonText} VIA ITCH.IO
                             </button>
                         </div>
                     </div>
-
                 </div>
             </div>`;
         });
-
         html += `</div>`;
         return html;
-    } catch (error) {
-        return `<h1 class="page-title">The Ledger</h1><p>The ledger is closed.</p>`;
+    } catch (error) { 
+        console.error(error);
+        return `<h1 class="page-title">The Ledger</h1><p>The ledger is closed. (Data Error)</p>`; 
     }
 }
 
-// --- CHRONICLES ENGINE ---
 async function fetchChronicles() {
     try {
         const response = await fetch('./thechronicles/journal_manifest.json');
@@ -206,11 +246,8 @@ async function fetchChronicles() {
                 <a class="read-more-link" onclick="openJournalEntry('${entry.id}')">Read more...</a>
             </div>`;
         });
-        
         return html;
-    } catch (error) {
-        return `<h1 class="page-title">The Chronicles</h1><p>The archives are currently sealed.</p>`;
-    }
+    } catch (error) { return `<h1 class="page-title">The Chronicles</h1><p>The archives are currently sealed.</p>`; }
 }
 
 async function openJournalEntry(id) {
@@ -237,9 +274,7 @@ async function openJournalEntry(id) {
         document.getElementById('journalContent').innerHTML = fullPostHTML;
         document.getElementById('journalReader').classList.add('active');
         playPageSound(); 
-    } catch (error) {
-        alert("This scroll seems to be missing.");
-    }
+    } catch (error) { alert("This scroll seems to be missing."); }
 }
 
 function closeJournal() {
@@ -247,23 +282,18 @@ function closeJournal() {
     playPageSound(); 
 }
 
-// --- AUDIO ENGINE (Procedural Medieval) ---
-let audioCtx = null;
-let isPlaying = false;
-let droneOsc1, droneOsc2, droneGain;
-let musicInterval;
+// ==========================================
+// 3. AUDIO ENGINE
+// ==========================================
 
-// A Medieval "D Dorian" scale
-const MEDIEVAL_SCALE = [
-    293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 698.46
-];
+const MEDIEVAL_SCALE = [293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 587.33, 698.46];
 
 function initAudio() {
     if (audioCtx) return;
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
     
-    // Reverb Effect
+    // Simple Reverb
     const rate = audioCtx.sampleRate;
     const length = rate * 2.0; 
     const impulse = audioCtx.createBuffer(2, length, rate);
@@ -286,7 +316,6 @@ function initAudio() {
 function startDrone() {
     if (!audioCtx) initAudio();
     
-    // The "Drone" (Background String Sound)
     droneOsc1 = audioCtx.createOscillator();
     droneOsc1.type = 'sawtooth';
     droneOsc1.frequency.value = 73.42; // Low D2
@@ -335,23 +364,17 @@ function playRandomNote() {
 
 function stopDrone() {
     if (droneOsc1) {
-        try {
-            droneOsc1.stop();
-            droneOsc2.stop();
-        } catch(e){}
+        try { droneOsc1.stop(); droneOsc2.stop(); } catch(e){}
         clearInterval(musicInterval);
     }
 }
 
 function playPageSound() {
     if (!isPlaying || !audioCtx) return;
-    // Simple "Paper Swish" noise
     const bufferSize = audioCtx.sampleRate * 0.5; 
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
-        data[i] = Math.random() * 2 - 1; 
-    }
+    for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
     const noise = audioCtx.createBufferSource();
     noise.buffer = buffer;
 
@@ -389,7 +412,10 @@ function toggleSound() {
     }
 }
 
-// --- UI HELPERS ---
+// ==========================================
+// 4. UI INTERACTIONS
+// ==========================================
+
 async function openBook(section) {
     playPageSound();
     document.body.classList.add('reading-mode'); 
@@ -413,6 +439,7 @@ function toggleInfo() {
     const modal = document.getElementById('infoModal');
     modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
 }
+
 function goHome() { closeBook(); toggleInfo(); }
 
 function launchApp(url) {
@@ -427,6 +454,7 @@ function launchApp(url) {
         } catch(e) {}
     };
 }
+
 function closeApp() {
     document.getElementById('appLayer').classList.remove('active');
     document.getElementById('appFrame').src = "";
@@ -451,6 +479,13 @@ function setFilter(filterType, btnElement) {
     filterForge();
 }
 
+function flipCard(btn, event) {
+    event.stopPropagation();
+    const card = btn.closest('.flip-container');
+    card.classList.toggle('flipped');
+    playPageSound(); 
+}
+
 function toggleFullscreen() {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(console.log);
     else if (document.exitFullscreen) document.exitFullscreen();
@@ -460,44 +495,54 @@ setInterval(() => {
     document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 }, 1000);
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+// ==========================================
+// 5. DRAGGABLE BOOKMARKS
+// ==========================================
 
-// --- SMOOTH DRAGGABLE BOOKMARKS ---
 const bmContainer = document.getElementById('bookmarks');
 let isDragging = false;
-let dragOffset = 0;
+let startY = 0;
+let initialTop = 0;
 
 if (bmContainer) {
     bmContainer.addEventListener('touchstart', (e) => {
-        // Disable drag in landscape to allow browser scrolling
-        if (window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches) return;
-
         isDragging = true;
         const rect = bmContainer.getBoundingClientRect();
-        dragOffset = e.touches[0].clientY - rect.top;
         
-        bmContainer.style.top = rect.top + 'px';
-        bmContainer.style.transform = 'none'; 
-        bmContainer.style.bottom = 'auto'; 
+        // Record where the finger started and where the bar currently is
+        startY = e.touches[0].clientY;
+        initialTop = rect.top;
+
+        // Prepare the element for free movement
+        bmContainer.style.transition = 'none'; 
+        bmContainer.style.bottom = 'auto';
+        bmContainer.style.transform = 'none';
+        bmContainer.style.height = 'auto';
     }, {passive: false});
 
-    document.addEventListener('touchmove', (e) => {
+    window.addEventListener('touchmove', (e) => {
         if (!isDragging) return;
-        e.preventDefault(); 
 
-        let newTop = e.touches[0].clientY - dragOffset;
-        const maxTop = window.innerHeight - bmContainer.offsetHeight;
+        // Calculate how far the finger has moved
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - startY;
 
-        if (newTop < 10) newTop = 10;
-        if (newTop > maxTop) newTop = maxTop;
-
-        bmContainer.style.top = newTop + 'px';
+        // Move the container based on that delta
+        bmContainer.style.top = (initialTop + deltaY) + 'px';
+        
+        // Prevent the page from scrolling while moving the bar
+        if (e.cancelable) e.preventDefault();
     }, {passive: false});
 
-    document.addEventListener('touchend', () => { isDragging = false; });
+    window.addEventListener('touchend', () => {
+        isDragging = false;
+    });
 }
 
-// --- GUILD & ROOKERY FUNCTIONS ---
+// ==========================================
+// 6. UTILITIES
+// ==========================================
+
 function sendRaven() {
     const name = document.getElementById('ravenName')?.value;
     const email = document.getElementById('ravenEmail')?.value;
@@ -549,10 +594,4 @@ function sendBugReport() {
     window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
 }
 
-// --- CARD FLIP LOGIC ---
-function flipCard(btn, event) {
-    event.stopPropagation();
-    const card = btn.closest('.flip-container');
-    card.classList.toggle('flipped');
-    playPageSound(); 
-}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');

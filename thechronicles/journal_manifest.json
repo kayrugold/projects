@@ -1,5 +1,21 @@
 [
   {
+    "id": "gnomon-release",
+    "date": "Jan 31, 2026",
+    "title": "PROJECT: GNOMONICUS",
+    "summary": "We have breached the integer limit. A visualizer for the infinite Gnomon lattice is now live in the Forge.",
+    "image": "./assets/entry_gnomonicus.png",
+    "file": "./thechronicles/entries/entry_gnomonicus.html"
+  },
+  {
+    "id": "update-v4-61",
+    "date": "Jan 31, 2026",
+    "title": "SYSTEM UPGRADE V4.61",
+    "summary": "Stabilized the bookmark rail physics, expanded the Ledger's data capacity, and established deep-link project archives.",
+    "image": "./assets/ink_forge.png",
+    "file": "./thechronicles/entries/entry_v4_61.html"
+  },
+  {
     "id": "entry-general",
     "date": "Jan 30, 2026",
     "title": "The General: Commanding the Poly-Algo Squad",

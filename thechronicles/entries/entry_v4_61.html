@@ -1,0 +1,37 @@
+<p class="log-body">
+    <img src="./assets/ink_forge.png" style="float:left; width:60px; margin-right:15px; border:none; box-shadow:none;">
+    <strong>Log ID:</strong> 4.61<br>
+    <strong>Status:</strong> STABLE<br>
+    <strong>Location:</strong> Anderson, CA
+</p>
+
+<div style="clear:both; height:20px;"></div>
+
+<h3 class="card-section-title">1. The Bookmark Rail</h3>
+<p class="log-body">
+    The navigation bookmarks on the right flank were previously prone to "jamming" or refusing to scroll on mobile devices. 
+    <br><br>
+    I have rewritten the touch-event listeners to use a custom <em>physics delta</em>. You can now drag the bar freely up and down, regardless of how many tabs are added in the future. It no longer snaps back or fights the user's thumb.
+</p>
+
+<div class="item-card" style="transform: rotate(1deg); margin: 20px 0;">
+    <h3 class="forge-title" style="text-align:center;">Technomancy Update</h3>
+    <ul class="card-bullets">
+        <li>Added <code>touchmove</code> delta tracking.</li>
+        <li>Disabled browser "pull-to-refresh" on the rail.</li>
+        <li>Implemented "Auto-Stick" positioning.</li>
+    </ul>
+</div>
+
+<h3 class="card-section-title">2. Deep Archives (Project Pages)</h3>
+<p class="log-body">
+    The <strong>Market</strong> and <strong>Forge</strong> cards now support a dual-layer data structure.
+    <br><br>
+    <strong>Layer 1 (The Card):</strong> Flipping a card now reveals a "Quick Spec" sheet, listing features and tech stacks dynamically from the manifest.
+    <br><br>
+    <strong>Layer 2 (The Archive):</strong> A new "Launch" button (↗) has been soldered onto the cards. This opens a full-screen, immersive documentation page (Reading Mode) for assets like the <em>Win Dev Utility Pack</em>.
+</p>
+
+<p class="log-body" style="font-style:italic; margin-top:30px; text-align:center;">
+    "The ledger is open, and the ink is dry."
+</p>

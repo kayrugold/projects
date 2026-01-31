@@ -3,9 +3,21 @@
     "id": "win-dev-pack",
     "title": "WIN DEV UTILITY PACK",
     "description": "Regex parsers, sprite packers, and JSON smithing tools.",
+    "longDescription": "A curated collection of lightweight Windows utilities designed to streamline the game development workflow. Includes tools for sprite sheet generation and data formatting.",
+    "features": [
+      "SGS Regex Parser",
+      "SpriteSmith Pro",
+      "JSON Forge"
+    ],
+    "tech": [
+      "Windows x64",
+      "Standalone .exe",
+      "Portable"
+    ],
+    "projectPage": "./market/projects/win-dev-pack.html",
     "price": "9.99 Gold",
     "buttonText": "ACQUIRE",
-    "icon": "📦",
+    "icon": "\ud83d\udce6",
     "image": "./assets/devpack.png",
     "action": "window.open('https://itch.io', '_blank')"
   },
@@ -13,9 +25,21 @@
     "id": "sound-module",
     "title": "AETHER AUDIO MODULE",
     "description": "Procedural soundscapes for the modern web weaver.",
+    "longDescription": "Generates ambient medieval drone sounds and reverb effects using the Web Audio API. No external mp3 files required.",
+    "features": [
+      "Procedural Generation",
+      "D-Dorian Scale",
+      "Reverb Convolution"
+    ],
+    "tech": [
+      "Web Audio API",
+      "JavaScript",
+      "Zero Dependencies"
+    ],
+    "projectPage": "",
     "price": "4.99 Gold",
     "buttonText": "ACQUIRE",
-    "icon": "🎵",
+    "icon": "\ud83c\udfb5",
     "action": "window.open('https://itch.io', '_blank')"
   }
 ]

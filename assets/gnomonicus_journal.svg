@@ -1,0 +1,17 @@
+<svg width="600" height="300" viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#f9f3e3"/>
+  <rect width="100%" height="100%" fill="url(#noise)" opacity="0.3"/>
+  
+  <path d="M0,300 L300,0 L600,300" fill="none" stroke="#2980b9" stroke-width="2" opacity="0.2"/>
+  <path d="M150,300 L300,150 L450,300" fill="none" stroke="#2980b9" stroke-width="2" opacity="0.3"/>
+  <path d="M225,300 L300,225 L375,300" fill="none" stroke="#2980b9" stroke-width="2" opacity="0.4"/>
+  
+  <text x="300" y="140" font-family="serif" font-size="20" fill="#2b1d0e" text-anchor="middle" letter-spacing="8">PROJECT</text>
+  <text x="300" y="200" font-family="serif" font-weight="bold" font-size="56" fill="#2980b9" text-anchor="middle">GNOMONICUS</text>
+  
+  <rect x="20" y="20" width="560" height="260" rx="4" fill="none" stroke="#2b1d0e" stroke-width="3"/>
+
+  <filter id="noise">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" stitchTiles="stitch"/>
+  </filter>
+</svg>

@@ -1,14 +1,42 @@
 [
-{
+  {
+    "id": "gnomonicus",
+    "title": "GNOMONICUS",
+    "description": "Interactive visualizer for Gnomon Volume Sums and infinite lattice arithmetic.",
+    "longDescription": "An experimental arithmetic engine that visualizes the 'Gnomon' structure of integer space. It renders an infinite triangular grid where every node represents a vector slope, allowing for the real-time calculation of Volume Sums and Tape IDs using BigInt precision.",
+    "features": [
+      "Infinite Pan & Zoom Canvas",
+      "Real-time Gnomon Summation",
+      "BigInt Arithmetic Support"
+    ],
+    "tech": [
+      "HTML5 Canvas",
+      "Touch Physics",
+      "Vanilla JS"
+    ],
+    "projectPage": "./forge/projects/gnomonicus.html",
+    "type": "Math",
+    "version": "V0.0.0",
+    "status": "ALPHA",
+    "statusClass": "badge-alpha",
+    "buttonText": "EXPLORE",
+    "icon": "",
+    "image": "./assets/gnomonicus.png",
+    "action": "launchApp('./apps/gnomonicus0.0.0.html')"
+  },
+  {
     "id": "thegeneral",
     "title": "THE GENERAL",
     "description": "Hunt factors with the SGS Poly-algo squad in real time in your browser and fast.",
+    "longDescription": "A high-performance modular visualizer and factor hunting engine. Built to utilize parallel browser threads for intense number crunching without UI lag.",
+    "features": ["Real-time visual lattice", "SGS Poly-algo integration", "Multi-threaded processing"],
+    "tech": ["JS BigInt", "Web Workers", "Canvas API"],
+    "projectPage": "./forge/projects/thegeneral0.0.34.html",
     "type": "Math",
     "version": "V0.0.34",
     "status": "ALPHA",
     "statusClass": "badge-alpha",
     "buttonText": "HUNT",
-    "icon": "",
     "image": "./assets/thegeneral.png",
     "action": "launchApp('./apps/thegeneral0.0.34.html')"
   },
