@@ -16,17 +16,17 @@ const ASSETS_TO_CACHE = [
   './thechronicles/journal_manifest.json',
 
   // --- UI ICONS (The App Shell) ---
-  './assets/icon.png',
-  './assets/icon_home.png',
-  './assets/icon_forge.png',
-  './assets/icon_market.png',
-  './assets/icon_chronicles.png',
-  './assets/icon_guild.png',
-  './assets/icon_raven.png',
-  './assets/soundoff.png',
-  './assets/soundon.png',
-  './assets/coffee.png',      // Added: Coffee icon (it's always on the navbar)
-  './assets/fullscreen.png'   // Added: Fullscreen button
+  './assets/icon.jpg',
+  './assets/icon_home.jpg',
+  './assets/icon_forge.jpg',
+  './assets/icon_market.jpg',
+  './assets/icon_chronicles.jpg',
+  './assets/icon_guild.jpg',
+  './assets/icon_raven.jpg',
+  './assets/soundoff.jpg',
+  './assets/soundon.jpg',
+  './assets/coffee.jpg',      // Added: Coffee icon (it's always on the navbar)
+  './assets/fullscreen.jpg'   // Added: Fullscreen button
 ];
 
 // 1. INSTALL: Cache the "App Shell" immediately

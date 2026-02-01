@@ -403,11 +403,11 @@ function toggleSound() {
     
     if (isPlaying) {
         btn.classList.add('active');
-        icon.src = "./assets/soundon.png";
+        icon.src = "./assets/soundon.jpg";
         startDrone();
     } else {
         btn.classList.remove('active');
-        icon.src = "./assets/soundoff.png";
+        icon.src = "./assets/soundoff.jpg";
         stopDrone();
     }
 }

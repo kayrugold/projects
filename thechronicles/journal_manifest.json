@@ -4,7 +4,7 @@
     "date": "Jan 31, 2026",
     "title": "PROJECT: GNOMONICUS",
     "summary": "We have breached the integer limit. A visualizer for the infinite Gnomon lattice is now live in the Forge.",
-    "image": "./assets/entry_gnomonicus.png",
+    "image": "./assets/entry_gnomonicus.jpg",
     "file": "./thechronicles/entries/entry_gnomonicus.html"
   },
   {
@@ -12,7 +12,7 @@
     "date": "Jan 31, 2026",
     "title": "SYSTEM UPGRADE V4.61",
     "summary": "Stabilized the bookmark rail physics, expanded the Ledger's data capacity, and established deep-link project archives.",
-    "image": "./assets/ink_forge.png",
+    "image": "./assets/ink_forge.jpg",
     "file": "./thechronicles/entries/entry_v4_61.html"
   },
   {
@@ -21,13 +21,13 @@
     "title": "The General: Commanding the Poly-Algo Squad",
     "summary": "Brute force is a blunt instrument. To conquer 60-digit composites, we need a tactical squad. Introducing 'The General,' a multi-threaded factorization command center.",
     "file": "./thechronicles/entries/entry_general.html",
-    "image": "./assets/journalgeneral.png"
+    "image": "./assets/journalgeneral.jpg"
   },
   {
     "id": "entry_004",
     "date": "Jan 29, 2026",
     "title": "Forging Code on the Open Road",
-    "image": "./assets/seminote.png", 
+    "image": "./assets/seminote.jpg", 
     "summary": "Why a truck driver is using AI to build number theory tools. The philosophy behind the studio.",
     "file": "./thechronicles/entries/originstory.html"
   },
