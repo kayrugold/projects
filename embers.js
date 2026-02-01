@@ -1,13 +1,27 @@
-/* embers.js - The Fire of the Forge */
+/* embers.js - Optimized "Sprite Stamp" Edition */
 
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 document.body.appendChild(canvas);
 
-// CONFIGURATION
 canvas.id = 'ember-canvas';
 let particles = [];
-const particleCount = window.innerWidth < 600 ? 35 : 70; // Fewer on mobile for battery save
+const particleCount = 50; // Balanced for desktop/mobile
+
+// PERFORMANCE: Pre-render the glow to an off-screen image
+// This avoids calculating 'shadowBlur' 60 times a second
+const sprite = document.createElement('canvas');
+sprite.width = 20;
+sprite.height = 20;
+const sCtx = sprite.getContext('2d');
+
+// Draw the "Ember" once into the sprite
+const grad = sCtx.createRadialGradient(10, 10, 0, 10, 10, 10);
+grad.addColorStop(0, 'rgba(255, 200, 50, 1)');   // Hot Center
+grad.addColorStop(0.4, 'rgba(255, 100, 0, 0.5)'); // Orange Body
+grad.addColorStop(1, 'rgba(255, 69, 0, 0)');     // Transparent Edge
+sCtx.fillStyle = grad;
+sCtx.fillRect(0, 0, 20, 20);
 
 // RESIZE HANDLER
 function resize() {
@@ -21,41 +35,43 @@ resize();
 class Ember {
     constructor() {
         this.reset();
-        // Start randomly on screen so they don't all pop in at the bottom at once
         this.y = Math.random() * canvas.height; 
     }
 
     reset() {
         this.x = Math.random() * canvas.width;
-        this.y = canvas.height + (Math.random() * 50); // Start below screen
-        this.size = Math.random() * 2 + 0.5; // Tiny sparks
-        this.speedY = Math.random() * 1 + 0.5; // Slow rise
-        this.speedX = (Math.random() - 0.5) * 0.5; // Slight drift
-        this.opacity = 1;
-        this.fadeRate = Math.random() * 0.01 + 0.002;
-        
-        // Color Palette: Gold, Orange, Red
-        const colors = ['255, 215, 0', '255, 69, 0', '255, 140, 0']; 
-        this.color = colors[Math.floor(Math.random() * colors.length)];
+        this.y = canvas.height + (Math.random() * 50);
+        this.speedY = Math.random() * 0.8 + 0.2; // Slower, more majestic
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.opacity = 0; // Start invisible
+        this.maxOpacity = Math.random() * 0.5 + 0.3; // Random max brightness
+        this.life = 0;
+        this.duration = Math.random() * 200 + 100;
+        this.scale = Math.random() * 0.5 + 0.5; // Scale the sprite
     }
 
     update() {
         this.y -= this.speedY;
-        this.x += this.speedX + Math.sin(this.y * 0.01) * 0.2; // Heat wave wobble
-        this.opacity -= this.fadeRate;
+        this.x += this.speedX;
+        this.life++;
 
-        if (this.opacity <= 0 || this.y < -10) {
+        // Fade In / Fade Out math
+        if (this.life < 20) {
+            this.opacity = (this.life / 20) * this.maxOpacity;
+        } else if (this.life > this.duration - 20) {
+            this.opacity = ((this.duration - this.life) / 20) * this.maxOpacity;
+        }
+
+        if (this.life >= this.duration || this.y < -20) {
             this.reset();
         }
     }
 
     draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${this.color}, ${this.opacity})`;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = `rgba(${this.color}, 0.8)`; // Glow effect
-        ctx.fill();
+        // FAST: Just copy the pre-made image. No vector math.
+        ctx.globalAlpha = this.opacity;
+        const size = 20 * this.scale;
+        ctx.drawImage(sprite, this.x, this.y, size, size);
     }
 }
 
@@ -68,8 +84,7 @@ for (let i = 0; i < particleCount; i++) {
 function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // "Lighter" makes the particles glow when they overlap
-    ctx.globalCompositeOperation = 'screen'; 
+    // No globalCompositeOperation = Much faster
     
     particles.forEach(p => {
         p.update();
