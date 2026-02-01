@@ -1,4 +1,4 @@
-/* app.js - v4.57 Cleaned & Stable */
+/* app.js - v4.58 Cleaned & Stable */
 
 let journalEntries = [];
 let forgeItems = [];
@@ -403,11 +403,11 @@ function toggleSound() {
     
     if (isPlaying) {
         btn.classList.add('active');
-        icon.src = "./assets/soundon.jpg";
+        icon.src = "./assets/soundon.webp";
         startDrone();
     } else {
         btn.classList.remove('active');
-        icon.src = "./assets/soundoff.jpg";
+        icon.src = "./assets/soundoff.webp";
         stopDrone();
     }
 }
