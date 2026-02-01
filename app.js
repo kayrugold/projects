@@ -1,4 +1,4 @@
-/* app.js - v4.59 Cleaned & Stable */
+/* app.js - v4.60 Cleaned & Stable */
 
 let journalEntries = [];
 let forgeItems = [];
@@ -499,58 +499,67 @@ setInterval(() => {
 // 5. DRAGGABLE BOOKMARKS
 // ==========================================
 
-// app.js - Section 5: DRAGGABLE BOOKMARKS (Desktop & Mobile)
+// app.js - Section 5: DRAGGABLE BOOKMARKS (Smart Drag)
 
 const bmContainer = document.getElementById('bookmarks');
+let isPressing = false;
 let isDragging = false;
 let startY = 0;
 let initialTop = 0;
 
 if (bmContainer) {
-    // 1. START DRAG (Mouse or Touch)
+    // 1. PRESS START (Don't capture yet!)
     bmContainer.addEventListener('pointerdown', (e) => {
-        isDragging = true;
-        
-        // Capture the pointer so dragging continues even if cursor leaves the bar
-        bmContainer.setPointerCapture(e.pointerId);
+        isPressing = true;
+        isDragging = false; // Reset
         
         const rect = bmContainer.getBoundingClientRect();
-        
-        // Record starting positions
         startY = e.clientY;
         initialTop = rect.top;
-
-        // Prepare element for free movement (removes the CSS centering)
-        bmContainer.style.transition = 'none'; 
-        bmContainer.style.bottom = 'auto';
-        bmContainer.style.transform = 'none';
-        bmContainer.style.top = initialTop + 'px'; // Lock it to current pixel before moving
-        bmContainer.style.height = 'auto';
+        
+        // We do NOT capture the pointer here. 
+        // We wait to see if the user moves the mouse first.
     });
 
-    // 2. MOVE (Mouse or Touch)
+    // 2. MOVE (Check Threshold)
     window.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
+        if (!isPressing) return;
 
-        // Calculate delta
         const currentY = e.clientY;
         const deltaY = currentY - startY;
 
-        // Apply new position
-        bmContainer.style.top = (initialTop + deltaY) + 'px';
-        
-        // Prevent scrolling on mobile while dragging
-        e.preventDefault();
+        // LOGIC: Only start dragging if moved more than 5 pixels
+        if (!isDragging && Math.abs(deltaY) > 5) {
+            isDragging = true;
+            
+            // NOW we capture the pointer to track the drag smoothly
+            bmContainer.setPointerCapture(e.pointerId);
+            
+            // Unlock the CSS positioning
+            bmContainer.style.transition = 'none'; 
+            bmContainer.style.bottom = 'auto';
+            bmContainer.style.transform = 'none';
+        }
+
+        // If we have confirmed it is a drag, move the bar
+        if (isDragging) {
+            e.preventDefault(); // Stop scrolling
+            bmContainer.style.top = (initialTop + deltaY) + 'px';
+        }
     }, {passive: false});
 
-    // 3. END DRAG
+    // 3. RELEASE
     window.addEventListener('pointerup', (e) => {
+        isPressing = false;
         if (isDragging) {
             isDragging = false;
             bmContainer.releasePointerCapture(e.pointerId);
         }
+        // If isDragging never became true, the browser treats this 
+        // as a standard "click" and fires the onclick function on the bookmark.
     });
 }
+
 
 
 // ==========================================
