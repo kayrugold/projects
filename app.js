@@ -1,4 +1,4 @@
-/* app.js - v4.56 Cleaned & Stable */
+/* app.js - v4.57 Cleaned & Stable */
 
 let journalEntries = [];
 let forgeItems = [];
