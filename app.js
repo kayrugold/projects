@@ -1,4 +1,4 @@
-/* app.js - v4.58 Cleaned & Stable */
+/* app.js - v4.59 Cleaned & Stable */
 
 let journalEntries = [];
 let forgeItems = [];
@@ -499,45 +499,59 @@ setInterval(() => {
 // 5. DRAGGABLE BOOKMARKS
 // ==========================================
 
+// app.js - Section 5: DRAGGABLE BOOKMARKS (Desktop & Mobile)
+
 const bmContainer = document.getElementById('bookmarks');
 let isDragging = false;
 let startY = 0;
 let initialTop = 0;
 
 if (bmContainer) {
-    bmContainer.addEventListener('touchstart', (e) => {
+    // 1. START DRAG (Mouse or Touch)
+    bmContainer.addEventListener('pointerdown', (e) => {
         isDragging = true;
+        
+        // Capture the pointer so dragging continues even if cursor leaves the bar
+        bmContainer.setPointerCapture(e.pointerId);
+        
         const rect = bmContainer.getBoundingClientRect();
         
-        // Record where the finger started and where the bar currently is
-        startY = e.touches[0].clientY;
+        // Record starting positions
+        startY = e.clientY;
         initialTop = rect.top;
 
-        // Prepare the element for free movement
+        // Prepare element for free movement (removes the CSS centering)
         bmContainer.style.transition = 'none'; 
         bmContainer.style.bottom = 'auto';
         bmContainer.style.transform = 'none';
+        bmContainer.style.top = initialTop + 'px'; // Lock it to current pixel before moving
         bmContainer.style.height = 'auto';
-    }, {passive: false});
+    });
 
-    window.addEventListener('touchmove', (e) => {
+    // 2. MOVE (Mouse or Touch)
+    window.addEventListener('pointermove', (e) => {
         if (!isDragging) return;
 
-        // Calculate how far the finger has moved
-        const currentY = e.touches[0].clientY;
+        // Calculate delta
+        const currentY = e.clientY;
         const deltaY = currentY - startY;
 
-        // Move the container based on that delta
+        // Apply new position
         bmContainer.style.top = (initialTop + deltaY) + 'px';
         
-        // Prevent the page from scrolling while moving the bar
-        if (e.cancelable) e.preventDefault();
+        // Prevent scrolling on mobile while dragging
+        e.preventDefault();
     }, {passive: false});
 
-    window.addEventListener('touchend', () => {
-        isDragging = false;
+    // 3. END DRAG
+    window.addEventListener('pointerup', (e) => {
+        if (isDragging) {
+            isDragging = false;
+            bmContainer.releasePointerCapture(e.pointerId);
+        }
     });
 }
+
 
 // ==========================================
 // 6. UTILITIES
