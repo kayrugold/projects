@@ -1,5 +1,29 @@
 [
   {
+    "id": "stride-hunter",
+    "title": "STRIDE HUNTER",
+    "description": "The Perfected Alignment Engine. Deploy a fleet of threads to hunt for factors using geometric sieving.",
+    "longDescription": "Stride Hunter utilizes the 'Geometric Soul of the Sieve' to find collisions in modular space. It utilizes multi-threaded Web Workers to scan high-altitude exponents for prime factors with zero UI lag.",
+    "features": [
+      "Multi-core Fleet Deployment",
+      "Geometric Sieve Theorem Integration",
+      "Real-time Mission Progress Tracking"
+    ],
+    "tech": [
+      "Web Workers (Parallel Processing)",
+      "BigInt Precision",
+      "Tailwind CSS"
+    ],
+    "projectPage": "./forge/projects/stride-hunter.html",
+    "type": "Math",
+    "version": "V13.3",
+    "status": "BETA",
+    "statusClass": "badge-beta",
+    "buttonText": "DEPLOY",
+    "image": "./assets/stride_hunter.webp",
+    "action": "launchApp('./apps/stridehunterv13-3.html')"
+  },
+  {
     "id": "gnomonicus",
     "title": "GNOMONICUS",
     "description": "Interactive visualizer for Gnomon Volume Sums and infinite lattice arithmetic.",

@@ -1,5 +1,13 @@
 [
   {
+    "id": "theironspine",
+    "date": "Feb 2, 2026",
+    "title": "Log ID 4.62: The Stillness of the Forge",
+    "summary": "Brakes set in the North Country. After a heavy haul through the Nexus and the Foundry, the Forge is quiet. Reflected on the standstill and the architecture of the journey.",
+    "image": "./assets/theironspine.webp",
+    "file": "./thechronicles/entries/theironspine.html"
+  },
+  {
     "id": "gnomon-release",
     "date": "Jan 31, 2026",
     "title": "PROJECT: GNOMONICUS",
