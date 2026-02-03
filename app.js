@@ -1,4 +1,4 @@
-/* app.js - v2.0.7 Centralized & Fixed */
+/* app.js - v2.0.8 Centralized & Fixed */
 
 // ==========================================
 // 0. SERVICE WORKER & UPDATE UI
