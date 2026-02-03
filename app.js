@@ -1,4 +1,4 @@
-/* app.js - v2.0.6 Centralized & Fixed */
+/* app.js - v2.0.7 Centralized & Fixed */
 
 // ==========================================
 // 0. SERVICE WORKER & UPDATE UI
@@ -541,7 +541,7 @@ setInterval(() => {
 }, 1000);
 
 // ==========================================
-// 5. DRAGGABLE BOOKMARKS
+// 5. DRAGGABLE BOOKMARKS (OPTIMIZED)
 // ==========================================
 
 const bmContainer = document.getElementById('bookmarks');
@@ -551,41 +551,56 @@ let startY = 0;
 let initialTop = 0;
 
 if (bmContainer) {
+    // 1. START DRAG
     bmContainer.addEventListener('pointerdown', (e) => {
         isPressing = true;
         isDragging = false; 
         
+        // Capture the pointer so we keep receiving events even if the mouse leaves the box
+        // This allows us to remove the global 'window' listener that was slowing down scroll
+        bmContainer.setPointerCapture(e.pointerId);
+
         const rect = bmContainer.getBoundingClientRect();
         startY = e.clientY;
         initialTop = rect.top;
     });
 
-    window.addEventListener('pointermove', (e) => {
+    // 2. MOVE (Now attached to container, not window)
+    bmContainer.addEventListener('pointermove', (e) => {
         if (!isPressing) return;
 
         const currentY = e.clientY;
         const deltaY = currentY - startY;
 
+        // Threshold to detect drag vs click
         if (!isDragging && Math.abs(deltaY) > 5) {
             isDragging = true;
-            bmContainer.setPointerCapture(e.pointerId);
             bmContainer.style.transition = 'none'; 
             bmContainer.style.bottom = 'auto';
             bmContainer.style.transform = 'none';
         }
 
         if (isDragging) {
-            e.preventDefault(); 
+            e.preventDefault(); // This only blocks scroll if we are actively dragging the bookmark
             bmContainer.style.top = (initialTop + deltaY) + 'px';
         }
-    }, {passive: false});
+    });
 
-    window.addEventListener('pointerup', (e) => {
+    // 3. END DRAG
+    bmContainer.addEventListener('pointerup', (e) => {
         isPressing = false;
         if (isDragging) {
             isDragging = false;
+            // Important: Release the capture so the mouse works normally again
             bmContainer.releasePointerCapture(e.pointerId);
         }
+    });
+    
+    // Safety catch: If the mouse leaves the window or drag is cancelled
+    bmContainer.addEventListener('pointercancel', (e) => {
+        isPressing = false;
+        isDragging = false;
+        bmContainer.releasePointerCapture(e.pointerId);
     });
 }
 
