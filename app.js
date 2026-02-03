@@ -643,3 +643,42 @@ function sendBugReport() {
     const body = `Project: ${project}%0D%0Aissue Type: ${type}%0D%0A%0D%0ADetails:%0D%0A${msg}`;
     window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
 }
+
+// ==========================================
+// 7. BACKGROUND CACHE HEATER (THE MASTER AFTERBURNER)
+// ==========================================
+async function heatTheCache() {
+    console.log("🔥 Afterburner: Warming up all systems...");
+    
+    const manifests = [
+        './thechronicles/journal_manifest.json',
+        './forge/forge_manifest.json',
+        './market/market_manifest.json'
+    ];
+
+    try {
+        for (const url of manifests) {
+            // 1. Fetch the manifest
+            // We use no-cors to keep it fast and simple, just triggering the Service Worker
+            const res = await fetch(getVersionedAsset(url));
+            const items = await res.json();
+            
+            // 2. Loop through every item and fetch its image
+            let count = 0;
+            for (const item of items) {
+                if (item.image) {
+                    fetch(item.image, { mode: 'no-cors' });
+                    count++;
+                }
+            }
+            console.log(`🔥 Afterburner: Queued ${count} images from ${url}`);
+        }
+    } catch (e) {
+        console.log("❄️ Afterburner stalled:", e);
+    }
+}
+
+// Wait 3 seconds after load so we don't slow down the start-up
+window.addEventListener('load', () => {
+    setTimeout(heatTheCache, 3000);
+});
