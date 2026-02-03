@@ -1,4 +1,20 @@
 [
+{
+  "id": "log-4-64",
+  "date": "Feb 3, 2026",
+  "title": "Log ID 4.64: The Cartography of Integers",
+  "summary": "Deploying the Lattice Explorer. Moving from brute force hunting to geometric mapping. Visualizing the 'Diamond' regions and modulus grids.",
+  "image": "./assets/lattice.webp",
+  "file": "./thechronicles/entries/entry_lattice_explorer.html"
+},
+{
+  "id": "log-4-63",
+  "date": "Feb 3, 2026",
+  "title": "Log ID 4.63: The Peterbilt Studio",
+  "summary": "Late night dispatch from the cab. A raw look at squashing a critical caching bug at 2 AM with the help of the AI Squire. The reality of the double shift.",
+  "image": "./assets/thepeterbiltstudio.webp",
+  "file": "./thechronicles/entries/thepeterbiltstudio.html"
+},
   {
     "id": "theironspine",
     "date": "Feb 2, 2026",

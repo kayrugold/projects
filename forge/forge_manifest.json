@@ -1,5 +1,29 @@
 [
   {
+    "id": "lattice-explorer",
+    "title": "LATTICE EXPLORER",
+    "description": "Interactive cartography for the modular plane. Visualize the geometric soul of integers.",
+    "longDescription": "A multi-layered visualization engine that renders the hidden geometry of Number Theory. From the 'Core' hyperbolas to the 'Diamond' factor intersections, the Lattice Explorer allows for real-time navigation of modular space using a touch-responsive infinite canvas.",
+    "features": [
+      "Infinite Pan & Zoom Canvas",
+      "Multi-Layer Rendering (Core, Diamonds, Parabolas)",
+      "Real-time Modulus Grid Visualization"
+    ],
+    "tech": [
+      "HTML5 Canvas",
+      "Web Workers",
+      "BigInt Precision"
+    ],
+    "projectPage": "./forge/projects/lattice-explorer.html",
+    "type": "Math",
+    "version": "V0.0.3",
+    "status": "ALPHA",
+    "statusClass": "badge-alpha",
+    "buttonText": "EXPLORE",
+    "image": "./assets/lattice_explorer.webp",
+    "action": "launchApp('./apps/latticeexplorer0.0.3.html')"
+  },
+  {
     "id": "stride-hunter",
     "title": "STRIDE HUNTER",
     "description": "The Perfected Alignment Engine. Deploy a fleet of threads to hunt for factors using geometric sieving.",

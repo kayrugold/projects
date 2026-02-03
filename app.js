@@ -1,4 +1,44 @@
-/* app.js - v4.64 Cleaned & Stable */
+/* app.js - v2.0.4 Centralized & Fixed */
+
+// ==========================================
+// 0. SERVICE WORKER & UPDATE UI
+// ==========================================
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+        if (reg.waiting) triggerUpdateUI();
+
+        reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    triggerUpdateUI();
+                }
+            });
+        });
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+            window.location.reload();
+            refreshing = true;
+        }
+    });
+}
+
+function triggerUpdateUI() {
+    const overlay = document.getElementById('updateOverlay');
+    const versionSpan = document.getElementById('ui-version-display');
+    
+    if(overlay) {
+        // Pulls directly from config.js (Global variable)
+        if(versionSpan && typeof FORGE_VERSION !== 'undefined') {
+            versionSpan.innerText = FORGE_VERSION; 
+            document.getElementById('updateStatus').innerText = `Syncing Forge v${FORGE_VERSION}...`;
+        }
+        overlay.style.display = 'flex';
+    }
+}
 
 let journalEntries = [];
 let forgeItems = [];
@@ -71,7 +111,6 @@ async function openProjectPage(url, event) {
 
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const forgeBm = document.querySelector('.bm-forge'); 
-    // Default to highlighting forge, or keep current if logic allows
     if (forgeBm) forgeBm.classList.add('active');
 
     window.scrollTo(0, 0);
@@ -120,7 +159,8 @@ function generateCardBack(item) {
 
 async function fetchForge() {
     try {
-        const response = await fetch('./forge/forge_manifest.json');
+        // FIXED: Added closing parenthesis ')'
+        const response = await fetch(getVersionedAsset('./forge/forge_manifest.json'));
         if (!response.ok) throw new Error('Forge manifest missing');
         forgeItems = await response.json();
 
@@ -139,8 +179,9 @@ async function fetchForge() {
         <div id="forgeList" class="gallery-grid">`;
 
         forgeItems.forEach(item => {
+            // FIXED: Wrapped image in getVersionedAsset
             let headerHTML = item.image 
-                ? `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`
+                ? `<img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">`
                 : `<div class="forge-img-container"><div class="forge-img-emoji">${item.icon}</div></div>`;
 
             html += `
@@ -171,7 +212,7 @@ async function fetchForge() {
 
 async function fetchMarket() {
     try {
-        const response = await fetch('./market/market_manifest.json');
+        const response = await fetch(getVersionedAsset('./market/market_manifest.json'));
         if (!response.ok) throw new Error('Market manifest missing');
         marketItems = await response.json();
 
@@ -179,14 +220,15 @@ async function fetchMarket() {
         <h1 class="page-title">The Ledger</h1>
         <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--gold); transform:none;">
             <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
-                We utilize the <strongitch.io</strong> marketplace for all secure transactions. This ensures maximized support for independent development, with no proprietary launchers or corporate overhead.
+                We utilize the <strong>itch.io</strong> marketplace for all secure transactions. This ensures maximized support for independent development, with no proprietary launchers or corporate overhead.
             </p>
         </div>
         <div id="marketList" class="gallery-grid">`;
 
         marketItems.forEach(item => {
+            // FIXED: Wrapped image in getVersionedAsset
             let headerHTML = item.image 
-                ? `<img src="${item.image}" class="forge-header-img" alt="${item.title}">`
+                ? `<img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">`
                 : `<div class="forge-img-container"><div class="forge-img-emoji">${item.icon}</div></div>`;
 
             html += `
@@ -226,15 +268,17 @@ async function fetchMarket() {
 
 async function fetchChronicles() {
     try {
-        const response = await fetch('./thechronicles/journal_manifest.json');
+        // FIXED: Added closing parenthesis ')'
+        const response = await fetch(getVersionedAsset('./thechronicles/journal_manifest.json'));
         if (!response.ok) throw new Error('Manifest not found');
         journalEntries = await response.json(); 
         
         let html = `<h1 class="page-title">The Chronicles</h1>`;
         
         journalEntries.forEach(entry => {
+            // FIXED: Wrapped image in getVersionedAsset
             const imageHTML = entry.image 
-                ? `<img src="${entry.image}" class="journal-featured-img" alt="${entry.title}" loading="lazy">` 
+                ? `<img src="${getVersionedAsset(entry.image)}" class="journal-featured-img" alt="${entry.title}" loading="lazy">` 
                 : '';
 
             html += `
@@ -259,8 +303,9 @@ async function openJournalEntry(id) {
         if (!response.ok) throw new Error('Entry not found');
         const text = await response.text();
         
+        // FIXED: Wrapped image in getVersionedAsset
         const imageHTML = entry.image 
-            ? `<img src="${entry.image}" class="journal-featured-img" alt="${entry.title}">` 
+            ? `<img src="${getVersionedAsset(entry.image)}" class="journal-featured-img" alt="${entry.title}">` 
             : '';
 
         const fullPostHTML = `
@@ -499,8 +544,6 @@ setInterval(() => {
 // 5. DRAGGABLE BOOKMARKS
 // ==========================================
 
-// app.js - Section 5: DRAGGABLE BOOKMARKS (Smart Drag)
-
 const bmContainer = document.getElementById('bookmarks');
 let isPressing = false;
 let isDragging = false;
@@ -508,59 +551,43 @@ let startY = 0;
 let initialTop = 0;
 
 if (bmContainer) {
-    // 1. PRESS START (Don't capture yet!)
     bmContainer.addEventListener('pointerdown', (e) => {
         isPressing = true;
-        isDragging = false; // Reset
+        isDragging = false; 
         
         const rect = bmContainer.getBoundingClientRect();
         startY = e.clientY;
         initialTop = rect.top;
-        
-        // We do NOT capture the pointer here. 
-        // We wait to see if the user moves the mouse first.
     });
 
-    // 2. MOVE (Check Threshold)
     window.addEventListener('pointermove', (e) => {
         if (!isPressing) return;
 
         const currentY = e.clientY;
         const deltaY = currentY - startY;
 
-        // LOGIC: Only start dragging if moved more than 5 pixels
         if (!isDragging && Math.abs(deltaY) > 5) {
             isDragging = true;
-            
-            // NOW we capture the pointer to track the drag smoothly
             bmContainer.setPointerCapture(e.pointerId);
-            
-            // Unlock the CSS positioning
             bmContainer.style.transition = 'none'; 
             bmContainer.style.bottom = 'auto';
             bmContainer.style.transform = 'none';
         }
 
-        // If we have confirmed it is a drag, move the bar
         if (isDragging) {
-            e.preventDefault(); // Stop scrolling
+            e.preventDefault(); 
             bmContainer.style.top = (initialTop + deltaY) + 'px';
         }
     }, {passive: false});
 
-    // 3. RELEASE
     window.addEventListener('pointerup', (e) => {
         isPressing = false;
         if (isDragging) {
             isDragging = false;
             bmContainer.releasePointerCapture(e.pointerId);
         }
-        // If isDragging never became true, the browser treats this 
-        // as a standard "click" and fires the onclick function on the bookmark.
     });
 }
-
-
 
 // ==========================================
 // 6. UTILITIES
@@ -616,5 +643,3 @@ function sendBugReport() {
     const body = `Project: ${project}%0D%0Aissue Type: ${type}%0D%0A%0D%0ADetails:%0D%0A${msg}`;
     window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
 }
-
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');

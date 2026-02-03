@@ -11,9 +11,21 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&family=Share+Tech+Mono&family=Homemade+Apple&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="style.css?v=4.63">
+    <script src="config.js"></script>
+    <link rel="stylesheet" href="style.css?v=2.0.4">
 </head>
 <body>
+
+    <div id="updateOverlay" class="update-overlay" style="display:none;">
+        <div class="update-card">
+            <h2 style="font-family:'Cinzel', serif; margin-top:0;">SYSTEM UPDATE</h2>
+            <div class="progress-container">
+                <div id="updateProgress" class="update-progress-fill"></div>
+            </div>
+            <p id="updateStatus">Downloading New Assets...</p>
+            <p style="font-size:0.7rem; color:var(--gold);">[ v<span id="ui-version-display">---</span> ]</p>
+        </div>
+    </div>
 
     <div id="appLayer" class="app-layer">
         <iframe id="appFrame" src="" allow="fullscreen"></iframe>
@@ -28,7 +40,7 @@
     <div id="infoModal" class="modal-overlay">
         <div class="info-card">
             <h2 style="font-family:'Cinzel', serif; margin-top:0;">Andy's Dev Studio</h2>
-            <p style="font-size:0.9rem; margin-bottom:5px;"><strong>Version:</strong> 2.0.2 (Restored)</p>
+            <p style="font-size:0.9rem; margin-bottom:5px;"><strong>Version:</strong> <span id="modal-version-display">---</span></p>
             <p style="font-size:0.9rem; margin-bottom:5px;"><strong>System:</strong> Online</p>
             <p style="font-size:0.9rem; font-style:italic;">"Forged in code, tested on the road."</p>
             <hr style="border:0; border-top:1px dashed #aaa; margin:15px 0;">
@@ -41,17 +53,11 @@
         <div class="palantir-icon"></div>
     </a>
         
-<div class="status-bar">
-    <img src="./assets/icon.webp?v=1" 
-         alt="Studio Logo" 
-         class="status-logo" 
-         onclick="toggleInfo()" 
-         width="32" 
-         height="32">
-        
+    <div class="status-bar">
+        <img src="./assets/icon.webp" alt="Studio Logo" class="status-logo" onclick="toggleInfo()" width="32" height="32">
         <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" class="icon-btn" style="border-color:var(--gold); color:var(--gold); margin-right:15px; text-decoration:none;"><img src="./assets/coffee.webp" alt="Coffee" width="32" height="32"></a>
         <div class="os-clock" id="clock">12:00</div>
-<button class="icon-btn" id="soundBtn" onclick="toggleSound()"><img id="soundIcon" src="./assets/soundoff.webp" alt="sound" width="32" height="32"></button>
+        <button class="icon-btn" id="soundBtn" onclick="toggleSound()"><img id="soundIcon" src="./assets/soundoff.webp" alt="sound" width="32" height="32"></button>
         <button class="icon-btn" onclick="toggleFullscreen()"><img src="./assets/fullscreen.webp" width="32" height="32"></button>
     </div>
 
@@ -67,7 +73,7 @@
                     </div>
                 </div>
                 <div class="paper-scrap">
-                    <div class="scrap-title">LATEST UPDATE: v2.0</div>
+                    <div class="scrap-title">LATEST UPDATE: ---</div>
                     <div class="scrap-text">
                         The archives are now open. Procedural audio engine enabled.
                     </div>
@@ -101,54 +107,29 @@
         <div class="page-content" id="page-content"></div>
     </div>
 
-<div class="bookmark-container" id="bookmarks" style="display:none;">
-    
-    <div class="bookmark bm-home" onclick="closeBook()">
-        <div class="bookmark-icon">
-            <img src="./assets/icon_home.webp" alt="Home">
-        </div>
+    <div class="bookmark-container" id="bookmarks" style="display:none;">
+        <div class="bookmark bm-home" onclick="closeBook()"><div class="bookmark-icon"><img src="./assets/icon_home.webp" alt="Home"></div></div>
+        <div class="bookmark bm-forge" onclick="switchPage('forge')"><div class="bookmark-icon"><img src="./assets/icon_forge.webp" alt="Forge"></div></div>
+        <div class="bookmark bm-market" onclick="switchPage('market')"><div class="bookmark-icon"><img src="./assets/icon_market.webp" alt="Market"></div></div>
+        <div class="bookmark bm-chronicles" onclick="switchPage('chronicles')"><div class="bookmark-icon"><img src="./assets/icon_chronicles.webp" alt="Chronicles"></div></div>
+        <div class="bookmark bm-guild" onclick="switchPage('guild')"><div class="bookmark-icon"><img src="./assets/icon_guild.webp" alt="Guild"></div></div>
+        <div class="bookmark bm-ravens" onclick="switchPage('ravens')"><div class="bookmark-icon"><img src="./assets/icon_raven.webp" alt="Rookery"></div></div>
     </div>
 
-    <div class="bookmark bm-forge" onclick="switchPage('forge')">
-        <div class="bookmark-icon">
-            <img src="./assets/icon_forge.webp" alt="Forge">
-        </div>
-    </div>
+    <script src="app.js"></script>
+    <script src="embers.js"></script>
 
-    <div class="bookmark bm-market" onclick="switchPage('market')">
-        <div class="bookmark-icon">
-            <img src="./assets/icon_market.webp" alt="Market">
-        </div>
-    </div>
+    <script>
+        // Master UI Sync - Updates all version labels on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Update the Info Modal
+            const modalVer = document.getElementById('modal-version-display');
+            if (modalVer) modalVer.innerText = FORGE_VERSION;
 
-    <div class="bookmark bm-chronicles" onclick="switchPage('chronicles')">
-        <div class="bookmark-icon">
-            <img src="./assets/icon_chronicles.webp" alt="Chronicles">
-        </div>
-    </div>
-
-    <div class="bookmark bm-guild" onclick="switchPage('guild')">
-        <div class="bookmark-icon">
-            <img src="./assets/icon_guild.webp" alt="Guild">
-        </div>
-    </div>
-
-    <div class="bookmark bm-ravens" onclick="switchPage('ravens')">
-        <div class="bookmark-icon">
-            <img src="./assets/icon_raven.webp" alt="Rookery">
-        </div>
-    </div>
-
-</div>
-
-
-
-
-
-    <script src="app.js?v=4.63"></script>
-    
-    <script src="app.js?v=4.63"></script>
-<script src="embers.js?v=4.63"></script> </body>
-
+            // Update the Paper Scrap text (Optional)
+            const scrapVer = document.querySelector('.scrap-title');
+            if (scrapVer) scrapVer.innerText = `LATEST UPDATE: v${FORGE_VERSION}`;
+        });
+    </script>
 </body>
 </html>
