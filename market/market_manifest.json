@@ -18,7 +18,7 @@
     "price": "9.99 Gold",
     "buttonText": "ACQUIRE",
     "icon": "\ud83d\udce6",
-    "image": "./assets/devpack.jpg",
+    "image": "./assets/devpack.webp",
     "action": "window.open('https://itch.io', '_blank')"
   },
   {

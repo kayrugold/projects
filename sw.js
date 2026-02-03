@@ -1,5 +1,5 @@
 // sw.js - Automated Service Worker
-importScripts('config.js'); // This pulls in FORGE_VERSION and CACHE_NAME
+importScripts('config.js'); 
 
 const ASSETS_TO_CACHE = [
   './',
@@ -18,21 +18,21 @@ const ASSETS_TO_CACHE = [
   getVersionedAsset('./market/market_manifest.json'),
   getVersionedAsset('./thechronicles/journal_manifest.json'),
 
-  // --- UI ICONS (App Shell) ---
-  './assets/icon.jpg',
-  './assets/icon_home.jpg',
-  './assets/icon_forge.jpg',
-  './assets/icon_market.jpg',
-  './assets/icon_chronicles.jpg',
-  './assets/icon_guild.jpg',
-  './assets/icon_raven.jpg',
-  './assets/soundoff.jpg',
-  './assets/soundon.jpg',
-  './assets/coffee.jpg',
-  './assets/fullscreen.jpg'
+  // --- UI ICONS (UPDATED TO WEBP) ---
+  './assets/icon.webp',
+  './assets/icon_home.webp',
+  './assets/icon_forge.webp',
+  './assets/icon_market.webp',
+  './assets/icon_chronicles.webp',
+  './assets/icon_guild.webp',
+  './assets/icon_raven.webp',
+  './assets/soundoff.webp',
+  './assets/soundon.webp',
+  './assets/coffee.webp',
+  './assets/fullscreen.webp'
 ];
 
-// 1. INSTALL: Cache everything under the new Master Version
+// 1. INSTALL
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -43,14 +43,13 @@ self.addEventListener('install', (event) => {
   self.skipWaiting(); 
 });
 
-// 2. ACTIVATE: Clean up old versions automatically
+// 2. ACTIVATE
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[Service Worker] Removing old cache', key);
             return caches.delete(key);
           }
         })
@@ -60,7 +59,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim(); 
 });
 
-// 3. FETCH: Traffic Cop
+// 3. FETCH
 self.addEventListener('fetch', (event) => {
   if (event.request.headers.get('accept').includes('text/html') || 
       event.request.url.includes('.json')) {

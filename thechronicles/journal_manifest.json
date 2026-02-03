@@ -28,7 +28,7 @@
     "date": "Jan 31, 2026",
     "title": "PROJECT: GNOMONICUS",
     "summary": "We have breached the integer limit. A visualizer for the infinite Gnomon lattice is now live in the Forge.",
-    "image": "./assets/entry_gnomonicus.jpg",
+    "image": "./assets/entry_gnomonicus.webp",
     "file": "./thechronicles/entries/entry_gnomonicus.html"
   },
   {
@@ -36,7 +36,7 @@
     "date": "Jan 31, 2026",
     "title": "SYSTEM UPGRADE V4.61",
     "summary": "Stabilized the bookmark rail physics, expanded the Ledger's data capacity, and established deep-link project archives.",
-    "image": "./assets/ink_forge.jpg",
+    "image": "./assets/ink_forge.webp",
     "file": "./thechronicles/entries/entry_v4_61.html"
   },
   {
@@ -45,13 +45,13 @@
     "title": "The General: Commanding the Poly-Algo Squad",
     "summary": "Brute force is a blunt instrument. To conquer 60-digit composites, we need a tactical squad. Introducing 'The General,' a multi-threaded factorization command center.",
     "file": "./thechronicles/entries/entry_general.html",
-    "image": "./assets/journalgeneral.jpg"
+    "image": "./assets/journalgeneral.webp"
   },
   {
     "id": "entry_004",
     "date": "Jan 29, 2026",
     "title": "Forging Code on the Open Road",
-    "image": "./assets/seminote.jpg", 
+    "image": "./assets/seminote.webp", 
     "summary": "Why a truck driver is using AI to build number theory tools. The philosophy behind the studio.",
     "file": "./thechronicles/entries/originstory.html"
   },
@@ -59,7 +59,7 @@
     "id": "entry_003",
     "date": "Dec 12, 2025",
     "title": "Newton's Dice",
-    "image": "./thechronicles/entries/dice_diagram.jpg", 
+    "image": "./assets/dice_diagram.webp", 
     "summary": "Early tests of the 2D physics engine. Collision detection is stable, but the bounce damping needs tuning.",
     "file": "./thechronicles/entries/dice_physics.html"
   }

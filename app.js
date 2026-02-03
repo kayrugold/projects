@@ -1,10 +1,10 @@
-/* app.js - v2.0.5 Centralized & Fixed */
+/* app.js - v2.0.6 Centralized & Fixed */
 
 // ==========================================
 // 0. SERVICE WORKER & UPDATE UI
 // ==========================================
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
         if (reg.waiting) triggerUpdateUI();
 
         reg.addEventListener('updatefound', () => {

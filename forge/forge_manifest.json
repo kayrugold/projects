@@ -69,7 +69,7 @@
     "statusClass": "badge-alpha",
     "buttonText": "EXPLORE",
     "icon": "",
-    "image": "./assets/gnomonicus.jpg",
+    "image": "./assets/gnomonicus.webp",
     "action": "launchApp('./apps/gnomonicus0.0.0.html')"
   },
   {
@@ -85,7 +85,7 @@
     "status": "ALPHA",
     "statusClass": "badge-alpha",
     "buttonText": "HUNT",
-    "image": "./assets/thegeneral.jpg",
+    "image": "./assets/thegeneral.webp",
     "action": "launchApp('./apps/thegeneral0.0.34.html')"
   },
 {
@@ -98,7 +98,7 @@
     "statusClass": "badge-alpha",
     "buttonText": "NAVIGATE",
     "icon": "",
-    "image": "./assets/gnomonnavigator.jpg",
+    "image": "./assets/gnomonnavigator.webp",
     "action": "launchApp('./apps/gnomonnavigator0.0.6.html')"
   },
   {
@@ -111,7 +111,7 @@
     "statusClass": "badge-live",
     "buttonText": "HUNT",
     "icon": "👹",
-    "image": "./assets/factorhunter.jpg",
+    "image": "./assets/factorhunter.webp",
     "action": "launchApp('./apps/factor-hunter.html')"
   },
   {
@@ -124,7 +124,7 @@
     "statusClass": "badge-beta",
     "buttonText": "SCAN",
     "icon": "⚗️",
-    "image": "./assets/residuescanner.jpg",
+    "image": "./assets/residuescanner.webp",
     "action": "launchApp('./apps/residue-scanner.html')"
   },
   {
