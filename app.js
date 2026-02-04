@@ -1,4 +1,4 @@
-/* app.js - v2.0.8 Audio Strict Mode */
+/* app.js - v2.1.1 Bookmark Click Fix */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -267,7 +267,6 @@ function stopDrone() {
 
 // --- THE PAPER SLIDE (STRICT SILENCE FIX) ---
 function playPageSound() {
-    // CRITICAL FIX: If sound is off, STOP immediately.
     if (!isPlaying) return; 
 
     if (!audioCtx) initAudio(); 
@@ -606,7 +605,7 @@ setInterval(() => {
 }, 1000);
 
 // ==========================================
-// 6. DRAGGABLE BOOKMARKS (OPTIMIZED)
+// 6. DRAGGABLE BOOKMARKS (FIXED: DELAYED CAPTURE)
 // ==========================================
 
 const bmContainer = document.getElementById('bookmarks');
@@ -620,8 +619,7 @@ if (bmContainer) {
         isPressing = true;
         isDragging = false; 
         
-        bmContainer.setPointerCapture(e.pointerId);
-
+        // FIX: Don't capture yet. Wait for drag to start.
         const rect = bmContainer.getBoundingClientRect();
         startY = e.clientY;
         initialTop = rect.top;
@@ -633,11 +631,15 @@ if (bmContainer) {
         const currentY = e.clientY;
         const deltaY = currentY - startY;
 
-        if (!isDragging && Math.abs(deltaY) > 5) {
-            isDragging = true;
-            bmContainer.style.transition = 'none'; 
-            bmContainer.style.bottom = 'auto';
-            bmContainer.style.transform = 'none';
+        if (!isDragging) {
+             // Only start dragging if moved > 5 pixels
+             if (Math.abs(deltaY) > 5) {
+                 isDragging = true;
+                 bmContainer.setPointerCapture(e.pointerId); // NOW we capture
+                 bmContainer.style.transition = 'none'; 
+                 bmContainer.style.bottom = 'auto';
+                 bmContainer.style.transform = 'none';
+             }
         }
 
         if (isDragging) {
@@ -657,7 +659,9 @@ if (bmContainer) {
     bmContainer.addEventListener('pointercancel', (e) => {
         isPressing = false;
         isDragging = false;
-        bmContainer.releasePointerCapture(e.pointerId);
+        if(bmContainer.hasPointerCapture(e.pointerId)){
+            bmContainer.releasePointerCapture(e.pointerId);
+        }
     });
 }
 

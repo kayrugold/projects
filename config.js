@@ -1,5 +1,5 @@
 // config.js - The Master Switch
-const FORGE_VERSION = "2.1.0"; 
+const FORGE_VERSION = "2.1.1"; 
 const CACHE_NAME = `forge-cache-v${FORGE_VERSION}`;
 
 function getVersionedAsset(path) {
