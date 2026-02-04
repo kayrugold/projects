@@ -1,4 +1,12 @@
 [
+  {
+    "id": "log-factor-ultimate",
+    "date": "Feb 03, 2026",
+    "title": "The Siege of the Composite",
+    "summary": "Brute force is dead. How we used Quadratic Reciprocity, Web Workers, and Algebraic forms to hunt factors in the browser.",
+    "image": "./assets/factor000entry.webp",
+    "file": "./thechronicles/entries/factor_hunter_ultimate.html"
+  },
 {
   "id": "log-4-64",
   "date": "Feb 3, 2026",

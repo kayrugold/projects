@@ -1,0 +1,30 @@
+<h2 style="font-family:'Cinzel', serif; color:var(--gold);">FACTOR HUNTER (ULTIMATE)</h2>
+<p style="font-family:'Share Tech Mono', monospace; font-size:0.8rem; margin-top:-10px; color:var(--emerald-500);">
+    SYSTEM: Multi-Threaded Sieve Protocol
+</p>
+
+<div class="project-details">
+    <p><strong>The Mission:</strong> To factorize large integers (up to 10^50 and beyond) directly in the browser without freezing the UI. This tool does not just guess numbers; it analyzes the <em>structure</em> of the target before scanning.</p>
+    
+    <h4 style="font-family:'Cinzel', serif; margin-bottom:5px;">Algorithmic Intelligence</h4>
+    <p style="font-family:'Share Tech Mono', monospace; background: rgba(0,0,0,0.3); padding: 10px; border-left: 3px solid var(--gold);">
+        1. <strong>Algebraic Check:</strong> Instantly detects forms like a^b ± c^b.<br>
+        2. <strong>QR Filter:</strong> Uses Legendre Symbols to ignore primes that <em>cannot</em> be factors mathematically.<br>
+        3. <strong>Wheel-30 Sieve:</strong> Skips multiples of 2, 3, and 5 automatically, boosting speed by ~26%.
+    </p>
+    
+    <p>The engine spawns a fleet of <strong>Web Workers</strong> (one per CPU core) to run Miller-Rabin primality tests in parallel, ensuring maximum hardware utilization.</p>
+
+    <h4 style="font-family:'Cinzel', serif; margin-bottom:5px;">Technical Specs</h4>
+    <ul style="list-style-type: square; padding-left: 20px;">
+        <li><strong>Encryption:</strong> None (Pure Number Theory).</li>
+        <li><strong>Precision:</strong> Native JS <code>BigInt</code> for arbitrary integer size.</li>
+        <li><strong>Automation:</strong> "Auto-Repeat" mode allows for continuous, unattended deep-scanning of number ranges.</li>
+    </ul>
+</div>
+
+<hr style="border: 0; border-top: 1px dashed var(--ink); margin: 20px 0;">
+
+<div style="display:flex; gap:10px;">
+    <button class="launch-btn" onclick="launchApp('./apps/factorhunter0.0.0.html')">LAUNCH ENGINE</button>
+</div>

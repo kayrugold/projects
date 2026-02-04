@@ -1,5 +1,30 @@
 [
   {
+    "id": "factor-hunter-ultimate",
+    "title": "FACTOR HUNTER (ULTIMATE)",
+    "description": "High-performance number theory engine. Hunt factors using algebraic forms, quadratic reciprocity, and parallel sieves.",
+    "longDescription": "The Ultimate Version of the Factor Finder engine. It moves beyond brute force by implementing smart filters like Quadratic Reciprocity and Algebraic Form detection (a^n  b^n) before deploying a multi-threaded Wheel-30 sieve to scan for primes.",
+    "features": [
+      "Algebraic Pre-computation (nth roots)",
+      "Quadratic Reciprocity (QR) Filtering",
+      "Multi-threaded Miller-Rabin Tests"
+    ],
+    "tech": [
+      "Web Workers",
+      "BigInt Arithmetic",
+      "Wheel Factorization"
+    ],
+    "projectPage": "./forge/projects/factor-hunter.html",
+    "type": "Tools",
+    "version": "V0.0.0",
+    "status": "DEV",
+    "statusClass": "badge-alpha",
+    "buttonText": "CALCULATE",
+    "icon": "",
+    "image": "./assets/factorhunter1.webp",
+    "action": "launchApp('./apps/factorhunter0.0.0.html')"
+  },
+  {
     "id": "lattice-explorer",
     "title": "LATTICE EXPLORER",
     "description": "Interactive cartography for the modular plane. Visualize the geometric soul of integers.",
@@ -102,8 +127,8 @@
     "action": "launchApp('./apps/gnomonnavigator0.0.6.html')"
   },
   {
-    "id": "factor-hunter",
-    "title": "FACTOR HUNTER",
+    "id": "factor-monster-hunter",
+    "title": "FACTOR MONSTER HUNTER",
     "description": "Strike composite beasts with Prime weapons.",
     "type": "Games",
     "version": "V1.2",
