@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&family=Share+Tech+Mono&family=Homemade+Apple&display=swap" rel="stylesheet">
 
     <script src="config.js"></script>
-    <link rel="stylesheet" href="style.css?v=2.1.2">
+    <link rel="stylesheet" href="style.css?v=2.1.3">
 </head>
 <body>
 
@@ -88,8 +88,11 @@
                     </div>
                     <div class="book-spine spine-market" onclick="openBook('market')">
                         <div class="spine-title">The Ledger</div>
-                        <div class="spine-subtitle">Market & Trade Goods</div>
-                    </div>
+                        <div class="spine-subtitle">Market & Trade Goods</div></div>
+                        <div class="book-spine spine-cargo" onclick="openBook('cargo')">
+    <div class="spine-title">THE CARGO BAY</div>
+    <div class="spine-subtitle">Physical Provisions</div>
+</div>
                     <div class="book-spine spine-chronicles" onclick="openBook('chronicles')">
                         <div class="spine-title">The Chronicles</div>
                         <div class="spine-subtitle">Developer Logs</div>
@@ -111,6 +114,8 @@
         <div class="bookmark bm-home" onclick="closeBook()"><div class="bookmark-icon"><img src="./assets/icon_home.webp" alt="Home"></div></div>
         <div class="bookmark bm-forge" onclick="switchPage('forge')"><div class="bookmark-icon"><img src="./assets/icon_forge.webp" alt="Forge"></div></div>
         <div class="bookmark bm-market" onclick="switchPage('market')"><div class="bookmark-icon"><img src="./assets/icon_market.webp" alt="Market"></div></div>
+        <div class="bookmark bm-cargo" onclick="openBook('cargo')">
+    <div class="bookmark-icon"><img src="./assets/icon_cargo.webp" alt="Cargo"></div></div>
         <div class="bookmark bm-chronicles" onclick="switchPage('chronicles')"><div class="bookmark-icon"><img src="./assets/icon_chronicles.webp" alt="Chronicles"></div></div>
         <div class="bookmark bm-guild" onclick="switchPage('guild')"><div class="bookmark-icon"><img src="./assets/icon_guild.webp" alt="Guild"></div></div>
         <div class="bookmark bm-ravens" onclick="switchPage('ravens')"><div class="bookmark-icon"><img src="./assets/icon_raven.webp" alt="Rookery"></div></div>

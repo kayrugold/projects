@@ -1,4 +1,14 @@
 [
+{
+  "id": "cargo-bay-launch",
+  "title": "Log Entry: The Cargo Bay is Open",
+  "date": "February 6, 2026",
+  "summary": "Bridging the gap between digital code and physical freight. The Cargo Bay is now live at Andy's Dev Studio.",
+  "content": "I just got back from a heavy 500-mile shift, and while I’m definitely feeling the hours, I couldn't go to sleep without hitting 'publish' on a major update to the site. \n\nUp until now, my focus has been almost entirely on the code—building math engines like Factor Hunter. But as a trucker, I know that at the end of the day, someone has to move the physical freight. That’s why I’ve added The Cargo Bay to the main library. \n\nIt is a dedicated space for physical goods. I’m starting small while I finalize the inventory, but the first prototype is already on the shelf: the Official Factor Hunter Tee. It features the 'Ink on Parchment' design, representing the blend of old-school number theory and modern high-performance code. \n\nI'm heading to bed now. Check out the new shop tab and let me know what you think.",
+  "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
+  "tags": ["Update", "Merch", "Trucking"],
+    "file": "./thechronicles/entries/cargo_bay_is_open.html"
+},
   {
     "id": "log-factor-ultimate",
     "date": "Feb 03, 2026",

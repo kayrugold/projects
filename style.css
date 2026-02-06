@@ -312,6 +312,17 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .bm-home { background: #5d4037; }
 .bm-forge { background: #8b0000; }
 .bm-market { background: #1b5e20; }
+.bm-cargo { 
+background-color: #d97706; /* A deep, industrial amber */
+    color: #fff;
+    border-left: 4px solid #b45309; /* Darker accent for depth */
+}
+.bm-cargo.active {
+    background-color: #b45309; /* darkens when active */
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+}
+
+}
 .bm-chronicles { background: #1a237e; }
 .bm-guild { background: #4a148c; }
 .bm-ravens { background: #212121; }
@@ -887,3 +898,11 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     50% { opacity: 1; }
     100% { opacity: 0.6; }
 }
+
+.spine-cargo {
+    background: linear-gradient(135deg, #d97706, #b45309); /* Industrial Amber */
+    border-left: 15px solid #92400e;
+    color: #fff;
+}
+
+

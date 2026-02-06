@@ -1,4 +1,4 @@
-/* app.js - v2.1.2 Bookmark Click Fix */
+/* app.js - v2.1.3 Bookmark Click Fix */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -66,6 +66,8 @@ async function switchPage(section) {
             content = await fetchForge();
         } else if (section === 'market') {
             content = await fetchMarket();
+         } else if (section === 'cargo') { // New Case
+        content = await fetchCargo();
         } else if (section === 'chronicles') {
             content = await fetchChronicles();
         } else if (section === 'ravens') {
@@ -460,6 +462,41 @@ async function fetchMarket() {
     } catch (error) { 
         console.error(error);
         return `<h1 class="page-title">The Ledger</h1><p>The ledger is closed. (Data Error)</p>`; 
+    }
+}
+
+async function fetchCargo() {
+    try {
+        const response = await fetch(getVersionedAsset('./market/cargo_manifest.json'));
+        if (!response.ok) throw new Error('Cargo manifest missing');
+        const cargoItems = await response.json();
+
+        let html = `<h1 class="page-title">The Cargo Bay</h1>
+                    <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--emerald-500); transform:none;">
+                        <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
+                            Physical provisions for the modern forger. Shipped directly from the trading post to your door.
+                        </p>
+                    </div>
+                    <div id="cargoList" class="gallery-grid">`;
+
+        cargoItems.forEach(item => {
+            html += `
+            <div class="item-card forge-item">
+                <img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">
+                <div class="card-inner">
+                    <div class="market-header-row">
+                        <h3 class="forge-title">${item.title}</h3>
+                        <span class="price-tag">${item.price}</span>
+                    </div>
+                    <p class="forge-desc">${item.description}</p>
+                    <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+        return html;
+    } catch (error) { 
+        return `<h1 class="page-title">The Cargo Bay</h1><p>The bay is currently empty. Check back after the next delivery.</p>`; 
     }
 }
 
