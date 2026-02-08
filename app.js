@@ -1,4 +1,4 @@
-/* app.js - v2.1.3 Bookmark Click Fix */
+/* app.js - v2.1.4 Bookmark Click Fix */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -789,3 +789,15 @@ async function heatTheCache() {
 window.addEventListener('load', () => {
     setTimeout(heatTheCache, 3000);
 });
+
+let isScrolling = false;
+window.addEventListener('scroll', () => {
+    if (!isScrolling) {
+        window.requestAnimationFrame(() => {
+            // If you add parallax or scroll-linked glows, put them here
+            isScrolling = false;
+        });
+        isScrolling = true;
+    }
+}, { passive: true }); // 'passive' tells the browser not to wait for the JS to finish
+
