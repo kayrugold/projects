@@ -1,4 +1,4 @@
-/* app.js - v2.1.4 Bookmark Click Fix */
+/* app.js - v2.1.7 Bookmark Click Fix */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -471,14 +471,13 @@ async function fetchCargo() {
         if (!response.ok) throw new Error('Cargo manifest missing');
         const cargoItems = await response.json();
 
-        let html = `
-        <h1 class="page-title">The Cargo Bay</h1>
-        <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid #d97706; transform:none;">
-            <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
-                Physical provisions for the modern forger. Shipped directly from the trading post to your door.
-            </p>
-        </div>
-        <div id="cargoList" class="gallery-grid">`; // This ID and Class enable the multi-column layout
+        let html = `<h1 class="page-title">The Cargo Bay</h1>
+                    <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--emerald-500); transform:none;">
+                        <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
+                            Physical provisions for the modern forger. Shipped directly from the trading post to your door.
+                        </p>
+                    </div>
+                    <div id="cargoList" class="gallery-grid">`;
 
         cargoItems.forEach(item => {
             html += `
@@ -790,15 +789,3 @@ async function heatTheCache() {
 window.addEventListener('load', () => {
     setTimeout(heatTheCache, 3000);
 });
-
-let isScrolling = false;
-window.addEventListener('scroll', () => {
-    if (!isScrolling) {
-        window.requestAnimationFrame(() => {
-            // If you add parallax or scroll-linked glows, put them here
-            isScrolling = false;
-        });
-        isScrolling = true;
-    }
-}, { passive: true }); // 'passive' tells the browser not to wait for the JS to finish
-

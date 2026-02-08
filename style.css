@@ -21,9 +21,9 @@ body {
     color: var(--ink);
     font-family: 'Cormorant Garamond', serif;
     margin: 0; padding: 0;
-    height: auto;
+    height: 100dvh;
     display: flex; flex-direction: column;
-    overflow-x: hidden; 
+    overflow: hidden; 
     transition: background 0.3s ease;
 }
 
@@ -116,9 +116,6 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     box-shadow: 0 3px 10px rgba(0,0,0,0.15); margin-bottom: 35px;
     position: relative; color: #333; transform: rotate(-0.5deg);
     transition: transform 0.3s ease; border: 1px solid rgba(0,0,0,0.1);
-    will-change: transform;
-    transform: translateZ(0); /* Forces GPU rendering */
-    backface-visibility: hidden;
 }
 .item-card:nth-of-type(even) { transform: rotate(0.5deg); }
 .item-card:hover { transform: rotate(0deg) scale(1.01); z-index: 5; box-shadow: 0 8px 25px rgba(0,0,0,0.25); }
@@ -153,11 +150,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 
 /* Bookshelf */
 .shelf { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 450px; }
-.book-spine { padding: 30px 20px; border-radius: 4px 12px 12px 4px; color: var(--gold); text-align: center; box-shadow: inset 10px 0 20px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.5); cursor: pointer; transition: transform 0.2s; border-left: 5px solid rgba(255,255,255,0.1); position: relative;
-will-change: transform;
-    transform: translateZ(0); /* Forces GPU rendering */
-    backface-visibility: hidden;
- }
+.book-spine { padding: 30px 20px; border-radius: 4px 12px 12px 4px; color: var(--gold); text-align: center; box-shadow: inset 10px 0 20px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.5); cursor: pointer; transition: transform 0.2s; border-left: 5px solid rgba(255,255,255,0.1); position: relative; }
 .book-spine:active { transform: scale(0.98); }
 .spine-forge { background-color: var(--spine-forge); border: 1px solid #4a3b2a; } 
 .spine-market { background: var(--spine-market); } 
@@ -859,9 +852,8 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     
     /* Lower opacity so it's atmospheric, not distracting */
     opacity: 0.5; 
-    /* mix-blend-mode: normal; */
-    mix-blend-mode: screen;
-    /* Optional: Makes sparks glow better over dark apps */
+   /* mix-blend-mode: screen; */
+/* Optional: Makes sparks glow better over dark apps */
 }
 
 /* --- UPDATE OVERLAY STYLES --- */
@@ -914,17 +906,4 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     color: #fff;
 }
 
-.market-header-row {
-    display: flex;
-    flex-direction: column; /* Stacks title over price for more room */
-    align-items: flex-start;
-    gap: 4px;
-    flex-shrink: 0;
-}
-
-.forge-title {
-    height: auto; /* Allows the title to grow vertically */
-    overflow: visible;
-    white-space: normal;
-}
 
