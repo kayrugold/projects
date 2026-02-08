@@ -31,33 +31,27 @@ body {
     display: flex; 
     flex-direction: column;
     overflow: hidden; 
-    
-    /* PREVENTS RUBBER BANDING on Laptops */
-    overscroll-behavior: none; 
+    overscroll-behavior: none; /* PREVENTS RUBBER BANDING */
 }
 
-/* PERFORMANCE FIX: Move heavy background to a static layer */
+/* PERFORMANCE LAYER: Static background to prevent repaint lag */
 body::before {
     content: "";
     position: fixed; 
     top: 0; left: 0; width: 100%; height: 100%;
     z-index: -1; 
-    
-    /* The heavy gradient lives here, isolated from scroll repaints */
     background-image: 
         linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.1)),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 40px);
-    
     will-change: transform; 
     pointer-events: none;
 }
 
-/* SCROLLBAR HIDING (Universal) */
+/* SCROLLBAR HIDING */
 #library-view::-webkit-scrollbar, 
 .page-content::-webkit-scrollbar, 
 body::-webkit-scrollbar,
 .desk-layout::-webkit-scrollbar { display: none; }
-
 #library-view, .page-content, body, .desk-layout { scrollbar-width: none; }
 
 /* READING MODE OVERRIDE */
@@ -77,11 +71,21 @@ body.reading-mode {
 .log-title { font-family: 'Cinzel', serif; font-weight: bold; font-size: 1.3rem; margin: 0 0 10px 0; border-bottom:1px solid #eee; padding-bottom:5px; color:#111; }
 .log-body { font-size: 1.1rem; line-height: 1.5; color: #444; }
 
+/* Inputs & Buttons */
+.ink-input { width: 100%; background: transparent; border: none; border-bottom: 2px solid var(--ink); padding: 10px 0; font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; color: var(--ink); margin-bottom: 20px; }
+.ink-input:focus { outline: none; border-color: var(--gold); }
+
 .seal-btn { display: block; width: 100%; padding: 15px; background: #800000; color: var(--parchment); border: none; font-family: 'Cinzel', serif; font-size: 1.1rem; cursor: pointer; border-radius: 2px; transition: background 0.2s; }
 .seal-btn:hover { background: #5a0000; }
 
-.ink-input { width: 100%; background: transparent; border: none; border-bottom: 2px solid var(--ink); padding: 10px 0; font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; color: var(--ink); margin-bottom: 20px; }
-.ink-input:focus { outline: none; border-color: var(--gold); }
+.icon-btn { background: rgba(43, 29, 14, 0.3); border: 1px solid var(--gold); color: var(--gold); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; text-decoration: none; }
+.icon-btn.active { background: var(--gold); color: #2b1d0e; box-shadow: 0 0 10px var(--gold); }
+
+.read-more-link {
+    display: inline-block; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; width: 100%; text-align: right;
+    font-family: 'Cinzel', serif; font-weight: 800; font-size: 0.85rem; color: #8b0000; text-transform: uppercase; letter-spacing: 1px; text-decoration: none; cursor: pointer; transition: all 0.2s ease;
+}
+.read-more-link:hover { color: #d4af37; transform: translateX(-5px); }
 
 /* Chips & Meta */
 .card-section { text-align: left; margin-top: 12px; }
@@ -90,35 +94,23 @@ body.reading-mode {
 .chip-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 .chip { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 2px 6px; font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; }
 
-/* Status Bar */
-.status-bar { position: fixed; top: 0; left: 0; width: 100%; padding: 10px 20px; z-index: 1000; display: flex; justify-content: flex-end; gap: 15px; align-items: center; background: linear-gradient(to bottom, rgba(43, 29, 14, 0.9), transparent); pointer-events: none; height: 60px; }
-.status-bar > * { pointer-events: auto; }
-.status-logo { height: 32px; width: auto; margin-right: 10px; cursor: pointer; }
-.os-clock { color: var(--gold); font-family: 'Cinzel', serif; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-weight: bold; }
-.icon-btn { background: rgba(43, 29, 14, 0.3); border: 1px solid var(--gold); color: var(--gold); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; text-decoration: none; }
-.icon-btn.active { background: var(--gold); color: #2b1d0e; box-shadow: 0 0 10px var(--gold); }
-
 /* =========================================
-   4. LAYOUTS (Library, Desk, Shelf)
+   4. LAYOUT STRUCTURES
    ========================================= */
 #library-view { 
-    flex: 1; overflow-y: auto; 
-    padding: 70px 20px 40px 20px; 
+    flex: 1; overflow-y: auto; padding: 70px 20px 40px 20px; 
     display: flex; flex-direction: column; align-items: center; 
     width: 100%; max-width: 1000px; margin: 0 auto;
-    /* GPU SCROLL HINT */
     will-change: transform; 
 }
-
 .desk-layout { display: flex; flex-direction: column; width: 100%; gap: 40px; }
 
-/* Desk Note */
+/* Desk Items */
 .desk-note { background: #fff; width: 100%; max-width: 400px; padding: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.4); transform: rotate(-1deg); position: relative; color: #333; margin-bottom: 20px; }
 .desk-note::after { content: ''; position: absolute; top: -12px; left: 50%; width: 14px; height: 14px; background: #c00; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
 .note-hand { font-family: 'Homemade Apple', cursive; font-size: 1.1rem; line-height: 1.5; }
 .note-header { font-family: 'Cinzel', serif; font-weight: bold; font-size: 1.3rem; border-bottom: 2px solid #333; margin-bottom: 15px; }
 
-/* Paper Scrap */
 .paper-scrap { background: #e8dcc5; padding: 15px; width: 100%; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); margin-top: 10px; border-left: 4px solid var(--gold); }
 .scrap-title { font-family: 'Cinzel', serif; font-weight: bold; font-size: 0.9rem; color: var(--ink); margin-bottom: 5px; }
 .scrap-text { font-size: 0.9rem; color: #4a3b2a; }
@@ -132,7 +124,6 @@ body.reading-mode {
 .spine-guild { background: var(--spine-guild); } 
 .spine-chronicles { background: var(--spine-chronicles); }
 .spine-cargo { background: var(--spine-cargo); border-left: 15px solid #92400e; color: #fff; }
-
 .spine-title { font-family: 'Cinzel', serif; font-size: 1.4rem; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
 .spine-subtitle { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; color: rgba(255,255,255,0.9); font-style: italic; }
 
@@ -141,15 +132,18 @@ body.reading-mode {
 .page-content { flex: 1; overflow-y: auto; padding: 70px 20px 90px 20px; max-width: 100%; width: 100%; }
 
 /* =========================================
-   5. OVERLAYS (App, Journal, Modal)
+   5. OVERLAYS & STATUS
    ========================================= */
-/* App Layer (iFrames) */
+.status-bar { position: fixed; top: 0; left: 0; width: 100%; padding: 10px 20px; z-index: 1000; display: flex; justify-content: flex-end; gap: 15px; align-items: center; background: linear-gradient(to bottom, rgba(43, 29, 14, 0.9), transparent); pointer-events: none; height: 60px; }
+.status-bar > * { pointer-events: auto; }
+.status-logo { height: 32px; width: auto; margin-right: 10px; cursor: pointer; }
+.os-clock { color: var(--gold); font-family: 'Cinzel', serif; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-weight: bold; }
+
 .app-layer { padding: 0; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--parchment); z-index: 5000; display: none; flex-direction: column; overflow-y: auto; }
 .app-layer.active { display: flex; }
 iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .app-vignette { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5001; background: radial-gradient(circle at center, transparent 85%, var(--wood-dark) 100%); box-shadow: inset 0 0 40px 20px var(--wood-dark); }
 
-/* Journal Reader */
 .journal-reader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(2px); z-index: 5000; display: none; overflow-y: auto; }
 .journal-reader.active { display: block; }
 .journal-content { background: #fff; width: 90%; max-width: 600px; margin: 80px auto 40px auto; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; transform: rotate(-1deg); border-radius: 2px; color: #333; line-height: 1.6; font-size: 1.1rem; }
@@ -157,7 +151,6 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .journal-close-btn { position: fixed; top: 20px; right: 20px; background: var(--ink); color: var(--parchment); border: none; padding: 10px 20px; font-family: 'Cinzel', serif; cursor: pointer; z-index: 5001; }
 .journal-featured-img { width: 100%; height: 150px; object-fit: cover; background-color: #222; border: 2px solid var(--ink); border-radius: 4px; margin-bottom: 15px; display: block; }
 
-/* Modal */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
 .modal-overlay.active { display: flex; }
 .info-card { background: #fff; width: 90%; max-width: 350px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #aaa; position: relative; transform: rotate(-1deg); text-align: center; }
@@ -167,31 +160,35 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .palantir-btn { position: fixed; left: 20px; bottom: 20px; width: 50px; height: 50px; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(80, 20, 180, 0.8), rgba(0,0,0,0.9)); border-radius: 50%; box-shadow: 0 0 15px rgba(80, 20, 180, 0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: 2px solid #4a3b2a; }
 
 /* =========================================
-   6. CARD SYSTEMS (Generic, Forge, Flip)
+   6. CARD SYSTEMS & FLIP ENGINE
    ========================================= */
-/* Generic Card */
+/* Generic Item Card */
 .item-card {
     background: #fff; width: 100%; padding: 20px; 
     box-shadow: 0 3px 10px rgba(0,0,0,0.15); 
     margin-bottom: 35px; position: relative; color: #333; 
     border: 1px solid rgba(0,0,0,0.1);
-    
-    /* GPU PERFORMANCE FIXES */
-    transform: translate3d(0,0,0) rotate(-0.5deg);
-    backface-visibility: hidden;
-    will-change: transform;
-    transition: transform 0.3s ease; 
+    transform: translate3d(0,0,0) rotate(-0.5deg); /* GPU Fix */
+    backface-visibility: hidden; will-change: transform; transition: transform 0.3s ease; 
 }
-
 .item-card:nth-of-type(even) { transform: translate3d(0,0,0) rotate(0.5deg); }
 .item-card:hover { transform: translate3d(0, -5px, 0) rotate(0deg) scale(1.01); z-index: 5; box-shadow: 0 8px 25px rgba(0,0,0,0.25); }
 .item-card::after { content: ''; position: absolute; top: -12px; left: 50%; width: 14px; height: 14px; background: #c00; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 20; }
 
-/* Forge & Market Items */
+/* General Image Handling in Cards */
+.item-card img, .project-card img {
+    object-fit: contain; height: auto; max-height: 300px; width: 100%; background: transparent;
+}
+
+/* Forge & Market Specifics */
 .forge-item { padding: 0; overflow: hidden; background: #fdfbf7; border: 1px solid #3e2723; box-shadow: 3px 3px 6px rgba(0,0,0,0.15); margin-bottom: 20px; border-radius: 8px; width: 100%; }
 .forge-img-container { background: #1a1a1a; height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
 .forge-img-emoji { font-size: 3.5rem; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); }
-.forge-header-img { width: 100%; height: 140px; object-fit: cover; object-position: center 20%; display: block; border-bottom: 1px solid var(--ink); flex-shrink: 0; }
+
+.forge-header-img { 
+    width: 100%; height: 140px; display: block; border-bottom: 1px solid var(--ink); flex-shrink: 0;
+    object-fit: contain; background: #000; padding: 5px; /* Full frame fix */
+}
 
 .card-inner { padding: 15px; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .forge-title { font-family: 'Cinzel', serif; font-size: 1.2rem; margin: 0 0 5px 0; letter-spacing: 1px; color: var(--ink); flex-shrink: 0; }
@@ -199,7 +196,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .forge-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--ink); font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer; transition: all 0.2s; margin-top: auto; flex-shrink: 0; z-index: 10; }
 .forge-btn:active { background: var(--ink); color: var(--parchment); }
 
-/* Badges & Pills */
+/* Badges & Filters */
 .meta-row { display: flex; gap: 10px; margin-bottom: 15px; flex-shrink: 0; }
 .badge { font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; padding: 2px 6px; border: 1px solid #333; border-radius: 4px; text-transform: uppercase; }
 .badge-ver { background: #eee; color: #333; }
@@ -211,44 +208,132 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .forge-search { width: 100%; padding: 12px; background: rgba(255,255,255,0.4); border: 2px solid var(--ink); font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--ink); border-radius: 4px; margin-bottom: 15px; }
 .forge-filters { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
 
-/* 3D Flip Engine */
-.flip-container { perspective: 1000px; position: relative; transition: transform 0.3s ease, box-shadow 0.3s ease; overflow: visible !important; width: 100%; }
-.flipper { transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; position: relative; width: 100%; height: 100%; min-height: 380px; }
-.flip-container.flipped .flipper { transform: rotateY(180deg); }
-.front, .back { backface-visibility: hidden; -webkit-backface-visibility: hidden; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #fdfbf7; border-radius: 8px; border: 1px solid #3e2723; overflow: hidden; display: flex; flex-direction: column; }
-.front { z-index: 2; transform: rotateY(0deg); }
-.back { transform: rotateY(180deg); background: var(--parchment); padding: 20px; text-align: center; justify-content: center; border: 2px solid var(--gold); }
+/* =========================================
+   3D FLIP ENGINE (FLUID + BUTTONS)
+   ========================================= */
 
-.flip-btn, .project-btn { position: absolute; top: 10px; width: 32px; height: 32px; background: rgba(0,0,0,0.6); border: 1px solid var(--gold); border-radius: 50%; color: var(--gold); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: all 0.2s; font-size: 1.1rem; }
-.flip-btn { right: 10px; }
-.project-btn { left: 10px; }
-.flip-btn:hover, .project-btn:hover { background: var(--gold); color: var(--wood-dark); }
+/* 1. The Container */
+.flip-container {
+    perspective: 1000px;
+    position: relative;
+    width: 100%;
+}
 
-/* Responsive Grid */
-.gallery-grid {
-    display: grid;
-    gap: 25px;
-    padding: 10px;
+.flipper {
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d;
+    position: relative;
+    width: 100%;
+    height: auto;        /* Fluid height */
+    min-height: 380px;   /* Minimum size */
+}
+
+.flip-container.flipped .flipper {
+    transform: rotateY(180deg);
+}
+
+/* 2. The Front (Driver) */
+.front {
+    position: relative;  /* Fluid height driver */
+    width: 100%;
+    height: auto;
+    min-height: 380px;
+    
+    background: #fdfbf7;
+    border-radius: 8px;
+    border: 1px solid #3e2723;
+    overflow: visible;   /* Prevents clipping */
+    display: flex;
+    flex-direction: column;
+    z-index: 2;
+    transform: rotateY(0deg);
+    backface-visibility: hidden;
+}
+
+/* 3. The Back (Follower) */
+.back {
+    position: absolute;  /* Matches Front's size */
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    
+    background: var(--parchment);
+    border-radius: 8px;
+    border: 2px solid var(--gold);
+    padding: 20px;
+    text-align: center;
     justify-content: center;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    display: flex;
+    flex-direction: column;
+    transform: rotateY(180deg);
+    backface-visibility: hidden;
+}
+
+/* 4. The Summary Text (No Clipping) */
+.forge-desc {
+    font-size: 0.95rem;
+    color: #555;
+    display: block; 
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    margin-bottom: 15px;
+    flex-shrink: 0;
+}
+
+/* 5. THE BUTTONS (Restored) */
+.flip-btn, .project-btn {
+    position: absolute;
+    top: 10px;
+    width: 32px; height: 32px;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--gold);
+    border-radius: 50%;
+    color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+}
+
+.flip-btn { right: 10px; }       /* Flip arrow on right */
+.project-btn { left: 10px; }     /* Launch arrow on left */
+
+.flip-btn:hover, .project-btn:hover {
+    background: var(--gold);
+    color: var(--wood-dark);
 }
 
 /* =========================================
-   7. BOOKMARK RAIL
+   7. PAGE SPECIFIC (ROOKERY & CHRONICLES)
+   ========================================= */
+/* Rookery Grid */
+.streak-grid-container { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin: 20px 0; max-width: 100%; }
+.streak-cell {
+    aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.4); border: 1px dashed var(--ink); border-radius: 2px;
+    font-family: 'Share Tech Mono', monospace; font-size: 1rem; color: #666; cursor: pointer; transition: all 0.2s;
+}
+.streak-cell:hover { border-style: solid; background: #fff; transform: scale(1.1); z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+.streak-cell.active { background: var(--ink); color: var(--parchment); border-color: var(--gold); border-style: solid; transform: rotate(-3deg); box-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+
+/* Chronicle Media Fixes */
+.log-body img, .entry-content img, .entry-featured-img {
+    max-width: 90% !important; height: auto !important;
+    display: block !important; margin: 20px auto !important;
+    border: 1px solid #ccc; padding: 6px; background: #fff; box-shadow: 1px 2px 8px rgba(0,0,0,0.15); transform: rotate(-1deg);
+}
+.entry-content iframe, .log-body iframe { width: 100% !important; max-width: 100% !important; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.entry-image-container { width: 100%; text-align: center; margin: 20px 0; }
+
+/* =========================================
+   8. NAVIGATION (BOOKMARKS)
    ========================================= */
 .bookmark-container {
-    position: fixed; 
-    right: 0; 
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex; 
-    flex-direction: column; 
-    align-items: flex-end; 
-    z-index: 10000; 
-    touch-action: none; 
-    width: 70px;
+    position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: flex-end; z-index: 10000; touch-action: none; width: 70px;
 }
-
 .bookmark {
     width: 50px; height: 45px; margin-bottom: 4px; border-radius: 6px 0 0 6px; 
     display: flex; align-items: center; justify-content: center; cursor: pointer; 
@@ -256,7 +341,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 }
 .bookmark:active, .bookmark.active { width: 65px; transform: translateX(-5px); background: var(--gold) !important; }
 
-/* Colors */
+/* Spine Colors */
 .bm-home { background: #5d4037; } .bm-forge { background: #8b0000; } .bm-market { background: #1b5e20; }
 .bm-chronicles { background: #1a237e; } .bm-guild { background: #4a148c; } .bm-ravens { background: #212121; }
 .bm-cargo { background-color: #d97706; color: #fff; border-left: 4px solid #b45309; }
@@ -266,41 +351,25 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .bookmark-icon img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); }
 
 /* =========================================
-   8. EMBERS & UPDATES
+   9. ATMOSPHERE (EMBERS & UPDATES)
    ========================================= */
-#ember-canvas {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 9000; pointer-events: none; opacity: 0.5;
-    /* mix-blend-mode: screen; */ /* DISABLED for laptop performance */
-}
+#ember-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9000; pointer-events: none; opacity: 0.5; }
 
-.update-overlay {
-    position: fixed; inset: 0; background: #1a120b; z-index: 20000;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--gold); text-align: center;
-}
-.update-card {
-    border: 2px solid var(--gold); padding: 40px; background: rgba(0,0,0,0.8);
-    box-shadow: 0 0 30px rgba(212, 175, 55, 0.3); transform: rotate(-1deg);
-}
+.update-overlay { position: fixed; inset: 0; background: #1a120b; z-index: 20000; display: flex; align-items: center; justify-content: center; color: var(--gold); text-align: center; }
+.update-card { border: 2px solid var(--gold); padding: 40px; background: rgba(0,0,0,0.8); box-shadow: 0 0 30px rgba(212, 175, 55, 0.3); transform: rotate(-1deg); }
 .progress-container { width: 200px; height: 6px; background: #333; margin: 20px auto; border-radius: 3px; overflow: hidden; }
 .update-progress-fill { height: 100%; background: var(--gold); width: 100%; box-shadow: 0 0 15px var(--gold); animation: pulse 2s infinite ease-in-out; }
 @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
 /* =========================================
-   9. MEDIA QUERIES
+   10. MEDIA QUERIES
    ========================================= */
-
-/* Desktop Hover Effects */
+/* Desktop Hover */
 @media (min-width: 1000px) {
-    .item-card:hover, .project-card:hover {
-        transform: translateY(-8px); 
-        box-shadow: 0 12px 20px rgba(0,0,0,0.4), 0 0 15px rgba(255, 215, 0, 0.3);
-        border-color: #d4af37; z-index: 10;
-    }
+    .item-card:hover, .project-card:hover { transform: translateY(-8px); box-shadow: 0 12px 20px rgba(0,0,0,0.4), 0 0 15px rgba(255, 215, 0, 0.3); border-color: #d4af37; z-index: 10; }
 }
 
-/* Desktop Desk Layout (Side by Side) */
+/* Desktop Desk Layout */
 @media (min-width: 1024px) {
     .desk-layout { flex-direction: row; align-items: flex-start; justify-content: center; gap: 60px; }
     .desk-left, .desk-right { width: auto; flex: 1; max-width: 500px; }
@@ -308,101 +377,23 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     #book-view { max-width: 1100px; margin: 0 auto; }
 }
 
-/* Forge Desktop Fix (Unlock Widths) */
+/* Forge Desktop Fix */
 @media (min-width: 768px) {
-    #forgeList.gallery-grid {
-        display: grid; width: 100%; max-width: 1200px; margin: 0 auto;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; gap: 30px;
-    }
+    #forgeList.gallery-grid { display: grid; width: 100%; max-width: 1200px; margin: 0 auto; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; gap: 30px; }
     .forge-item, .flip-container { width: 100% !important; max-width: none !important; }
     .forge-controls { width: 100%; max-width: 1200px; margin: 0 auto 20px auto; }
 }
 
-/* Mobile Landscape Dashboard (Dashboard Mode) */
+/* Mobile Landscape Dashboard */
 @media (orientation: landscape) and (max-height: 500px) {
     .desk-layout { flex-direction: row; align-items: flex-start; padding-top: 70px; gap: 20px; width: 100%; height: 100%; overflow-y: auto; padding-bottom: 80px; }
     .desk-left, .desk-right { flex: 1; width: 50%; max-width: none; margin: 0; }
     .desk-note, .shelf { width: 100%; max-width: none !important; transform: none; }
-    
-    /* Compact Cards */
     .flipper { min-height: 0 !important; }
     .front { position: relative !important; height: auto !important; flex: 1; }
     .back { position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; }
     .forge-header-img, .forge-img-container { height: 85px; min-height: 85px; }
     .card-inner { padding: 10px; }
-    
     .palantir-btn { display: flex !important; transform: scale(0.8); left: 10px; bottom: 10px; }
     .bookmark-icon { width: 26px; height: 26px; }
 }
-
-/* --- PATCH: READ MORE LINK --- */
-.read-more-link {
-    display: inline-block;
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px dashed #ccc; /* Subtle separation line */
-    width: 100%;
-    text-align: right; /* Aligns to bottom right like a signature */
-    
-    font-family: 'Cinzel', serif;
-    font-weight: 800; /* Extra Bold */
-    font-size: 0.85rem;
-    color: #8b0000; /* Blood/Ink Red */
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    text-decoration: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.read-more-link:hover {
-    color: #d4af37; /* Turns Gold on hover */
-    transform: translateX(-5px); /* Slides slightly left */
-}
-
-/* --- PATCH: ROOKERY GRID --- */
-.streak-grid-container {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr); /* 7 Days per row */
-    gap: 8px;
-    margin: 20px 0;
-    max-width: 100%;
-}
-
-/* The Day Cells */
-.streak-cell {
-    aspect-ratio: 1 / 1; /* Forces perfect squares */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    
-    background: rgba(255,255,255,0.4);
-    border: 1px dashed var(--ink); /* The "Sketched" border */
-    border-radius: 2px;
-    
-    font-family: 'Share Tech Mono', monospace; /* Tech/Stamp look */
-    font-size: 1rem; /* Fixed the "way too big" issue */
-    color: #666;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-/* Hover Effect */
-.streak-cell:hover {
-    border-style: solid;
-    background: #fff;
-    transform: scale(1.1);
-    z-index: 2;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
-
-/* Active State (When you click a day) */
-.streak-cell.active {
-    background: var(--ink);
-    color: var(--parchment);
-    border-color: var(--gold);
-    border-style: solid;
-    transform: rotate(-3deg); /* The "Stamp" effect */
-    box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-}
-

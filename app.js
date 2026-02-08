@@ -1,4 +1,4 @@
-/* app.js - v2.1.9 Bookmark Click Fix */
+/* app.js - v3.0.0 Bookmark Click Fix */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
