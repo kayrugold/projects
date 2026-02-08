@@ -15,6 +15,7 @@
 
 body {
     background-color: var(--wood-dark);
+    background-attachment:scroll;
     background-image: 
         linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.1)),
         repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 40px);
@@ -906,4 +907,12 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     color: #fff;
 }
 
+/* Assuming your content is in a wrapper or just the body */
+.gallery-grid, .item-card, p {
+    /* This tells the browser: "This is going to move, keep it ready." */
+    will-change: transform; 
+    
+    /* Optional: strictly separates the stacking context */
+    transform: translateZ(0); 
+}
 
