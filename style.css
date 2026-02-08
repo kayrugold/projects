@@ -1,4 +1,4 @@
-/* style.css - v3.2.0 Final Production Build */
+/* style.css - v3.3.0 Cleaned & Polished */
 
 /* =========================================
    1. VARIABLES & RESET
@@ -163,12 +163,18 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 
 /* Generic Item Card */
 .item-card {
-    background: #fff; width: 100%; padding: 20px; 
+    background: #fff; 
+    width: 100%; 
+    padding: 15px; /* REDUCED PADDING (Was 20px) - Tighter Frame */
     box-shadow: 0 3px 10px rgba(0,0,0,0.15); 
-    margin-bottom: 35px; position: relative; color: #333; 
+    margin-bottom: 35px; 
+    position: relative; 
+    color: #333; 
     border: 1px solid rgba(0,0,0,0.1);
     transform: translate3d(0,0,0) rotate(-0.5deg); /* GPU Fix */
-    backface-visibility: hidden; will-change: transform; transition: transform 0.3s ease; 
+    backface-visibility: hidden; 
+    will-change: transform; 
+    transition: transform 0.3s ease; 
     overflow: visible !important; /* ALLOW PINS */
 }
 .item-card:nth-of-type(even) { transform: translate3d(0,0,0) rotate(0.5deg); }
@@ -189,22 +195,38 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     transform: translateX(-50%); z-index: 25; pointer-events: none;
 }
 
-/* --- IMAGE SYSTEM (STRICT HEADER CONTROL) --- */
-/* Target ONLY the specific header classes. Do NOT target generic 'img' inside cards */
+/* --- IMAGE SYSTEM (INSET & FULLY VISIBLE) --- */
+/* This is the final agreed upon style */
 .forge-header-img, 
-.forge-img-container, 
-.forge-img-container img {
-    width: 100% !important; 
-    height: 160px !important; 
-    object-fit: cover !important; 
-    padding: 0 !important; 
-    margin: 0 !important; 
-    border: none !important; 
-    background: var(--wood-dark) !important; 
+.forge-img-container img, 
+.item-card img {
+    /* 1. SIZE & SPACING */
+    width: calc(100% - 30px) !important; /* Leave 15px gap on sides */
+    height: auto !important;             /* Grow naturally (No Crop) */
+    margin: 15px auto 0 auto !important; /* Top gap + Center */
+
+    /* 2. VISUALS */
+    object-fit: contain !important; 
+    border-radius: 4px !important; 
+    border: 1px solid rgba(43, 29, 14, 0.1) !important; 
+    background: transparent !important; 
+    padding: 0 !important;
     display: block; 
-    border-radius: 8px 8px 0 0 !important;
 }
-.forge-img-emoji { font-size: 4rem; line-height: 160px; text-align: center; width: 100%; display: block; }
+
+/* Keep the Emoji/Icon placeholders as fixed banners */
+.forge-img-container {
+    width: 100% !important;
+    height: 160px !important;
+    background: var(--wood-dark) !important;
+    border-radius: 8px 8px 0 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 !important; /* Icons stay full width */
+}
+
+.forge-img-emoji { font-size: 4rem; line-height: 1; text-align: center; display: block; }
 
 /* Text & Buttons */
 .card-inner { padding: 15px; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -290,7 +312,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .bookmark-icon { width: 32px; height: 32px; pointer-events: none; }
 .bookmark-icon img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); }
 
-#ember-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9000; pointer-events: none; opacity: 0.8; }
+#ember-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9000; pointer-events: none; opacity: 1.0; } /* MAX GLOW */
 .update-overlay { position: fixed; inset: 0; background: #1a120b; z-index: 20000; display: flex; align-items: center; justify-content: center; color: var(--gold); text-align: center; }
 .update-card { border: 2px solid var(--gold); padding: 40px; background: rgba(0,0,0,0.8); box-shadow: 0 0 30px rgba(212, 175, 55, 0.3); transform: rotate(-1deg); }
 .progress-container { width: 200px; height: 6px; background: #333; margin: 20px auto; border-radius: 3px; overflow: hidden; }
@@ -375,4 +397,22 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     .card-inner { padding: 10px; }
     .palantir-btn { display: flex !important; transform: scale(0.8); left: 10px; bottom: 10px; }
     .bookmark-icon { width: 26px; height: 26px; }
+}
+
+/* =========================================
+   12. BUTTON POLISH
+   ========================================= */
+/* Specific styling for Card Action Buttons (View Gear, Seal, etc) */
+.forge-btn, 
+.seal-btn {
+    padding: 15px !important;  
+    letter-spacing: 1px;       
+    margin-top: 15px;          
+    font-weight: 700;
+}
+
+.forge-btn:hover, 
+.seal-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
