@@ -1,4 +1,4 @@
-/* app.js - v3.0.4 Stability & Crash Protection */
+/* app.js - v3.1.2 Global Masonry Layout */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -81,20 +81,16 @@ async function switchPage(section) {
         }
     } catch (err) {
         console.warn("Page Load Error:", err);
-        // Fallback content that prevents crashes
         content = `<div class="item-card"><h3>⚠️ Uplink Offline</h3><p>The archives for '${section}' could not be retrieved. (File Missing)</p></div>`;
     }
     
-    // Inject content
     const container = document.getElementById('page-content');
     if (container) container.innerHTML = content;
     
-    // Highlight Bookmark
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const active = document.querySelector(`.bm-${section}`);
     if(active) active.classList.add('active');
 
-    // CRITICAL FIX: Only try to load the grid if the element actually exists
     if (section === 'ravens') {
         const gridContainer = document.getElementById('streak-grid');
         if (gridContainer) {
@@ -138,7 +134,7 @@ async function openProjectPage(url, event) {
 }
 
 // ==========================================
-// 3. AUDIO ENGINE (STRICT SILENCE MODE)
+// 3. AUDIO ENGINE
 // ==========================================
 
 const FANTASY_SCALE = [
@@ -317,7 +313,7 @@ function toggleSound() {
 }
 
 // ==========================================
-// 4. DATA FETCHING (Robust)
+// 4. DATA FETCHING (Masonry Enabled)
 // ==========================================
 
 function generateCardBack(item) {
@@ -358,7 +354,7 @@ async function fetchForge() {
                 <button class="filter-pill" onclick="setFilter('Math', this)">Math</button>
             </div>
         </div>
-        <div id="forgeList" class="gallery-grid">`;
+        <div id="forgeList" class="gallery-grid masonry-mode">`;
 
         forgeItems.forEach(item => {
             let headerHTML = item.image 
@@ -404,7 +400,7 @@ async function fetchMarket() {
                 We utilize the <strong>itch.io</strong> marketplace for all secure transactions. This ensures maximized support for independent development, with no proprietary launchers or corporate overhead.
             </p>
         </div>
-        <div id="marketList" class="gallery-grid">`;
+        <div id="marketList" class="gallery-grid masonry-mode">`;
 
         marketItems.forEach(item => {
             let headerHTML = item.image 
@@ -455,7 +451,7 @@ async function fetchCargo() {
                             Physical provisions for the modern forger. Shipped directly from the trading post to your door.
                         </p>
                     </div>
-                    <div id="cargoList" class="gallery-grid">`;
+                    <div id="cargoList" class="gallery-grid masonry-mode">`;
 
         cargoItems.forEach(item => {
             html += `
@@ -485,8 +481,8 @@ async function fetchChronicles() {
         journalEntries = await response.json(); 
         
         let html = `<h1 class="page-title">The Chronicles</h1>`;
-        // Grid Container
-        html += `<div id="chronicleList" class="gallery-grid">`;
+        // MASONRY MODE APPLIED
+        html += `<div id="chronicleList" class="gallery-grid masonry-mode">`;
         
         journalEntries.forEach(entry => {
             const imageHTML = entry.image 

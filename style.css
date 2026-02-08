@@ -367,21 +367,26 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 }
 
 /* =========================================
-   11. MASONRY LAYOUT (Floating Cards)
+   11. MASONRY LAYOUT (The "Float Up" Fix)
    ========================================= */
 @media (min-width: 900px) {
-    .masonry-mode {
-        display: block !important; 
-        column-count: 3; 
+    /* INCREASED SPECIFICITY: Targets ID to override the Grid system */
+    div[id$="List"].masonry-mode,
+    .gallery-grid.masonry-mode {
+        display: block !important; /* Disables Grid */
+        column-count: 3;           /* 3 Columns */
         column-gap: 30px;
     }
-    .masonry-mode .item-card {
-        display: inline-block; 
-        width: 100%; 
-        margin-bottom: 30px; 
-        break-inside: avoid;
+
+    /* Prevent cards from being chopped in half */
+    div[id$="List"].masonry-mode .item-card,
+    .gallery-grid.masonry-mode .item-card {
+        display: inline-block;     /* Essential for column flow */
+        width: 100%;
+        margin-bottom: 30px;       /* Space below each card */
+        break-inside: avoid;       
         page-break-inside: avoid;
-        transform: translateZ(0); 
+        transform: translateZ(0);  /* Graphic Glitch Fix */
     }
 }
 
