@@ -9,5 +9,60 @@
     "buttonText": "VIEW GEAR",
     "icon": "👕",
     "type": "Apparel"
+  },
+    {
+    "id": "factor-hunter-shirt",
+    "title": "Factor Hunter Official Tee",
+    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+    "price": "$24.99",
+    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
+    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
+    "buttonText": "VIEW GEAR",
+    "icon": "👕",
+    "type": "Apparel"
+  },
+    {
+    "id": "factor-hunter-shirt",
+    "title": "Factor Hunter Official Tee",
+    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+    "price": "$24.99",
+    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
+    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
+    "buttonText": "VIEW GEAR",
+    "icon": "👕",
+    "type": "Apparel"
+  },
+    {
+    "id": "factor-hunter-shirt",
+    "title": "Factor Hunter Official Tee",
+    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+    "price": "$24.99",
+    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
+    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
+    "buttonText": "VIEW GEAR",
+    "icon": "👕",
+    "type": "Apparel"
+  },
+    {
+    "id": "factor-hunter-shirt",
+    "title": "Factor Hunter Official Tee",
+    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+    "price": "$24.99",
+    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
+    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
+    "buttonText": "VIEW GEAR",
+    "icon": "👕",
+    "type": "Apparel"
+  },
+    {
+    "id": "factor-hunter-shirt",
+    "title": "Factor Hunter Official Tee",
+    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+    "price": "$24.99",
+    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
+    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
+    "buttonText": "VIEW GEAR",
+    "icon": "👕",
+    "type": "Apparel"
   }
 ]
