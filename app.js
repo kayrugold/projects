@@ -1,4 +1,4 @@
-/* app.js - v3.0.1 Stability & Crash Protection */
+/* app.js - v3.0.2 Stability & Crash Protection */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
