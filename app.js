@@ -1,4 +1,4 @@
-/* app.js - v3.0.0 Bookmark Click Fix */
+/* app.js - v3.0.1 Stability & Crash Protection */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -66,8 +66,8 @@ async function switchPage(section) {
             content = await fetchForge();
         } else if (section === 'market') {
             content = await fetchMarket();
-         } else if (section === 'cargo') { // New Case
-        content = await fetchCargo();
+        } else if (section === 'cargo') {
+            content = await fetchCargo();
         } else if (section === 'chronicles') {
             content = await fetchChronicles();
         } else if (section === 'ravens') {
@@ -80,17 +80,27 @@ async function switchPage(section) {
             content = await res.text();
         }
     } catch (err) {
-        console.error(err);
-        content = `<div class="item-card"><h3>Error 404</h3><p>The archives are incomplete.</p></div>`;
+        console.warn("Page Load Error:", err);
+        // Fallback content that prevents crashes
+        content = `<div class="item-card"><h3>⚠️ Uplink Offline</h3><p>The archives for '${section}' could not be retrieved. (File Missing)</p></div>`;
     }
     
-    document.getElementById('page-content').innerHTML = content;
+    // Inject content
+    const container = document.getElementById('page-content');
+    if (container) container.innerHTML = content;
     
+    // Highlight Bookmark
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const active = document.querySelector(`.bm-${section}`);
     if(active) active.classList.add('active');
 
-    if (section === 'ravens') document.getElementById('streak-grid').innerHTML = generateGrid();
+    // CRITICAL FIX: Only try to load the grid if the element actually exists
+    if (section === 'ravens') {
+        const gridContainer = document.getElementById('streak-grid');
+        if (gridContainer) {
+            gridContainer.innerHTML = generateGrid();
+        }
+    }
 }
 
 async function openProjectPage(url, event) {
@@ -131,10 +141,9 @@ async function openProjectPage(url, event) {
 // 3. AUDIO ENGINE (STRICT SILENCE MODE)
 // ==========================================
 
-// D Dorian Mode (The "Zelda" Sound)
 const FANTASY_SCALE = [
-    293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, // Mid
-    587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50 // High
+    293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 
+    587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50
 ];
 
 function initAudio() {
@@ -142,7 +151,6 @@ function initAudio() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
     
-    // --- ETHEREAL REVERB ---
     const rate = audioCtx.sampleRate;
     const length = rate * 3.5; 
     const impulse = audioCtx.createBuffer(2, length, rate);
@@ -156,7 +164,6 @@ function initAudio() {
     window.reverbNode.buffer = impulse;
     window.reverbNode.connect(audioCtx.destination);
     
-    // Master Bus
     window.musicBus = audioCtx.createGain();
     window.musicBus.gain.value = 0.5; 
     window.musicBus.connect(window.reverbNode);
@@ -166,13 +173,11 @@ function initAudio() {
 function startDrone() {
     if (!audioCtx) initAudio();
     
-    // --- LAYER 1: THE WIND ---
     const bufferSize = audioCtx.sampleRate * 2;
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
     let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
     
-    // Pink Noise Generator
     for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
         b0 = 0.99886 * b0 + white * 0.0555179;
@@ -214,7 +219,6 @@ function startDrone() {
     windLFO.start();
     windNode.start();
 
-    // --- TIMERS ---
     playArpeggio(); 
     musicInterval = setInterval(() => {
         playArpeggio();
@@ -222,11 +226,9 @@ function startDrone() {
     }, 4000); 
 }
 
-// --- LAYER 2: THE HARP ---
 function playArpeggio() {
     const baseIndex = Math.floor(Math.random() * (FANTASY_SCALE.length - 6));
     const pattern = [0, 2, 4, 7]; 
-
     pattern.forEach((offset, i) => {
         setTimeout(() => {
             playTone(FANTASY_SCALE[baseIndex + offset], 'triangle', 0.2, 1.5);
@@ -234,7 +236,6 @@ function playArpeggio() {
     });
 }
 
-// --- LAYER 3: THE FAIRY BELLS ---
 function playFairySparkle() {
     const note = FANTASY_SCALE[FANTASY_SCALE.length - 1 - Math.floor(Math.random() * 4)];
     playTone(note, 'sine', 0.05, 0.8);
@@ -267,14 +268,11 @@ function stopDrone() {
     }
 }
 
-// --- THE PAPER SLIDE (STRICT SILENCE FIX) ---
 function playPageSound() {
     if (!isPlaying) return; 
-
     if (!audioCtx) initAudio(); 
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
-    // 1. White Noise Buffer
     const bufferSize = audioCtx.sampleRate * 0.2; 
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -282,14 +280,10 @@ function playPageSound() {
     
     const noise = audioCtx.createBufferSource();
     noise.buffer = buffer;
-
-    // 2. Bandpass Filter
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'bandpass'; 
     filter.frequency.value = 1200; 
     filter.Q.value = 0.7; 
-
-    // 3. The Envelope
     const gain = audioCtx.createGain();
     const now = audioCtx.currentTime;
     
@@ -323,38 +317,25 @@ function toggleSound() {
 }
 
 // ==========================================
-// 4. DATA FETCHING (Forge, Market, Chronicles)
+// 4. DATA FETCHING (Robust)
 // ==========================================
 
 function generateCardBack(item) {
     const longHTML = item.longDescription || item.moreInfo || item.description;
-
     const featuresHTML = Array.isArray(item.features) && item.features.length
-      ? `<div class="card-section">
-            <div class="card-section-title">Features</div>
-            <ul class="card-bullets">${item.features.map(f => `<li>${f}</li>`).join('')}</ul>
-         </div>`
-      : '';
-
+      ? `<div class="card-section"><div class="card-section-title">Features</div><ul class="card-bullets">${item.features.map(f => `<li>${f}</li>`).join('')}</ul></div>` : '';
     const techHTML = Array.isArray(item.tech) && item.tech.length
-      ? `<div class="card-section">
-            <div class="card-section-title">Specs</div>
-            <div class="chip-row">${item.tech.map(t => `<span class="chip">${t}</span>`).join('')}</div>
-         </div>`
-      : '';
+      ? `<div class="card-section"><div class="card-section-title">Specs</div><div class="chip-row">${item.tech.map(t => `<span class="chip">${t}</span>`).join('')}</div></div>` : '';
 
     return `
         <div class="project-btn" onclick="openProjectPage('${item.projectPage || ''}', event)" title="View Docs">↗</div>
         <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
-        
         <h3 class="forge-title" style="border-bottom:1px solid var(--ink); padding-bottom:10px;">${item.title}</h3>
-        
         <div style="overflow-y: auto; flex: 1; padding-right: 5px; margin-top: 10px;">
             <p class="forge-desc" style="-webkit-line-clamp: unset; font-size: 0.95rem;">${longHTML}</p>
             ${featuresHTML}
             ${techHTML}
         </div>
-        
         <p style="font-size: 0.8rem; font-style: italic; color: #666; margin-top: 10px; flex-shrink: 0;">Tap ↺ to flip back</p>
     `;
 }
@@ -459,10 +440,7 @@ async function fetchMarket() {
         });
         html += `</div>`;
         return html;
-    } catch (error) { 
-        console.error(error);
-        return `<h1 class="page-title">The Ledger</h1><p>The ledger is closed. (Data Error)</p>`; 
-    }
+    } catch (error) { return `<h1 class="page-title">The Ledger</h1><p>The ledger is closed. (Data Error)</p>`; }
 }
 
 async function fetchCargo() {
@@ -507,21 +485,26 @@ async function fetchChronicles() {
         journalEntries = await response.json(); 
         
         let html = `<h1 class="page-title">The Chronicles</h1>`;
+        // Grid Container
+        html += `<div id="chronicleList" class="gallery-grid">`;
         
         journalEntries.forEach(entry => {
             const imageHTML = entry.image 
-                ? `<img src="${getVersionedAsset(entry.image)}" class="journal-featured-img" alt="${entry.title}">` 
+                ? `<img src="${getVersionedAsset(entry.image)}" class="forge-header-img" alt="${entry.title}">` 
                 : '';
 
             html += `
             <div class="item-card">
                 ${imageHTML}
-                <div class="log-date">${entry.date}</div>
-                <div class="log-title">${entry.title}</div>
-                <div class="log-body">${entry.summary}</div>
-                <a class="read-more-link" onclick="openJournalEntry('${entry.id}')">Read more...</a>
+                <div class="card-inner">
+                    <div class="log-date" style="color:#8b0000; font-weight:bold; margin-bottom:5px;">${entry.date}</div>
+                    <div class="log-title" style="margin:0 0 10px 0;">${entry.title}</div>
+                    <div class="log-body" style="font-size:0.95rem;">${entry.summary}</div>
+                    <a class="read-more-link" onclick="openJournalEntry('${entry.id}')">READ MORE...</a>
+                </div>
             </div>`;
         });
+        html += `</div>`;
         return html;
     } catch (error) { return `<h1 class="page-title">The Chronicles</h1><p>The archives are currently sealed.</p>`; }
 }
@@ -642,63 +625,44 @@ setInterval(() => {
 }, 1000);
 
 // ==========================================
-// 6. DRAGGABLE BOOKMARKS (FIXED: DELAYED CAPTURE)
+// 6. DRAGGABLE BOOKMARKS (SIMPLIFIED & ROBUST)
 // ==========================================
 
 const bmContainer = document.getElementById('bookmarks');
-let isPressing = false;
 let isDragging = false;
 let startY = 0;
 let initialTop = 0;
 
 if (bmContainer) {
     bmContainer.addEventListener('pointerdown', (e) => {
-        isPressing = true;
-        isDragging = false; 
-        
-        // FIX: Don't capture yet. Wait for drag to start.
-        const rect = bmContainer.getBoundingClientRect();
+        isDragging = false;
         startY = e.clientY;
+        const rect = bmContainer.getBoundingClientRect();
         initialTop = rect.top;
+        // Don't capture yet - wait for move
     });
 
     bmContainer.addEventListener('pointermove', (e) => {
-        if (!isPressing) return;
+        // Only move if mouse is held down (buttons=1)
+        if (e.buttons !== 1) return;
 
         const currentY = e.clientY;
         const deltaY = currentY - startY;
 
-        if (!isDragging) {
-             // Only start dragging if moved > 5 pixels
-             if (Math.abs(deltaY) > 5) {
-                 isDragging = true;
-                 bmContainer.setPointerCapture(e.pointerId); // NOW we capture
-                 bmContainer.style.transition = 'none'; 
-                 bmContainer.style.bottom = 'auto';
-                 bmContainer.style.transform = 'none';
-             }
-        }
-
-        if (isDragging) {
+        // Threshold to prevent accidental drags on clicks
+        if (Math.abs(deltaY) > 5) {
+            isDragging = true;
             e.preventDefault(); 
+            bmContainer.setPointerCapture(e.pointerId); 
+            bmContainer.style.transition = 'none'; 
+            bmContainer.style.bottom = 'auto'; // Release bottom anchor
             bmContainer.style.top = (initialTop + deltaY) + 'px';
         }
     });
 
     bmContainer.addEventListener('pointerup', (e) => {
-        isPressing = false;
-        if (isDragging) {
-            isDragging = false;
-            bmContainer.releasePointerCapture(e.pointerId);
-        }
-    });
-
-    bmContainer.addEventListener('pointercancel', (e) => {
-        isPressing = false;
-        isDragging = false;
-        if(bmContainer.hasPointerCapture(e.pointerId)){
-            bmContainer.releasePointerCapture(e.pointerId);
-        }
+        bmContainer.releasePointerCapture(e.pointerId);
+        // If we were just clicking, isDragging remains false, allowing the onclick to fire
     });
 }
 
@@ -758,11 +722,9 @@ function sendBugReport() {
 }
 
 // ==========================================
-// 8. BACKGROUND CACHE HEATER (MASTER AFTERBURNER)
+// 8. BACKGROUND CACHE HEATER (SILENT MODE)
 // ==========================================
 async function heatTheCache() {
-    console.log("🔥 Afterburner: Warming up all systems...");
-    
     const manifests = [
         './thechronicles/journal_manifest.json',
         './forge/forge_manifest.json',
@@ -771,18 +733,20 @@ async function heatTheCache() {
 
     try {
         for (const url of manifests) {
-            const res = await fetch(getVersionedAsset(url));
-            const items = await res.json();
-            
-            for (const item of items) {
-                if (item.image) {
-                    fetch(item.image, { mode: 'no-cors' });
+            try {
+                const res = await fetch(getVersionedAsset(url));
+                if(res.ok) {
+                    const items = await res.json();
+                    for (const item of items) {
+                        if (item.image) fetch(item.image, { mode: 'no-cors' });
+                    }
                 }
+            } catch(e) {
+                // Ignore missing files in background heater
             }
         }
-        console.log("🔥 Afterburner: Cache fully heated.");
     } catch (e) {
-        console.log("❄️ Afterburner stalled:", e);
+        // Silent fail
     }
 }
 

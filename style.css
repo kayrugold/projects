@@ -1,3 +1,5 @@
+/* style.css - v3.2.0 Final Production Build */
+
 /* =========================================
    1. VARIABLES & RESET
    ========================================= */
@@ -18,23 +20,21 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 /* =========================================
-   2. CORE LAYOUT (PERFORMANCE OPTIMIZED)
+   2. CORE LAYOUT
    ========================================= */
 body {
     background-color: var(--wood-dark);
     color: var(--ink);
     font-family: 'Cormorant Garamond', serif;
     margin: 0; padding: 0;
-    
-    /* APP SHELL MODE: Body doesn't scroll, the inner views do. */
     height: 100dvh;
     display: flex; 
     flex-direction: column;
     overflow: hidden; 
-    overscroll-behavior: none; /* PREVENTS RUBBER BANDING */
+    overscroll-behavior: none; 
 }
 
-/* PERFORMANCE LAYER: Static background to prevent repaint lag */
+/* Static Background Layer */
 body::before {
     content: "";
     position: fixed; 
@@ -47,14 +47,14 @@ body::before {
     pointer-events: none;
 }
 
-/* SCROLLBAR HIDING */
+/* Scrollbar Hiding */
 #library-view::-webkit-scrollbar, 
 .page-content::-webkit-scrollbar, 
 body::-webkit-scrollbar,
 .desk-layout::-webkit-scrollbar { display: none; }
 #library-view, .page-content, body, .desk-layout { scrollbar-width: none; }
 
-/* READING MODE OVERRIDE */
+/* Reading Mode Override */
 body.reading-mode {
     background-color: var(--parchment);
     background-image: 
@@ -71,15 +71,11 @@ body.reading-mode {
 .log-title { font-family: 'Cinzel', serif; font-weight: bold; font-size: 1.3rem; margin: 0 0 10px 0; border-bottom:1px solid #eee; padding-bottom:5px; color:#111; }
 .log-body { font-size: 1.1rem; line-height: 1.5; color: #444; }
 
-/* Inputs & Buttons */
 .ink-input { width: 100%; background: transparent; border: none; border-bottom: 2px solid var(--ink); padding: 10px 0; font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; color: var(--ink); margin-bottom: 20px; }
 .ink-input:focus { outline: none; border-color: var(--gold); }
 
 .seal-btn { display: block; width: 100%; padding: 15px; background: #800000; color: var(--parchment); border: none; font-family: 'Cinzel', serif; font-size: 1.1rem; cursor: pointer; border-radius: 2px; transition: background 0.2s; }
 .seal-btn:hover { background: #5a0000; }
-
-.icon-btn { background: rgba(43, 29, 14, 0.3); border: 1px solid var(--gold); color: var(--gold); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; text-decoration: none; }
-.icon-btn.active { background: var(--gold); color: #2b1d0e; box-shadow: 0 0 10px var(--gold); }
 
 .read-more-link {
     display: inline-block; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; width: 100%; text-align: right;
@@ -138,6 +134,8 @@ body.reading-mode {
 .status-bar > * { pointer-events: auto; }
 .status-logo { height: 32px; width: auto; margin-right: 10px; cursor: pointer; }
 .os-clock { color: var(--gold); font-family: 'Cinzel', serif; font-size: 0.9rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5); font-weight: bold; }
+.icon-btn { background: rgba(43, 29, 14, 0.3); border: 1px solid var(--gold); color: var(--gold); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1rem; transition: 0.2s; text-decoration: none; }
+.icon-btn.active { background: var(--gold); color: #2b1d0e; box-shadow: 0 0 10px var(--gold); }
 
 .app-layer { padding: 0; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--parchment); z-index: 5000; display: none; flex-direction: column; overflow-y: auto; }
 .app-layer.active { display: flex; }
@@ -160,8 +158,9 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .palantir-btn { position: fixed; left: 20px; bottom: 20px; width: 50px; height: 50px; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(80, 20, 180, 0.8), rgba(0,0,0,0.9)); border-radius: 50%; box-shadow: 0 0 15px rgba(80, 20, 180, 0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2000; border: 2px solid #4a3b2a; }
 
 /* =========================================
-   6. CARD SYSTEMS & FLIP ENGINE
+   6. CARD SYSTEMS & GRID CONTENT
    ========================================= */
+
 /* Generic Item Card */
 .item-card {
     background: #fff; width: 100%; padding: 20px; 
@@ -170,29 +169,47 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     border: 1px solid rgba(0,0,0,0.1);
     transform: translate3d(0,0,0) rotate(-0.5deg); /* GPU Fix */
     backface-visibility: hidden; will-change: transform; transition: transform 0.3s ease; 
+    overflow: visible !important; /* ALLOW PINS */
 }
 .item-card:nth-of-type(even) { transform: translate3d(0,0,0) rotate(0.5deg); }
 .item-card:hover { transform: translate3d(0, -5px, 0) rotate(0deg) scale(1.01); z-index: 5; box-shadow: 0 8px 25px rgba(0,0,0,0.25); }
-.item-card::after { content: ''; position: absolute; top: -12px; left: 50%; width: 14px; height: 14px; background: #c00; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 20; }
 
-/* General Image Handling in Cards */
-.item-card img, .project-card img {
-    object-fit: contain; height: auto; max-height: 300px; width: 100%; background: transparent;
+/* Forge Items */
+.forge-item { 
+    padding: 0; background: #fdfbf7; border: 1px solid #3e2723; 
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.15); margin-bottom: 20px; 
+    border-radius: 8px; width: 100%; overflow: visible !important; 
 }
 
-/* Forge & Market Specifics */
-.forge-item { padding: 0; overflow: hidden; background: #fdfbf7; border: 1px solid #3e2723; box-shadow: 3px 3px 6px rgba(0,0,0,0.15); margin-bottom: 20px; border-radius: 8px; width: 100%; }
-.forge-img-container { background: #1a1a1a; height: 120px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
-.forge-img-emoji { font-size: 3.5rem; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); }
-
-.forge-header-img { 
-    width: 100%; height: 140px; display: block; border-bottom: 1px solid var(--ink); flex-shrink: 0;
-    object-fit: contain; background: #000; padding: 5px; /* Full frame fix */
+/* RED PIN SYSTEM */
+.forge-item::after, .item-card::after, .flip-container::after { 
+    content: ''; position: absolute; top: -12px; left: 50%; 
+    width: 14px; height: 14px; background: #c00; 
+    border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); 
+    transform: translateX(-50%); z-index: 25; pointer-events: none;
 }
 
+/* --- IMAGE SYSTEM (STRICT HEADER CONTROL) --- */
+/* Target ONLY the specific header classes. Do NOT target generic 'img' inside cards */
+.forge-header-img, 
+.forge-img-container, 
+.forge-img-container img {
+    width: 100% !important; 
+    height: 160px !important; 
+    object-fit: cover !important; 
+    padding: 0 !important; 
+    margin: 0 !important; 
+    border: none !important; 
+    background: var(--wood-dark) !important; 
+    display: block; 
+    border-radius: 8px 8px 0 0 !important;
+}
+.forge-img-emoji { font-size: 4rem; line-height: 160px; text-align: center; width: 100%; display: block; }
+
+/* Text & Buttons */
 .card-inner { padding: 15px; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .forge-title { font-family: 'Cinzel', serif; font-size: 1.2rem; margin: 0 0 5px 0; letter-spacing: 1px; color: var(--ink); flex-shrink: 0; }
-.forge-desc { font-size: 0.95rem; color: #555; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; margin-bottom: 10px; white-space: normal; flex-shrink: 1; }
+.forge-desc { font-size: 0.95rem; color: #555; display: block; overflow: visible; white-space: normal; margin-bottom: 15px; flex-shrink: 0; }
 .forge-btn { width: 100%; padding: 10px; background: transparent; border: 1px solid var(--ink); font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer; transition: all 0.2s; margin-top: auto; flex-shrink: 0; z-index: 10; }
 .forge-btn:active { background: var(--ink); color: var(--parchment); }
 
@@ -203,110 +220,29 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .badge-live { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
 .badge-beta { background: #fffde7; color: #fbc02d; border-color: #fbc02d; }
 .badge-alpha { background: #f3e5f5; color: #7b1fa2; border-color: #7b1fa2; }
-.filter-pill { flex: 0 0 auto; padding: 6px 16px; border: 1px solid var(--ink); border-radius: 20px; background: transparent; font-family: 'Cinzel', serif; font-size: 0.8rem; color: var(--ink); cursor: pointer; }
-.filter-pill.active { background: var(--ink); color: var(--parchment); }
 .forge-search { width: 100%; padding: 12px; background: rgba(255,255,255,0.4); border: 2px solid var(--ink); font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--ink); border-radius: 4px; margin-bottom: 15px; }
 .forge-filters { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+.filter-pill { flex: 0 0 auto; padding: 6px 16px; border: 1px solid var(--ink); border-radius: 20px; background: transparent; font-family: 'Cinzel', serif; font-size: 0.8rem; color: var(--ink); cursor: pointer; }
+.filter-pill.active { background: var(--ink); color: var(--parchment); }
 
 /* =========================================
-   3D FLIP ENGINE (FLUID + BUTTONS)
+   7. 3D FLIP ENGINE
    ========================================= */
+.flip-container { perspective: 1000px; position: relative; width: 100%; }
+.flipper { transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; position: relative; width: 100%; height: auto; min-height: 380px; }
+.flip-container.flipped .flipper { transform: rotateY(180deg); }
 
-/* 1. The Container */
-.flip-container {
-    perspective: 1000px;
-    position: relative;
-    width: 100%;
-}
+.front { position: relative; width: 100%; height: auto; min-height: 380px; background: #fdfbf7; border-radius: 8px; border: 1px solid #3e2723; overflow: visible; display: flex; flex-direction: column; z-index: 2; transform: rotateY(0deg); backface-visibility: hidden; }
+.back { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--parchment); border-radius: 8px; border: 2px solid var(--gold); padding: 20px; text-align: center; justify-content: center; display: flex; flex-direction: column; transform: rotateY(180deg); backface-visibility: hidden; }
 
-.flipper {
-    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-    transform-style: preserve-3d;
-    position: relative;
-    width: 100%;
-    height: auto;        /* Fluid height */
-    min-height: 380px;   /* Minimum size */
-}
-
-.flip-container.flipped .flipper {
-    transform: rotateY(180deg);
-}
-
-/* 2. The Front (Driver) */
-.front {
-    position: relative;  /* Fluid height driver */
-    width: 100%;
-    height: auto;
-    min-height: 380px;
-    
-    background: #fdfbf7;
-    border-radius: 8px;
-    border: 1px solid #3e2723;
-    overflow: visible;   /* Prevents clipping */
-    display: flex;
-    flex-direction: column;
-    z-index: 2;
-    transform: rotateY(0deg);
-    backface-visibility: hidden;
-}
-
-/* 3. The Back (Follower) */
-.back {
-    position: absolute;  /* Matches Front's size */
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    
-    background: var(--parchment);
-    border-radius: 8px;
-    border: 2px solid var(--gold);
-    padding: 20px;
-    text-align: center;
-    justify-content: center;
-    display: flex;
-    flex-direction: column;
-    transform: rotateY(180deg);
-    backface-visibility: hidden;
-}
-
-/* 4. The Summary Text (No Clipping) */
-.forge-desc {
-    font-size: 0.95rem;
-    color: #555;
-    display: block; 
-    overflow: visible;
-    text-overflow: clip;
-    white-space: normal;
-    margin-bottom: 15px;
-    flex-shrink: 0;
-}
-
-/* 5. THE BUTTONS (Restored) */
-.flip-btn, .project-btn {
-    position: absolute;
-    top: 10px;
-    width: 32px; height: 32px;
-    background: rgba(0,0,0,0.6);
-    border: 1px solid var(--gold);
-    border-radius: 50%;
-    color: var(--gold);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    z-index: 10;
-    transition: all 0.2s;
-    font-size: 1.1rem;
-}
-
-.flip-btn { right: 10px; }       /* Flip arrow on right */
-.project-btn { left: 10px; }     /* Launch arrow on left */
-
-.flip-btn:hover, .project-btn:hover {
-    background: var(--gold);
-    color: var(--wood-dark);
-}
+/* Corner Buttons */
+.flip-btn, .project-btn { position: absolute; top: 10px; width: 32px; height: 32px; background: rgba(0,0,0,0.6); border: 1px solid var(--gold); border-radius: 50%; color: var(--gold); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: all 0.2s; font-size: 1.1rem; }
+.flip-btn { right: 10px; } 
+.project-btn { left: 10px; }
+.flip-btn:hover, .project-btn:hover { background: var(--gold); color: var(--wood-dark); }
 
 /* =========================================
-   7. PAGE SPECIFIC (ROOKERY & CHRONICLES)
+   8. PAGE SPECIFIC (ROOKERY & CHRONICLES)
    ========================================= */
 /* Rookery Grid */
 .streak-grid-container { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin: 20px 0; max-width: 100%; }
@@ -318,7 +254,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .streak-cell:hover { border-style: solid; background: #fff; transform: scale(1.1); z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 .streak-cell.active { background: var(--ink); color: var(--parchment); border-color: var(--gold); border-style: solid; transform: rotate(-3deg); box-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
 
-/* Chronicle Media Fixes */
+/* Chronicle Media */
 .log-body img, .entry-content img, .entry-featured-img {
     max-width: 90% !important; height: auto !important;
     display: block !important; margin: 20px auto !important;
@@ -328,11 +264,15 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .entry-image-container { width: 100%; text-align: center; margin: 20px 0; }
 
 /* =========================================
-   8. NAVIGATION (BOOKMARKS)
+   9. NAVIGATION & ATMOSPHERE
    ========================================= */
+/* BOOKMARK RESTORATION FIX: Z-Index 20000+ to beat the overlays */
 .bookmark-container {
     position: fixed; right: 0; top: 50%; transform: translateY(-50%);
-    display: flex; flex-direction: column; align-items: flex-end; z-index: 10000; touch-action: none; width: 70px;
+    display: flex; flex-direction: column; align-items: flex-end; 
+    z-index: 2147483647; /* MAX Z-INDEX: Forces it to front */
+    touch-action: none; width: 70px;
+    pointer-events: auto !important; /* Forces clickability */
 }
 .bookmark {
     width: 50px; height: 45px; margin-bottom: 4px; border-radius: 6px 0 0 6px; 
@@ -341,7 +281,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 }
 .bookmark:active, .bookmark.active { width: 65px; transform: translateX(-5px); background: var(--gold) !important; }
 
-/* Spine Colors */
+/* Colors */
 .bm-home { background: #5d4037; } .bm-forge { background: #8b0000; } .bm-market { background: #1b5e20; }
 .bm-chronicles { background: #1a237e; } .bm-guild { background: #4a148c; } .bm-ravens { background: #212121; }
 .bm-cargo { background-color: #d97706; color: #fff; border-left: 4px solid #b45309; }
@@ -350,11 +290,7 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 .bookmark-icon { width: 32px; height: 32px; pointer-events: none; }
 .bookmark-icon img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); }
 
-/* =========================================
-   9. ATMOSPHERE (EMBERS & UPDATES)
-   ========================================= */
 #ember-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9000; pointer-events: none; opacity: 0.5; }
-
 .update-overlay { position: fixed; inset: 0; background: #1a120b; z-index: 20000; display: flex; align-items: center; justify-content: center; color: var(--gold); text-align: center; }
 .update-card { border: 2px solid var(--gold); padding: 40px; background: rgba(0,0,0,0.8); box-shadow: 0 0 30px rgba(212, 175, 55, 0.3); transform: rotate(-1deg); }
 .progress-container { width: 200px; height: 6px; background: #333; margin: 20px auto; border-radius: 3px; overflow: hidden; }
@@ -362,26 +298,69 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
 @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
 
 /* =========================================
-   10. MEDIA QUERIES
+   10. MEDIA QUERIES (DESKTOP)
    ========================================= */
-/* Desktop Hover */
-@media (min-width: 1000px) {
-    .item-card:hover, .project-card:hover { transform: translateY(-8px); box-shadow: 0 12px 20px rgba(0,0,0,0.4), 0 0 15px rgba(255, 215, 0, 0.3); border-color: #d4af37; z-index: 10; }
-}
 
-/* Desktop Desk Layout */
-@media (min-width: 1024px) {
-    .desk-layout { flex-direction: row; align-items: flex-start; justify-content: center; gap: 60px; }
-    .desk-left, .desk-right { width: auto; flex: 1; max-width: 500px; }
-    .desk-note { transform: rotate(-2deg); margin-top: 20px; }
-    #book-view { max-width: 1100px; margin: 0 auto; }
-}
-
-/* Forge Desktop Fix */
 @media (min-width: 768px) {
-    #forgeList.gallery-grid { display: grid; width: 100%; max-width: 1200px; margin: 0 auto; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; gap: 30px; }
-    .forge-item, .flip-container { width: 100% !important; max-width: none !important; }
-    .forge-controls { width: 100%; max-width: 1200px; margin: 0 auto 20px auto; }
+    
+    /* 1. FORCE FRONT PAGE DUAL-COLUMN */
+    .desk-layout {
+        flex-direction: row; /* Puts Left (Notes) and Right (Books) side-by-side */
+        justify-content: center;
+        gap: 60px;
+        align-items: flex-start;
+    }
+    
+    /* Ensure the columns share width */
+    .desk-left, .desk-right {
+        flex: 1;
+        width: 50%;
+        max-width: 500px;
+    }
+
+    /* 2. FORCE GRID FOR LISTS (When Visible) */
+    div[id$="List"]:not([style*="none"]) {
+        display: grid !important; 
+        width: 100%;
+        max-width: 1200px; 
+        margin: 0 auto;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; 
+        gap: 30px;
+        flex-direction: row !important;
+        align-items: start !important;
+    }
+
+    /* 3. FORCE CARDS TO FIT THE GRID */
+    .forge-item, .flip-container, .item-card, .project-card,
+    .log-body, .entry-content, div[class*="log"], div[class*="entry"] {
+        width: 100% !important; max-width: none !important;
+    }
+
+    /* 4. Desktop Hover */
+    .item-card:hover, .project-card:hover, .forge-item:hover {
+        transform: translateY(-8px); 
+        box-shadow: 0 12px 20px rgba(0,0,0,0.4), 0 0 15px rgba(255, 215, 0, 0.3);
+        border-color: #d4af37; z-index: 10;
+    }
+}
+
+/* =========================================
+   11. MASONRY LAYOUT (Floating Cards)
+   ========================================= */
+@media (min-width: 900px) {
+    .masonry-mode {
+        display: block !important; 
+        column-count: 3; 
+        column-gap: 30px;
+    }
+    .masonry-mode .item-card {
+        display: inline-block; 
+        width: 100%; 
+        margin-bottom: 30px; 
+        break-inside: avoid;
+        page-break-inside: avoid;
+        transform: translateZ(0); 
+    }
 }
 
 /* Mobile Landscape Dashboard */
