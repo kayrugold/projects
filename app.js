@@ -1,4 +1,4 @@
-/* app.js - v3.1.2 Global Masonry Layout */
+/* app.js - v3.1.3 Global Masonry Layout */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -621,7 +621,7 @@ setInterval(() => {
 }, 1000);
 
 // ==========================================
-// 6. DRAGGABLE BOOKMARKS (SIMPLIFIED & ROBUST)
+// 6. DRAGGABLE BOOKMARKS (Natural Drag Fix)
 // ==========================================
 
 const bmContainer = document.getElementById('bookmarks');
@@ -650,8 +650,13 @@ if (bmContainer) {
             isDragging = true;
             e.preventDefault(); 
             bmContainer.setPointerCapture(e.pointerId); 
+            
+            // --- THE FIX ---
             bmContainer.style.transition = 'none'; 
-            bmContainer.style.bottom = 'auto'; // Release bottom anchor
+            bmContainer.style.transform = 'none'; // Disable the CSS centering offset
+            bmContainer.style.bottom = 'auto';    // Release bottom anchor
+            // ----------------
+            
             bmContainer.style.top = (initialTop + deltaY) + 'px';
         }
     });
