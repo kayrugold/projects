@@ -471,13 +471,14 @@ async function fetchCargo() {
         if (!response.ok) throw new Error('Cargo manifest missing');
         const cargoItems = await response.json();
 
-        let html = `<h1 class="page-title">The Cargo Bay</h1>
-                    <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--emerald-500); transform:none;">
-                        <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
-                            Physical provisions for the modern forger. Shipped directly from the trading post to your door.
-                        </p>
-                    </div>
-                    <div id="cargoList" class="gallery-grid">`;
+        let html = `
+        <h1 class="page-title">The Cargo Bay</h1>
+        <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid #d97706; transform:none;">
+            <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
+                Physical provisions for the modern forger. Shipped directly from the trading post to your door.
+            </p>
+        </div>
+        <div id="cargoList" class="gallery-grid">`; // This ID and Class enable the multi-column layout
 
         cargoItems.forEach(item => {
             html += `

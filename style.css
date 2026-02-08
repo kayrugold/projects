@@ -914,4 +914,17 @@ iframe { width: 100%; height: 100%; border: none; flex: 1; }
     color: #fff;
 }
 
+.market-header-row {
+    display: flex;
+    flex-direction: column; /* Stacks title over price for more room */
+    align-items: flex-start;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.forge-title {
+    height: auto; /* Allows the title to grow vertically */
+    overflow: visible;
+    white-space: normal;
+}
 
