@@ -1,5 +1,15 @@
 [
 {
+  "id": "forge-to-ledger",
+  "title": "From The Forge to The Ledger",
+  "date": "February 11, 2026",
+  "summary": "This entry demystifies the studio's development pipeline, breaking down the journey from raw idea to polished release.",
+  "content": "It explains the distinct purpose of each sector: The Forge serves as a sandbox for experimental prototypes and community feedback, while The Rookery acts as a rigorous testing ground to meet Google's 14-day/20-tester requirement. The final stage, The Ledger, is identified as the marketplace for stable, finished applications. The article emphasizes that the studio is not a static portfolio, but a \"digital foundry\" where user participation directly shapes the software.",
+  "image": "./assets/forgetoledger.webp",
+  "tags": ["Update", "Forge", "Ledger"],
+  "file": "./thechronicles/entries/theforgetotheledger.html"
+},
+{
   "id": "cargo-bay-launch",
   "title": "Log Entry: The Cargo Bay is Open",
   "date": "February 6, 2026",

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Andy's Dev Studio</title>
+    <title>Andy's Dev Studio - Field Desk</title>
     <meta name="theme-color" content="#1a120b">
     <link rel="manifest" href="manifest.json">
     
@@ -12,16 +12,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&family=Share+Tech+Mono&family=Homemade+Apple&display=swap" rel="stylesheet">
 
     <script src="config.js"></script>
-    <link rel="stylesheet" href="style.css?v=3.1.31">
+    
+    <link rel="stylesheet" href="style.css?v=4.6.0">
 </head>
 <body>
 
+    <canvas id="ember-canvas">
+    </canvas>
+
     <div id="updateOverlay" class="update-overlay" style="display:none;">
         <div class="update-card">
-            <h2 style="font-family:'Cinzel', serif; margin-top:0;">SYSTEM UPDATE</h2>
-            <div class="progress-container">
-                <div id="updateProgress" class="update-progress-fill"></div>
-            </div>
+            <h2 style="font-family:'Share Tech Mono', monospace; margin-top:0;">SYSTEM UPDATE</h2>
+            <div class="progress-container"><div id="updateProgress" class="update-progress-fill"></div></div>
             <p id="updateStatus">Downloading New Assets...</p>
             <p style="font-size:0.7rem; color:var(--gold);">[ v<span id="ui-version-display">---</span> ]</p>
         </div>
@@ -39,83 +41,283 @@
 
     <div id="infoModal" class="modal-overlay">
         <div class="info-card">
-            <h2 style="font-family:'Cinzel', serif; margin-top:0;">Andy's Dev Studio</h2>
+            <h2 style="font-family:'Share Tech Mono', monospace; margin-top:0;">Andy's Dev Studio</h2>
             <p style="font-size:0.9rem; margin-bottom:5px;"><strong>Version:</strong> <span id="modal-version-display">---</span></p>
             <p style="font-size:0.9rem; margin-bottom:5px;"><strong>System:</strong> Online</p>
             <p style="font-size:0.9rem; font-style:italic;">"Forged in code, tested on the road."</p>
             <hr style="border:0; border-top:1px dashed #aaa; margin:15px 0;">
             <button onclick="goHome()" class="info-btn btn-home">Return to Home</button>
-            <button onclick="toggleInfo()" class="info-btn">Close</button>
+            <button onclick="toggleInfo()" class="info-btn">Close Settings</button>
         </div>
     </div>
 
-    <a href="https://discord.gg/WHhnBXpDSW" target="_blank" class="palantir-btn" title="Open Comm Link">
-        <div class="palantir-icon"></div>
-    </a>
-        
     <div class="status-bar">
-        <img src="./assets/icon.webp" alt="Studio Logo" class="status-logo" onclick="toggleInfo()" width="32" height="32">
-        <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" class="icon-btn" style="border-color:var(--gold); color:var(--gold); margin-right:15px; text-decoration:none;"><img src="./assets/coffee.webp" alt="Coffee" width="32" height="32"></a>
-        <div class="os-clock" id="clock">12:00</div>
-        <button class="icon-btn" id="soundBtn" onclick="toggleSound()"><img id="soundIcon" src="./assets/soundoff.webp" alt="sound" width="32" height="32"></button>
-        <button class="icon-btn" onclick="toggleFullscreen()"><img src="./assets/fullscreen.webp" width="32" height="32"></button>
+        <button class="icon-btn" onclick="toggleHamburger()"><span style="font-size:1.4rem; margin-top:-2px;">☰</span></button>
+        <h1 class="header-title">Field Desk</h1>
+        <button class="icon-btn" onclick="toggleInfo()"><span style="font-size:1.4rem; margin-top:-2px;">⚙</span></button>
     </div>
 
-    <div id="library-view">
-        <div class="desk-layout">
-            <div class="desk-left">
-                <div class="desk-note">
-                    <div class="note-header">Andy's Dev Studio</div>
-                    <div class="note-hand">
-                        Welcome to the forge. <br><br>
-                        Systems are stable. I am currently working on the physics engine for the new dice roller. <br><br>
-                        Check the Market for the new Asset Pack.
-                    </div>
-                </div>
-                <div class="paper-scrap">
-                    <div class="scrap-title">LATEST UPDATE: ---</div>
-                    <div class="scrap-text">
-                        The archives are now open. Procedural audio engine enabled.
-                    </div>
-                </div>
-            </div>
+    <div id="navDrawer" class="nav-drawer">
+        <div class="drawer-header">
+            <span style="font-family:'Share Tech Mono', monospace; font-weight:bold; color:var(--gold); font-size: 1.2rem;">DIRECTORY</span>
+            <button class="icon-btn" onclick="toggleHamburger()" style="border-color:#fff;">X</button>
+        </div>
+        
+        <a href="#" class="drawer-link" onclick="goHome(); toggleHamburger()">The Field Desk (Home)</a>
+        <a href="#" class="drawer-link" onclick="openBook('forge'); toggleHamburger()">The Forge</a>
+        <a href="#" class="drawer-link" onclick="openBook('market'); toggleHamburger()">The Ledger</a>
+        <a href="#" class="drawer-link" onclick="openBook('cargo'); toggleHamburger()">The Cargo Bay</a>
+        <a href="#" class="drawer-link" onclick="openBook('chronicles'); toggleHamburger()">The Chronicles</a>
+        <a href="#" class="drawer-link" onclick="openBook('guild'); toggleHamburger()">The Guild Hall</a>
+        <a href="#" class="drawer-link" onclick="openBook('ravens'); toggleHamburger()">The Rookery</a>
 
-            <div class="desk-right">
-                <div class="shelf">
-                    <div class="book-spine spine-forge" onclick="openBook('forge')">
-                        <div class="spine-title">The Forge</div>
-                        <div class="spine-subtitle">Projects & Prototypes</div>
-                    </div>
-                    <div class="book-spine spine-market" onclick="openBook('market')">
-                        <div class="spine-title">The Ledger</div>
-                        <div class="spine-subtitle">Market & Trade Goods</div></div>
-                        <div class="book-spine spine-cargo" onclick="openBook('cargo')">
-    <div class="spine-title">THE CARGO BAY</div>
-    <div class="spine-subtitle">Physical Provisions</div>
-</div>
-                    <div class="book-spine spine-chronicles" onclick="openBook('chronicles')">
-                        <div class="spine-title">The Chronicles</div>
-                        <div class="spine-subtitle">Developer Logs</div>
-                    </div>
-                    <div class="book-spine spine-guild" onclick="openBook('guild')">
-                        <div class="spine-title">Guild Records</div>
-                        <div class="spine-subtitle">Contact & Testing</div>
-                    </div>
-                </div>
-            </div>
+        <div class="drawer-footer" style="display: flex; justify-content: space-evenly; align-items: center; padding-top: 20px; margin-top: auto; border-top: 1px dashed rgba(212, 175, 55, 0.4);">
+            <button class="icon-btn" id="soundBtn" onclick="toggleSound()" title="Toggle Sound" style="width: 44px; height: 44px;">
+                <img id="soundIcon" src="./assets/soundoff.webp" alt="sound" style="width: 24px; height: 24px;">
+            </button>
+            <button class="icon-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen" style="width: 44px; height: 44px;">
+                <img src="./assets/fullscreen.webp" alt="fullscreen" style="width: 24px; height: 24px;">
+            </button>
+            <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" class="icon-btn" title="Buy Me A Coffee" style="width: 44px; height: 44px; background: rgba(212, 175, 55, 0.1);">
+                <img src="./assets/coffee.webp" alt="Coffee" style="width: 28px; height: 28px;">
+            </a>
         </div>
     </div>
 
-    <div id="book-view">
-        <div class="page-content" id="page-content"></div>
+    <div id="library-view" class="field-desk-bg">
+        
+        <div class="desk-top-section">
+            <div class="desk-labels">
+                <div class="label-left">Manual</div>
+                <div class="label-right">Rack</div>
+            </div>
+
+            <div class="desk-main-row">
+                
+                <div class="manual-col">
+                    <div class="paper-stack-container">
+                        
+                        <div class="stacked-page" style="--rot: 1.5deg; --dx: 2px; --dy: 3px; z-index: 1;">
+                            <div class="page-content-scroll">
+                                <h2 class="manual-title">STUDIO PROTOCOL</h2>
+                                <h3 class="manual-subtitle">Section III</h3>
+                                <div class="manual-entry">
+                                    <h4>The Guild Hall</h4>
+                                    <p>Studio documentation and collective guild records.</p>
+                                </div>
+                                <div class="manual-entry">
+                                    <h4>The Rookery</h4>
+                                    <p>The 14-Day Watch. Alpha testing operations and critical reporting.</p>
+                                </div>
+                            </div>
+                            <div class="tear-hint" onclick="resetPages()">↺ Restack Pages</div>
+                        </div>
+
+                        <div class="stacked-page" style="--rot: -1.2deg; --dx: -2px; --dy: -1px; z-index: 2;">
+                            <div class="page-content-scroll">
+                                <h2 class="manual-title">STUDIO PROTOCOL</h2>
+                                <h3 class="manual-subtitle">Section II</h3>
+                                <div class="manual-entry">
+                                    <h4>The Cargo Bay</h4>
+                                    <p>Physical provisions and hardware for the modern forger.</p>
+                                </div>
+                                <div class="manual-entry">
+                                    <h4>The Chronicles</h4>
+                                    <p>Developer logs, patch notes, and archival records.</p>
+                                </div>
+                            </div>
+                            <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
+                        </div>
+
+                        <div class="stacked-page" style="--rot: 0.5deg; z-index: 3;">
+                            <div class="page-content-scroll">
+                                <h2 class="manual-title">ANDY'S DEV STUDIO</h2>
+                                <h3 class="manual-subtitle">Section I</h3>
+                                <div class="manual-entry">
+                                    <h4>The Forge</h4>
+                                    <p>Experimental prototypes and architectural assessments. Target area.</p>
+                                </div>
+                                <div class="manual-entry">
+                                    <h4>The Ledger</h4>
+                                    <p>Secure transactions, asset packs, and verified tools.</p>
+                                </div>
+                            </div>
+                            <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="mag-col">
+                    <div class="mag-scroll-area">
+                        <div class="mag-list">
+                            <img src="./assets/forgemag.webp" alt="The Forge" class="mag-img" onclick="openBook('forge')">
+                            <img src="./assets/ledgermag.webp" alt="The Ledger" class="mag-img" onclick="openBook('market')">
+                            <img src="./assets/cargobaymag.webp" alt="The Cargo Bay" class="mag-img" onclick="openBook('cargo')">
+                            <img src="./assets/chroniclesmag.webp" alt="The Chronicles" class="mag-img" onclick="openBook('chronicles')">
+                            <img src="./assets/guildmag.webp" alt="The Guild Hall" class="mag-img" onclick="openBook('guild')">
+                            <img src="./assets/rookerymag.webp" alt="The Rookery" class="mag-img" onclick="openBook('ravens')">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="desk-bottom-row">
+                <div class="field-report-note">
+                    <h4 class="field-report-title">Field Report</h4>
+                    <p class="field-report-text">Rookery Status: 12/20 Testers</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="desk-extended-area">
+            
+            <div class="field-monitor">
+                <div class="monitor-bezel">
+                    <div class="monitor-header">
+                        <span>// UPLINK ACTIVE</span>
+                        <span style="display: flex; align-items: center;">
+                            <span class="monitor-status-light"></span> REC
+                        </span>
+                    </div>
+                    <div class="monitor-screen">
+                        <iframe src="https://www.youtube.com/embed/ivFaQqbYdls?si=12345" title="Andy's Dev Studio Broadcast" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+                
+            <div class="field-blueprint">
+                <div class="bp-header">
+                    <span>THE_FORGE // PROTOTYPES</span>
+                    <span style="font-size: 0.8rem; opacity: 0.7;">v4.6.2</span>
+                </div>
+                
+                <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; color: rgba(255,255,255,0.8); margin: 0 0 15px 0; line-height: 1.4;">
+                    // Current Focus: Gnomonicus Lattice<br>
+                    // Status: Experimental
+                </p>
+
+                <div style="border: 1px solid rgba(255,255,255,0.3); padding: 5px; margin-bottom: 15px; background: rgba(0,0,0,0.2);">
+                    <img src="./assets/entry_gnomonicus.webp" alt="Gnomonicus" style="width: 100%; height: auto; display: block; mix-blend-mode: luminosity; opacity: 0.9;" onerror="this.outerHTML='<div style=\'padding: 20px; text-align: center; color: rgba(255,255,255,0.5); font-family: monospace;\'>[IMAGE RENDER ERROR]</div>'">
+                </div>
+
+                <div class="bp-code" style="margin-bottom: 20px; font-size: 0.75rem; color: rgba(255,255,255,0.6);">
+function initLattice(bounds) {
+  if (detectMeshOverlap(bounds)) {
+    triggerCollapse();
+  }
+}
+                </div>
+
+                <button onclick="openBook('forge')" class="forge-btn" style="background: #fff; color: #0d47a1; border: 2px solid #fff; font-size: 1rem; width: 100%; margin: 0 auto; position: relative; z-index: 5; display: block; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
+                    ENTER THE FORGE
+                </button>
+            </div>
+
+            <div class="prop-crate">
+                <div class="crate-tag">QUARTERMASTER'S STASH</div>
+                <p style="color: rgba(255,255,255,0.7); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 10px 0 5px 0; position: relative; z-index: 5; text-transform: uppercase; letter-spacing: 1px;">
+                    Official Studio Provisions
+                </p>
+
+                <div class="crate-items" id="cargoSlider">
+                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')" title="Factor Hunter Official Tee">
+                        <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+                        <div class="merch-badge">APPAREL</div>
+                    </div>
+                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')" title="Factor Hunter Official Tee">
+                        <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+                        <div class="merch-badge">APPAREL</div>
+                    </div>
+                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')" title="Factor Hunter Official Tee">
+                        <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+                        <div class="merch-badge">APPAREL</div>
+                    </div>
+                    <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 40px; color: rgba(255,255,255,0.3); font-size: 1.5rem;">👉</div>
+                </div>
+
+                <button onclick="openBook('cargo')" class="forge-btn" style="background: var(--gold); color: #000; border: 2px solid #000; font-size: 1rem; width: 100%; max-width: 280px; margin: 0 auto; position: relative; z-index: 5; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.6);">
+                    ACCESS CARGO BAY
+                </button>
+            </div>
+
+            <div class="prop-ledger">
+                <div class="ledger-tag">THE LEDGER</div>
+                <p style="color: rgba(255,255,255,0.7); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 10px 0 5px 0; position: relative; z-index: 5; text-transform: uppercase; letter-spacing: 1px;">
+                    Verified Digital Assets
+                </p>
+
+                <div class="ledger-items" id="marketSlider">
+                    <div class="digital-item" onclick="openProjectPage('./market/projects/win-dev-pack.html', event)" title="Win Dev Utility Pack">
+                        <img src="./assets/devpack.webp" alt="Win Dev Pack" style="width: 70%; height: 70%; object-fit: contain; margin-bottom: 20px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; margin-bottom: 20px;\'>📦</div>'">
+                        <div class="digital-badge">UTILITY PACK</div>
+                    </div>
+                    <div class="digital-item" onclick="window.open('https://itch.io', '_blank')" title="Aether Audio Module">
+                        <div style="font-size: 3.5rem; margin-bottom: 20px; text-shadow: 0 0 10px rgba(212,175,55,0.5);">🎵</div>
+                        <div class="digital-badge">AUDIO MODULE</div>
+                    </div>
+                </div>
+
+                <button onclick="openBook('market')" class="forge-btn" style="background: var(--gold); color: #000; border: 2px solid #000; font-size: 1rem; width: 100%; max-width: 280px; margin: 0 auto; position: relative; z-index: 5; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.6);">
+                    ACCESS CATALOG
+                </button>
+            </div>
+
+            <div class="prop-chronicles">
+                
+                <div id="recent-chronicles-list" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;"></div>
+                
+                <button onclick="openBook('chronicles')" class="forge-btn" style="background: transparent; color: var(--gold); border: 1px dashed var(--gold); font-size: 0.9rem; width: 100%; max-width: 280px; margin: 15px auto 0 auto; display: block;">READ ALL CHRONICLES</button>
+            </div>
+
+            <div class="prop-corkboard">
+                <a href="https://github.com/kayrugold" target="_blank" class="social-card">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px; color: #111;">🐙</div>
+                    GitHub
+                </a>
+                <a href="https://www.xbox.com/en-us/play/user/kayrugold7036" target="_blank" class="social-card">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px; color: #107C10;">🎮</div>
+                    Xbox
+                </a>
+                <a href="https://discord.gg/9xB92EkBj2" target="_blank" class="social-card">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px; color: #5865F2;">💬</div>
+                    Discord
+                </a>
+                <a href="https://facebook.com/andysdevstudio/" target="_blank" class="social-card">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px; color: #1877F2;">📘</div>
+                    Facebook
+                </a>
+                <a href="https://instagram.com/andysdevstudio" target="_blank" class="social-card">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px; color: #E4405F;">📸</div>
+                    Insta
+                </a>
+                <a href="https://pinterest.com/andysdevstudio" target="_blank" class="social-card">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px; color: #E60023;">📌</div>
+                    Pinterest
+                </a>
+                <a href="https://x.com/@andysdevstudio" target="_blank" class="social-card">
+                    <div style="font-size: 1.5rem; margin-bottom: 5px; color: #000;">✖️</div>
+                    X.com
+                </a>
+            </div>
+
+            <div class="studio-footer">
+                <div class="footer-logo">ANDY'S DEV STUDIO</div>
+                <div class="footer-motto">"Forged in code, tested on the road."</div>
+                <div>&copy; 2026 Andy Davis. All Rights Reserved.</div>
+            </div>
+
+        </div>
     </div>
+
+    <div id="book-view"><div class="page-content" id="page-content"></div></div>
 
     <div class="bookmark-container" id="bookmarks" style="display:none;">
         <div class="bookmark bm-home" onclick="closeBook()"><div class="bookmark-icon"><img src="./assets/icon_home.webp" alt="Home"></div></div>
         <div class="bookmark bm-forge" onclick="switchPage('forge')"><div class="bookmark-icon"><img src="./assets/icon_forge.webp" alt="Forge"></div></div>
         <div class="bookmark bm-market" onclick="switchPage('market')"><div class="bookmark-icon"><img src="./assets/icon_market.webp" alt="Market"></div></div>
-        <div class="bookmark bm-cargo" onclick="openBook('cargo')">
-    <div class="bookmark-icon"><img src="./assets/icon_cargo.webp" alt="Cargo"></div></div>
+        <div class="bookmark bm-cargo" onclick="switchPage('cargo')"><div class="bookmark-icon"><img src="./assets/icon_cargo.webp" alt="Cargo"></div></div>
         <div class="bookmark bm-chronicles" onclick="switchPage('chronicles')"><div class="bookmark-icon"><img src="./assets/icon_chronicles.webp" alt="Chronicles"></div></div>
         <div class="bookmark bm-guild" onclick="switchPage('guild')"><div class="bookmark-icon"><img src="./assets/icon_guild.webp" alt="Guild"></div></div>
         <div class="bookmark bm-ravens" onclick="switchPage('ravens')"><div class="bookmark-icon"><img src="./assets/icon_raven.webp" alt="Rookery"></div></div>
@@ -125,16 +327,38 @@
     <script src="embers.js"></script>
 
     <script>
-        // Master UI Sync - Updates all version labels on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Update the Info Modal
-            const modalVer = document.getElementById('modal-version-display');
-            if (modalVer) modalVer.innerText = FORGE_VERSION;
+        // TEAR AWAY LOGIC
+        function tearPage(btnElement) {
+            const page = btnElement.closest('.stacked-page');
+            if(page) {
+                page.classList.add('torn');
+                if(typeof playPageSound === 'function') playPageSound();
+            }
+        }
 
-            // Update the Paper Scrap text (Optional)
-            const scrapVer = document.querySelector('.scrap-title');
-            if (scrapVer) scrapVer.innerText = `LATEST UPDATE: v${FORGE_VERSION}`;
+        function resetPages() {
+            document.querySelectorAll('.stacked-page.torn').forEach(page => {
+                page.classList.remove('torn');
+            });
+            if(typeof playPageSound === 'function') playPageSound();
+        }
+
+        // Master UI Sync
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalVer = document.getElementById('modal-version-display');
+            if (modalVer && typeof FORGE_VERSION !== 'undefined') {
+                modalVer.innerText = FORGE_VERSION;
+            }
         });
+
+        // Hamburger Menu Drawer
+        function toggleHamburger() {
+            const drawer = document.getElementById('navDrawer');
+            if(drawer) {
+                drawer.classList.toggle('open');
+                if(typeof playPageSound === 'function') playPageSound(); 
+            }
+        }
     </script>
 </body>
 </html>

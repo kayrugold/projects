@@ -1,114 +1,90 @@
-/* embers.js - v3.0 Soft Glow & Flicker Engine */
+/* embers.js - v2.1 Global Studio Fire Particles */
 
-const canvas = document.createElement('canvas');
-canvas.id = 'ember-canvas';
-document.body.appendChild(canvas);
-const ctx = canvas.getContext('2d');
+(function() {
+    // 1. Automatically create and inject the canvas
+    const canvas = document.createElement('canvas');
+    canvas.id = 'studio-embers';
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    
+    // CHANGED: Bumped z-index to 60 so it floats over the sub-pages (layer 50)
+    canvas.style.zIndex = '60'; 
+    canvas.style.pointerEvents = 'none'; // Lets you click through the fire to the buttons
+    document.body.appendChild(canvas);
 
-let width, height;
-let particles = [];
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let particles = [];
 
-// CONFIGURATION
-const CONFIG = {
-    particleCount: window.innerWidth < 600 ? 30 : 60, // Lower count, higher quality
-    gravity: -0.6,       // Faster rise
-    wind: 0.05,
-    turbulence: 0.5,     // More erratic movement
-    maxSize: 6,          // Slightly larger to account for the glow edge
-    minSize: 2,
-    lifeDrain: 0.006     
-};
-
-function resize() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
-
-class Ember {
-    constructor() {
-        this.reset();
-        // Give them a random starting age so they don't all look same
-        this.life = Math.random(); 
+    // 2. Responsive sizing locks to screen dimensions
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
     }
+    window.addEventListener('resize', resize);
+    resize();
 
-    reset() {
-        this.x = Math.random() * width;
-        this.y = height + (Math.random() * 50);
-        this.vx = (Math.random() - 0.5) * CONFIG.turbulence;
-        this.vy = (Math.random() * -1.5) - 0.5; // Stronger updraft
-        this.size = (Math.random() * (CONFIG.maxSize - CONFIG.minSize)) + CONFIG.minSize;
-        this.life = 1.0;
-        this.decay = (Math.random() * 0.005) + CONFIG.lifeDrain;
-        this.flickerSpeed = 0.1 + Math.random() * 0.2;
-    }
-
-    update() {
-        this.x += this.vx + CONFIG.wind;
-        this.y += this.vy + CONFIG.gravity;
+    // 3. The Ember Class Engine
+    class Ember {
+        constructor() {
+            this.reset(true);
+        }
         
-        // Add "sine wave" drift for organic motion
-        this.x += Math.sin(this.y * 0.02) * 0.5;
-
-        this.life -= this.decay;
-
-        if (this.life <= 0 || this.y < -50) {
-            this.reset();
+        reset(randomY = false) {
+            this.x = Math.random() * width;
+            this.y = randomY ? Math.random() * height : height + 10;
+            this.size = Math.random() * 2.5 + 0.5;
+            this.speedY = (Math.random() * 1.5 + 0.5) * -1; // Float upwards
+            this.speedX = (Math.random() - 0.5) * 0.8;      // Gentle side drift
+            this.opacity = Math.random() * 0.8 + 0.2;
+            this.life = Math.random() * 100 + 50;
+            
+            // Generate colors ranging from vibrant yellow to deep orange
+            this.hue = Math.floor(Math.random() * 30 + 15); 
+        }
+        
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            this.life--;
+            
+            // Fade out smoothly at the end of its life
+            if (this.life < 30) this.opacity -= 0.03;
+            
+            // Reset the ember to the bottom if it floats off screen or fades out
+            if (this.y < 0 || this.opacity <= 0) this.reset();
+        }
+        
+        draw() {
+            // Mobile-optimized glow effect using Radial Gradients
+            const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2.5);
+            gradient.addColorStop(0, `hsla(${this.hue}, 100%, 65%, ${this.opacity})`);
+            gradient.addColorStop(1, `hsla(${this.hue}, 100%, 40%, 0)`);
+            
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
         }
     }
 
-    draw(time) {
-        // FLICKER EFFECT: Sine wave based on time
-        // This makes the ember pulse slightly
-        const flicker = 0.8 + (Math.sin(time * this.flickerSpeed) * 0.2); 
-        const currentAlpha = this.life * flicker;
-
-        if (currentAlpha <= 0) return;
-
-        // THE "GLOW" GRADIENT
-        // Instead of a hard circle, we draw a ball of light
-        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-        
-        // 1. Center: White Hot (Heat)
-        gradient.addColorStop(0, `rgba(255, 255, 200, ${currentAlpha})`);
-        
-        // 2. Middle: Fire Orange (Body)
-        gradient.addColorStop(0.4, `rgba(255, 120, 0, ${currentAlpha * 0.8})`);
-        
-        // 3. Edge: Transparent Red (Glow)
-        gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-function initParticles() {
-    particles = [];
-    for (let i = 0; i < CONFIG.particleCount; i++) {
+    // 4. Ignite the fire (45 particles is the sweet spot for a busy desk)
+    for (let i = 0; i < 45; i++) {
         particles.push(new Ember());
     }
-}
 
-function animate(time) {
-    ctx.clearRect(0, 0, width, height);
-
-    // Additive Blending = Real Light Physics
-    // Overlapping embers will get brighter (white), not muddier
-    ctx.globalCompositeOperation = 'lighter';
-
-    for (let i = 0; i < particles.length; i++) {
-        particles[i].update();
-        particles[i].draw(time * 0.005); // Pass time for flicker
+    // 5. Render Loop
+    function animate() {
+        ctx.clearRect(0, 0, width, height);
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+        });
+        requestAnimationFrame(animate);
     }
-
-    ctx.globalCompositeOperation = 'source-over';
-    requestAnimationFrame(animate);
-}
-
-// Start
-initParticles();
-animate(0);
+    
+    animate();
+})();

@@ -1,4 +1,4 @@
-/* app.js - v3.1.3 Global Masonry Layout */
+/* app.js - v4.6.0 Master Studio Logic (Journal Fixes) */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -10,7 +10,7 @@ let audioCtx = null;
 let isPlaying = false;
 // Audio Nodes
 let droneOsc1, droneOsc2, droneGain, musicInterval;
-let windNode, windGain, windFilter;
+let windNode, windGain, windFilter, windLFO;
 
 // ==========================================
 // 1. SERVICE WORKER & UPDATE UI
@@ -55,6 +55,14 @@ function triggerUpdateUI() {
 // 2. NAVIGATION & PAGE LOADING
 // ==========================================
 
+const globalFooterHTML = `
+    <div class="studio-footer">
+        <div class="footer-logo">ANDY'S DEV STUDIO</div>
+        <div class="footer-motto">"Forged in code, tested on the road."</div>
+        <div>&copy; 2026 Andy Davis. All Rights Reserved.</div>
+    </div>
+`;
+
 async function switchPage(section) {
     playPageSound(); 
     closeApp(); 
@@ -85,7 +93,9 @@ async function switchPage(section) {
     }
     
     const container = document.getElementById('page-content');
-    if (container) container.innerHTML = content;
+    if (container) {
+        container.innerHTML = content + globalFooterHTML;
+    }
     
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const active = document.querySelector(`.bm-${section}`);
@@ -120,7 +130,7 @@ async function openProjectPage(url, event) {
     document.getElementById('book-view').className = 'open';
     document.getElementById('bookmarks').style.display = 'flex';
 
-    document.getElementById('page-content').innerHTML = html;
+    document.getElementById('page-content').innerHTML = html + globalFooterHTML;
 
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const forgeBm = document.querySelector('.bm-forge'); 
@@ -148,12 +158,12 @@ function initAudio() {
     audioCtx = new AudioContext();
     
     const rate = audioCtx.sampleRate;
-    const length = rate * 3.5; 
+    const length = rate * 1.5; 
     const impulse = audioCtx.createBuffer(2, length, rate);
     for (let channel = 0; channel < 2; channel++) {
         const data = impulse.getChannelData(channel);
         for (let i = 0; i < length; i++) {
-            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
+            data[i] = (Math.random() * 2 - 1) * (1 - (i / length)); 
         }
     }
     window.reverbNode = audioCtx.createConvolver();
@@ -169,7 +179,7 @@ function initAudio() {
 function startDrone() {
     if (!audioCtx) initAudio();
     
-    const bufferSize = audioCtx.sampleRate * 2;
+    const bufferSize = audioCtx.sampleRate; 
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
     let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
@@ -198,7 +208,7 @@ function startDrone() {
     windGain = audioCtx.createGain();
     windGain.gain.value = 0.15; 
 
-    const windLFO = audioCtx.createOscillator();
+    windLFO = audioCtx.createOscillator();
     windLFO.type = 'sine';
     windLFO.frequency.value = 0.1; 
     
@@ -258,6 +268,7 @@ function stopDrone() {
     if (windNode) {
         try { 
             windNode.stop(); 
+            if(windLFO) windLFO.stop(); 
             if(audioCtx.state === 'running') audioCtx.suspend(); 
         } catch(e){}
         clearInterval(musicInterval);
@@ -505,31 +516,92 @@ async function fetchChronicles() {
     } catch (error) { return `<h1 class="page-title">The Chronicles</h1><p>The archives are currently sealed.</p>`; }
 }
 
+// ==========================================
+// AUTO-LOAD RECENT CHRONICLES ON HOME PAGE
+// ==========================================
+async function initHomeChronicles() {
+    try {
+        // Safe check in case getVersionedAsset isn't loaded yet
+        const manifestUrl = typeof getVersionedAsset === 'function' 
+            ? getVersionedAsset('./thechronicles/journal_manifest.json') 
+            : './thechronicles/journal_manifest.json';
+            
+        const response = await fetch(manifestUrl);
+        if (!response.ok) return;
+        
+        journalEntries = await response.json();
+        
+        const listContainer = document.getElementById('recent-chronicles-list');
+        if (listContainer) {
+            const topThree = journalEntries.slice(0, 3);
+            let html = '';
+            
+            topThree.forEach(entry => {
+                const dateStr = (entry.date || '').toUpperCase();
+                html += `
+                <div class="chronicle-scrap" onclick="openJournalEntry('${entry.id}')">
+                    <span class="scrap-date">${dateStr}</span>
+                    <h4 class="scrap-title">${entry.title}</h4>
+                    <p class="scrap-desc">${entry.summary}</p>
+                </div>`;
+            });
+            
+            listContainer.innerHTML = html;
+        }
+    } catch (e) {
+        console.warn("Could not load recent chronicles for home page", e);
+    }
+}
+
+// Ensure it runs as soon as the page is ready
+document.addEventListener('DOMContentLoaded', initHomeChronicles);
+
+// ==========================================
+// BULLETPROOF JOURNAL OPENER
+// ==========================================
 async function openJournalEntry(id) {
+    // Failsafe: Fetch manifest if it wasn't loaded
+    if (journalEntries.length === 0) {
+        try {
+            const manifestUrl = typeof getVersionedAsset === 'function' ? getVersionedAsset('./thechronicles/journal_manifest.json') : './thechronicles/journal_manifest.json';
+            const response = await fetch(manifestUrl);
+            if (response.ok) journalEntries = await response.json();
+        } catch (e) {
+            console.warn("Manifest fetch failed", e);
+        }
+    }
+
     const entry = journalEntries.find(e => e.id === id);
-    if (!entry) return;
+    if (!entry) {
+        alert("This scroll is currently sealed or missing.");
+        return;
+    }
 
     try {
         const response = await fetch(entry.file);
         if (!response.ok) throw new Error('Entry not found');
         const text = await response.text();
         
-        const imageHTML = entry.image 
-            ? `<img src="${getVersionedAsset(entry.image)}" class="journal-featured-img" alt="${entry.title}">` 
-            : '';
+        const imgPath = typeof getVersionedAsset === 'function' && entry.image ? getVersionedAsset(entry.image) : entry.image;
+        const imageHTML = entry.image ? `<img src="${imgPath}" class="journal-featured-img" alt="${entry.title}">` : '';
 
+        // FIX: Wrapped ${text} in <div class="entry-content"> to constrain images and hide double titles
         const fullPostHTML = `
             ${imageHTML}
             <div class="log-date" style="text-align:center; margin-top:10px;">${entry.date}</div>
             <h2 class="log-title" style="text-align:center; border:none; font-size: 2rem; margin-bottom:10px;">${entry.title}</h2>
             <hr style="border: 0; border-top: 1px dashed var(--ink); margin-bottom: 30px;">
-            ${text}
+            <div class="entry-content">${text}</div>
         `;
         
         document.getElementById('journalContent').innerHTML = fullPostHTML;
         document.getElementById('journalReader').classList.add('active');
-        playPageSound(); 
-    } catch (error) { alert("This scroll seems to be missing."); }
+        
+        if (typeof playPageSound === 'function') playPageSound(); 
+    } catch (error) { 
+        console.error("Journal Read Error:", error);
+        alert("This scroll seems to be missing."); 
+    }
 }
 
 function closeJournal() {
@@ -612,12 +684,33 @@ function flipCard(btn, event) {
 }
 
 function toggleFullscreen() {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(console.log);
-    else if (document.exitFullscreen) document.exitFullscreen();
+    const doc = window.document;
+    const docEl = doc.documentElement;
+
+    // Checks for standard, Mozilla, Webkit (Apple/Safari), and Microsoft prefixes
+    const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+    const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+    // Check if a screen is currently active using all prefixes
+    if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+        if (requestFullScreen) {
+            // Trigger fullscreen with a catch for strict mobile security policies
+            requestFullScreen.call(docEl).catch(err => console.log("Fullscreen blocked by browser:", err));
+        } else {
+            // Failsafe for iOS Safari which strictly blocks manual fullscreen
+            alert("Fullscreen is restricted by this browser. On iOS, please use 'Add to Home Screen' for fullscreen mode.");
+        }
+    } else {
+        if (cancelFullScreen) {
+            cancelFullScreen.call(doc);
+        }
+    }
 }
 
+
 setInterval(() => {
-    document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const clockElement = document.getElementById('clock');
+    if(clockElement) clockElement.innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 }, 1000);
 
 // ==========================================
@@ -635,27 +728,22 @@ if (bmContainer) {
         startY = e.clientY;
         const rect = bmContainer.getBoundingClientRect();
         initialTop = rect.top;
-        // Don't capture yet - wait for move
     });
 
     bmContainer.addEventListener('pointermove', (e) => {
-        // Only move if mouse is held down (buttons=1)
         if (e.buttons !== 1) return;
 
         const currentY = e.clientY;
         const deltaY = currentY - startY;
 
-        // Threshold to prevent accidental drags on clicks
         if (Math.abs(deltaY) > 5) {
             isDragging = true;
             e.preventDefault(); 
             bmContainer.setPointerCapture(e.pointerId); 
             
-            // --- THE FIX ---
             bmContainer.style.transition = 'none'; 
-            bmContainer.style.transform = 'none'; // Disable the CSS centering offset
-            bmContainer.style.bottom = 'auto';    // Release bottom anchor
-            // ----------------
+            bmContainer.style.transform = 'none'; 
+            bmContainer.style.bottom = 'auto';    
             
             bmContainer.style.top = (initialTop + deltaY) + 'px';
         }
@@ -663,7 +751,6 @@ if (bmContainer) {
 
     bmContainer.addEventListener('pointerup', (e) => {
         bmContainer.releasePointerCapture(e.pointerId);
-        // If we were just clicking, isDragging remains false, allowing the onclick to fire
     });
 }
 
