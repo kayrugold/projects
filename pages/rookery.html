@@ -1,63 +1,155 @@
-<h1 class="page-title">The Rookery</h1>
+<div class="rookery-domain">
+    <div class="dispatch-beacon">
+        <span class="beacon-light"></span>
+        <span class="beacon-text"><strong>🟢 BEACON ACTIVE:</strong> Parked in Anderson. Actively reviewing Gnomon lattice logs.</span>
+    </div>
 
-<div class="gallery-grid masonry-mode">
+    <h1 class="page-title" style="border-bottom-color: #333;">The Rookery</h1>
 
-    <div class="item-card">
-        <h3 class="forge-title" style="margin-top:0;">⚔️ The 14-Day Watch</h3>
-        
-        <p class="log-body">
-            <strong>Objective:</strong> To forge a stable app, Google requires 20 testers to engage for 14 continuous days.
-        </p>
-        <p class="log-body" style="font-style: italic; font-size: 0.9rem; margin-bottom: 20px;">
-            Tap a day below to mark your attendance. Your progress is saved locally on this device.
-        </p>
+    <div class="rookery-bleed">
+        <div class="gallery-grid masonry-mode">
 
-        <div id="streak-grid" class="streak-grid-container"></div>
-        
-        <div style="text-align: center; margin-top: 15px;">
-            <span class="badge badge-beta">CURRENT STATUS: ACTIVE TESTER</span>
+        <div class="item-card notebook-paper">
+            <h3 class="notebook-title">Testing Directives</h3>
+            <ol class="notebook-list" style="padding-left: 25px;">
+                <li><a href="https://groups.google.com/g/andys-dev-studio-ravens" target="_blank" style="color: #0284c7; text-decoration: none;">Join the Testing Roster</a> to get Android clearance.</li>
+                <li><a href="https://discord.gg/WHhnBXpDSW" target="_blank" style="color: #0284c7; text-decoration: none;">Join the Discord Guild Hall</a> to sync with the squad.</li>
+                <li>Select an active Alloy from the Anvil below.</li>
+                <li>Push the limits. Tap the Ledger for your 14-Day Watch.</li>
+                <li>Use the Bellows below to dispatch anonymous bug reports.</li>
+            </ol>
+            <div class="notebook-signature">- Andy</div>
+        </div>
+
+            <div class="item-card raven-card bounty-card">
+                <h3 class="forge-title">🎯 The Bounty Board</h3>
+                <p class="log-body">Help me hunt down specific fractures in the code. High priority targets.</p>
+
+                <div class="bounty-target">
+                    <div class="bounty-header">
+                        <span class="bounty-status">ACTIVE BOUNTY</span>
+                        <span class="bounty-reward">Reward: Hall of Fame</span>
+                    </div>
+                    <h4 class="bounty-name">Memory Leak in the Lattice</h4>
+                    <p class="bounty-desc">
+                        <strong>Target:</strong> Gnomon Navigator v0.9.2<br>
+                        <strong>Mission:</strong> Zoom past 250x scale and trace a 20-digit Cargo number. Report the exact moment the framerate drops so I can isolate the BigInt loop.
+                    </p>
+                </div>
+            </div>
+
+            <div class="item-card raven-card">
+                <h3 class="forge-title">🧩 The Daily Composite</h3>
+                <p class="log-body">Today's target for the Factor Hunter. Can you break it?</p>
+                <div class="daily-number" onclick="navigator.clipboard.writeText(this.innerText); alert('Target secured! Number copied to clipboard.');" style="cursor: pointer;" title="Tap to copy">
+    8923749823749823749238749283749823749
+</div>
+                <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin: 0;">Report factors in the <a href="https://discord.gg/WHhnBXpDSW" target="_blank" style="color: #fcd34d; text-decoration: none; font-weight: bold;">Guild Hall</a>.</p>
+            </div>
+
+            <div class="item-card raven-card">
+                <h3 class="forge-title">⚔️ The Anvil: Active Alloys</h3>
+                <p class="log-body">Select a prototype below to begin stress testing.</p>
+
+                <div class="alloy-list">
+                    
+                    <div class="alloy-item">
+                        <div class="alloy-details">
+                            <strong>Gnomon Navigator v0.9.2</strong>
+                            <span>Mobile UI & Cargo Trace</span>
+                        </div>
+                        <button onclick="launchApp('./apps/gnomonnavigator0.0.6.html')" class="raven-btn mini-btn">LAUNCH</button>
+                    </div>
+                    
+                    <div class="alloy-item" style="flex-direction: column; align-items: flex-start;">
+                        <div class="alloy-details" style="margin-bottom: 10px;">
+                            <strong>Factor Hunter v2.1.0</strong>
+                            <span>BigInt Engine Stress & App Test</span>
+                        </div>
+                        <div class="alloy-btn-row">
+                            <button onclick="launchApp('./apps/factorhunter0.0.0.html')" class="raven-btn mini-btn">WEB</button>
+                            <button onclick="window.open('https://play.google.com/apps/testing/com.andysdevstudio.factorhunter', '_blank')" class="raven-btn mini-btn android-btn">ANDROID</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="item-card raven-card">
+                <h3 class="forge-title">📅 The 14-Day Watch</h3>
+                <p class="log-body">Google requires 20 testers for 14 continuous days. Tap a day to mark your attendance.</p>
+                
+                <div id="streak-grid" class="streak-grid-container raven-streak"></div>
+                
+                <div style="text-align: center; margin-top: 15px;">
+                    <span class="badge" style="background: #fcd34d; color: #000; border:none; font-weight:bold;">ACTIVE TESTER</span>
+                </div>
+            </div>
+
+        <div class="item-card raven-card plaque-card">
+            <h3 class="forge-title" style="color: #fcd34d !important;">🏆 The Hall of Valor</h3>
+            <p class="log-body" style="font-size: 0.85rem; margin-bottom: 15px;">
+                Honoring the testers who shattered the code and survived the 14-Day Watch. These Ravens hold the elite <strong>Forge Master</strong> role in Discord.
+            </p>
+            
+            <div class="plaque-list">
+                <div class="plaque-entry">
+                    <span class="plaque-name">@FirstRaven</span>
+                    <span class="plaque-deed">Squashed the Gnomon UI Bug</span>
+                </div>
+                <div class="plaque-entry">
+                    <span class="plaque-name">@CodeBreaker</span>
+                    <span class="plaque-deed">Completed the 14-Day Watch</span>
+                </div>
+            </div>
+            
+            <p style="font-size: 0.75rem; color: #52525b; text-align: center; margin-top: 15px; font-style: italic;">
+                Submit valid bug reports to forge your name into the plaque.
+            </p>
+        </div>
+
+            <div class="item-card raven-card">
+                <h3 class="forge-title">🛠️ QA Arsenal</h3>
+                <p class="log-body">Tester utilities for deep-diving the lattice.</p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="toggleViewport()" class="raven-btn tool-btn">⛶ TOGGLE MOBILE VIEWPORT</button>
+                    <button onclick="snagErrorLog()" class="raven-btn tool-btn">📋 SNAG SYSTEM SPECS</button>
+                </div>
+            </div>
+
+            <div class="item-card raven-card">
+                <h3 class="forge-title">🐞 Dispatch Bug Report</h3>
+                <p class="log-body">Found a glitch in the matrix? Let me know exactly where it broke.</p>
+                <select id="bugDest" class="raven-input">
+                    <option value="email" selected>📬 Send to Andy via Email</option>
+                    <option value="discord">💬 Send to Discord Guild</option>
+                </select>
+                <select id="bugProject" class="raven-input">
+                    <option value="" disabled selected>Select Project...</option>
+                    <option value="Gnomon Navigator">Gnomon Navigator</option>
+                    <option value="Factor Hunter">Factor Hunter</option>
+                    <option value="Website/PWA">The Website / PWA</option>
+                </select>
+
+                <select id="bugType" class="raven-input">
+                    <option value="Bug">🐛 Bug / Crash</option>
+                    <option value="UI">🎨 Visual / UI Issue</option>
+                    <option value="Idea">💡 Feature Idea</option>
+                </select>
+
+                <textarea id="bugMsg" class="raven-input" placeholder="Describe what happened..."></textarea>
+                
+                <button onclick="sendBugReport()" class="raven-btn highlight-btn">🚀 LAUNCH REPORT</button>
+            </div>
+
+            <div class="item-card raven-card" style="border-left: 4px solid #5865F2;">
+                <h3 class="forge-title">💬 The Guild Hall</h3>
+                <p class="log-body">Join our Discord server to chat with other testers, see upcoming features, and get instant support.</p>
+                <a href="https://discord.gg/WHhnBXpDSW" target="_blank" style="text-decoration: none;">
+                    <button class="raven-btn discord-btn">OPEN COMMS (DISCORD)</button>
+                </a>
+            </div>
+
         </div>
     </div>
-
-    <div class="item-card">
-        <h3 class="forge-title" style="margin-top:0;">🐞 Dispatch Bug Report</h3>
-        
-        <p class="log-body" style="font-size: 0.9rem;">
-            Found a glitch in the matrix? Let me know exactly where it broke.
-        </p>
-
-        <select id="bugProject" class="ink-input" style="background: white;">
-            <option value="" disabled selected>Select Project...</option>
-            <option value="Factor Hunter">Factor Hunter</option>
-            <option value="Residue Scanner">Residue Scanner</option>
-            <option value="Website/PWA">The Website / PWA</option>
-            <option value="Other">Other</option>
-        </select>
-
-        <select id="bugType" class="ink-input" style="background: white;">
-            <option value="Bug">🐛 Bug / Crash</option>
-            <option value="UI">🎨 Visual / UI Issue</option>
-            <option value="Idea">💡 Feature Idea</option>
-            <option value="Feedback">📝 General Feedback</option>
-        </select>
-
-        <textarea id="bugMsg" class="ink-input" style="height: 100px; resize: none;" placeholder="Describe what happened..."></textarea>
-        
-        <button onclick="sendBugReport()" class="seal-btn" style="margin-top: 20px; background: #222;">🚀 LAUNCH REPORT</button>
-    </div>
-
-    <div class="item-card" style="border-left: 5px solid #5865F2;">
-        <h3 class="forge-title" style="margin-top:0;">💬 Join the Guild Hall</h3>
-        
-        <p class="log-body">
-            The most effective feedback happens live. Join our Discord server to chat with other testers, see upcoming features, and get instant support.
-        </p>
-
-        <a href="https://discord.gg/WHhnBXpDSW" target="_blank" style="text-decoration: none;">
-            <button class="forge-btn" style="background: #5865F2; color: white; border: none; font-weight: bold; margin-top: 10px;">
-                OPEN COMMS (DISCORD)
-            </button>
-        </a>
-    </div>
-
 </div>

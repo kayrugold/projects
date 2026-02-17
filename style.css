@@ -379,3 +379,319 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--g
 .footer-logo { font-family: 'Cinzel', serif; font-size: 1.2rem; color: var(--gold); margin-bottom: 5px; font-weight: bold; letter-spacing: 2px; }
 #book-view .footer-logo { color: var(--ink); }
 .footer-motto { font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 1.1rem; margin-bottom: 10px; }
+
+/* =========================================
+   14. THE ROOKERY (SLEEK RAVEN THEME)
+   ========================================= */
+
+/* Dark Card Override */
+.rookery-domain .raven-card {
+    background: #181a1f !important;
+    color: #e4e4e7 !important;
+    border: 1px solid #27272a !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+}
+.rookery-domain .raven-card .forge-title {
+    color: #fcd34d !important; /* Soft Gold */
+    border-bottom: 1px solid #3f3f46 !important;
+}
+.rookery-domain .raven-card .log-body {
+    color: #a1a1aa !important;
+}
+
+/* Multi-App Arsenal List */
+.alloy-list {
+    display: flex; flex-direction: column; gap: 12px; margin-top: 15px;
+}
+.alloy-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #27272a; border-radius: 6px; padding: 12px 15px;
+    border: 1px solid #3f3f46;
+}
+.alloy-details strong { display: block; color: #fff; font-family: 'Share Tech Mono', monospace; font-size: 1.05rem; margin-bottom: 4px; }
+.alloy-details span { color: #94a3b8; font-size: 0.85rem; }
+
+/* Dark Inputs */
+.raven-input {
+    background: #0f1115 !important;
+    border: 1px solid #3f3f46 !important;
+    color: #fff !important;
+    padding: 12px; border-radius: 4px; width: 100%; margin-bottom: 15px;
+    font-family: 'Share Tech Mono', monospace;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+.raven-input:focus { border-color: #fcd34d !important; outline: none; }
+textarea.raven-input { height: 100px; resize: vertical; }
+
+/* Clean Buttons */
+.raven-btn {
+    background: transparent; color: #e4e4e7;
+    border: 1px solid #52525b; padding: 10px 20px;
+    font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer;
+    border-radius: 4px; transition: all 0.2s;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+.raven-btn:hover { background: #3f3f46; color: #fff; border-color: #a1a1aa; }
+.highlight-btn { background: #7f1d1d; border-color: #b91c1c; color: #fff; width: 100%; }
+.highlight-btn:hover { background: #991b1b; }
+.discord-btn { background: #4f46e5; border-color: #4f46e5; color: #fff; width: 100%; margin-top: 5px; }
+.discord-btn:hover { background: #4338ca; }
+
+/* Highly Visible Streak Grid */
+.raven-streak .streak-cell {
+    background: #27272a !important; /* Lighter Grey so it's visible */
+    border: 1px solid #52525b !important;
+    color: #94a3b8 !important;
+    border-radius: 6px;
+}
+.raven-streak .streak-cell:hover { background: #3f3f46 !important; color: #fff !important; }
+.raven-streak .streak-cell.active {
+    background: #fcd34d !important; /* Bright Gold */
+    color: #000 !important; /* Black text for high contrast */
+    border-color: #fcd34d !important;
+    font-weight: bold;
+    box-shadow: 0 0 12px rgba(252, 211, 77, 0.5);
+    transform: scale(1.05);
+}
+
+/* =========================================
+   NOTEBOOK PAPER & NEW BUTTONS
+   ========================================= */
+
+/* The Tossed Notebook Paper */
+.rookery-domain .notebook-paper {
+    background-color: #fdfbf7 !important;
+    /* Draws the blue ruled lines */
+    background-image: repeating-linear-gradient(transparent, transparent 27px, rgba(56, 189, 248, 0.4) 27px, rgba(56, 189, 248, 0.4) 28px) !important;
+    background-position: 0 32px !important;
+    border: none !important;
+    border-left: 3px solid #f87171 !important; /* Thick red margin */
+    color: #1e293b !important;
+    padding: 30px 20px 20px 45px !important;
+    box-shadow: 0 12px 25px rgba(0,0,0,0.7) !important;
+    transform: rotate(1.5deg) !important; /* Slightly tilted */
+    border-radius: 2px !important;
+    position: relative;
+}
+
+/* The faint second red margin line */
+.rookery-domain .notebook-paper::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 35px;
+    width: 1px; background: rgba(248, 113, 113, 0.4);
+}
+
+/* Handwritten Header & Signature */
+.notebook-title {
+    font-family: 'Homemade Apple', cursive;
+    font-size: 1.4rem; margin-top: 0; margin-bottom: 25px; color: #111;
+}
+.notebook-signature {
+    font-family: 'Homemade Apple', cursive;
+    text-align: right; margin-top: 25px; margin-bottom: 10px; 
+    font-size: 1.2rem; color: #0f172a;
+}
+
+/* Typewriter List Items */
+.notebook-list {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem; 
+    line-height: 28px; /* Perfectly aligns with the blue ruled lines */
+    margin: 0; padding-left: 10px;
+}
+.notebook-list li { margin-bottom: 8px; font-weight: bold; }
+
+/* Small Button Overrides for the Dual Web/Android layout */
+.mini-btn {
+    width: auto; padding: 8px 15px; font-size: 0.85rem; margin-top: 0;
+}
+.android-btn {
+    border-color: #34d399; color: #34d399;
+}
+.android-btn:hover {
+    background: #064e3b; color: #fff; border-color: #10b981;
+}
+
+@media (max-width: 500px) {
+    .alloy-item { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .alloy-item button { width: 100%; }
+}
+
+/* =========================================
+   DISPATCH BEACON & BOUNTY BOARD
+   ========================================= */
+
+/* The Dispatch Beacon (Live Ticker) */
+.dispatch-beacon {
+    background: #0f1115;
+    border: 1px solid #27272a;
+    border-left: 4px solid #34d399; /* Emerald green for 'Active' */
+    color: #34d399;
+    padding: 12px 20px;
+    margin-bottom: 25px;
+    border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    box-shadow: inset 0 0 15px rgba(52, 211, 153, 0.05), 0 4px 10px rgba(0,0,0,0.4);
+}
+.beacon-light {
+    width: 10px; height: 10px;
+    background: #34d399;
+    border-radius: 50%;
+    margin-right: 15px;
+    box-shadow: 0 0 10px #34d399;
+    animation: pulse-beacon 2s infinite;
+    flex-shrink: 0;
+}
+@keyframes pulse-beacon {
+    0% { opacity: 1; box-shadow: 0 0 10px #34d399; }
+    50% { opacity: 0.4; box-shadow: 0 0 2px #34d399; }
+    100% { opacity: 1; box-shadow: 0 0 10px #34d399; }
+}
+.beacon-text strong { color: #fff; margin-right: 5px; }
+
+/* The Bounty Board */
+.bounty-card {
+    border-left: 4px solid #b91c1c !important; /* Blood red for the hunt */
+}
+.bounty-target {
+    background: #0f1115;
+    border: 1px dashed #52525b;
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 15px;
+    position: relative;
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.5);
+}
+.bounty-header {
+    display: flex; justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem; font-weight: bold;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+.bounty-status { color: #f87171; letter-spacing: 1px; }
+.bounty-reward { color: #fcd34d; }
+
+.bounty-name {
+    color: #fff; font-size: 1.15rem;
+    margin: 0 0 8px 0; font-family: 'Cinzel', serif;
+}
+.bounty-desc {
+    color: #a1a1aa; font-size: 0.9rem; line-height: 1.5; margin: 0;
+}
+.bounty-desc strong { color: #e4e4e7; }
+
+/* =========================================
+   ROOKERY TWEAKS & NEW CARDS
+   ========================================= */
+
+/* The Bleed: Pulls the content wider towards the right bookmark rail */
+.rookery-bleed {
+    margin-right: -25px; /* Bleeds into the right padding */
+    margin-left: -5px;   /* Slight stretch to the left */
+}
+@media (max-width: 899px) {
+    .rookery-bleed {
+        margin-right: -5px; /* Less aggressive bleed on mobile */
+    }
+}
+
+/* Fix for the overflowing Alloy Buttons */
+.alloy-btn-row {
+    display: flex; flex-wrap: wrap; gap: 8px; width: 100%;
+}
+.alloy-btn-row .raven-btn {
+    flex: 1; /* This tells the buttons to share the space evenly */
+    min-width: 100px; /* Prevents them from squishing too small */
+}
+
+/* The Daily Composite Number Box */
+.daily-number {
+    font-family: 'Share Tech Mono', monospace;
+    color: #fcd34d;
+    background: #0a0a0a;
+    padding: 15px;
+    border-radius: 4px;
+    word-break: break-all; /* Prevents massive numbers from breaking the layout */
+    margin-bottom: 12px;
+    text-align: center;
+    font-size: 1.1rem;
+    border: 1px solid #3f3f46;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+}
+
+/* Tool Buttons */
+.tool-btn {
+    text-align: left !important;
+    padding: 12px 15px !important;
+    font-size: 0.85rem !important;
+    color: #94a3b8 !important;
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+.tool-btn:hover {
+    background: #334155 !important;
+    color: #fff !important;
+}
+
+/* Override the dangerous mobile width rule from earlier */
+@media (max-width: 500px) {
+    .alloy-item { flex-direction: column; align-items: flex-start; gap: 10px; }
+    /* We removed the aggressive "width: 100%" here so flexbox can do its job naturally */
+}
+
+/* =========================================
+   THE HALL OF VALOR (BRASS PLAQUE)
+   ========================================= */
+
+.plaque-card {
+    border: 2px solid #b45309 !important; /* Brass/Bronze border */
+    /* Subtle warm metallic tint over the dark background */
+    background: linear-gradient(145deg, #181a1f 0%, #2a1f1a 100%) !important; 
+    box-shadow: inset 0 0 20px rgba(217, 119, 6, 0.05), 0 10px 25px rgba(0,0,0,0.6) !important;
+}
+
+.plaque-list {
+    display: flex; flex-direction: column; gap: 8px;
+    background: #0f1115; padding: 12px; border-radius: 4px;
+    border: 1px solid #3f3f46;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.plaque-entry {
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px dashed #3f3f46; padding-bottom: 6px;
+}
+.plaque-entry:last-child {
+    border-bottom: none; padding-bottom: 0;
+}
+
+.plaque-name {
+    color: #fcd34d; /* Bright gold text */
+    font-family: 'Share Tech Mono', monospace; 
+    font-weight: bold; font-size: 0.95rem;
+}
+
+.plaque-deed {
+    color: #94a3b8; font-size: 0.8rem; text-align: right;
+}
+
+/* =========================================
+   QA ARSENAL: VIEWPORT RESIZER
+   ========================================= */
+
+/* Forces the active app frame into a simulated mobile phone screen */
+iframe#appFrame.mobile-viewport-mode {
+    width: 375px !important;
+    height: 812px !important;
+    margin: auto !important; /* Centers it on the screen */
+    border: 2px solid #fcd34d !important; /* Gold border so they know it's active */
+    border-radius: 20px !important;
+    box-shadow: 0 0 40px rgba(0,0,0,0.9) !important;
+    background: #000 !important;
+    /* Prevent the iframe from stretching */
+    position: relative !important;
+    display: block !important;
+}

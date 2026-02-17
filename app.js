@@ -775,14 +775,15 @@ function generateGrid() {
     const saved = JSON.parse(localStorage.getItem('andy_tester_days') || '[]');
     for(let i=1; i<=14; i++) {
         const isActive = saved.includes(i);
-        const style = isActive 
-            ? 'background:var(--ink); color:var(--parchment); border-color:var(--ink);' 
-            : 'background:rgba(0,0,0,0.05); color:var(--ink); border-color:#ccc;';
-        const content = isActive ? '✓' : i;
+        const activeClass = isActive ? 'active' : '';
+        // Added the Raven!
+        const content = isActive ? '🐦‍⬛' : i;
 
+        // Stripped out the inline backgrounds so the dark mode CSS works perfectly
         html += `
         <div onclick="toggleDay(${i})" 
-             style="${style} aspect-ratio:1; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid; border-radius:4px; font-family:'Share Tech Mono'; font-size:1.2rem; transition: all 0.2s;">
+             class="streak-cell ${activeClass}"
+             style="aspect-ratio:1; display:flex; align-items:center; justify-content:center; cursor:pointer; font-family:'Share Tech Mono'; font-size:1.2rem; transition: all 0.2s;">
             ${content}
         </div>`;
     }
@@ -798,15 +799,66 @@ function toggleDay(num) {
     document.getElementById('streak-grid').innerHTML = generateGrid();
 }
 
-function sendBugReport() {
+async function sendBugReport() {
+    const dest = document.getElementById('bugDest')?.value;
     const project = document.getElementById('bugProject')?.value;
     const type = document.getElementById('bugType')?.value;
     const msg = document.getElementById('bugMsg')?.value;
 
-    if (!project || !msg) { alert("Please select a project and describe the issue."); return; }
-    const subject = `[${type}] ${project} Report`;
-    const body = `Project: ${project}%0D%0Aissue Type: ${type}%0D%0A%0D%0ADetails:%0D%0A${msg}`;
-    window.location.href = `mailto:andys.dev.studio@gmail.com?subject=${subject}&body=${body}`;
+    if (!project || !msg) { 
+        alert("The scroll is incomplete! Please select an alloy and describe the fracture."); 
+        return; 
+    }
+
+    const btn = document.querySelector('.highlight-btn');
+    const originalText = btn.innerText;
+    btn.innerText = "🚀 TRANSMITTING...";
+    btn.disabled = true;
+
+    // --- ROUTE 1: EMAIL (DEFAULT) ---
+    if (dest === 'email') {
+        const subject = encodeURIComponent(`Bug Report: ${project} - ${type}`);
+        const body = encodeURIComponent(`Target: ${project}\nType: ${type}\n\nDetails:\n${msg}`);
+        
+        // IMPORTANT: Put your actual email address here
+        window.location.href = `mailto:YOUR_EMAIL_HERE@gmail.com?subject=${subject}&body=${body}`;
+        
+        setTimeout(() => { 
+            document.getElementById('bugMsg').value = '';
+            btn.innerText = "✓ DISPATCHED";
+            setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
+        }, 500);
+    } 
+    
+    // --- ROUTE 2: DISCORD WEBHOOK ---
+    else {
+        // IMPORTANT: Put your Discord Webhook URL here
+        const webhookUrl = "YOUR_DISCORD_WEBHOOK_URL_HERE"; 
+        const payload = {
+            username: "Rookery Dispatch",
+            content: `🚨 **New Forge Report**\n**Target:** ${project}\n**Type:** ${type}\n**Details:**\n> ${msg.replace(/\n/g, '\n> ')}`
+        };
+
+        try {
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                document.getElementById('bugMsg').value = '';
+                btn.innerText = "✓ DISPATCHED";
+                setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 3000);
+            } else {
+                alert("The dispatch failed. Check your webhook URL.");
+                btn.innerText = originalText; btn.disabled = false;
+            }
+        } catch (error) {
+            alert("Network error. The signal was lost on the highway.");
+            btn.innerText = originalText; btn.disabled = false;
+        }
+    }
 }
 
 // ==========================================
@@ -841,3 +893,52 @@ async function heatTheCache() {
 window.addEventListener('load', () => {
     setTimeout(heatTheCache, 3000);
 });
+
+// ==========================================
+// QA ARSENAL: TESTER UTILITIES
+// ==========================================
+
+// 1. Silent Error Catcher
+// This secretly listens for any JavaScript errors on the page and saves them.
+window.ravenErrors = [];
+window.addEventListener('error', function(e) {
+    const time = new Date().toLocaleTimeString();
+    window.ravenErrors.push(`[${time}] ${e.message} at ${e.filename}:${e.lineno}`);
+});
+
+// 2. The Log Snagger
+function snagErrorLog() {
+    // Grab the tester's exact screen size and browser info
+    const specs = `Platform: ${navigator.platform}\nScreen: ${window.innerWidth}x${window.innerHeight}\nBrowser: ${navigator.userAgent}`;
+    
+    // Format any errors we caught
+    const errors = window.ravenErrors.length > 0 ? window.ravenErrors.join('\n') : 'No background JS errors caught.';
+    
+    // Build the final clipboard payload
+    const payload = `--- SYSTEM SPECS ---\n${specs}\n\n--- CAUGHT ERRORS ---\n${errors}`;
+    
+    // Copy it to the user's clipboard
+    navigator.clipboard.writeText(payload).then(() => {
+        alert('System specs and error logs copied! Paste this directly into the Bellows bug report.');
+    }).catch(err => {
+        alert('Clipboard access denied by your browser. Cannot snag log.');
+    });
+}
+
+// 3. The Viewport Resizer
+function toggleViewport() {
+    // Grabs the iframe where your apps launch
+    const frame = document.getElementById('appFrame');
+    if (!frame) return;
+    
+    // Toggles the mobile-testing class
+    frame.classList.toggle('mobile-viewport-mode');
+    
+    // Give the user feedback
+    if (frame.classList.contains('mobile-viewport-mode')) {
+        alert("Mobile Viewport active. Launch an Alloy to see it constrained to a phone screen.");
+    } else {
+        alert("Viewport reset to full screen.");
+    }
+}
+
