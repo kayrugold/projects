@@ -1,8 +1,13 @@
 <div class="rookery-domain">
     <div class="dispatch-beacon">
-        <span class="beacon-light"></span>
-        <span class="beacon-text"><strong>🟢 BEACON ACTIVE:</strong> Parked in Anderson. Actively reviewing Gnomon lattice logs.</span>
-    </div>
+    <span class="beacon-light"></span>
+    <span class="beacon-text" id="live-beacon-text">
+        <strong>🟢 BEACON ACTIVE:</strong> Fetching latest transmission...
+    </span>
+    <button onclick="initRookeryBeacon()" class="icon-btn" style="margin-left: auto; border: none; background: transparent; color: #34d399; cursor: pointer;" title="Refresh Transmission">
+        <span style="font-size: 1.2rem;">↻</span>
+    </button>
+</div>
 
     <h1 class="page-title" style="border-bottom-color: #333;">The Rookery</h1>
 
@@ -12,12 +17,16 @@
         <div class="item-card notebook-paper">
             <h3 class="notebook-title">Testing Directives</h3>
             <ol class="notebook-list" style="padding-left: 25px;">
-                <li><a href="https://groups.google.com/g/andys-dev-studio-ravens" target="_blank" style="color: #0284c7; text-decoration: none;">Join the Testing Roster</a> to get Android clearance.</li>
-                <li><a href="https://discord.gg/WHhnBXpDSW" target="_blank" style="color: #0284c7; text-decoration: none;">Join the Discord Guild Hall</a> to sync with the squad.</li>
-                <li>Select an active Alloy from the Anvil below.</li>
-                <li>Push the limits. Tap the Ledger for your 14-Day Watch.</li>
-                <li>Use the Bellows below to dispatch anonymous bug reports.</li>
+                <li><strong>Step 1: Get Clearance.</strong> Join the Discord Guild Hall using the button below.</li>
+                <li><strong>Step 2: Bypass the Airlock.</strong> Answer the Discord onboarding question to prove you are human. This grants you the <em>Elite Raven</em> security badge.</li>
+                <li><strong>Step 3: Enter the Vault.</strong> With your new badge, the hidden <code>#the-watch-roster</code> channel will appear in Discord. Go there to grab the secure Google Play testing links.</li>
+                <li><strong>Step 4: The 14-Day Watch.</strong> Open Factor Hunter every single day. Tap the Ledger below to mark your streak, and use the Bellows to dispatch bug reports.</li>
             </ol>
+            
+            <div style="margin-top: 15px; margin-bottom: 10px; text-align: center;">
+                <a href="https://discord.gg/2RtH68T9fn" target="_blank" class="button" style="text-decoration: none; padding: 10px 15px; background: #333; color: #fff; border-radius: 5px; font-weight: bold;">Enter the Guild Hall</a>
+            </div>
+            
             <div class="notebook-signature">- Andy</div>
         </div>
 
@@ -68,7 +77,7 @@
                         </div>
                         <div class="alloy-btn-row">
                             <button onclick="launchApp('./apps/factorhunter0.0.0.html')" class="raven-btn mini-btn">WEB</button>
-                            <button onclick="window.open('https://play.google.com/apps/testing/com.andysdevstudio.factorhunter', '_blank')" class="raven-btn mini-btn android-btn">ANDROID</button>
+                            <button onclick="if(confirm('SYSTEM CHECK: Have you received clearance from the Discord Guild Hall first? If not, Google Play will reject this link. Proceed?')) window.open('https://play.google.com/store/apps/details?id=com.andysdevstudio.factorhunter', '_blank')" class="raven-btn mini-btn android-btn">ANDROID</button>
                         </div>
                     </div>
 

@@ -1,4 +1,4 @@
-/* app.js - v4.6.1 Master Studio Logic (Journal Fixes) */
+/* app.js - v4.7.0 Master Studio Logic (Journal Fixes) */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -105,6 +105,23 @@ async function switchPage(section) {
         const gridContainer = document.getElementById('streak-grid');
         if (gridContainer) {
             gridContainer.innerHTML = generateGrid();
+        }
+    }
+    
+            const mainContentArea = document.getElementById('page-content');
+    if (mainContentArea) {
+        mainContentArea.innerHTML = content + globalFooterHTML;
+    }
+    
+    // NEW: Kickstart scripts for specific pages
+    if (section === 'ravens') {
+        const gridContainer = document.getElementById('streak-grid');
+        if (gridContainer) {
+            gridContainer.innerHTML = generateGrid();
+        }
+        // Use a safe check before calling the beacon
+        if (typeof initRookeryBeacon === 'function') {
+            initRookeryBeacon();
         }
     }
 }
@@ -942,3 +959,29 @@ function toggleViewport() {
     }
 }
 
+// ==========================================
+// BEACON UPDATER
+// ==========================================
+async function initRookeryBeacon() {
+    const liveBeacon = document.getElementById('live-beacon-text');
+    if (!liveBeacon) return;
+
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQiZS1A-cFrtBaI2Zahe7C-8zTekXgcuhbDEcyF37mYIZpHmIUoqd8D9WtSPbU-iU6NeBe001jkBXuZ/pub?output=tsv';
+    const bypassCacheUrl = `${sheetUrl}&_=${new Date().getTime()}`;
+
+    try {
+        const response = await fetch(bypassCacheUrl);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.text();
+        
+        const rows = data.split('\n');
+        const firstCell = rows[0].split('\t')[0].replace(/"/g, '').trim();
+        
+        if (firstCell) {
+            liveBeacon.innerHTML = `<strong>🟢 BEACON ACTIVE:</strong> ${firstCell}`;
+        }
+    } catch (err) {
+        console.error('Beacon Fetch Error:', err);
+        liveBeacon.innerHTML = '<strong>🔴 BEACON OFFLINE</strong>';
+    }
+}

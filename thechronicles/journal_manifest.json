@@ -1,5 +1,14 @@
 [
 {
+  "id": "log-video-tour",
+  "title": "Video Log: Navigating the Studio",
+  "date": "February 17, 2026",
+  "summary": "A complete video walkthrough recorded from the cab. Explaining the Google 14-day requirement, the testing pipeline, and a tour of the site.",
+  "image": "./assets/video_tour.webp",
+  "tags": ["Video", "Update", "Pipeline"],
+  "file": "./thechronicles/entries/entry_video_tour.html"
+},
+{
   "id": "forge-to-ledger",
   "title": "From The Forge to The Ledger",
   "date": "February 11, 2026",
