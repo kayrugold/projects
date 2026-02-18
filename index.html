@@ -13,7 +13,7 @@
 
     <script src="config.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=4.7.0">
+    <link rel="stylesheet" href="style.css?v=4.7.2">
 </head>
 <body>
 
@@ -63,13 +63,35 @@
             <button class="icon-btn" onclick="toggleHamburger()" style="border-color:#fff;">X</button>
         </div>
         
-        <a href="#" class="drawer-link" onclick="goHome(); toggleHamburger()">The Field Desk (Home)</a>
-        <a href="#" class="drawer-link" onclick="openBook('forge'); toggleHamburger()">The Forge</a>
-        <a href="#" class="drawer-link" onclick="openBook('market'); toggleHamburger()">The Ledger</a>
-        <a href="#" class="drawer-link" onclick="openBook('cargo'); toggleHamburger()">The Cargo Bay</a>
-        <a href="#" class="drawer-link" onclick="openBook('chronicles'); toggleHamburger()">The Chronicles</a>
-        <a href="#" class="drawer-link" onclick="openBook('guild'); toggleHamburger()">The Guild Hall</a>
-        <a href="#" class="drawer-link" onclick="openBook('ravens'); toggleHamburger()">The Rookery</a>
+<div class="drawer-header">
+    <span style="font-family:'Share Tech Mono', monospace; font-weight:bold; color:var(--gold); font-size: 1.2rem;">DIRECTORY</span>
+    <button class="icon-btn" onclick="toggleHamburger()" style="border-color:#fff;">X</button>
+</div>
+
+<a href="#" class="drawer-link" onclick="goHome(); toggleHamburger()">The Field Desk (Home)</a>    
+
+<div class="drawer-category">
+    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('forge-menu')">The Forge <span class="toggle-arrow">▼</span></a>
+    <div id="forge-menu" class="drawer-sub-menu"></div>
+</div>
+
+<div class="drawer-category">
+    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('ledger-menu')">The Ledger <span class="toggle-arrow">▼</span></a>
+    <div id="ledger-menu" class="drawer-sub-menu"></div>
+</div>
+
+<div class="drawer-category">
+    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('cargo-menu')">The Cargo Bay <span class="toggle-arrow">▼</span></a>
+    <div id="cargo-menu" class="drawer-sub-menu"></div>
+</div>
+
+<div class="drawer-category">
+    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('chronicles-menu')">The Chronicles <span class="toggle-arrow">▼</span></a>
+    <div id="chronicles-menu" class="drawer-sub-menu"></div>
+</div>
+
+<a href="#" class="drawer-link" onclick="openBook('ravens'); toggleHamburger()">The Rookery</a>
+
 
         <div class="drawer-footer" style="display: flex; justify-content: space-evenly; align-items: center; padding-top: 20px; margin-top: auto; border-top: 1px dashed rgba(212, 175, 55, 0.4);">
             <button class="icon-btn" id="soundBtn" onclick="toggleSound()" title="Toggle Sound" style="width: 44px; height: 44px;">

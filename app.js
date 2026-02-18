@@ -1,4 +1,4 @@
-/* app.js - v4.7.0 Master Studio Logic (Journal Fixes) */
+/* app.js - v4.7.2 Master Studio Logic (Journal Fixes) */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -474,7 +474,7 @@ async function fetchCargo() {
         const cargoItems = await response.json();
 
         let html = `<h1 class="page-title">The Cargo Bay</h1>
-                    <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid var(--emerald-500); transform:none;">
+                    <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid #10b981; transform:none;">
                         <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
                             Physical provisions for the modern forger. Shipped directly from the trading post to your door.
                         </p>
@@ -482,16 +482,30 @@ async function fetchCargo() {
                     <div id="cargoList" class="gallery-grid masonry-mode">`;
 
         cargoItems.forEach(item => {
+            let headerHTML = item.image 
+                ? `<img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">`
+                : `<div class="forge-img-container"><div class="forge-img-emoji">📦</div></div>`;
+
             html += `
-            <div class="item-card forge-item">
-                <img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">
-                <div class="card-inner">
-                    <div class="market-header-row">
-                        <h3 class="forge-title">${item.title}</h3>
-                        <span class="price-tag">${item.price}</span>
+            <div class="item-card forge-item flip-container">
+                <div class="flipper">
+                    <div class="front">
+                        <div class="project-btn" onclick="openProjectPage('${item.projectPage || ''}', event)" title="View Details">↗</div>
+                        <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
+                        
+                        ${headerHTML}
+                        <div class="card-inner">
+                            <div class="market-header-row">
+                                <h3 class="forge-title">${item.title}</h3>
+                                <span class="price-tag">${item.price || ''}</span>
+                            </div>
+                            <p class="forge-desc">${item.description}</p>
+                            <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
+                        </div>
                     </div>
-                    <p class="forge-desc">${item.description}</p>
-                    <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
+                    <div class="back">
+                        ${generateCardBack(item)}
+                    </div>
                 </div>
             </div>`;
         });
@@ -501,6 +515,7 @@ async function fetchCargo() {
         return `<h1 class="page-title">The Cargo Bay</h1><p>The bay is currently empty. Check back after the next delivery.</p>`; 
     }
 }
+
 
 async function fetchChronicles() {
     try {
@@ -985,3 +1000,52 @@ async function initRookeryBeacon() {
         liveBeacon.innerHTML = '<strong>🔴 BEACON OFFLINE</strong>';
     }
 }
+
+/* Menu subcats addition *///////
+// Add this to app.js
+function toggleCategory(id) {
+    playPageSound();
+    const subMenu = document.getElementById(id);
+    const allSubs = document.querySelectorAll('.drawer-sub-menu');
+    
+    // Optional: Close other categories when one opens
+    allSubs.forEach(sub => {
+        if (sub.id !== id) sub.classList.remove('open');
+    });
+
+    subMenu.classList.toggle('open');
+}
+
+// Add this to app.js
+async function populateDirectory() {
+    const categories = [
+        { id: 'forge-menu', url: './forge/forge_manifest.json', type: 'project' },
+        { id: 'ledger-menu', url: './market/market_manifest.json', type: 'project' },
+        { id: 'cargo-menu', url: './market/cargo_manifest.json', type: 'link' },
+        { id: 'chronicles-menu', url: './thechronicles/journal_manifest.json', type: 'journal' }
+    ];
+
+    for (const cat of categories) {
+        try {
+            const res = await fetch(getVersionedAsset(cat.url));
+            if (!res.ok) continue;
+            const items = await res.json();
+            const menu = document.getElementById(cat.id);
+            
+            menu.innerHTML = items.slice(0, 8).map(item => { // Limit to 8 to keep it tidy
+                if (cat.type === 'project') {
+                    return `<a href="#" onclick="openProjectPage('${item.projectPage}', event); toggleHamburger()">+ ${item.title}</a>`;
+                } else if (cat.type === 'journal') {
+                    return `<a href="#" onclick="openJournalEntry('${item.id}'); toggleHamburger()">+ ${item.title}</a>`;
+                } else {
+                    return `<a href="#" onclick="openBook('cargo'); toggleHamburger()">+ ${item.title}</a>`;
+                }
+            }).join('');
+        } catch (e) {
+            console.warn(`Directory sync failed for ${cat.id}`, e);
+        }
+    }
+}
+
+// Ensure it runs on load
+document.addEventListener('DOMContentLoaded', populateDirectory);
