@@ -1707,7 +1707,7 @@ select:focus {
    ========================================= */
 
 /* --- DESKTOP WIDE SCREENS --- */
-@media (min-width: 900px) {
+@media (min-width: 700px) {
 
     div[id$="List"].masonry-mode,
     .gallery-grid.masonry-mode {
