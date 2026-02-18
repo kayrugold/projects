@@ -1,68 +1,98 @@
 [
   {
     "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+    "title": "Factor Hunter Tee",
+    "description": "Premium cotton blend featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort in any environment.",
+    "longDescription": "The official uniform of the Factor Hunter. This high-quality tee features the iconic 'Ink on Parchment' design, screen-printed on a premium cotton blend. Durable, breathable, and ready for long debugging sessions.",
     "price": "$24.99",
     "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
     "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
     "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
+    "type": "Apparel",
+    "features": [
+      "100% Cotton",
+      "Screen Printed",
+      "Unisex Fit"
+    ]
   },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
+  {
+    "id": "dev-hoodie",
+    "title": "Studio Hoodie",
+    "description": "Heavyweight fleece hoodie with embroidered studio logo. Keeps the cold out while you keep the code flowing.",
+    "longDescription": "When the compiler runs cold, this hoodie keeps you warm. Featuring a heavyweight fleece construction and the embroidered Andy's Dev Studio logo on the chest. Kangaroo pocket for storing snacks or spare cables.",
+    "price": "$49.99",
     "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
     "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
     "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
+    "type": "Apparel",
+    "features": [
+      "Heavyweight Fleece",
+      "Embroidered Logo",
+      "Kangaroo Pocket"
+    ]
   },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
+  {
+    "id": "code-mug",
+    "title": "Compiler's Cup",
+    "description": "Matte black ceramic mug. Holds 16oz of your preferred caffeine solution. Dishwasher safe.",
+    "longDescription": "Fuel your next sprint with the Compiler's Cup. This 16oz matte black ceramic mug is built to withstand high-temperature beverages and the occasional desk bump. Dishwasher and microwave safe.",
+    "price": "$14.99",
     "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
     "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
     "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
+    "type": "Accessories",
+    "features": [
+      "16oz Capacity",
+      "Matte Finish",
+      "Dishwasher Safe"
+    ]
   },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+  {
+    "id": "factor-hunter-shirt-2",
+    "title": "Factor Hunter Tee (Spare)",
+    "description": "Premium cotton blend featuring the 'Ink on Parchment' Factor Hunter design. Always good to have a backup.",
+    "longDescription": "The official uniform of the Factor Hunter. This high-quality tee features the iconic 'Ink on Parchment' design, screen-printed on a premium cotton blend. Durable, breathable, and ready for long debugging sessions.",
     "price": "$24.99",
     "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
     "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
     "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
+    "type": "Apparel",
+    "features": [
+      "100% Cotton",
+      "Screen Printed",
+      "Unisex Fit"
+    ]
   },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
+  {
+    "id": "dev-hoodie-2",
+    "title": "Studio Hoodie (Grey)",
+    "description": "Alternated colorway. Heavyweight fleece hoodie with embroidered studio logo.",
+    "longDescription": "When the compiler runs cold, this hoodie keeps you warm. Featuring a heavyweight fleece construction and the embroidered Andy's Dev Studio logo on the chest. Kangaroo pocket for storing snacks or spare cables.",
+    "price": "$49.99",
     "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
     "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
     "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
+    "type": "Apparel",
+    "features": [
+      "Heavyweight Fleece",
+      "Embroidered Logo",
+      "Kangaroo Pocket"
+    ]
   },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
+  {
+    "id": "code-mug-2",
+    "title": "Compiler's Cup (Travel)",
+    "description": "Matte black ceramic mug. Now with a travel lid for coding on the go.",
+    "longDescription": "Fuel your next sprint with the Compiler's Cup. This 16oz matte black ceramic mug is built to withstand high-temperature beverages and the occasional desk bump. Dishwasher and microwave safe.",
+    "price": "$16.99",
     "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
     "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
     "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
+    "type": "Accessories",
+    "features": [
+      "16oz Capacity",
+      "Travel Lid",
+      "Dishwasher Safe"
+    ]
   }
 ]
