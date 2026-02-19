@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 /* app.js - v4.7.2 Master Studio Logic (Journal Fixes) */
+=======
+/* app.js - v4.7.1 Master Studio Logic (Journal Fixes) */
+>>>>>>> b468f96a5a6bac7453f7dfc2d16bd379d5e65550
 
 // ==========================================
 // 0. GLOBAL VARIABLES
@@ -41,10 +45,10 @@ if ('serviceWorker' in navigator) {
 function triggerUpdateUI() {
     const overlay = document.getElementById('updateOverlay');
     const versionSpan = document.getElementById('ui-version-display');
-    
-    if(overlay) {
-        if(versionSpan && typeof FORGE_VERSION !== 'undefined') {
-            versionSpan.innerText = FORGE_VERSION; 
+
+    if (overlay) {
+        if (versionSpan && typeof FORGE_VERSION !== 'undefined') {
+            versionSpan.innerText = FORGE_VERSION;
             document.getElementById('updateStatus').innerText = `Syncing Forge v${FORGE_VERSION}...`;
         }
         overlay.style.display = 'flex';
@@ -64,8 +68,8 @@ const globalFooterHTML = `
 `;
 
 async function switchPage(section) {
-    playPageSound(); 
-    closeApp(); 
+    playPageSound();
+    closeApp();
     let content = '';
     window.currentFilter = 'All';
 
@@ -80,26 +84,26 @@ async function switchPage(section) {
             content = await fetchChronicles();
         } else if (section === 'ravens') {
             const res = await fetch('pages/rookery.html');
-            if(!res.ok) throw new Error('Page missing');
+            if (!res.ok) throw new Error('Page missing');
             content = await res.text();
         } else {
             const res = await fetch(`pages/${section}.html`);
-            if(!res.ok) throw new Error('Page missing');
+            if (!res.ok) throw new Error('Page missing');
             content = await res.text();
         }
     } catch (err) {
         console.warn("Page Load Error:", err);
         content = `<div class="item-card"><h3>⚠️ Uplink Offline</h3><p>The archives for '${section}' could not be retrieved. (File Missing)</p></div>`;
     }
-    
+
     const container = document.getElementById('page-content');
     if (container) {
         container.innerHTML = content + globalFooterHTML;
     }
-    
+
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const active = document.querySelector(`.bm-${section}`);
-    if(active) active.classList.add('active');
+    if (active) active.classList.add('active');
 
     if (section === 'ravens') {
         const gridContainer = document.getElementById('streak-grid');
@@ -107,12 +111,12 @@ async function switchPage(section) {
             gridContainer.innerHTML = generateGrid();
         }
     }
-    
-            const mainContentArea = document.getElementById('page-content');
+
+    const mainContentArea = document.getElementById('page-content');
     if (mainContentArea) {
         mainContentArea.innerHTML = content + globalFooterHTML;
     }
-    
+
     // NEW: Kickstart scripts for specific pages
     if (section === 'ravens') {
         const gridContainer = document.getElementById('streak-grid');
@@ -127,37 +131,37 @@ async function switchPage(section) {
 }
 
 async function openProjectPage(url, event) {
-  if (event) event.stopPropagation();
-  playPageSound();
+    if (event) event.stopPropagation();
+    playPageSound();
 
-  if (!url) {
-    alert("No documentation available for this item yet.");
-    return;
-  }
+    if (!url) {
+        alert("No documentation available for this item yet.");
+        return;
+    }
 
-  closeApp(); 
+    closeApp();
 
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Missing project page");
-    const html = await res.text();
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Missing project page");
+        const html = await res.text();
 
-    document.body.classList.add('reading-mode');
-    document.getElementById('library-view').style.display = 'none';
-    document.getElementById('book-view').className = 'open';
-    document.getElementById('bookmarks').style.display = 'flex';
+        document.body.classList.add('reading-mode');
+        document.getElementById('library-view').style.display = 'none';
+        document.getElementById('book-view').className = 'open';
+        document.getElementById('bookmarks').style.display = 'flex';
 
-    document.getElementById('page-content').innerHTML = html + globalFooterHTML;
+        document.getElementById('page-content').innerHTML = html + globalFooterHTML;
 
-    document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
-    const forgeBm = document.querySelector('.bm-forge'); 
-    if (forgeBm) forgeBm.classList.add('active');
+        document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
+        const forgeBm = document.querySelector('.bm-forge');
+        if (forgeBm) forgeBm.classList.add('active');
 
-    window.scrollTo(0, 0);
-  } catch (e) {
-    console.error(e);
-    alert("The archives for this project are currently sealed.");
-  }
+        window.scrollTo(0, 0);
+    } catch (e) {
+        console.error(e);
+        alert("The archives for this project are currently sealed.");
+    }
 }
 
 // ==========================================
@@ -165,7 +169,7 @@ async function openProjectPage(url, event) {
 // ==========================================
 
 const FANTASY_SCALE = [
-    293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25, 
+    293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25,
     587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50
 ];
 
@@ -173,34 +177,34 @@ function initAudio() {
     if (audioCtx) return;
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
-    
+
     const rate = audioCtx.sampleRate;
-    const length = rate * 1.5; 
+    const length = rate * 1.5;
     const impulse = audioCtx.createBuffer(2, length, rate);
     for (let channel = 0; channel < 2; channel++) {
         const data = impulse.getChannelData(channel);
         for (let i = 0; i < length; i++) {
-            data[i] = (Math.random() * 2 - 1) * (1 - (i / length)); 
+            data[i] = (Math.random() * 2 - 1) * (1 - (i / length));
         }
     }
     window.reverbNode = audioCtx.createConvolver();
     window.reverbNode.buffer = impulse;
     window.reverbNode.connect(audioCtx.destination);
-    
+
     window.musicBus = audioCtx.createGain();
-    window.musicBus.gain.value = 0.5; 
+    window.musicBus.gain.value = 0.5;
     window.musicBus.connect(window.reverbNode);
     window.musicBus.connect(audioCtx.destination);
 }
 
 function startDrone() {
     if (!audioCtx) initAudio();
-    
-    const bufferSize = audioCtx.sampleRate; 
+
+    const bufferSize = audioCtx.sampleRate;
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
-    let b0=0, b1=0, b2=0, b3=0, b4=0, b5=0, b6=0;
-    
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+
     for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
         b0 = 0.99886 * b0 + white * 0.0555179;
@@ -210,7 +214,7 @@ function startDrone() {
         b4 = 0.55000 * b4 + white * 0.5329522;
         b5 = -0.7616 * b5 - white * 0.0168980;
         data[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
-        data[i] *= 0.11; 
+        data[i] *= 0.11;
         b6 = white * 0.115926;
     }
 
@@ -220,18 +224,18 @@ function startDrone() {
 
     windFilter = audioCtx.createBiquadFilter();
     windFilter.type = 'lowpass';
-    windFilter.frequency.value = 400; 
+    windFilter.frequency.value = 400;
 
     windGain = audioCtx.createGain();
-    windGain.gain.value = 0.15; 
+    windGain.gain.value = 0.15;
 
     windLFO = audioCtx.createOscillator();
     windLFO.type = 'sine';
-    windLFO.frequency.value = 0.1; 
-    
+    windLFO.frequency.value = 0.1;
+
     const lfoGain = audioCtx.createGain();
-    lfoGain.gain.value = 300; 
-    
+    lfoGain.gain.value = 300;
+
     windLFO.connect(lfoGain);
     lfoGain.connect(windFilter.frequency);
 
@@ -242,16 +246,16 @@ function startDrone() {
     windLFO.start();
     windNode.start();
 
-    playArpeggio(); 
+    playArpeggio();
     musicInterval = setInterval(() => {
         playArpeggio();
-        if(Math.random() > 0.5) setTimeout(playFairySparkle, 1000);
-    }, 4000); 
+        if (Math.random() > 0.5) setTimeout(playFairySparkle, 1000);
+    }, 4000);
 }
 
 function playArpeggio() {
     const baseIndex = Math.floor(Math.random() * (FANTASY_SCALE.length - 6));
-    const pattern = [0, 2, 4, 7]; 
+    const pattern = [0, 2, 4, 7];
     pattern.forEach((offset, i) => {
         setTimeout(() => {
             playTone(FANTASY_SCALE[baseIndex + offset], 'triangle', 0.2, 1.5);
@@ -273,47 +277,47 @@ function playTone(freq, type, vol, duration) {
     const gain = audioCtx.createGain();
     const now = audioCtx.currentTime;
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(vol, now + 0.02); 
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration); 
+    gain.gain.linearRampToValueAtTime(vol, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     osc.connect(gain);
-    gain.connect(window.musicBus); 
+    gain.connect(window.musicBus);
     osc.start();
     osc.stop(now + duration + 0.5);
 }
 
 function stopDrone() {
     if (windNode) {
-        try { 
-            windNode.stop(); 
-            if(windLFO) windLFO.stop(); 
-            if(audioCtx.state === 'running') audioCtx.suspend(); 
-        } catch(e){}
+        try {
+            windNode.stop();
+            if (windLFO) windLFO.stop();
+            if (audioCtx.state === 'running') audioCtx.suspend();
+        } catch (e) { }
         clearInterval(musicInterval);
     }
 }
 
 function playPageSound() {
-    if (!isPlaying) return; 
-    if (!audioCtx) initAudio(); 
+    if (!isPlaying) return;
+    if (!audioCtx) initAudio();
     if (audioCtx.state === 'suspended') audioCtx.resume();
 
-    const bufferSize = audioCtx.sampleRate * 0.2; 
+    const bufferSize = audioCtx.sampleRate * 0.2;
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
-    
+
     const noise = audioCtx.createBufferSource();
     noise.buffer = buffer;
     const filter = audioCtx.createBiquadFilter();
-    filter.type = 'bandpass'; 
-    filter.frequency.value = 1200; 
-    filter.Q.value = 0.7; 
+    filter.type = 'bandpass';
+    filter.frequency.value = 1200;
+    filter.Q.value = 0.7;
     const gain = audioCtx.createGain();
     const now = audioCtx.currentTime;
-    
+
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.25, now + 0.05); 
-    gain.gain.linearRampToValueAtTime(0, now + 0.2); 
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+    gain.gain.linearRampToValueAtTime(0, now + 0.2);
 
     noise.connect(filter);
     filter.connect(gain);
@@ -324,11 +328,11 @@ function playPageSound() {
 function toggleSound() {
     if (!audioCtx) initAudio();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    
+
     isPlaying = !isPlaying;
     const btn = document.getElementById('soundBtn');
     const icon = document.getElementById('soundIcon');
-    
+
     if (isPlaying) {
         btn.classList.add('active');
         icon.src = "./assets/soundon.webp";
@@ -347,9 +351,9 @@ function toggleSound() {
 function generateCardBack(item) {
     const longHTML = item.longDescription || item.moreInfo || item.description;
     const featuresHTML = Array.isArray(item.features) && item.features.length
-      ? `<div class="card-section"><div class="card-section-title">Features</div><ul class="card-bullets">${item.features.map(f => `<li>${f}</li>`).join('')}</ul></div>` : '';
+        ? `<div class="card-section"><div class="card-section-title">Features</div><ul class="card-bullets">${item.features.map(f => `<li>${f}</li>`).join('')}</ul></div>` : '';
     const techHTML = Array.isArray(item.tech) && item.tech.length
-      ? `<div class="card-section"><div class="card-section-title">Specs</div><div class="chip-row">${item.tech.map(t => `<span class="chip">${t}</span>`).join('')}</div></div>` : '';
+        ? `<div class="card-section"><div class="card-section-title">Specs</div><div class="chip-row">${item.tech.map(t => `<span class="chip">${t}</span>`).join('')}</div></div>` : '';
 
     return `
         <div class="project-btn" onclick="openProjectPage('${item.projectPage || ''}', event)" title="View Docs">↗</div>
@@ -385,7 +389,7 @@ async function fetchForge() {
         <div id="forgeList" class="gallery-grid masonry-mode">`;
 
         forgeItems.forEach(item => {
-            let headerHTML = item.image 
+            let headerHTML = item.image
                 ? `<img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">`
                 : `<div class="forge-img-container"><div class="forge-img-emoji">${item.icon}</div></div>`;
 
@@ -431,7 +435,7 @@ async function fetchMarket() {
         <div id="marketList" class="gallery-grid masonry-mode">`;
 
         marketItems.forEach(item => {
-            let headerHTML = item.image 
+            let headerHTML = item.image
                 ? `<img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">`
                 : `<div class="forge-img-container"><div class="forge-img-emoji">${item.icon}</div></div>`;
 
@@ -490,6 +494,7 @@ async function fetchCargo() {
             <div class="item-card forge-item flip-container">
                 <div class="flipper">
                     <div class="front">
+<<<<<<< HEAD
                         <div class="project-btn" onclick="openProjectPage('${item.projectPage || ''}', event)" title="View Details">↗</div>
                         <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
                         
@@ -498,21 +503,35 @@ async function fetchCargo() {
                             <div class="market-header-row">
                                 <h3 class="forge-title">${item.title}</h3>
                                 <span class="price-tag">${item.price || ''}</span>
+=======
+                         <div class="project-btn" onclick="${item.action}" title="View Store">🛒</div>
+                         <div class="flip-btn" onclick="flipCard(this, event)">↺</div>
+                        <img src="${getVersionedAsset(item.image)}" class="forge-header-img" alt="${item.title}">
+                        <div class="card-inner">
+                            <div class="market-header-row">
+                                <h3 class="forge-title">${item.title}</h3>
+                                <div class="price-tag">${item.price}</div>
+>>>>>>> b468f96a5a6bac7453f7dfc2d16bd379d5e65550
                             </div>
                             <p class="forge-desc">${item.description}</p>
                             <button onclick="${item.action}" class="forge-btn">${item.buttonText}</button>
                         </div>
+<<<<<<< HEAD
                     </div>
                     <div class="back">
                         ${generateCardBack(item)}
                     </div>
+=======
+                    </div>
+                    <div class="back">${generateCardBack(item)}</div>
+>>>>>>> b468f96a5a6bac7453f7dfc2d16bd379d5e65550
                 </div>
             </div>`;
         });
         html += `</div>`;
         return html;
-    } catch (error) { 
-        return `<h1 class="page-title">The Cargo Bay</h1><p>The bay is currently empty. Check back after the next delivery.</p>`; 
+    } catch (error) {
+        return `<h1 class="page-title">The Cargo Bay</h1><p>The bay is currently empty. Check back after the next delivery.</p>`;
     }
 }
 
@@ -521,15 +540,15 @@ async function fetchChronicles() {
     try {
         const response = await fetch(getVersionedAsset('./thechronicles/journal_manifest.json'));
         if (!response.ok) throw new Error('Manifest not found');
-        journalEntries = await response.json(); 
-        
+        journalEntries = await response.json();
+
         let html = `<h1 class="page-title">The Chronicles</h1>`;
         // MASONRY MODE APPLIED
         html += `<div id="chronicleList" class="gallery-grid masonry-mode">`;
-        
+
         journalEntries.forEach(entry => {
-            const imageHTML = entry.image 
-                ? `<img src="${getVersionedAsset(entry.image)}" class="forge-header-img" alt="${entry.title}">` 
+            const imageHTML = entry.image
+                ? `<img src="${getVersionedAsset(entry.image)}" class="forge-header-img" alt="${entry.title}">`
                 : '';
 
             html += `
@@ -554,20 +573,20 @@ async function fetchChronicles() {
 async function initHomeChronicles() {
     try {
         // Safe check in case getVersionedAsset isn't loaded yet
-        const manifestUrl = typeof getVersionedAsset === 'function' 
-            ? getVersionedAsset('./thechronicles/journal_manifest.json') 
+        const manifestUrl = typeof getVersionedAsset === 'function'
+            ? getVersionedAsset('./thechronicles/journal_manifest.json')
             : './thechronicles/journal_manifest.json';
-            
+
         const response = await fetch(manifestUrl);
         if (!response.ok) return;
-        
+
         journalEntries = await response.json();
-        
+
         const listContainer = document.getElementById('recent-chronicles-list');
         if (listContainer) {
             const topThree = journalEntries.slice(0, 3);
             let html = '';
-            
+
             topThree.forEach(entry => {
                 const dateStr = (entry.date || '').toUpperCase();
                 html += `
@@ -577,7 +596,7 @@ async function initHomeChronicles() {
                     <p class="scrap-desc">${entry.summary}</p>
                 </div>`;
             });
-            
+
             listContainer.innerHTML = html;
         }
     } catch (e) {
@@ -613,32 +632,33 @@ async function openJournalEntry(id) {
         const response = await fetch(entry.file);
         if (!response.ok) throw new Error('Entry not found');
         const text = await response.text();
-        
+
         const imgPath = typeof getVersionedAsset === 'function' && entry.image ? getVersionedAsset(entry.image) : entry.image;
         const imageHTML = entry.image ? `<img src="${imgPath}" class="journal-featured-img" alt="${entry.title}">` : '';
 
         // FIX: Wrapped ${text} in <div class="entry-content"> to constrain images and hide double titles
         const fullPostHTML = `
+            <button class="journal-close-btn" onclick="closeJournal()">X CLOSE</button>
             ${imageHTML}
             <div class="log-date" style="text-align:center; margin-top:10px;">${entry.date}</div>
             <h2 class="log-title" style="text-align:center; border:none; font-size: 2rem; margin-bottom:10px;">${entry.title}</h2>
             <hr style="border: 0; border-top: 1px dashed var(--ink); margin-bottom: 30px;">
             <div class="entry-content">${text}</div>
         `;
-        
+
         document.getElementById('journalContent').innerHTML = fullPostHTML;
         document.getElementById('journalReader').classList.add('active');
-        
-        if (typeof playPageSound === 'function') playPageSound(); 
-    } catch (error) { 
+
+        if (typeof playPageSound === 'function') playPageSound();
+    } catch (error) {
         console.error("Journal Read Error:", error);
-        alert("This scroll seems to be missing."); 
+        alert("This scroll seems to be missing.");
     }
 }
 
 function closeJournal() {
     document.getElementById('journalReader').classList.remove('active');
-    playPageSound(); 
+    playPageSound();
 }
 
 // ==========================================
@@ -647,20 +667,20 @@ function closeJournal() {
 
 async function openBook(section) {
     playPageSound();
-    document.body.classList.add('reading-mode'); 
+    document.body.classList.add('reading-mode');
     document.getElementById('library-view').style.display = 'none';
     document.getElementById('book-view').className = 'open';
     document.getElementById('bookmarks').style.display = 'flex';
-    window.scrollTo(0,0); 
+    window.scrollTo(0, 0);
     await switchPage(section);
 }
 
 function closeBook() {
     closeApp();
     playPageSound();
-    document.body.classList.remove('reading-mode'); 
+    document.body.classList.remove('reading-mode');
     document.getElementById('library-view').style.display = 'flex';
-    document.getElementById('book-view').className = ''; 
+    document.getElementById('book-view').className = '';
     document.getElementById('bookmarks').style.display = 'none';
 }
 
@@ -675,12 +695,12 @@ function launchApp(url) {
     const frame = document.getElementById('appFrame');
     frame.src = url;
     document.getElementById('appLayer').classList.add('active');
-    frame.onload = function() {
+    frame.onload = function () {
         try {
             const innerDoc = frame.contentWindow.document;
             const backBtn = innerDoc.querySelector('.back-btn');
-            if(backBtn) backBtn.onclick = function(e) { e.preventDefault(); closeApp(); };
-        } catch(e) {}
+            if (backBtn) backBtn.onclick = function (e) { e.preventDefault(); closeApp(); };
+        } catch (e) { }
     };
 }
 
@@ -710,9 +730,9 @@ function setFilter(filterType, btnElement) {
 
 function flipCard(btn, event) {
     event.stopPropagation();
-    const card = btn.closest('.flip-container');
-    card.classList.toggle('flipped');
-    playPageSound(); 
+    const card = btn.closest('.flip-container, .merch-item');
+    if (card) card.classList.toggle('flipped');
+    playPageSound();
 }
 
 function toggleFullscreen() {
@@ -742,7 +762,7 @@ function toggleFullscreen() {
 
 setInterval(() => {
     const clockElement = document.getElementById('clock');
-    if(clockElement) clockElement.innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    if (clockElement) clockElement.innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }, 1000);
 
 // ==========================================
@@ -770,13 +790,13 @@ if (bmContainer) {
 
         if (Math.abs(deltaY) > 5) {
             isDragging = true;
-            e.preventDefault(); 
-            bmContainer.setPointerCapture(e.pointerId); 
-            
-            bmContainer.style.transition = 'none'; 
-            bmContainer.style.transform = 'none'; 
-            bmContainer.style.bottom = 'auto';    
-            
+            e.preventDefault();
+            bmContainer.setPointerCapture(e.pointerId);
+
+            bmContainer.style.transition = 'none';
+            bmContainer.style.transform = 'none';
+            bmContainer.style.bottom = 'auto';
+
             bmContainer.style.top = (initialTop + deltaY) + 'px';
         }
     });
@@ -794,7 +814,7 @@ function sendRaven() {
     const name = document.getElementById('ravenName')?.value;
     const email = document.getElementById('ravenEmail')?.value;
     const msg = document.getElementById('ravenMsg')?.value;
-    
+
     if (!msg) { alert("The scroll is blank! Please write a message."); return; }
 
     const subject = `Raven from ${name || 'A Traveler'}`;
@@ -805,7 +825,7 @@ function sendRaven() {
 function generateGrid() {
     let html = '';
     const saved = JSON.parse(localStorage.getItem('andy_tester_days') || '[]');
-    for(let i=1; i<=14; i++) {
+    for (let i = 1; i <= 14; i++) {
         const isActive = saved.includes(i);
         const activeClass = isActive ? 'active' : '';
         // Added the Raven!
@@ -824,7 +844,7 @@ function generateGrid() {
 
 function toggleDay(num) {
     let saved = JSON.parse(localStorage.getItem('andy_tester_days') || '[]');
-    if(saved.includes(num)) saved = saved.filter(n => n !== num);
+    if (saved.includes(num)) saved = saved.filter(n => n !== num);
     else saved.push(num);
     localStorage.setItem('andy_tester_days', JSON.stringify(saved));
     playPageSound();
@@ -837,9 +857,9 @@ async function sendBugReport() {
     const type = document.getElementById('bugType')?.value;
     const msg = document.getElementById('bugMsg')?.value;
 
-    if (!project || !msg) { 
-        alert("The scroll is incomplete! Please select an alloy and describe the fracture."); 
-        return; 
+    if (!project || !msg) {
+        alert("The scroll is incomplete! Please select an alloy and describe the fracture.");
+        return;
     }
 
     const btn = document.querySelector('.highlight-btn');
@@ -851,21 +871,21 @@ async function sendBugReport() {
     if (dest === 'email') {
         const subject = encodeURIComponent(`Bug Report: ${project} - ${type}`);
         const body = encodeURIComponent(`Target: ${project}\nType: ${type}\n\nDetails:\n${msg}`);
-        
+
         // IMPORTANT: Put your actual email address here
         window.location.href = `mailto:YOUR_EMAIL_HERE@gmail.com?subject=${subject}&body=${body}`;
-        
-        setTimeout(() => { 
+
+        setTimeout(() => {
             document.getElementById('bugMsg').value = '';
             btn.innerText = "✓ DISPATCHED";
             setTimeout(() => { btn.innerText = originalText; btn.disabled = false; }, 2000);
         }, 500);
-    } 
-    
+    }
+
     // --- ROUTE 2: DISCORD WEBHOOK ---
     else {
         // IMPORTANT: Put your Discord Webhook URL here
-        const webhookUrl = "YOUR_DISCORD_WEBHOOK_URL_HERE"; 
+        const webhookUrl = "YOUR_DISCORD_WEBHOOK_URL_HERE";
         const payload = {
             username: "Rookery Dispatch",
             content: `🚨 **New Forge Report**\n**Target:** ${project}\n**Type:** ${type}\n**Details:**\n> ${msg.replace(/\n/g, '\n> ')}`
@@ -907,13 +927,13 @@ async function heatTheCache() {
         for (const url of manifests) {
             try {
                 const res = await fetch(getVersionedAsset(url));
-                if(res.ok) {
+                if (res.ok) {
                     const items = await res.json();
                     for (const item of items) {
                         if (item.image) fetch(item.image, { mode: 'no-cors' });
                     }
                 }
-            } catch(e) {
+            } catch (e) {
                 // Ignore missing files in background heater
             }
         }
@@ -933,7 +953,7 @@ window.addEventListener('load', () => {
 // 1. Silent Error Catcher
 // This secretly listens for any JavaScript errors on the page and saves them.
 window.ravenErrors = [];
-window.addEventListener('error', function(e) {
+window.addEventListener('error', function (e) {
     const time = new Date().toLocaleTimeString();
     window.ravenErrors.push(`[${time}] ${e.message} at ${e.filename}:${e.lineno}`);
 });
@@ -942,13 +962,13 @@ window.addEventListener('error', function(e) {
 function snagErrorLog() {
     // Grab the tester's exact screen size and browser info
     const specs = `Platform: ${navigator.platform}\nScreen: ${window.innerWidth}x${window.innerHeight}\nBrowser: ${navigator.userAgent}`;
-    
+
     // Format any errors we caught
     const errors = window.ravenErrors.length > 0 ? window.ravenErrors.join('\n') : 'No background JS errors caught.';
-    
+
     // Build the final clipboard payload
     const payload = `--- SYSTEM SPECS ---\n${specs}\n\n--- CAUGHT ERRORS ---\n${errors}`;
-    
+
     // Copy it to the user's clipboard
     navigator.clipboard.writeText(payload).then(() => {
         alert('System specs and error logs copied! Paste this directly into the Bellows bug report.');
@@ -962,10 +982,10 @@ function toggleViewport() {
     // Grabs the iframe where your apps launch
     const frame = document.getElementById('appFrame');
     if (!frame) return;
-    
+
     // Toggles the mobile-testing class
     frame.classList.toggle('mobile-viewport-mode');
-    
+
     // Give the user feedback
     if (frame.classList.contains('mobile-viewport-mode')) {
         alert("Mobile Viewport active. Launch an Alloy to see it constrained to a phone screen.");
@@ -988,10 +1008,10 @@ async function initRookeryBeacon() {
         const response = await fetch(bypassCacheUrl);
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.text();
-        
+
         const rows = data.split('\n');
         const firstCell = rows[0].split('\t')[0].replace(/"/g, '').trim();
-        
+
         if (firstCell) {
             liveBeacon.innerHTML = `<strong>🟢 BEACON ACTIVE:</strong> ${firstCell}`;
         }
@@ -1001,6 +1021,7 @@ async function initRookeryBeacon() {
     }
 }
 
+<<<<<<< HEAD
 /* Menu subcats addition *///////
 // Add this to app.js
 function toggleCategory(id) {
@@ -1049,3 +1070,18 @@ async function populateDirectory() {
 
 // Ensure it runs on load
 document.addEventListener('DOMContentLoaded', populateDirectory);
+=======
+// ==========================================
+// 10. SCROLL BUTTON LOGIC
+// ==========================================
+function scrollFromBtn(id, direction) {
+    const container = document.getElementById(id);
+    if (container) {
+        const scrollAmount = 200; // Adjust scroll distance
+        container.scrollBy({
+            left: direction * scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+}
+>>>>>>> b468f96a5a6bac7453f7dfc2d16bd379d5e65550
