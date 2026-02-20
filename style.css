@@ -1,4 +1,4 @@
-/* style.css - v4.7.6 Desktop Command Center Polish */
+/* style.css - v4.7.7 Desktop Command Center Polish */
 
 /* =========================================
    1. VARIABLES & RESET
@@ -802,3 +802,40 @@ iframe#appFrame.mobile-viewport-mode {
     border-color: #fff;
 }
 
+/* =========================================
+   TABLET PORTRAIT OPTIMIZATION
+   Guarantees Desktop View fits on 10" Tablets
+   ========================================= */
+@media (min-width: 768px) and (max-width: 1024px) {
+    /* 1. Force the side-by-side view and prevent edge overflow */
+    #library-view {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between;
+        width: 100vw;
+        max-width: 100%;
+        overflow-x: hidden;
+        padding: 15px;
+        box-sizing: border-box;
+        gap: 20px;
+    }
+
+    /* 2. Target the Paper/Manual side and let it shrink fluidly */
+    #library-view > div:first-child {
+        flex: 1 1 auto;
+        min-width: 0; /* Critical: Stops the paper from blowing out the screen width */
+        max-width: 65%;
+    }
+
+    /* 3. Target the Book Rack side and give it a safe, strict width */
+    #library-view > div:last-child {
+        flex: 0 0 160px; /* Just enough room for one column of books */
+    }
+
+    /* 4. Force the books into a single vertical column so they don't overlap */
+    .rack-grid, .book-grid {
+        display: grid;
+        grid-template-columns: 1fr !important;
+        gap: 20px;
+    }
+}
