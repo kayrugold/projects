@@ -92,28 +92,18 @@ async function switchPage(section) {
         content = `<div class="item-card"><h3>⚠️ Uplink Offline</h3><p>The archives for '${section}' could not be retrieved. (File Missing)</p></div>`;
     }
     
+    // 1. Inject the content
     const container = document.getElementById('page-content');
     if (container) {
         container.innerHTML = content + globalFooterHTML;
     }
     
+    // 2. Update the active bookmark visually
     document.querySelectorAll('.bookmark').forEach(b => b.classList.remove('active'));
     const active = document.querySelector(`.bm-${section}`);
     if(active) active.classList.add('active');
 
-    if (section === 'ravens') {
-        const gridContainer = document.getElementById('streak-grid');
-        if (gridContainer) {
-            gridContainer.innerHTML = generateGrid();
-        }
-    }
-    
-            const mainContentArea = document.getElementById('page-content');
-    if (mainContentArea) {
-        mainContentArea.innerHTML = content + globalFooterHTML;
-    }
-    
-    // NEW: Kickstart scripts for specific pages
+    // 3. Kickstart scripts for specific pages (like The Rookery)
     if (section === 'ravens') {
         const gridContainer = document.getElementById('streak-grid');
         if (gridContainer) {
@@ -321,6 +311,49 @@ function playPageSound() {
     noise.start();
 }
 
+function playBellowsSound() {
+    if (!audioCtx) initAudio(); 
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    // 1. Create a 2.5-second burst of white noise (longer, heavier whoosh)
+    const duration = 2.5;
+    const bufferSize = audioCtx.sampleRate * duration; 
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) { 
+        data[i] = Math.random() * 2 - 1; 
+    }
+    
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    // 2. Shape the sound (Longer, deeper sweep)
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass'; 
+    const now = audioCtx.currentTime;
+    
+    // Start with a deeper rumble, push to a heavy whoosh, then slowly exhale
+    filter.frequency.setValueAtTime(50, now);
+    filter.frequency.exponentialRampToValueAtTime(1000, now + 0.4); // Slower, heavier push
+    filter.frequency.exponentialRampToValueAtTime(50, now + duration); // Long, drawn-out fade
+
+    // 3. Control the volume envelope (Sustained release)
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.6, now + 0.3);  // Swell up slightly slower
+    gain.gain.exponentialRampToValueAtTime(0.01, now + duration); // Bleed out over 2.5 seconds
+
+    // Wire it up and fire
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    noise.start(now);
+    noise.stop(now + duration);
+}
+
+
+
 function toggleSound() {
     if (!audioCtx) initAudio();
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -473,10 +506,11 @@ async function fetchCargo() {
         if (!response.ok) throw new Error('Cargo manifest missing');
         const cargoItems = await response.json();
 
-        let html = `<h1 class="page-title">The Cargo Bay</h1>
-                    <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid #10b981; transform:none;">
-                        <p style="font-style: italic; line-height: 1.6; margin:0; font-size: 1.1rem;">
-                            Physical provisions for the modern forger. Shipped directly from the trading post to your door.
+                let html = `<h1 class="page-title">The Cargo Bay</h1>
+                    <div class="item-card" style="margin-bottom: 30px; border-left: 4px solid #d97706; transform:none;">
+                        <p style="line-height: 1.6; margin:0; font-size: 1.05rem;">
+                            <strong>Physical provisions for the road and the desk.</strong><br><br>
+                            In the spirit of full transparency: I'm a solo developer, not a warehouse. To keep this operation lean, I use a professional print-on-demand network. When you acquire gear here, you'll be routed to my creator storefront to check out. They custom-print the item and ship it straight to you. It ensures high quality without the overhead, and every order directly supports the studio. Thanks for riding with the fleet.
                         </p>
                     </div>
                     <div id="cargoList" class="gallery-grid masonry-mode">`;
@@ -1001,14 +1035,16 @@ async function initRookeryBeacon() {
     }
 }
 
-/* Menu subcats addition *///////
-// Add this to app.js
+// ==========================================
+// 9. DYNAMIC DIRECTORY NAVIGATION
+// ==========================================
+
 function toggleCategory(id) {
-    playPageSound();
+    if (typeof playPageSound === 'function') playPageSound();
     const subMenu = document.getElementById(id);
     const allSubs = document.querySelectorAll('.drawer-sub-menu');
     
-    // Optional: Close other categories when one opens
+    // Close other categories when one opens to keep the drawer tidy
     allSubs.forEach(sub => {
         if (sub.id !== id) sub.classList.remove('open');
     });
@@ -1016,36 +1052,50 @@ function toggleCategory(id) {
     subMenu.classList.toggle('open');
 }
 
-// Add this to app.js
 async function populateDirectory() {
     const categories = [
         { id: 'forge-menu', url: './forge/forge_manifest.json', type: 'project' },
         { id: 'ledger-menu', url: './market/market_manifest.json', type: 'project' },
-        { id: 'cargo-menu', url: './market/cargo_manifest.json', type: 'link' },
+        { id: 'cargo-menu', url: './market/cargo_manifest.json', type: 'cargo' },
         { id: 'chronicles-menu', url: './thechronicles/journal_manifest.json', type: 'journal' }
     ];
 
     for (const cat of categories) {
         try {
-            const res = await fetch(getVersionedAsset(cat.url));
+            // Safe fallback just in case config.js loads late
+            const fetchUrl = typeof getVersionedAsset === 'function' ? getVersionedAsset(cat.url) : cat.url;
+            const res = await fetch(fetchUrl);
             if (!res.ok) continue;
+            
             const items = await res.json();
             const menu = document.getElementById(cat.id);
             
-            menu.innerHTML = items.slice(0, 8).map(item => { // Limit to 8 to keep it tidy
-                if (cat.type === 'project') {
-                    return `<a href="#" onclick="openProjectPage('${item.projectPage}', event); toggleHamburger()">+ ${item.title}</a>`;
-                } else if (cat.type === 'journal') {
-                    return `<a href="#" onclick="openJournalEntry('${item.id}'); toggleHamburger()">+ ${item.title}</a>`;
-                } else {
-                    return `<a href="#" onclick="openBook('cargo'); toggleHamburger()">+ ${item.title}</a>`;
-                }
-            }).join('');
+            if (menu) {
+                // Limit to 8 items to keep the sidebar from becoming a mile long
+                menu.innerHTML = items.slice(0, 8).map(item => {
+                    if (cat.type === 'project') {
+                        return `<a href="#" onclick="openProjectPage('${item.projectPage}', event); toggleHamburger()">+ ${item.title}</a>`;
+                    } else if (cat.type === 'journal') {
+                        return `<a href="#" onclick="openJournalEntry('${item.id}'); toggleHamburger()">+ ${item.title}</a>`;
+                    } else if (cat.type === 'cargo') {
+                        // If the item has a dedicated page, route directly to it
+                        if (item.projectPage) {
+                            return `<a href="#" onclick="openProjectPage('${item.projectPage}', event); toggleHamburger()">+ ${item.title}</a>`;
+                        } 
+                        // Otherwise, fallback to opening the main Cargo Bay
+                        else {
+                            return `<a href="#" onclick="openBook('cargo'); toggleHamburger()">+ ${item.title}</a>`;
+                        }
+                    }
+
+                    return '';
+                }).join('');
+            }
         } catch (e) {
             console.warn(`Directory sync failed for ${cat.id}`, e);
         }
     }
 }
 
-// Ensure it runs on load
+// Fire the engines on load
 document.addEventListener('DOMContentLoaded', populateDirectory);

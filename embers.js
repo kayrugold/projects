@@ -1,4 +1,4 @@
-/* embers.js - v2.1 Global Studio Fire Particles */
+/* embers.js - v2.2 Global Studio Fire Particles */
 
 (function() {
     // 1. Automatically create and inject the canvas
@@ -87,4 +87,33 @@
     }
     
     animate();
+    
+    // 5. THE BELLOWS MECHANIC (Exposed to global window)
+    window.flareEmbers = function() {
+        // 1. Give existing embers a massive boost in speed, size, and heat (yellow/white)
+        particles.forEach(p => {
+            p.speedY = -(Math.random() * 6 + 4); // Shoot upwards
+            p.speedX = (Math.random() - 0.5) * 5; // Spread horizontally
+            p.hue = Math.floor(Math.random() * 20 + 40); // Shift to white-hot yellow
+            p.size = Math.random() * 3 + 2; // Swell in size
+            p.opacity = 1; 
+        });
+
+        // 2. Temporarily spawn 20 extra sparks for a burst effect
+        for(let i = 0; i < 20; i++) {
+            let p = new Ember();
+            p.reset(false);
+            p.y = height + 10; // Start off-screen at the bottom
+            p.speedY = -(Math.random() * 8 + 5);
+            p.hue = 45; 
+            particles.push(p);
+        }
+
+        // 3. Clean up the extra sparks after 1.5 seconds to save battery/GPU
+        setTimeout(() => {
+            if (particles.length > 45) {
+                particles.splice(45); 
+            }
+        }, 1500);
+    };
 })();

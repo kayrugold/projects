@@ -13,7 +13,7 @@
 
     <script src="config.js"></script>
     
-    <link rel="stylesheet" href="style.css?v=4.7.3">
+    <link rel="stylesheet" href="style.css?v=4.7.6">
 </head>
 <body>
 
@@ -63,17 +63,12 @@
             <button class="icon-btn" onclick="toggleHamburger()" style="border-color:#fff;">X</button>
         </div>
         
-<div class="drawer-header">
-    <span style="font-family:'Share Tech Mono', monospace; font-weight:bold; color:var(--gold); font-size: 1.2rem;">DIRECTORY</span>
-    <button class="icon-btn" onclick="toggleHamburger()" style="border-color:#fff;">X</button>
-</div>
+        <a href="#" class="drawer-link" onclick="goHome(); toggleHamburger()">The Field Desk (Home)</a>    
 
-<a href="#" class="drawer-link" onclick="goHome(); toggleHamburger()">The Field Desk (Home)</a>    
-
-<div class="drawer-category">
-    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('forge-menu')">The Forge <span class="toggle-arrow">▼</span></a>
-    <div id="forge-menu" class="drawer-sub-menu"></div>
-</div>
+        <div class="drawer-category">
+            <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('forge-menu')">The Forge <span class="toggle-arrow">▼</span></a>
+            <div id="forge-menu" class="drawer-sub-menu"></div>
+        </div>
 
 <div class="drawer-category">
     <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('ledger-menu')">The Ledger <span class="toggle-arrow">▼</span></a>
@@ -248,8 +243,10 @@ function initLattice(bounds) {
                         <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
                         <div class="merch-badge">APPAREL</div>
                     </div>
-                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')" title="Factor Hunter Official Tee">
-                        <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+                    
+                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26934153/eulers-identity-t-shirt-ei10-math-geek-tee', '_blank')" title="Euler's CC Collection">
+                        <img src="./products/EulersCC/graphite1_x9.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+                        
                         <div class="merch-badge">APPAREL</div>
                     </div>
                     <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')" title="Factor Hunter Official Tee">
@@ -347,6 +344,27 @@ function initLattice(bounds) {
 
     <script src="app.js"></script>
     <script src="embers.js"></script>
+
+    <div class="bellows-btn" onclick="pumpBellows()" title="Stoke the Forge">
+        💨
+    </div>
+
+    <script>
+        function pumpBellows() {
+            // 1. Visual button squash
+            const btn = document.querySelector('.bellows-btn');
+            if(btn) {
+                btn.classList.add('pumping');
+                setTimeout(() => btn.classList.remove('pumping'), 150);
+            }
+            
+            // 2. Trigger the Audio API
+            if(typeof playBellowsSound === 'function') playBellowsSound();
+            
+            // 3. Trigger the Canvas Physics
+            if(typeof flareEmbers === 'function') flareEmbers();
+        }
+    </script>
 
     <script>
         // TEAR AWAY LOGIC

@@ -2,67 +2,24 @@
   {
     "id": "factor-hunter-shirt",
     "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+    "description": "High-quality cotton tee featuring the Ink on Parchment design. Forged for comfort.",
     "price": "$24.99",
     "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
     "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
     "buttonText": "VIEW GEAR",
-    "icon": "👕",
+    "icon": "[+]",
     "type": "Apparel"
   },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
+  {
+    "id": "eulers-cc-gear",
+    "title": "Euler's CC Collection",
+    "description": "Official Euler's CC apparel. The mathematics of the road, printed on high-quality fabric.",
     "price": "$24.99",
-    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
-    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
-    "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
-  },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
-    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
-    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
-    "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
-  },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
-    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
-    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
-    "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
-  },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
-    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
-    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
-    "buttonText": "VIEW GEAR",
-    "icon": "👕",
-    "type": "Apparel"
-  },
-    {
-    "id": "factor-hunter-shirt",
-    "title": "Factor Hunter Official Tee",
-    "description": "High-quality cotton tee featuring the 'Ink on Parchment' Factor Hunter design. Forged for comfort.",
-    "price": "$24.99",
-    "image": "./products/merch_shirt_factor/merch_shirt_factor.webp",
-    "action": "window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')",
-    "buttonText": "VIEW GEAR",
-    "icon": "👕",
+    "image": "./products/EulersCC/graphite1_x9.webp",
+    "action": "window.open('https://andys-dev-studio.printify.me/product/26934153/eulers-identity-t-shirt-ei10-math-geek-tee', '_blank')",
+    "projectPage": "./market/productentries/eulers-cc.html",
+    "buttonText": "VIEW STORE",
+    "icon": "[+]",
     "type": "Apparel"
   }
 ]

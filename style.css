@@ -1,4 +1,4 @@
-/* style.css - v4.7.3 Desktop Command Center Polish */
+/* style.css - v4.7.6 Desktop Command Center Polish */
 
 /* =========================================
    1. VARIABLES & RESET
@@ -696,36 +696,71 @@ iframe#appFrame.mobile-viewport-mode {
     display: block !important;
 }
 
-/* Sidebar Accordion Styling */
+/* =========================================
+   15. SIDEBAR ACCORDION & DIRECTORY
+   ========================================= */
+
+/* The Drawer Background */
+.nav-drawer {
+    background: rgba(10, 10, 10, 0.95); 
+    backdrop-filter: blur(8px); 
+    width: 320px; 
+}
+
+/* Category Headers */
+.category-toggle {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 15px !important; 
+}
+
+/* The Sub-Menu Container */
 .drawer-sub-menu {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease-out;
-    background: rgba(0, 0, 0, 0.2);
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #0a0a0a; 
     display: flex;
     flex-direction: column;
 }
 
 .drawer-sub-menu.open {
-    max-height: 500px; /* Large enough to hold the list */
-    border-left: 2px solid var(--gold);
+    max-height: 500px; 
+    border-left: 3px solid var(--gold);
     margin-left: 10px;
+    margin-bottom: 10px;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
 }
 
+/* The Sub-Menu Links (Tablet & Desktop Optimized) */
 .drawer-sub-menu a {
-    padding: 10px 20px;
-    color: var(--parchment);
-    text-decoration: none;
+    padding: 16px 20px; 
+    display: flex;
+    align-items: center;
     font-family: 'Share Tech Mono', monospace;
     font-size: 0.9rem;
+    color: var(--gold);
     border-bottom: 1px solid rgba(255,255,255,0.05);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: background 0.2s, padding-left 0.2s;
+    text-decoration: none;
 }
 
 .drawer-sub-menu a:hover {
-    color: var(--gold);
+    color: #fff;
     background: rgba(255,255,255,0.05);
 }
 
+/* Tactile feedback for mobile/tablet */
+.drawer-sub-menu a:active {
+    background: rgba(212, 175, 55, 0.2); 
+    color: #fff;
+    padding-left: 25px; 
+}
+
+/* The Dropdown Arrow Animation */
 .toggle-arrow {
     float: right;
     font-size: 0.7rem;
@@ -736,102 +771,34 @@ iframe#appFrame.mobile-viewport-mode {
     transform: rotate(180deg);
 }
 
-/* style.css - Dynamic Directory Styling */
-.drawer-sub-menu {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    background: #0a0a0a; /* Solid ink feel */
-}
-
-.drawer-sub-menu.open {
-    max-height: 400px; /* Adjust based on content */
-    border-left: 3px solid var(--gold);
-    margin-left: 10px;
-    margin-bottom: 10px;
-    box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
-}
-
-.drawer-sub-menu a {
-    padding: 12px 15px;
-    display: block;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.85rem;
-    color: var(--gold);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    text-transform: uppercase;
-}
-
-.drawer-sub-menu a:active {
-    background: var(--gold);
-    color: #000;
-}
-
-/* style.css - Tablet Optimized Navigation */
-.drawer-sub-menu a {
-    padding: 16px 20px; /* Increased height for easier tapping */
+/* =========================================
+   THE FORGE BELLOWS
+   ========================================= */
+.bellows-btn {
+    position: fixed;
+    bottom: 25px;
+    left: 25px; /* Sits opposite of your right-side bookmarks */
+    width: 55px;
+    height: 55px;
+    background: rgba(10, 10, 10, 0.8);
+    border: 1px solid var(--gold);
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 0.9rem;
-    color: var(--gold);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: background 0.2s;
+    justify-content: center;
+    font-size: 1.8rem;
+    cursor: pointer;
+    z-index: 90; /* Floats above the canvas */
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
+    user-select: none;
 }
 
-/* Adds a visual highlight when tapped/held on Android */
-.drawer-sub-menu a:active {
-    background: rgba(212, 175, 55, 0.2); 
-    color: #fff;
-    padding-left: 25px; /* Slight horizontal shift gives tactile feedback */
+/* The physical squash animation */
+.bellows-btn:active, .bellows-btn.pumping {
+    transform: scaleY(0.6) scaleX(1.1); /* Squashes down flat and wide */
+    background: rgba(212, 175, 55, 0.2);
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
+    border-color: #fff;
 }
 
-/* Style for the category toggle headers */
-.category-toggle {
-    display: flex !important;
-    justify-content: space-between;
-    align-items: center;
-    padding: 18px 15px !important; /* Larger hit area for the main categories */
-}
-
-// Updated function in app.js
-async function populateDirectory() {
-    const categories = [
-        { id: 'forge-menu', url: './forge/forge_manifest.json', type: 'project' },
-        { id: 'ledger-menu', url: './market/market_manifest.json', type: 'project' },
-        { id: 'cargo-menu', url: './market/cargo_manifest.json', type: 'cargo' },
-        { id: 'chronicles-menu', url: './thechronicles/journal_manifest.json', type: 'journal' }
-    ];
-
-    for (const cat of categories) {
-        try {
-            const res = await fetch(getVersionedAsset(cat.url));
-            if (!res.ok) continue;
-            const items = await res.json();
-            const menu = document.getElementById(cat.id);
-            
-            menu.innerHTML = items.map(item => {
-                // Different actions based on content type
-                if (cat.type === 'project') {
-                    return `<a href="#" onclick="openProjectPage('${item.projectPage}', event); toggleHamburger()">+ ${item.title}</a>`;
-                } else if (cat.type === 'journal') {
-                    return `<a href="#" onclick="openJournalEntry('${item.id}'); toggleHamburger()">+ ${item.title}</a>`;
-                } else if (cat.type === 'cargo') {
-                    // Cargo items usually go to the Cargo Bay list view
-                    return `<a href="#" onclick="openBook('cargo'); toggleHamburger()">+ ${item.title}</a>`;
-                }
-                return '';
-            }).join('');
-        } catch (e) {
-            console.warn(`Directory sync failed for ${cat.id}`, e);
-        }
-    }
-}
-
-.nav-drawer {
-    background: rgba(10, 10, 10, 0.95); /* Solid dark background */
-    backdrop-filter: blur(8px); /* Softens the embers behind the menu */
-    width: 320px; /* Slightly wider for the 10-inch display */
-}
