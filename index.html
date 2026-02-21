@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Andy's Dev Studio - Field Desk</title>
     <meta name="theme-color" content="#1a120b">
     <link rel="manifest" href="manifest.json">
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&family=Share+Tech+Mono&family=Homemade+Apple&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:wght@400;600&family=Share+Tech+Mono&family=Homemade+Apple&display=swap"
+        rel="stylesheet">
 
     <script src="config.js"></script>
-    
+
     <link rel="stylesheet" href="style.css?v=4.7.9">
 </head>
+
 <body>
 
     <canvas id="ember-canvas">
@@ -23,7 +27,9 @@
     <div id="updateOverlay" class="update-overlay" style="display:none;">
         <div class="update-card">
             <h2 style="font-family:'Share Tech Mono', monospace; margin-top:0;">SYSTEM UPDATE</h2>
-            <div class="progress-container"><div id="updateProgress" class="update-progress-fill"></div></div>
+            <div class="progress-container">
+                <div id="updateProgress" class="update-progress-fill"></div>
+            </div>
             <p id="updateStatus">Downloading New Assets...</p>
             <p style="font-size:0.7rem; color:var(--gold);">[ v<span id="ui-version-display">---</span> ]</p>
         </div>
@@ -35,14 +41,17 @@
     </div>
 
     <div id="journalReader" class="journal-reader">
-        <button class="journal-close-btn" onclick="closeJournal()">X CLOSE</button>
-        <div id="journalContent" class="journal-content"></div>
+        <div class="journal-wrapper">
+            <button class="journal-close-btn" onclick="closeJournal()">X CLOSE</button>
+            <div id="journalContent" class="journal-content"></div>
+        </div>
     </div>
 
     <div id="infoModal" class="modal-overlay">
         <div class="info-card">
             <h2 style="font-family:'Share Tech Mono', monospace; margin-top:0;">Andy's Dev Studio</h2>
-            <p style="font-size:0.9rem; margin-bottom:5px;"><strong>Version:</strong> <span id="modal-version-display">---</span></p>
+            <p style="font-size:0.9rem; margin-bottom:5px;"><strong>Version:</strong> <span
+                    id="modal-version-display">---</span></p>
             <p style="font-size:0.9rem; margin-bottom:5px;"><strong>System:</strong> Online</p>
             <p style="font-size:0.9rem; font-style:italic;">"Forged in code, tested on the road."</p>
             <hr style="border:0; border-top:1px dashed #aaa; margin:15px 0;">
@@ -52,57 +61,68 @@
     </div>
 
     <div class="status-bar">
-        <button class="icon-btn" onclick="toggleHamburger()"><span style="font-size:1.4rem; margin-top:-2px;">☰</span></button>
+        <button class="icon-btn" onclick="toggleHamburger()"><span
+                style="font-size:1.4rem; margin-top:-2px;">☰</span></button>
         <h1 class="header-title">Field Desk</h1>
-        <button class="icon-btn" onclick="toggleInfo()"><span style="font-size:1.4rem; margin-top:-2px;">⚙</span></button>
+        <button class="icon-btn" onclick="toggleInfo()"><span
+                style="font-size:1.4rem; margin-top:-2px;">⚙</span></button>
     </div>
 
     <div id="navDrawer" class="nav-drawer">
         <div class="drawer-header">
-            <span style="font-family:'Share Tech Mono', monospace; font-weight:bold; color:var(--gold); font-size: 1.2rem;">DIRECTORY</span>
+            <span
+                style="font-family:'Share Tech Mono', monospace; font-weight:bold; color:var(--gold); font-size: 1.2rem;">DIRECTORY</span>
             <button class="icon-btn" onclick="toggleHamburger()" style="border-color:#fff;">X</button>
         </div>
-        
-        <a href="#" class="drawer-link" onclick="goHome(); toggleHamburger()">The Field Desk (Home)</a>    
+
+        <a href="#" class="drawer-link" onclick="goHome(); toggleHamburger()">The Field Desk (Home)</a>
 
         <div class="drawer-category">
-            <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('forge-menu')">The Forge <span class="toggle-arrow">▼</span></a>
+            <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('forge-menu')">The Forge <span
+                    class="toggle-arrow">▼</span></a>
             <div id="forge-menu" class="drawer-sub-menu"></div>
         </div>
 
-<div class="drawer-category">
-    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('ledger-menu')">The Ledger <span class="toggle-arrow">▼</span></a>
-    <div id="ledger-menu" class="drawer-sub-menu"></div>
-</div>
+        <div class="drawer-category">
+            <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('ledger-menu')">The Ledger <span
+                    class="toggle-arrow">▼</span></a>
+            <div id="ledger-menu" class="drawer-sub-menu"></div>
+        </div>
 
-<div class="drawer-category">
-    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('cargo-menu')">The Cargo Bay <span class="toggle-arrow">▼</span></a>
-    <div id="cargo-menu" class="drawer-sub-menu"></div>
-</div>
+        <div class="drawer-category">
+            <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('cargo-menu')">The Cargo Bay <span
+                    class="toggle-arrow">▼</span></a>
+            <div id="cargo-menu" class="drawer-sub-menu"></div>
+        </div>
 
-<div class="drawer-category">
-    <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('chronicles-menu')">The Chronicles <span class="toggle-arrow">▼</span></a>
-    <div id="chronicles-menu" class="drawer-sub-menu"></div>
-</div>
+        <div class="drawer-category">
+            <a href="#" class="drawer-link category-toggle" onclick="toggleCategory('chronicles-menu')">The Chronicles
+                <span class="toggle-arrow">▼</span></a>
+            <div id="chronicles-menu" class="drawer-sub-menu"></div>
+        </div>
 
-<a href="#" class="drawer-link" onclick="openBook('ravens'); toggleHamburger()">The Rookery</a>
+        <a href="#" class="drawer-link" onclick="openBook('ravens'); toggleHamburger()">The Rookery</a>
 
 
-        <div class="drawer-footer" style="display: flex; justify-content: space-evenly; align-items: center; padding-top: 20px; margin-top: auto; border-top: 1px dashed rgba(212, 175, 55, 0.4);">
-            <button class="icon-btn" id="soundBtn" onclick="toggleSound()" title="Toggle Sound" style="width: 44px; height: 44px;">
+        <div class="drawer-footer"
+            style="display: flex; justify-content: space-evenly; align-items: center; padding-top: 20px; margin-top: auto; border-top: 1px dashed rgba(212, 175, 55, 0.4);">
+            <button class="icon-btn" id="soundBtn" onclick="toggleSound()" title="Toggle Sound"
+                style="width: 44px; height: 44px;">
                 <img id="soundIcon" src="./assets/soundoff.webp" alt="sound" style="width: 24px; height: 24px;">
             </button>
-            <button class="icon-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen" style="width: 44px; height: 44px;">
+            <button class="icon-btn" onclick="toggleFullscreen()" title="Toggle Fullscreen"
+                style="width: 44px; height: 44px;">
                 <img src="./assets/fullscreen.webp" alt="fullscreen" style="width: 24px; height: 24px;">
             </button>
-            <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" class="icon-btn" title="Buy Me A Coffee" style="width: 44px; height: 44px; background: rgba(212, 175, 55, 0.1);">
+            <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" class="icon-btn" title="Buy Me A Coffee"
+                style="width: 44px; height: 44px; background: rgba(212, 175, 55, 0.1);">
                 <img src="./assets/coffee.webp" alt="Coffee" style="width: 28px; height: 28px;">
             </a>
         </div>
     </div>
 
     <div id="library-view" class="field-desk-bg">
-        
+
         <div class="desk-top-section">
             <div class="desk-labels">
                 <div class="label-left">Manual</div>
@@ -110,21 +130,27 @@
             </div>
 
             <div class="desk-main-row">
-                
+
                 <div class="manual-col">
                     <div class="paper-stack-container">
-                        
+
                         <div class="stacked-page" style="--rot: 1.5deg; --dx: 2px; --dy: 3px; z-index: 1;">
                             <div class="page-content-scroll">
                                 <h2 class="manual-title">STUDIO PROTOCOL</h2>
-                                <h3 class="manual-subtitle">Section III</h3>
+                                <h3 class="manual-subtitle">Section III: The Journey</h3>
                                 <div class="manual-entry">
-                                    <h4>The Guild Hall</h4>
-                                    <p>Studio documentation and collective guild records.</p>
+                                    <h4>The Chronicles</h4>
+                                    <p
+                                        style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
+                                        "A feature is just a bug with a good PR team."</p>
+                                    <p>The historian's desk for those following the story. Read the developer logs,
+                                        study detailed patch notes, and follow the archival records of the studio's
+                                        ongoing journey.</p>
                                 </div>
                                 <div class="manual-entry">
-                                    <h4>The Rookery</h4>
-                                    <p>The 14-Day Watch. Alpha testing operations and critical reporting.</p>
+                                    <h4>The Cargo Bay</h4>
+                                    <p>The Quartermaster's physical stash. Requisition provisions, official studio
+                                        apparel, and physical hardware for your own desk.</p>
                                 </div>
                             </div>
                             <div class="tear-hint" onclick="resetPages()">↺ Restack Pages</div>
@@ -133,14 +159,20 @@
                         <div class="stacked-page" style="--rot: -1.2deg; --dx: -2px; --dy: -1px; z-index: 2;">
                             <div class="page-content-scroll">
                                 <h2 class="manual-title">STUDIO PROTOCOL</h2>
-                                <h3 class="manual-subtitle">Section II</h3>
+                                <h3 class="manual-subtitle">Section II: The Knowledge Base</h3>
                                 <div class="manual-entry">
-                                    <h4>The Cargo Bay</h4>
-                                    <p>Physical provisions and hardware for the modern forger.</p>
+                                    <h4>The Guild Hall</h4>
+                                    <p
+                                        style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
+                                        "The best way to learn a system is to break it."</p>
+                                    <p>The educational archive for those who want to know the 'how-to'. Access studio
+                                        documentation, coding tutorials, collective records, and foundational learning
+                                        resources.</p>
                                 </div>
                                 <div class="manual-entry">
-                                    <h4>The Chronicles</h4>
-                                    <p>Developer logs, patch notes, and archival records.</p>
+                                    <h4>The Rookery</h4>
+                                    <p>The 14-Day Watch hub. Dive into alpha testing operations, report critical bugs,
+                                        and communicate directly with the development process.</p>
                                 </div>
                             </div>
                             <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
@@ -148,15 +180,45 @@
 
                         <div class="stacked-page" style="--rot: 0.5deg; z-index: 3;">
                             <div class="page-content-scroll">
-                                <h2 class="manual-title">ANDY'S DEV STUDIO</h2>
-                                <h3 class="manual-subtitle">Section I</h3>
+                                <h2 class="manual-title">STUDIO PROTOCOL</h2>
+                                <h3 class="manual-subtitle">Section I: The Software</h3>
                                 <div class="manual-entry">
                                     <h4>The Forge</h4>
-                                    <p>Experimental prototypes and architectural assessments. Target area.</p>
+                                    <p
+                                        style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
+                                        "If it compiles on the first try, be suspicious."</p>
+                                    <p>The active development zone for users who came for the programs. Access
+                                        experimental prototypes, active game builds, and architectural tech demos.</p>
                                 </div>
                                 <div class="manual-entry">
                                     <h4>The Ledger</h4>
-                                    <p>Secure transactions, asset packs, and verified tools.</p>
+                                    <p>The secure mercantile exchange. Download verified digital assets, premium utility
+                                        packs, and finalized software releases.</p>
+                                </div>
+                            </div>
+                            <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
+                        </div>
+
+                        <div class="stacked-page" style="--rot: -0.8deg; z-index: 4;">
+                            <div class="page-content-scroll">
+                                <h2 class="manual-title">ANDY'S DEV STUDIO</h2>
+                                <h3 class="manual-subtitle">Welcome to the Field Desk</h3>
+                                <div class="manual-entry">
+                                    <h4>The Concept</h4>
+                                    <p
+                                        style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
+                                        "Code is just logic until you give it a purpose."</p>
+                                    <p>Forged in code, tested on the road. This is my live workbench—a digital field
+                                        desk where ideas become prototypes, and prototypes become tools. Whether you're
+                                        here to download software, learn how it's built, or follow the journey, you're
+                                        in the right place.</p>
+                                </div>
+                                <div class="manual-entry">
+                                    <h4>Join the Watch</h4>
+                                    <p>Want to shape the next build or talk shop? Join the 14-Day Watch in <strong>The
+                                            Rookery</strong> for alpha testing, or connect with the community in our
+                                        <strong>Discord</strong> (pinned to the corkboard below).
+                                    </p>
                                 </div>
                             </div>
                             <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
@@ -168,12 +230,18 @@
                 <div class="mag-col">
                     <div class="mag-scroll-area">
                         <div class="mag-list">
-                            <img src="./assets/forgemag.webp" alt="The Forge" class="mag-img" onclick="openBook('forge')">
-                            <img src="./assets/ledgermag.webp" alt="The Ledger" class="mag-img" onclick="openBook('market')">
-                            <img src="./assets/cargobaymag.webp" alt="The Cargo Bay" class="mag-img" onclick="openBook('cargo')">
-                            <img src="./assets/chroniclesmag.webp" alt="The Chronicles" class="mag-img" onclick="openBook('chronicles')">
-                            <img src="./assets/guildmag.webp" alt="The Guild Hall" class="mag-img" onclick="openBook('guild')">
-                            <img src="./assets/rookerymag.webp" alt="The Rookery" class="mag-img" onclick="openBook('ravens')">
+                            <img src="./assets/forgemag.webp" alt="The Forge" class="mag-img"
+                                onclick="openBook('forge')">
+                            <img src="./assets/ledgermag.webp" alt="The Ledger" class="mag-img"
+                                onclick="openBook('market')">
+                            <img src="./assets/cargobaymag.webp" alt="The Cargo Bay" class="mag-img"
+                                onclick="openBook('cargo')">
+                            <img src="./assets/chroniclesmag.webp" alt="The Chronicles" class="mag-img"
+                                onclick="openBook('chronicles')">
+                            <img src="./assets/guildmag.webp" alt="The Guild Hall" class="mag-img"
+                                onclick="openBook('guild')">
+                            <img src="./assets/rookerymag.webp" alt="The Rookery" class="mag-img"
+                                onclick="openBook('ravens')">
                         </div>
                     </div>
                 </div>
@@ -189,7 +257,7 @@
         </div>
 
         <div class="desk-extended-area">
-            
+
             <div class="field-monitor">
                 <div class="monitor-bezel">
                     <div class="monitor-header">
@@ -199,95 +267,143 @@
                         </span>
                     </div>
                     <div class="monitor-screen">
-                        <iframe src="https://www.youtube.com/embed/ivFaQqbYdls?si=12345" title="Andy's Dev Studio Broadcast" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        <iframe src="https://www.youtube.com/embed/ivFaQqbYdls?si=12345"
+                            title="Andy's Dev Studio Broadcast"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen></iframe>
                     </div>
                 </div>
             </div>
-                
+
             <div class="field-blueprint">
                 <div class="bp-header">
                     <span>THE_FORGE // PROTOTYPES</span>
                     <span style="font-size: 0.8rem; opacity: 0.7;">v4.6.2</span>
                 </div>
-                
-                <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; color: rgba(255,255,255,0.8); margin: 0 0 15px 0; line-height: 1.4;">
+
+                <p
+                    style="font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; color: rgba(255,255,255,0.8); margin: 0 0 15px 0; line-height: 1.4;">
                     // Current Focus: Gnomonicus Lattice<br>
                     // Status: Experimental
                 </p>
 
-                <div style="border: 1px solid rgba(255,255,255,0.3); padding: 5px; margin-bottom: 15px; background: rgba(0,0,0,0.2);">
-                    <img src="./assets/entry_gnomonicus.webp" alt="Gnomonicus" style="width: 100%; height: auto; display: block; mix-blend-mode: luminosity; opacity: 0.9;" onerror="this.outerHTML='<div style=\'padding: 20px; text-align: center; color: rgba(255,255,255,0.5); font-family: monospace;\'>[IMAGE RENDER ERROR]</div>'">
+                <div
+                    style="border: 1px solid rgba(255,255,255,0.3); padding: 5px; margin-bottom: 15px; background: rgba(0,0,0,0.2);">
+                    <img src="./assets/entry_gnomonicus.webp" alt="Gnomonicus"
+                        style="width: 100%; height: auto; display: block; mix-blend-mode: luminosity; opacity: 0.9;"
+                        onerror="this.outerHTML='<div style=\'padding: 20px; text-align: center; color: rgba(255,255,255,0.5); font-family: monospace;\'>[IMAGE RENDER ERROR]</div>'">
                 </div>
 
                 <div class="bp-code" style="margin-bottom: 20px; font-size: 0.75rem; color: rgba(255,255,255,0.6);">
-function initLattice(bounds) {
-  if (detectMeshOverlap(bounds)) {
-    triggerCollapse();
-  }
-}
+                    function initLattice(bounds) {
+                    if (detectMeshOverlap(bounds)) {
+                    triggerCollapse();
+                    }
+                    }
                 </div>
 
-                <button onclick="openBook('forge')" class="forge-btn" style="background: #fff; color: #0d47a1; border: 2px solid #fff; font-size: 1rem; width: 100%; margin: 0 auto; position: relative; z-index: 5; display: block; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
+                <button onclick="openBook('forge')" class="forge-btn"
+                    style="background: #fff; color: #0d47a1; border: 2px solid #fff; font-size: 1rem; width: 100%; margin: 0 auto; position: relative; z-index: 5; display: block; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.4);">
                     ENTER THE FORGE
                 </button>
             </div>
 
             <div class="prop-crate">
                 <div class="crate-tag">QUARTERMASTER'S STASH</div>
-                <p style="color: rgba(255,255,255,0.7); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 10px 0 5px 0; position: relative; z-index: 5; text-transform: uppercase; letter-spacing: 1px;">
+                <p
+                    style="color: rgba(255,255,255,0.7); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 10px 0 5px 0; position: relative; z-index: 5; text-transform: uppercase; letter-spacing: 1px;">
                     Official Studio Provisions
                 </p>
 
-                <div class="crate-items" id="cargoSlider">
-                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')" title="Factor Hunter Official Tee">
-                        <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
-                        <div class="merch-badge">APPAREL</div>
+                <div class="slider-container">
+                    <button class="slider-arrow slider-arrow-left" onclick="scrollSlider('cargoSlider', -1)"
+                        aria-label="Scroll left" title="Scroll left">◂</button>
+                    <div class="crate-items" id="cargoSlider">
+                        <div class="merch-item"
+                            onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')"
+                            title="Factor Hunter Official Tee">
+                            <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee"
+                                style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;"
+                                onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+                            <div class="merch-badge">APPAREL</div>
+                        </div>
+
+                        <div class="merch-item"
+                            onclick="window.open('https://andys-dev-studio.printify.me/product/26934153/eulers-identity-t-shirt-ei10-math-geek-tee', '_blank')"
+                            title="Euler's CC Collection">
+                            <img src="./products/EulersCC/graphite1_x9.webp" alt="Factor Hunter Tee"
+                                style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;"
+                                onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+
+                            <div class="merch-badge">APPAREL</div>
+                        </div>
+                        <div class="merch-item"
+                            onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')"
+                            title="Factor Hunter Official Tee">
+                            <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee"
+                                style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;"
+                                onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
+                            <div class="merch-badge">APPAREL</div>
+                        </div>
+                        <div
+                            style="flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 40px; color: rgba(255,255,255,0.3); font-size: 1.5rem;">
+                            👉</div>
                     </div>
-                    
-                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26934153/eulers-identity-t-shirt-ei10-math-geek-tee', '_blank')" title="Euler's CC Collection">
-                        <img src="./products/EulersCC/graphite1_x9.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
-                        
-                        <div class="merch-badge">APPAREL</div>
-                    </div>
-                    <div class="merch-item" onclick="window.open('https://andys-dev-studio.printify.me/product/26691699', '_blank')" title="Factor Hunter Official Tee">
-                        <img src="./products/merch_shirt_factor/merch_shirt_factor.webp" alt="Factor Hunter Tee" style="width: 80%; height: auto; object-fit: contain; margin-bottom: 15px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8));\'>👕</div>'">
-                        <div class="merch-badge">APPAREL</div>
-                    </div>
-                    <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: 40px; color: rgba(255,255,255,0.3); font-size: 1.5rem;">👉</div>
+                    <button class="slider-arrow slider-arrow-right" onclick="scrollSlider('cargoSlider', 1)"
+                        aria-label="Scroll right" title="Scroll right">▸</button>
                 </div>
 
-                <button onclick="openBook('cargo')" class="forge-btn" style="background: var(--gold); color: #000; border: 2px solid #000; font-size: 1rem; width: 100%; max-width: 280px; margin: 0 auto; position: relative; z-index: 5; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.6);">
+                <button onclick="openBook('cargo')" class="forge-btn"
+                    style="background: var(--gold); color: #000; border: 2px solid #000; font-size: 1rem; width: 100%; max-width: 280px; margin: 0 auto; position: relative; z-index: 5; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.6);">
                     ACCESS CARGO BAY
                 </button>
             </div>
 
             <div class="prop-ledger">
                 <div class="ledger-tag">THE LEDGER</div>
-                <p style="color: rgba(255,255,255,0.7); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 10px 0 5px 0; position: relative; z-index: 5; text-transform: uppercase; letter-spacing: 1px;">
+                <p
+                    style="color: rgba(255,255,255,0.7); font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; margin: 10px 0 5px 0; position: relative; z-index: 5; text-transform: uppercase; letter-spacing: 1px;">
                     Verified Digital Assets
                 </p>
 
-                <div class="ledger-items" id="marketSlider">
-                    <div class="digital-item" onclick="openProjectPage('./market/projects/win-dev-pack.html', event)" title="Win Dev Utility Pack">
-                        <img src="./assets/devpack.webp" alt="Win Dev Pack" style="width: 70%; height: 70%; object-fit: contain; margin-bottom: 20px;" onerror="this.outerHTML='<div style=\'font-size: 3.5rem; margin-bottom: 20px;\'>📦</div>'">
-                        <div class="digital-badge">UTILITY PACK</div>
+                <div class="slider-container">
+                    <button class="slider-arrow slider-arrow-left" onclick="scrollSlider('marketSlider', -1)"
+                        aria-label="Scroll left" title="Scroll left">◂</button>
+                    <div class="ledger-items" id="marketSlider">
+                        <div class="digital-item"
+                            onclick="openProjectPage('./market/projects/win-dev-pack.html', event)"
+                            title="Win Dev Utility Pack">
+                            <img src="./assets/devpack.webp" alt="Win Dev Pack"
+                                style="width: 70%; height: 70%; object-fit: contain; margin-bottom: 20px;"
+                                onerror="this.outerHTML='<div style=\'font-size: 3.5rem; margin-bottom: 20px;\'>📦</div>'">
+                            <div class="digital-badge">UTILITY PACK</div>
+                        </div>
+                        <div class="digital-item" onclick="window.open('https://itch.io', '_blank')"
+                            title="Aether Audio Module">
+                            <div
+                                style="font-size: 3.5rem; margin-bottom: 20px; text-shadow: 0 0 10px rgba(212,175,55,0.5);">
+                                🎵</div>
+                            <div class="digital-badge">AUDIO MODULE</div>
+                        </div>
                     </div>
-                    <div class="digital-item" onclick="window.open('https://itch.io', '_blank')" title="Aether Audio Module">
-                        <div style="font-size: 3.5rem; margin-bottom: 20px; text-shadow: 0 0 10px rgba(212,175,55,0.5);">🎵</div>
-                        <div class="digital-badge">AUDIO MODULE</div>
-                    </div>
+                    <button class="slider-arrow slider-arrow-right" onclick="scrollSlider('marketSlider', 1)"
+                        aria-label="Scroll right" title="Scroll right">▸</button>
                 </div>
 
-                <button onclick="openBook('market')" class="forge-btn" style="background: var(--gold); color: #000; border: 2px solid #000; font-size: 1rem; width: 100%; max-width: 280px; margin: 0 auto; position: relative; z-index: 5; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.6);">
+                <button onclick="openBook('market')" class="forge-btn"
+                    style="background: var(--gold); color: #000; border: 2px solid #000; font-size: 1rem; width: 100%; max-width: 280px; margin: 0 auto; position: relative; z-index: 5; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.6);">
                     ACCESS CATALOG
                 </button>
             </div>
 
             <div class="prop-chronicles">
-                
-                <div id="recent-chronicles-list" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;"></div>
-                
-                <button onclick="openBook('chronicles')" class="forge-btn" style="background: transparent; color: var(--gold); border: 1px dashed var(--gold); font-size: 0.9rem; width: 100%; max-width: 280px; margin: 15px auto 0 auto; display: block;">READ ALL CHRONICLES</button>
+
+                <div id="recent-chronicles-list"
+                    style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px;"></div>
+
+                <button onclick="openBook('chronicles')" class="forge-btn"
+                    style="background: transparent; color: var(--gold); border: 1px dashed var(--gold); font-size: 0.9rem; width: 100%; max-width: 280px; margin: 15px auto 0 auto; display: block;">READ
+                    ALL CHRONICLES</button>
             </div>
 
             <div class="prop-corkboard">
@@ -299,7 +415,7 @@ function initLattice(bounds) {
                     <div style="font-size: 1.5rem; margin-bottom: 5px; color: #107C10;">🎮</div>
                     Xbox
                 </a>
-                <a href="https://discord.gg/9xB92EkBj2" target="_blank" class="social-card">
+                <a href="https://discord.gg/2RtH68T9fn" target="_blank" class="social-card">
                     <div style="font-size: 1.5rem; margin-bottom: 5px; color: #5865F2;">💬</div>
                     Discord
                 </a>
@@ -330,16 +446,32 @@ function initLattice(bounds) {
         </div>
     </div>
 
-    <div id="book-view"><div class="page-content" id="page-content"></div></div>
+    <div id="book-view">
+        <div class="page-content" id="page-content"></div>
+    </div>
 
     <div class="bookmark-container" id="bookmarks" style="display:none;">
-        <div class="bookmark bm-home" onclick="closeBook()"><div class="bookmark-icon"><img src="./assets/icon_home.webp" alt="Home"></div></div>
-        <div class="bookmark bm-forge" onclick="switchPage('forge')"><div class="bookmark-icon"><img src="./assets/icon_forge.webp" alt="Forge"></div></div>
-        <div class="bookmark bm-market" onclick="switchPage('market')"><div class="bookmark-icon"><img src="./assets/icon_market.webp" alt="Market"></div></div>
-        <div class="bookmark bm-cargo" onclick="switchPage('cargo')"><div class="bookmark-icon"><img src="./assets/icon_cargo.webp" alt="Cargo"></div></div>
-        <div class="bookmark bm-chronicles" onclick="switchPage('chronicles')"><div class="bookmark-icon"><img src="./assets/icon_chronicles.webp" alt="Chronicles"></div></div>
-        <div class="bookmark bm-guild" onclick="switchPage('guild')"><div class="bookmark-icon"><img src="./assets/icon_guild.webp" alt="Guild"></div></div>
-        <div class="bookmark bm-ravens" onclick="switchPage('ravens')"><div class="bookmark-icon"><img src="./assets/icon_raven.webp" alt="Rookery"></div></div>
+        <div class="bookmark bm-home" onclick="closeBook()">
+            <div class="bookmark-icon"><img src="./assets/icon_home.webp" alt="Home"></div>
+        </div>
+        <div class="bookmark bm-forge" onclick="switchPage('forge')">
+            <div class="bookmark-icon"><img src="./assets/icon_forge.webp" alt="Forge"></div>
+        </div>
+        <div class="bookmark bm-market" onclick="switchPage('market')">
+            <div class="bookmark-icon"><img src="./assets/icon_market.webp" alt="Market"></div>
+        </div>
+        <div class="bookmark bm-cargo" onclick="switchPage('cargo')">
+            <div class="bookmark-icon"><img src="./assets/icon_cargo.webp" alt="Cargo"></div>
+        </div>
+        <div class="bookmark bm-chronicles" onclick="switchPage('chronicles')">
+            <div class="bookmark-icon"><img src="./assets/icon_chronicles.webp" alt="Chronicles"></div>
+        </div>
+        <div class="bookmark bm-guild" onclick="switchPage('guild')">
+            <div class="bookmark-icon"><img src="./assets/icon_guild.webp" alt="Guild"></div>
+        </div>
+        <div class="bookmark bm-ravens" onclick="switchPage('ravens')">
+            <div class="bookmark-icon"><img src="./assets/icon_raven.webp" alt="Rookery"></div>
+        </div>
     </div>
 
     <script src="app.js"></script>
@@ -353,16 +485,16 @@ function initLattice(bounds) {
         function pumpBellows() {
             // 1. Visual button squash
             const btn = document.querySelector('.bellows-btn');
-            if(btn) {
+            if (btn) {
                 btn.classList.add('pumping');
                 setTimeout(() => btn.classList.remove('pumping'), 150);
             }
-            
+
             // 2. Trigger the Audio API
-            if(typeof playBellowsSound === 'function') playBellowsSound();
-            
+            if (typeof playBellowsSound === 'function') playBellowsSound();
+
             // 3. Trigger the Canvas Physics
-            if(typeof flareEmbers === 'function') flareEmbers();
+            if (typeof flareEmbers === 'function') flareEmbers();
         }
     </script>
 
@@ -370,9 +502,9 @@ function initLattice(bounds) {
         // TEAR AWAY LOGIC
         function tearPage(btnElement) {
             const page = btnElement.closest('.stacked-page');
-            if(page) {
+            if (page) {
                 page.classList.add('torn');
-                if(typeof playPageSound === 'function') playPageSound();
+                if (typeof playPageSound === 'function') playPageSound();
             }
         }
 
@@ -380,7 +512,7 @@ function initLattice(bounds) {
             document.querySelectorAll('.stacked-page.torn').forEach(page => {
                 page.classList.remove('torn');
             });
-            if(typeof playPageSound === 'function') playPageSound();
+            if (typeof playPageSound === 'function') playPageSound();
         }
 
         // Master UI Sync
@@ -394,11 +526,12 @@ function initLattice(bounds) {
         // Hamburger Menu Drawer
         function toggleHamburger() {
             const drawer = document.getElementById('navDrawer');
-            if(drawer) {
+            if (drawer) {
                 drawer.classList.toggle('open');
-                if(typeof playPageSound === 'function') playPageSound(); 
+                if (typeof playPageSound === 'function') playPageSound();
             }
         }
     </script>
 </body>
+
 </html>
