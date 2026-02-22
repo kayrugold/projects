@@ -37,7 +37,7 @@
                 <div class="bounty-target">
                     <div class="bounty-header">
                         <span class="bounty-status">ACTIVE BOUNTY</span>
-                        <span class="bounty-reward">Reward: Hall of Fame</span>
+                        <span class="bounty-reward">Reward: Discord Forge Master Role</span>
                     </div>
                     <h4 class="bounty-name">Memory Leak in the Lattice</h4>
                     <p class="bounty-desc">
@@ -95,27 +95,129 @@
                 </div>
             </div>
 
-        <div class="item-card raven-card plaque-card">
-            <h3 class="forge-title" style="color: #fcd34d !important;">🏆 The Hall of Valor</h3>
-            <p class="log-body" style="font-size: 0.85rem; margin-bottom: 15px;">
-                Honoring the testers who shattered the code and survived the 14-Day Watch. These Ravens hold the elite <strong>Forge Master</strong> role in Discord.
-            </p>
-            
-            <div class="plaque-list">
-                <div class="plaque-entry">
-                    <span class="plaque-name">@FirstRaven</span>
-                    <span class="plaque-deed">Squashed the Gnomon UI Bug</span>
-                </div>
-                <div class="plaque-entry">
-                    <span class="plaque-name">@CodeBreaker</span>
-                    <span class="plaque-deed">Completed the 14-Day Watch</span>
-                </div>
-            </div>
-            
-            <p style="font-size: 0.75rem; color: #52525b; text-align: center; margin-top: 15px; font-style: italic;">
-                Submit valid bug reports to forge your name into the plaque.
-            </p>
+        <div class="item-card raven-card plaque-card" id="watch-board-card">
+    <h3 class="forge-title" style="color: #fcd34d !important;">📡 The Watch Board</h3>
+    <p class="log-body" style="font-size: 0.85rem; margin-bottom: 15px;">
+        Google requires <strong>20 testers</strong> active for <strong>14 continuous days</strong> before an app can go public. This is the mission board. Every recruit matters.
+    </p>
+
+    <!-- Tester Count Progress -->
+    <div style="margin-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+            <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: #a1a1aa; letter-spacing: 2px; text-transform: uppercase;">Tester Roster</span>
+            <span style="font-family: 'Share Tech Mono', monospace; font-size: 1rem; color: #fcd34d;" id="wb-tester-count">0 / 20</span>
         </div>
+        <div style="background: #1a1a1a; border-radius: 2px; height: 8px; overflow: hidden; border: 1px solid #333;">
+            <div id="wb-tester-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #d4af37, #fcd34d); border-radius: 2px; transition: width 1s ease;"></div>
+        </div>
+    </div>
+
+    <!-- Day Progress -->
+    <div style="margin-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+            <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: #a1a1aa; letter-spacing: 2px; text-transform: uppercase;">Watch Duration</span>
+            <span style="font-family: 'Share Tech Mono', monospace; font-size: 1rem; color: #fcd34d;" id="wb-day-count">Day 0 / 14</span>
+        </div>
+        <div style="background: #1a1a1a; border-radius: 2px; height: 8px; overflow: hidden; border: 1px solid #333;">
+            <div id="wb-day-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #374151, #6b7280); border-radius: 2px; transition: width 1s ease;"></div>
+        </div>
+        <p style="font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; color: #52525b; margin: 6px 0 0 0; font-style: italic;" id="wb-day-note">
+            The clock starts when tester quota is met.
+        </p>
+    </div>
+
+    <!-- Status -->
+    <div style="text-align: center; padding: 10px; background: rgba(0,0,0,0.3); border: 1px dashed #333; border-radius: 2px; margin-bottom: 15px;">
+        <span style="font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: #a1a1aa; letter-spacing: 2px; display: block; margin-bottom: 4px;">CURRENT STATUS</span>
+        <span id="wb-status-text" style="font-family: 'Cinzel', serif; font-size: 1rem; color: #fcd34d; font-weight: bold;">RECRUITING</span>
+    </div>
+
+    <!-- CTA -->
+    <p style="font-size: 0.8rem; color: #71717a; text-align: center; margin: 0 0 12px 0; font-style: italic;">
+        Join the Discord. Your name goes on the plaque when the watch is complete.
+    </p>
+    <a href="https://discord.gg/2RtH68T9fn" target="_blank" style="text-decoration: none; display: block;">
+        <button class="raven-btn highlight-btn" style="width: 100%;">⚔️ ENLIST IN THE WATCH</button>
+    </a>
+</div>
+
+<script>
+// ==========================================
+// WATCH BOARD — configuration
+// Update these two numbers manually as
+// your real tester count and day count grow.
+// ==========================================
+(function() {
+    const CURRENT_TESTERS = 0;   // <-- update this
+    const CURRENT_DAY     = 0;   // <-- update this (0 = not started)
+    const TESTER_GOAL     = 20;
+    const DAY_GOAL        = 14;
+
+    // Animate bars in after a short delay so the user sees the fill
+    setTimeout(function() {
+        const testerPct = Math.min((CURRENT_TESTERS / TESTER_GOAL) * 100, 100);
+        const dayPct    = Math.min((CURRENT_DAY / DAY_GOAL) * 100, 100);
+
+        const testerBar = document.getElementById('wb-tester-bar');
+        const dayBar    = document.getElementById('wb-day-bar');
+        const testerCount = document.getElementById('wb-tester-count');
+        const dayCount    = document.getElementById('wb-day-count');
+        const dayNote     = document.getElementById('wb-day-note');
+        const statusText  = document.getElementById('wb-status-text');
+
+        if (testerBar) testerBar.style.width = testerPct + '%';
+        if (dayBar)    dayBar.style.width    = dayPct + '%';
+        if (testerCount) testerCount.textContent = CURRENT_TESTERS + ' / ' + TESTER_GOAL;
+        if (dayCount)    dayCount.textContent    = 'Day ' + CURRENT_DAY + ' / ' + DAY_GOAL;
+
+        // Dynamic tester bar colour — red when critically low, amber mid, gold when full
+        if (testerBar) {
+            if (CURRENT_TESTERS < 5) {
+                testerBar.style.background = 'linear-gradient(90deg, #7f1d1d, #ef4444)';
+            } else if (CURRENT_TESTERS < 15) {
+                testerBar.style.background = 'linear-gradient(90deg, #92400e, #f59e0b)';
+            } else {
+                testerBar.style.background = 'linear-gradient(90deg, #d4af37, #fcd34d)';
+            }
+        }
+
+        // Day bar only glows once the watch is actually running
+        if (dayBar && CURRENT_DAY > 0) {
+            dayBar.style.background = 'linear-gradient(90deg, #1e3a5f, #3b82f6)';
+        }
+
+        // Status label
+        if (statusText) {
+            if (CURRENT_TESTERS >= TESTER_GOAL && CURRENT_DAY >= DAY_GOAL) {
+                statusText.textContent = 'WATCH COMPLETE';
+                statusText.style.color = '#4ade80';
+            } else if (CURRENT_TESTERS >= TESTER_GOAL && CURRENT_DAY > 0) {
+                statusText.textContent = 'WATCH ACTIVE — DAY ' + CURRENT_DAY;
+                statusText.style.color = '#3b82f6';
+            } else if (CURRENT_TESTERS >= TESTER_GOAL) {
+                statusText.textContent = 'QUOTA MET — AWAITING START';
+                statusText.style.color = '#a3e635';
+            } else {
+                statusText.textContent = 'RECRUITING — ' + (TESTER_GOAL - CURRENT_TESTERS) + ' NEEDED';
+                statusText.style.color = '#fcd34d';
+            }
+        }
+
+        // Day note
+        if (dayNote) {
+            if (CURRENT_DAY === 0 && CURRENT_TESTERS < TESTER_GOAL) {
+                dayNote.textContent = 'The clock starts when tester quota is met.';
+            } else if (CURRENT_DAY === 0) {
+                dayNote.textContent = 'Quota met. Watch begins when testers open the app.';
+            } else {
+                const remaining = DAY_GOAL - CURRENT_DAY;
+                dayNote.textContent = remaining + ' day' + (remaining !== 1 ? 's' : '') + ' until the gate clears.';
+            }
+        }
+
+    }, 400);
+})();
+</script>
 
             <div class="item-card raven-card">
                 <h3 class="forge-title">🛠️ QA Arsenal</h3>

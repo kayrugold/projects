@@ -100,7 +100,7 @@
                 <span class="toggle-arrow">▼</span></a>
             <div id="chronicles-menu" class="drawer-sub-menu"></div>
         </div>
-
+    <a href="#" class="drawer-link" onclick="openBook('guild'); toggleHamburger()">The Guild Hall</a>
         <a href="#" class="drawer-link" onclick="openBook('ravens'); toggleHamburger()">The Rookery</a>
 
 
@@ -137,20 +137,17 @@
                         <div class="stacked-page" style="--rot: 1.5deg; --dx: 2px; --dy: 3px; z-index: 1;">
                             <div class="page-content-scroll">
                                 <h2 class="manual-title">STUDIO PROTOCOL</h2>
-                                <h3 class="manual-subtitle">Section III: The Journey</h3>
+                                <h3 class="manual-subtitle">Section IV: Field Directive: Standing Orders</h3>
                                 <div class="manual-entry">
-                                    <h4>The Chronicles</h4>
                                     <p
                                         style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
-                                        "A feature is just a bug with a good PR team."</p>
-                                    <p>The historian's desk for those following the story. Read the developer logs,
-                                        study detailed patch notes, and follow the archival records of the studio's
-                                        ongoing journey.</p>
-                                </div>
-                                <div class="manual-entry">
-                                    <h4>The Cargo Bay</h4>
-                                    <p>The Quartermaster's physical stash. Requisition provisions, official studio
-                                        apparel, and physical hardware for your own desk.</p>
+                                        "This studio runs on three kinds of people, and it needs all of them."</p><br>
+                                    <p>If you came for the code — dig into The Forge. The math is mine, the builds are open, and nothing here is locked behind a paywall or a tutorial funnel. Take what's useful. Break what isn't. Send a raven when you find the edge.</p><br>
+                                    <p>If you came for the story — you're already in it. Every prototype here was sketched at a rest stop, debugged between shifts, and shipped on a prayer and a decent Wi-Fi signal. The Chronicles is where I write it down. Pull up a chair.</p><br>
+                                    <p>If you came to download something — The Ledger has the finished work. No accounts, no subscriptions, no noise. Take it and go build something.</p><br>
+                                    <p>Whoever you are, you're not a visitor here. You're part of the crew.</p><br>
+                                    <p><strong>Now get to work.</strong></p><br>
+                                    <p>— Andy</p>
                                 </div>
                             </div>
                             <div class="tear-hint" onclick="resetPages()">↺ Restack Pages</div>
@@ -159,20 +156,10 @@
                         <div class="stacked-page" style="--rot: -1.2deg; --dx: -2px; --dy: -1px; z-index: 2;">
                             <div class="page-content-scroll">
                                 <h2 class="manual-title">STUDIO PROTOCOL</h2>
-                                <h3 class="manual-subtitle">Section II: The Knowledge Base</h3>
+                                <h3 class="manual-subtitle">Section III: The Community</h3>
                                 <div class="manual-entry">
-                                    <h4>The Guild Hall</h4>
-                                    <p
-                                        style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
-                                        "The best way to learn a system is to break it."</p>
-                                    <p>The educational archive for those who want to know the 'how-to'. Access studio
-                                        documentation, coding tutorials, collective records, and foundational learning
-                                        resources.</p>
-                                </div>
-                                <div class="manual-entry">
-                                    <h4>The Rookery</h4>
-                                    <p>The 14-Day Watch hub. Dive into alpha testing operations, report critical bugs,
-                                        and communicate directly with the development process.</p>
+                                    <p><strong>The Rookery</strong> — The 14-Day Watch. Google requires 12 testers for 14 continuous days before an app can go public. The Rookery is how we clear that gate together. If something is here, I'm asking for your time to help ship it.</p><br>
+                                    <p><strong>The Guild Hall</strong> — The records room. Studio documentation, contact, legal scrolls, and the creator's note. If you want to know who built this and why — start here.</p><br>
                                 </div>
                             </div>
                             <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
@@ -181,19 +168,13 @@
                         <div class="stacked-page" style="--rot: 0.5deg; z-index: 3;">
                             <div class="page-content-scroll">
                                 <h2 class="manual-title">STUDIO PROTOCOL</h2>
-                                <h3 class="manual-subtitle">Section I: The Software</h3>
+                                <h3 class="manual-subtitle">Section II: The Supply Lines</h3>
                                 <div class="manual-entry">
-                                    <h4>The Forge</h4>
                                     <p
                                         style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
-                                        "If it compiles on the first try, be suspicious."</p>
-                                    <p>The active development zone for users who came for the programs. Access
-                                        experimental prototypes, active game builds, and architectural tech demos.</p>
-                                </div>
-                                <div class="manual-entry">
-                                    <h4>The Ledger</h4>
-                                    <p>The secure mercantile exchange. Download verified digital assets, premium utility
-                                        packs, and finalized software releases.</p>
+                                        "If it compiles on the first try, be suspicious."</p><br>
+                                    <p><strong>The Chronicles</strong> — The developer's logbook. Patch notes, build histories, and field dispatches from the road. If you want to know what changed and why, this is where I write it down.</p><br>
+                                    <p><strong>The Cargo Bay</strong> — The quartermaster's stash. Official studio provisions — apparel and physical goods for the desk. If you want to wear the brand or equip your own setup, requisition here.</p><br>
                                 </div>
                             </div>
                             <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
@@ -204,21 +185,14 @@
                                 <h2 class="manual-title">ANDY'S DEV STUDIO</h2>
                                 <h3 class="manual-subtitle">Welcome to the Field Desk</h3>
                                 <div class="manual-entry">
-                                    <h4>The Concept</h4>
                                     <p
                                         style="font-family: 'Homemade Apple', cursive; color: #8b0000; font-size: 0.95rem; margin-bottom: 5px;">
-                                        "Code is just logic until you give it a purpose."</p>
-                                    <p>Forged in code, tested on the road. This is my live workbench—a digital field
-                                        desk where ideas become prototypes, and prototypes become tools. Whether you're
-                                        here to download software, learn how it's built, or follow the journey, you're
-                                        in the right place.</p>
-                                </div>
-                                <div class="manual-entry">
-                                    <h4>Join the Watch</h4>
-                                    <p>Want to shape the next build or talk shop? Join the 14-Day Watch in <strong>The
-                                            Rookery</strong> for alpha testing, or connect with the community in our
-                                        <strong>Discord</strong> (pinned to the corkboard below).
-                                    </p>
+                                        "Code is just logic until you give it a purpose."</p><br>
+                                    <p>By day, I drive trucks across California. By night — after the kids are asleep and the cab is quiet — I build things.</p><br>
+                                    <p>Most of what you see here was written on my phone, one line at a time, at rest stops and bedside tables. The math gets sketched on napkins. The logic gets tested on the road.</p><br>
+                                    <p>This is my live workbench. A place where number theory becomes software, prototypes become tools, and tools — if they survive the forge — become something worth shipping.</p><br>
+                                    <p><b>The Forge</b> — Where raw ideas live. Experimental, rough, sometimes broken. Poke around.</p><br>
+                                    <p><b>The Ledger</b> — Where finished work lands. Verified releases, utility packs, and digital assets ready to download.</p>
                                 </div>
                             </div>
                             <div class="tear-hint" onclick="tearPage(this)">Tear Away ↘</div>
@@ -251,7 +225,7 @@
             <div class="desk-bottom-row">
                 <div class="field-report-note">
                     <h4 class="field-report-title">Field Report</h4>
-                    <p class="field-report-text">Rookery Status: 12/20 Testers</p>
+                    <p class="field-report-text">"The Watch is open. Ravens needed."</p>
                 </div>
             </div>
         </div>
@@ -532,6 +506,77 @@
             }
         }
     </script>
+    
+    <script>
+// ==========================================
+// HASH ROUTER — Deep Link Handler
+// Runs after DOMContentLoaded so all nav
+// functions are available.
+/*
+=======================================================
+CHANGE 2: HASH ROUTER — add before closing </body> tag
+=======================================================
+Add this script block just before the closing </body> tag
+in index.html. It reads the URL hash on load and deep-links
+directly to the right page and card.
+
+Supported hashes:
+  #returnpolicy  → opens Guild Records, scrolls to return policy card
+  #guild         → opens Guild Records
+  #forge         → opens The Forge
+  #ledger        → opens The Ledger
+  #cargo         → opens The Cargo Bay
+  #chronicles    → opens The Chronicles
+  #rookery       → opens The Rookery
+
+Direct link for merchants:
+  https://andysdevstudio.pages.dev/#returnpolicy
+-->
+// ==========================================
+*/
+document.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash.toLowerCase().replace('#', '');
+    if (!hash) return;
+
+    // Map of hash → { section, scrollTo }
+    const routes = {
+        'returnpolicy': { section: 'guild', scrollTo: 'return-policy' },
+        'privacypolicy': { section: 'guild', scrollTo: 'privacy-policy' },
+        'eula': { section: 'guild', scrollTo: 'eula' },
+        'guild':        { section: 'guild', scrollTo: null },
+        'forge':        { section: 'forge', scrollTo: null },
+        'ledger':       { section: 'market', scrollTo: null },
+        'cargo':        { section: 'cargo', scrollTo: null },
+        'chronicles':   { section: 'chronicles', scrollTo: null },
+        'rookery':      { section: 'ravens', scrollTo: null },
+    };
+
+    const route = routes[hash];
+    if (!route) return;
+
+    // Small delay to let the app fully initialise before navigating
+    setTimeout(async function() {
+        await openBook(route.section);
+
+        if (route.scrollTo) {
+            // Poll briefly for the element — it loads via fetch so may not be instant
+            let attempts = 0;
+            const interval = setInterval(function() {
+                const el = document.getElementById(route.scrollTo);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Briefly highlight the card so it's obvious what they landed on
+                    el.style.transition = 'box-shadow 0.4s ease';
+                    el.style.boxShadow = '0 0 0 2px var(--gold)';
+                    setTimeout(() => { el.style.boxShadow = ''; }, 2500);
+                    clearInterval(interval);
+                }
+                if (++attempts > 20) clearInterval(interval);
+            }, 150);
+        }
+    }, 300);
+});
+</script>
 </body>
 
 </html>
