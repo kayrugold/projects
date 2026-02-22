@@ -1,5 +1,5 @@
-// sw.js - Automated Service Worker v4.8.4
-importScripts('config.js'); 
+// sw.js - Automated Service Worker v4.8.7
+importScripts('config.js');
 
 const ASSETS_TO_CACHE = [
   './',
@@ -8,7 +8,7 @@ const ASSETS_TO_CACHE = [
   getVersionedAsset('./app.js'),
   getVersionedAsset('./embers.js'),
   './manifest.json',
-  
+
   // --- CORE PAGES ---
   './pages/guild.html',
   './pages/rookery.html',
@@ -40,7 +40,7 @@ self.addEventListener('install', (event) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting(); 
+  self.skipWaiting();
 });
 
 // 2. ACTIVATE
@@ -56,13 +56,13 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  self.clients.claim(); 
+  self.clients.claim();
 });
 
 // 3. FETCH
 self.addEventListener('fetch', (event) => {
-  if (event.request.headers.get('accept').includes('text/html') || 
-      event.request.url.includes('.json')) {
+  if (event.request.headers.get('accept').includes('text/html') ||
+    event.request.url.includes('.json')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
