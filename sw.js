@@ -1,4 +1,4 @@
-// sw.js - Automated Service Worker
+// sw.js - Automated Service Worker v4.8.3
 importScripts('config.js'); 
 
 const ASSETS_TO_CACHE = [
