@@ -509,18 +509,12 @@
     
 <script>
 // HASH ROUTER — Deep Link Handler
-// Runs after DOMContentLoaded so all nav
-// functions are available.
-// ==========================================
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
     const hash = window.location.hash.toLowerCase().replace('#', '');
     if (!hash) return;
 
-    // Map of hash → { section, scrollTo }
     const routes = {
         'returnpolicy': { section: 'guild', scrollTo: 'return-policy' },
-        'privacypolicy': { section: 'guild', scrollTo: 'privacy-policy' },
-        'eula': { section: 'guild', scrollTo: 'eula' },
         'guild':        { section: 'guild', scrollTo: null },
         'forge':        { section: 'forge', scrollTo: null },
         'ledger':       { section: 'market', scrollTo: null },
@@ -532,18 +526,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const route = routes[hash];
     if (!route) return;
 
-    // Small delay to let the app fully initialise before navigating
     setTimeout(async function() {
         await openBook(route.section);
 
         if (route.scrollTo) {
-            // Poll briefly for the element — it loads via fetch so may not be instant
             let attempts = 0;
             const interval = setInterval(function() {
                 const el = document.getElementById(route.scrollTo);
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    // Briefly highlight the card so it's obvious what they landed on
                     el.style.transition = 'box-shadow 0.4s ease';
                     el.style.boxShadow = '0 0 0 2px var(--gold)';
                     setTimeout(() => { el.style.boxShadow = ''; }, 2500);
