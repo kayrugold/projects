@@ -16,7 +16,7 @@
 
     <script src="config.js"></script>
 
-    <link rel="stylesheet" href="style.css?v=4.8.3">
+    <link rel="stylesheet" href="style.css?v=4.8.4">
 </head>
 
 <body>
@@ -507,33 +507,11 @@
         }
     </script>
     
-    <script>
-// ==========================================
+<script>
 // HASH ROUTER — Deep Link Handler
 // Runs after DOMContentLoaded so all nav
 // functions are available.
-/*
-=======================================================
-CHANGE 2: HASH ROUTER — add before closing </body> tag
-=======================================================
-Add this script block just before the closing </body> tag
-in index.html. It reads the URL hash on load and deep-links
-directly to the right page and card.
-
-Supported hashes:
-  #returnpolicy  → opens Guild Records, scrolls to return policy card
-  #guild         → opens Guild Records
-  #forge         → opens The Forge
-  #ledger        → opens The Ledger
-  #cargo         → opens The Cargo Bay
-  #chronicles    → opens The Chronicles
-  #rookery       → opens The Rookery
-
-Direct link for merchants:
-  https://andysdevstudio.pages.dev/#returnpolicy
--->
 // ==========================================
-*/
 document.addEventListener('DOMContentLoaded', function() {
     const hash = window.location.hash.toLowerCase().replace('#', '');
     if (!hash) return;

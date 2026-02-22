@@ -1,4 +1,4 @@
-/* app.js - v4.8.3 Master Studio Logic (Journal Fixes) */
+/* app.js - v4.8.4 Master Studio Logic (Journal Fixes) */
 
 // ==========================================
 // 0. GLOBAL VARIABLES
