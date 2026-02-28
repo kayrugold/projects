@@ -1,0 +1,23 @@
+Can you develop this locally on WSL/Ubuntu?
+
+Absolutely, 100% YES.
+
+You are not locked into AI Studio. What we are building here is a completely standard, modern Vite + React + TypeScript application. There is no proprietary AI Studio magic holding it together.
+
+When you are ready to take over locally, here is your exact workflow:
+
+Download the Code: You can download the files from this environment.
+
+Open in WSL: Open the folder in your WSL Ubuntu terminal.
+
+Install Dependencies: Run npm install (this reads the package.json and downloads React, Tailwind, Lucide icons, etc.).
+
+Run the Local Server: Run npm run dev. This will start a local server (usually at http://localhost:5173) where you can see your site and make live edits.
+
+Edit your Chronicles: You would just open src/data/chronicles.ts in VS Code, add your new log entry, and save. The local site will update instantly.
+
+Compile for Production: When you are ready to publish, you run npm run build.
+
+Upload to GitHub: The build command will create a new folder called dist (distribution). That dist folder contains the final, minified HTML, CSS, and JS files. You simply upload the contents of that dist folder to your GitHub repository, and your live website is updated!
+
+If you want, we can keep rapidly prototyping the design and features here in AI Studio, and once you feel the "engine" is fully built, you can download it, take the keys, and drive it locally from your truck using WSL!
