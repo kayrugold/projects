@@ -452,8 +452,52 @@ const TheChroniclesContent = () => {
   );
 };
 
-const TheGuildHallContent = () => (
-  <TerminalSection title="Guild Records" subtitle="The records room. Studio documentation, contact, and legal scrolls.">
+const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
+  <TerminalSection title="The Guild Hall & Records" subtitle="The community hub and studio documentation.">
+    
+    {/* Guild Access - New Section */}
+    <div className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="border border-indigo-500/30 bg-zinc-900/80 p-6 rounded-lg relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
+        <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        <h3 className="text-xl font-bold text-indigo-400 mb-2 flex items-center space-x-2 relative z-10">
+          <MessageSquare className="w-5 h-5" />
+          <span>The Live Feed</span>
+        </h3>
+        <p className="text-sm text-zinc-400 mb-6 relative z-10">
+          Join the Discord server for real-time chat, voice channels, and instant support from the testing guild.
+        </p>
+        <a 
+          href="https://discord.gg/WHhnBXpDSW" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="relative z-10 block w-full py-3 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-bold rounded hover:bg-indigo-500/20 transition-colors text-center"
+        >
+          CONNECT TO NEURAL LINK
+        </a>
+      </div>
+
+      <div className="border border-emerald-500/30 bg-zinc-900/80 p-6 rounded-lg relative overflow-hidden group">
+        <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+        <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        <h3 className="text-xl font-bold text-emerald-400 mb-2 flex items-center space-x-2 relative z-10">
+          <BookOpen className="w-5 h-5" />
+          <span>The Async Archive</span>
+        </h3>
+        <p className="text-sm text-zinc-400 mb-6 relative z-10">
+          Access the developer's logbook. Patch notes, field reports, and video dispatches from the road.
+        </p>
+        <button 
+          onClick={() => onNavigate('chronicles')}
+          className="relative z-10 block w-full py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold rounded hover:bg-emerald-500/20 transition-colors text-center"
+        >
+          ACCESS LOGBOOKS
+        </button>
+      </div>
+    </div>
+
     <div className="columns-1 lg:columns-2 gap-6">
       
       {/* Send a Raven */}
@@ -977,11 +1021,11 @@ export default function App() {
   };
 
   const handleLaunchApp = (url: string) => {
-    // Convert relative URLs to point to the GitHub Pages site
-    // e.g., './apps/factorhunter0.0.0.html' -> 'https://kayrugold.github.io/projects/apps/factorhunter0.0.0.html'
+    // Use relative URLs directly, allowing them to work on any host (Cloudflare, localhost, etc.)
+    // The 'apps' folder must be present in the 'public' directory for this to work.
     let finalUrl = url;
     if (url.startsWith('./')) {
-      finalUrl = `https://kayrugold.github.io/projects/${url.substring(2)}`;
+      finalUrl = url.substring(2); // Remove './' to make it relative to root, e.g., 'apps/factorhunter...'
     }
     setLaunchedAppUrl(finalUrl);
   };
@@ -1133,7 +1177,7 @@ export default function App() {
       case 'ledger': return <TheLedgerContent />;
       case 'cargo-bay': return <TheCargoBayContent />;
       case 'chronicles': return <TheChroniclesContent />;
-      case 'guild-hall': return <TheGuildHallContent />;
+      case 'guild-hall': return <TheGuildHallContent onNavigate={handleTabChange} />;
       case 'rookery': return <TheRookeryContent />;
       default: return <FieldDeskContent onNavigate={handleTabChange} />;
     }
@@ -1319,6 +1363,24 @@ export default function App() {
           {renderContent()}
         </main>
       </div>
+
+      {/* Footer */}
+      <footer className="relative z-10 border-t border-zinc-800/50 bg-zinc-950/80 py-8 mt-8">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between text-xs text-zinc-500 font-mono">
+          <div className="flex items-center space-x-2 mb-4 md:mb-0">
+            <Terminal className="w-4 h-4 text-emerald-500" />
+            <span>&copy; {new Date().getFullYear()} Andy's Dev Studio. All rights reserved.</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="flex items-center">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
+              System Online
+            </span>
+            <span className="hidden md:inline">|</span>
+            <span className="hidden md:inline">Forged in code, tested on the road.</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
