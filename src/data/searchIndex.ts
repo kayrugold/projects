@@ -9,6 +9,14 @@ export interface SearchItem {
 
 export const searchIndexData: SearchItem[] = [
   {
+    "id": "andysaudiolooper",
+    "title": "ANDYS AUDIO LOOPER",
+    "description": "A tool for generating infinite, seamless audio loops directly in the browser using the Web Audio API.",
+    "category": "Forge",
+    "url": "javascript:openProjectPage('./forge/projects/andysaudiolooper.html')",
+    "tags": ["Tools", "Web Workers", "Audio", "Looper", "mp3", "Music"]
+  },
+  {
     "id": "factor-hunter-ultimate",
     "title": "FACTOR HUNTER (ULTIMATE)",
     "description": "High-performance number theory engine. Hunt factors using algebraic forms, quadratic reciprocity, and parallel sieves.",

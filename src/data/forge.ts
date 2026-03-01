@@ -193,5 +193,30 @@ export const forgeData: ForgeEntry[] = [
     "buttonText": "VIEW",
     "icon": "🧭",
     "action": "launchApp('./forge/entries/void-compass/index.html')"
+  },
+  {
+    "id": "andysaudiolooper",
+    "title": "ANDY'S AUDIO LOOPER",
+    "description": "Crossfades tracks to create a pretty solid audio loop from any mp3, wav, or ogg.",
+    "longDescription": "A dynamic loop generator that utilizes the Web Audio API to analyze an audio file, calculate the optimal crossfade points based on a target BPM, and generate a perfectly seamless loop. Designed for game developers and audio engineers who need quick, reliable background tracks.",
+    "features": [
+      "Client-Side Processing",
+      "Equal-Power Crossfading",
+      "Standard Web Audio Format Support"
+    ],
+    "tech": [
+      "Web Audio API",
+      "Vanilla JS",
+      "HTML5 Canvas"
+    ],
+    "projectPage": "andysaudiolooper",
+    "type": "Tools",
+    "version": "V1.0",
+    "status": "LIVE",
+    "statusClass": "badge-live",
+    "buttonText": "INITIALIZE",
+    "icon": "🎵",
+    "image": "/assets/andysaudiolooper1.webp",
+    "action": "launchApp('./apps/andysaudiolooper.html')"
   }
 ];

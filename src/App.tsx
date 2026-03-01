@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Twitter, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2 } from 'lucide-react';
+import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Twitter, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2, SkipForward, SkipBack, Play, Pause } from 'lucide-react';
 import { chroniclesData } from './data/chronicles';
 import { cargoData } from './data/cargo';
 import { projectsData } from './data/projects';
@@ -959,7 +959,130 @@ const TheRookeryContent = () => {
   );
 };
 
+declare global {
+  interface Window {
+    launchApp?: (url: string) => void;
+  }
+}
+
+const TerminalPrompt = ({ onCommand }: { onCommand: (cmd: string) => void }) => {
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      onCommand(input.trim());
+      setInput('');
+    }
+  };
+
+  return (
+    <div className="fixed bottom-0 left-0 w-full bg-zinc-950 border-t border-emerald-500/30 p-2 flex items-center font-mono text-sm z-50 shadow-[0_-4px_20px_rgba(16,185,129,0.1)]" onClick={() => inputRef.current?.focus()}>
+      <span className="text-emerald-500 mr-2 ml-4">root@system:~$</span>
+      <input
+        ref={inputRef}
+        type="text"
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        className="bg-transparent border-none outline-none text-zinc-300 flex-1 caret-transparent"
+        autoFocus
+        spellCheck={false}
+      />
+      <span className="animate-pulse w-2 h-4 bg-emerald-500 inline-block ml-1"></span>
+    </div>
+  );
+};
+
+const MediaPlayer = ({ onClose, audioMode, setAudioMode, isMusicOn, toggleMusic }: { onClose: () => void, audioMode: string, setAudioMode: (mode: 'file' | 'procedural') => void, isMusicOn: boolean, toggleMusic: () => void }) => {
+  const [currentTrack, setCurrentTrack] = useState(audio.getCurrentTrack());
+
+  // Update track name periodically in case it changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTrack(audio.getCurrentTrack());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleNext = () => {
+    audio.nextTrack();
+    setCurrentTrack(audio.getCurrentTrack());
+  };
+
+  const handlePrev = () => {
+    audio.prevTrack();
+    setCurrentTrack(audio.getCurrentTrack());
+  };
+
+  return (
+    <div className="fixed top-4 right-4 w-72 bg-zinc-900 border border-zinc-700 rounded shadow-2xl z-50 font-mono text-xs overflow-hidden">
+      <div className="bg-zinc-800 p-2 flex justify-between items-center border-b border-zinc-700 cursor-move">
+        <span className="text-zinc-400 font-bold">MEDIA_PLAYER_V1.1</span>
+        <button onClick={onClose} className="text-zinc-500 hover:text-red-400 font-bold px-2">X</button>
+      </div>
+      <div className="p-4 bg-black/50">
+        <div className="text-emerald-400 mb-4 truncate text-sm flex items-center justify-between">
+          <span className="truncate mr-2">
+            {audioMode === 'file' ? `> Playing: ${currentTrack}` : '> Playing: Lo-Fi Cyber Chill'}
+          </span>
+        </div>
+        
+        <div className="flex justify-center items-center gap-4 mb-4">
+          <button onClick={handlePrev} disabled={audioMode !== 'file'} className={`p-1 transition-colors ${audioMode === 'file' ? 'text-zinc-400 hover:text-emerald-400' : 'text-zinc-700 cursor-not-allowed'}`}>
+            <SkipBack className="w-5 h-5" />
+          </button>
+          <button onClick={toggleMusic} className="text-zinc-400 hover:text-emerald-400 p-1 transition-colors">
+            {isMusicOn ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+          </button>
+          <button onClick={handleNext} disabled={audioMode !== 'file'} className={`p-1 transition-colors ${audioMode === 'file' ? 'text-zinc-400 hover:text-emerald-400' : 'text-zinc-700 cursor-not-allowed'}`}>
+            <SkipForward className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="flex gap-2 mb-2">
+          <button 
+            onClick={() => setAudioMode('file')} 
+            className={`flex-1 py-2 border transition-colors ${audioMode === 'file' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}
+          >
+            PLAYLIST
+          </button>
+          <button 
+            onClick={() => setAudioMode('procedural')} 
+            className={`flex-1 py-2 border transition-colors ${audioMode === 'procedural' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}
+          >
+            PROCEDURAL
+          </button>
+        </div>
+        <div className="text-zinc-600 text-[10px] mt-4">Use terminal to close: 'kill mp3player'</div>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
+  // Check if we are running inside an iframe as a fallback for a missing .html app
+  let isIframeFallback = false;
+  try {
+    isIframeFallback = window !== window.top && window.location.pathname.endsWith('.html') && window.location.pathname !== '/index.html';
+  } catch (e) {
+    // Ignore cross-origin errors
+  }
+
+  if (isIframeFallback) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 font-mono text-zinc-300">
+        <div className="text-red-500 text-xl font-bold mb-4">ERROR 404: APP NOT FOUND</div>
+        <div className="text-zinc-400 text-sm mb-8 text-center max-w-md">
+          The requested application file (<span className="text-emerald-400">{window.location.pathname}</span>) could not be found on the server.
+        </div>
+        <div className="text-zinc-500 text-xs">
+          Please ensure the file has been uploaded to the correct directory in the public folder.
+        </div>
+      </div>
+    );
+  }
+
   const [bootSequence, setBootSequence] = useState(true);
   const [progress, setProgress] = useState(0);
   const [activeTab, setActiveTab] = useState('field-desk');
@@ -970,6 +1093,11 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMusicOn, setIsMusicOn] = useState(false);
   const [isSfxOn, setIsSfxOn] = useState(false);
+  const [showMediaPlayer, setShowMediaPlayer] = useState(false);
+  const [audioMode, setAudioMode] = useState<'file' | 'procedural'>('file');
+
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
 
   const mainRef = useRef<HTMLElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1021,6 +1149,10 @@ export default function App() {
   };
 
   const handleLaunchApp = (url: string) => {
+    if (isSfxOn) {
+      audio.playClick();
+      audio.triggerInteraction();
+    }
     // Use relative URLs directly, allowing them to work on any host (Cloudflare, localhost, etc.)
     // The 'apps' folder must be present in the 'public' directory for this to work.
     let finalUrl = url;
@@ -1036,6 +1168,39 @@ export default function App() {
       delete (window as any).launchApp;
     };
   }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+      // Update UI notify the user they can install the PWA
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    // Show the install prompt
+    deferredPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt');
+    } else {
+      console.log('User dismissed the install prompt');
+    }
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
 
   useEffect(() => {
     if (progress < 100) {
@@ -1100,7 +1265,10 @@ export default function App() {
   }, []);
 
   const handleTabChange = (tab: string) => {
-    if (isSfxOn) audio.playClick();
+    if (isSfxOn) {
+      audio.playClick();
+      audio.triggerInteraction();
+    }
     if (tab === activeTab && !activeProject) {
       scrollToContent();
       return;
@@ -1109,9 +1277,28 @@ export default function App() {
   };
 
   const handleOpenProject = (projectId: string) => {
-    if (isSfxOn) audio.playClick();
+    if (isSfxOn) {
+      audio.playClick();
+      audio.triggerInteraction();
+    }
     window.location.hash = projectId;
   };
+
+  useEffect(() => {
+    let lastMove = 0;
+    const handleMouseMove = () => {
+      const now = Date.now();
+      if (now - lastMove > 2000) { // Throttle to every 2 seconds
+        audio.triggerInteraction();
+        lastMove = now;
+      }
+    };
+
+    if (isMusicOn) {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isMusicOn]);
 
   const toggleFullscreen = () => {
     if (isSfxOn) audio.playClick();
@@ -1139,6 +1326,20 @@ export default function App() {
     const newState = !isSfxOn;
     setIsSfxOn(newState);
     if (newState) audio.playClick();
+  };
+
+  const handleSetAudioMode = (mode: 'file' | 'procedural') => {
+    setAudioMode(mode);
+    audio.setMode(mode);
+  };
+
+  const handleTerminalCommand = (cmd: string) => {
+    const command = cmd.toLowerCase();
+    if (command === './mp3player' || command === 'start mp3player') {
+      setShowMediaPlayer(true);
+    } else if (command === 'kill mp3player' || command === 'exit mp3player') {
+      setShowMediaPlayer(false);
+    }
   };
 
   const renderContent = () => {
@@ -1255,6 +1456,15 @@ export default function App() {
                   Online
                 </span>
               </div>
+              {isInstallable && (
+                <button 
+                  onClick={handleInstallClick}
+                  className="mt-4 w-full py-2 px-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded hover:bg-emerald-500/30 transition-colors flex items-center justify-center space-x-2 font-bold tracking-wider"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>INSTALL SYSTEM</span>
+                </button>
+              )}
             </div>
             <p className="text-sm text-zinc-400 italic mt-4">"Forged in code, tested on the road."</p>
           </div>
@@ -1365,7 +1575,7 @@ export default function App() {
       </div>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-zinc-800/50 bg-zinc-950/80 py-8 mt-8">
+      <footer className="relative z-10 border-t border-zinc-800/50 bg-zinc-950/80 py-8 mt-8 mb-12">
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between text-xs text-zinc-500 font-mono">
           <div className="flex items-center space-x-2 mb-4 md:mb-0">
             <Terminal className="w-4 h-4 text-emerald-500" />
@@ -1381,6 +1591,18 @@ export default function App() {
           </div>
         </div>
       </footer>
+      
+      {showMediaPlayer && (
+        <MediaPlayer 
+          onClose={() => setShowMediaPlayer(false)} 
+          audioMode={audioMode} 
+          setAudioMode={handleSetAudioMode} 
+          isMusicOn={isMusicOn}
+          toggleMusic={toggleMusic}
+        />
+      )}
+      
+      <TerminalPrompt onCommand={handleTerminalCommand} />
     </div>
   );
 }

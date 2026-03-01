@@ -11,6 +11,24 @@ export interface ChronicleEntry {
 
 export const chroniclesData: ChronicleEntry[] = [
   {
+    "id": "log-audio-looper",
+    "title": "Log ID 4.66: Seamless Audio in the Browser",
+    "date": "March 1, 2026",
+    "summary": "Deploying Andy's Audio Looper to The Forge. A tool for generating infinite, seamless audio loops directly in the browser using the Web Audio API.",
+    "image": "/assets/andysaudiolooper0.webp",
+    "tags": ["Update", "Audio", "Tools"],
+    "content": `
+<p><strong>The Forge is now generating soundwaves.</strong></p>
+<p>I've just added a new tool to The Forge: <strong>Andy's Audio Looper</strong>. This is a project born out of necessity. When you're building games or interactive experiences, you often need background music that loops seamlessly. Opening up a heavy Digital Audio Workstation (DAW) just to crossfade a track is overkill.</p>
+<p><strong>The Web Audio API Solution</strong></p>
+<p>I wanted a tool that could handle this directly in the browser, without uploading files to a server. Andy's Audio Looper uses the Web Audio API to analyze an audio file (mp3, wav, or ogg), calculate the optimal crossfade points based on a target BPM, and generate a perfectly seamless loop using equal-power crossfading.</p>
+<p><strong>Client-Side Power</strong></p>
+<p>The best part? All the processing happens locally on your machine. It's fast, secure, and doesn't require any backend infrastructure. It's a perfect example of the kind of lightweight, high-performance tools I want to build for the studio.</p>
+<p>You can find the new tool in <strong>The Forge</strong>. Load up an audio file, set your BPM, and let the engine do the rest.</p>
+<hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 30px 0;">
+<p style="font-style: italic; text-align: center;">"Seamless loops, forged in the browser."</p>`
+  },
+  {
     "id": "log-4-65",
     "title": "Log ID 4.65: The Bellows and the Beacon",
     "date": "February 22, 2026",

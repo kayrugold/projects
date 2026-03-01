@@ -232,5 +232,31 @@ export const projectsData: Record<string, string> = {
 <button onclick="window.launchApp('./apps/factorhunter0.0.0.html')" style="background: #fbbf24; color: #000; border: none; padding: 0.75rem 1.5rem; font-weight: bold; border-radius: 0.25rem; cursor: pointer;">
     LAUNCH ENGINE
 </button>
-`
+`,
+  "andysaudiolooper": `
+<h2 style="font-size: 1.5rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.5rem;">ANDY'S AUDIO LOOPER</h2>
+<p style="font-family: monospace; font-size: 0.8rem; color: #10b981; margin-bottom: 2rem;">
+    SYSTEM: Dynamic Loop Generator
+</p>
+
+<div class="project-details" style="color: #a1a1aa; font-size: 0.9rem; line-height: 1.6;">
+    <p style="margin-bottom: 1.5rem;"><strong>The Mission:</strong> To create seamless, infinite audio loops from standard audio files (mp3, wav, ogg) directly in the browser.</p>
+    
+    <h4 style="font-size: 1.1rem; font-weight: bold; color: #e4e4e7; margin-bottom: 0.5rem;">How it Works</h4>
+    <p style="margin-bottom: 1.5rem;">This tool utilizes the Web Audio API to analyze an audio file, calculate the optimal crossfade points based on a target BPM, and generate a perfectly seamless loop. It's designed for game developers and audio engineers who need quick, reliable background tracks without opening a heavy DAW.</p>
+
+    <h4 style="font-size: 1.1rem; font-weight: bold; color: #e4e4e7; margin-bottom: 0.5rem;">Technical Specs</h4>
+    <ul style="list-style-type: square; padding-left: 1.5rem; margin-bottom: 2rem;">
+        <li style="margin-bottom: 0.5rem;"><strong>Client-Side Processing:</strong> All audio manipulation happens locally in your browser. No files are uploaded to a server.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Crossfade Algorithm:</strong> Uses equal-power crossfading to ensure smooth transitions without volume dips.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Format Support:</strong> Handles standard web audio formats (mp3, wav, ogg).</li>
+    </ul>
+</div>
+
+<hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 20px 0;">
+
+<button onclick="window.launchApp('./apps/andysaudiolooper.html')" style="background: #fbbf24; color: #000; border: none; padding: 0.75rem 1.5rem; font-weight: bold; border-radius: 0.25rem; cursor: pointer;">
+    INITIALIZE LOOPER
+</button>
+`,
 };
