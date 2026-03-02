@@ -1,0 +1,17 @@
+{
+  "name": "Andy's Audio Looper",
+  "short_name": "Audio Looper",
+  "description": "100 BPM Overlap-Add Audio Processor",
+  "start_url": "start_url": "./andysaudiolooper.html",
+  "display": "standalone",
+  "background_color": "#030305",
+  "theme_color": "#00ffcc",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
