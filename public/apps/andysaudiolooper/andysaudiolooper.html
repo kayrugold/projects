@@ -331,23 +331,32 @@ processBtn.onclick = async () => {
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-    const bpm = parseFloat(document.getElementById('bpmInput').value) || 100;
+        const bpm = parseFloat(document.getElementById('bpmInput').value) || 100;
     const fadeBars = parseFloat(document.getElementById('fadeBarsInput').value) || 1;
     
     const beatDuration = 60 / bpm;
     const barDuration = 4 * beatDuration; 
     const crossfadeDuration = fadeBars * barDuration;
 
-    if (audioBuffer.duration < barDuration + crossfadeDuration) {
+    // --- FIXED MATH: Cap at ~38 seconds but handle short files safely ---
+    const targetDuration = 38.4; 
+    const desiredBars = Math.round(targetDuration / barDuration); 
+    
+    // Find the absolute maximum bars the file can support
+    const maxAvailableBars = Math.floor((audioBuffer.duration - crossfadeDuration) / barDuration);
+    
+    if (maxAvailableBars < 1) {
         statusEl.innerText = "ERR: File too short for these BPM settings.";
         statusEl.style.color = "var(--accent-danger)";
         processBtn.disabled = false;
         return;
     }
 
-    const maxAvailableBars = Math.floor((audioBuffer.duration - crossfadeDuration) / barDuration);
-    const loopDuration = maxAvailableBars * barDuration;
+    // Pick the smaller of the two so it never exceeds ~38 seconds
+    const finalBars = Math.min(desiredBars, maxAvailableBars);
+    const loopDuration = finalBars * barDuration;
     const startPoint = 0; 
+    // -------------------------------------------------------------------
 
     const offlineCtx = new OfflineAudioContext(
         audioBuffer.numberOfChannels,

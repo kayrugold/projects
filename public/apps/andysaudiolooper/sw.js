@@ -1,6 +1,6 @@
 // The name of your cache. Change the version number (v1 to v2) 
 // if you ever update the HTML/CSS so the browser knows to pull the new version.
-const CACHE_NAME = 'andys-looper-v1';
+const CACHE_NAME = 'andys-looper-v2';
 
 // The exact files the app needs to run offline
 const ASSETS_TO_CACHE = [
