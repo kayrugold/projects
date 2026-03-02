@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Andy's Audio Loop Generator | The Forge</title>
+    
+    <meta name="theme-color" content="#030305">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%230a0a10' stroke='%2300ffcc' stroke-width='4'/><rect x='25' y='40' width='8' height='20' fill='%2300ffcc' rx='2'/><rect x='38' y='25' width='8' height='50' fill='%2300ffcc' rx='2'/><rect x='51' y='15' width='8' height='70' fill='%2300ffcc' rx='2'/><rect x='64' y='30' width='8' height='40' fill='%2300ffcc' rx='2'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%230a0a10' stroke='%2300ffcc' stroke-width='4'/><rect x='25' y='40' width='8' height='20' fill='%2300ffcc' rx='2'/><rect x='38' y='25' width='8' height='50' fill='%2300ffcc' rx='2'/><rect x='51' y='15' width='8' height='70' fill='%2300ffcc' rx='2'/><rect x='64' y='30' width='8' height='40' fill='%2300ffcc' rx='2'/></svg>">
+    
+    <style>
+        :root {
+            --bg-base: #030305;
+            --bg-panel: #0a0a10;
+            --accent-cyan: #00ffcc;
+            --accent-hover: #00e6b8;
+            --accent-danger: #ff3366;
+            --text-main: #e2e8f0;
+            --text-muted: #475569;
+            --font-mono: 'Courier New', Courier, monospace;
+            --glow: 0 0 15px rgba(0, 255, 204, 0.15);
+        }
+
+        body {
+            font-family: var(--font-mono);
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 204, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 204, 0.02) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .tool-container {
+            background-color: var(--bg-panel);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 6px;
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: var(--glow), inset 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Scanline effect */
+        .tool-container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            z-index: 2;
+            background-size: 100% 4px;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px dashed rgba(0, 255, 204, 0.2);
+            padding-bottom: 20px;
+        }
+
+        .brand-tag {
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: inline-block;
+            background: rgba(0, 255, 204, 0.1);
+            padding: 4px 10px;
+            border-radius: 3px;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+        }
+
+        .header h1 {
+            margin: 10px 0 5px 0;
+            color: #ffffff;
+            font-size: 1.6rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+            text-transform: uppercase;
+        }
+
+        .header p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        /* Settings Row */
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            width: 50%;
+        }
+        .setting-group label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        .setting-group input {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            color: var(--accent-cyan);
+            padding: 10px;
+            font-family: var(--font-mono);
+            text-align: center;
+            outline: none;
+            border-radius: 3px;
+        }
+        .setting-group input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 10px rgba(0,255,204,0.2); }
+
+        input[type="file"] { display: none; }
+
+        .file-label {
+            display: block;
+            text-align: center;
+            padding: 25px 20px;
+            border: 1px dashed var(--accent-cyan);
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--accent-cyan);
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background: rgba(0, 255, 204, 0.02);
+            letter-spacing: 1px;
+        }
+
+        .file-label:hover {
+            background: rgba(0, 255, 204, 0.08);
+            box-shadow: inset 0 0 15px rgba(0, 255, 204, 0.15);
+            border-color: #fff;
+            color: #fff;
+        }
+
+        button {
+            width: 100%; padding: 14px; margin-bottom: 15px; background: transparent; color: var(--accent-cyan); border: 1px solid var(--accent-cyan); font-family: var(--font-mono); font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 2px;
+        }
+
+        button:hover { background: var(--accent-cyan); color: var(--bg-base); box-shadow: 0 0 20px rgba(0, 255, 204, 0.4); }
+        button:disabled { border-color: var(--text-muted); color: var(--text-muted); cursor: not-allowed; background: transparent; box-shadow: none; }
+
+        #previewBtn { border-color: #38bdf8; color: #38bdf8; display: none; }
+        #previewBtn:hover { background: #38bdf8; color: var(--bg-base); box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+        
+        #stopBtn { border-color: var(--accent-danger); color: var(--accent-danger); display: none; }
+        #stopBtn:hover { background: var(--accent-danger); color: white; box-shadow: 0 0 20px rgba(255, 51, 102, 0.4); }
+
+        .status-box {
+            text-align: center;
+            padding: 15px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            min-height: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .download-btn {
+            display: none;
+            text-align: center;
+            padding: 14px;
+            background: #1e293b;
+            color: #38bdf8;
+            text-decoration: none;
+            border: 1px solid #38bdf8;
+            font-size: 0.95rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+            margin-bottom: 15px;
+        }
+
+        .download-btn:hover { background: #38bdf8; color: #0f172a; box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+
+        .footer { text-align: center; margin-top: 10px; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+<div class="tool-container">
+    <div class="content-wrapper">
+        <div class="header">
+            <span class="brand-tag">Andy's Development Studio</span>
+            <h1>Andy's Audio<br>Loop Generator</h1>
+            <p>Dynamic Grid Processor</p>
+        </div>
+        
+        <label class="file-label" id="dropZone">
+            [ INITIALIZE AUDIO TARGET ]
+            <input type="file" id="audioInput" accept=".ogg, .mp3, .wav">
+        </label>
+
+        <div class="settings-row">
+            <div class="setting-group">
+                <label>TARGET BPM</label>
+                <input type="number" id="bpmInput" value="100" step="1">
+            </div>
+            <div class="setting-group">
+                <label>CROSSFADE (BARS)</label>
+                <input type="number" id="fadeBarsInput" value="1" step="0.5">
+            </div>
+        </div>
+        
+        <button id="processBtn" disabled>Process Audio</button>
+        <button id="previewBtn">► Execute Playback</button>
+        <button id="stopBtn">■ Terminate Playback</button>
+        <a id="downloadLink" class="download-btn">↓ Extract WAV Artifact</a>
+        
+        <div class="status-box" id="status">Awaiting input stream...</div>
+
+        <div class="footer">
+            SYSTEM V1.0 // ENGINEERED FOR ANDYSDEVSTUDIO.PAGES.DEV
+        </div>
+    </div>
+</div>
+
+<script>
+// --- UI INTERACTION LOGIC ---
+const fileInput = document.getElementById('audioInput');
+const dropZone = document.getElementById('dropZone');
+const processBtn = document.getElementById('processBtn');
+const statusEl = document.getElementById('status');
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        dropZone.innerHTML = `[ TARGET AQUIRED: ${e.target.files[0].name} ] <input type="file" id="audioInput" accept=".ogg, .mp3, .wav" style="display:none;">`;
+        processBtn.disabled = false;
+        statusEl.innerText = "System ready. Awaiting command.";
+        statusEl.style.color = "var(--accent-cyan)";
+        document.getElementById('audioInput').addEventListener('change', arguments.callee);
+    }
+});
+
+// --- 1. WEB WORKER (WAV ENCODER) ---
+const workerCode = `
+self.onmessage = function(e) {
+    const { leftChannel, rightChannel, length, sampleRate } = e.data;
+    const interleaved = new Float32Array(length * 2);
+    for (let i = 0; i < length; i++) {
+        interleaved[i * 2] = leftChannel[i];
+        interleaved[i * 2 + 1] = rightChannel[i];
+    }
+    const buffer = new ArrayBuffer(44 + interleaved.length * 2);
+    const view = new DataView(buffer);
+    const writeString = (view, offset, string) => {
+        for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+    };
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + interleaved.length * 2, true);
+    writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 2, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 4, true);
+    view.setUint16(32, 4, true);
+    view.setUint16(34, 16, true);
+    writeString(view, 36, 'data');
+    view.setUint32(40, interleaved.length * 2, true);
+    let offset = 44;
+    for (let i = 0; i < interleaved.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, interleaved[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+    self.postMessage(new Blob([view], { type: 'audio/wav' }));
+};
+`;
+const worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+
+// --- 2. AUDIO PROCESSING CORE ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let finalAudioBuffer = null;
+let previewSource = null;
+
+processBtn.onclick = async () => {
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    const file = document.getElementById('audioInput').files[0] || fileInput.files[0]; 
+    if (!file) return;
+
+    statusEl.innerText = "Analyzing file geometry...";
+    statusEl.style.color = "var(--accent-cyan)";
+    document.getElementById('downloadLink').style.display = 'none';
+    document.getElementById('previewBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'none';
+    processBtn.disabled = true;
+    if(previewSource) previewSource.stop();
+
+    const arrayBuffer = await file.arrayBuffer();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    const bpm = parseFloat(document.getElementById('bpmInput').value) || 100;
+    const fadeBars = parseFloat(document.getElementById('fadeBarsInput').value) || 1;
+    
+    const beatDuration = 60 / bpm;
+    const barDuration = 4 * beatDuration; 
+    const crossfadeDuration = fadeBars * barDuration;
+
+    // Fixed Math: Caps at ~38.4 seconds but handles short files safely
+    const targetDuration = 38.4; 
+    const desiredBars = Math.round(targetDuration / barDuration); 
+    
+    const maxAvailableBars = Math.floor((audioBuffer.duration - crossfadeDuration) / barDuration);
+    
+    if (maxAvailableBars < 1) {
+        statusEl.innerText = "ERR: File too short for these BPM settings.";
+        statusEl.style.color = "var(--accent-danger)";
+        processBtn.disabled = false;
+        return;
+    }
+
+    const finalBars = Math.min(desiredBars, maxAvailableBars);
+    const loopDuration = finalBars * barDuration;
+    const startPoint = 0; 
+
+    const offlineCtx = new OfflineAudioContext(
+        audioBuffer.numberOfChannels,
+        loopDuration * audioBuffer.sampleRate,
+        audioBuffer.sampleRate
+    );
+
+    const sourceMain = offlineCtx.createBufferSource();
+    sourceMain.buffer = audioBuffer;
+    const gainMain = offlineCtx.createGain();
+    gainMain.gain.setValueAtTime(0, 0); 
+    gainMain.gain.linearRampToValueAtTime(1, crossfadeDuration); 
+    gainMain.gain.setValueAtTime(1, loopDuration); 
+    sourceMain.connect(gainMain).connect(offlineCtx.destination);
+    sourceMain.start(0, startPoint, loopDuration);
+
+    const sourceTail = offlineCtx.createBufferSource();
+    sourceTail.buffer = audioBuffer;
+    const gainTail = offlineCtx.createGain();
+    gainTail.gain.setValueAtTime(1, 0); 
+    gainTail.gain.linearRampToValueAtTime(0, crossfadeDuration); 
+    sourceTail.connect(gainTail).connect(offlineCtx.destination);
+    sourceTail.start(0, startPoint + loopDuration, crossfadeDuration);
+
+    statusEl.innerText = `Rendering ${finalBars} bars (${loopDuration.toFixed(1)}s)...`;
+    const renderedBuffer = await offlineCtx.startRendering();
+    
+    finalAudioBuffer = renderedBuffer;
+
+    statusEl.innerText = "Encoding WAV artifact...";
+    worker.postMessage({
+        leftChannel: renderedBuffer.getChannelData(0),
+        rightChannel: renderedBuffer.getChannelData(audioBuffer.numberOfChannels > 1 ? 1 : 0),
+        length: renderedBuffer.length,
+        sampleRate: renderedBuffer.sampleRate
+    });
+};
+
+// --- 3. PLAYBACK & DOWNLOAD ---
+worker.onmessage = function(e) {
+    statusEl.innerText = "Process complete. Ready for playback.";
+    processBtn.disabled = false;
+    processBtn.innerText = "Re-Initialize Processing";
+    
+    const currentBpm = document.getElementById('bpmInput').value || 100;
+    const url = URL.createObjectURL(e.data);
+    const downloadLink = document.getElementById('downloadLink');
+    
+    downloadLink.href = url;
+    downloadLink.download = `TheForge_${currentBpm}BPM_Loop.wav`;
+    downloadLink.style.display = 'block';
+    document.getElementById('previewBtn').style.display = 'block';
+};
+
+document.getElementById('previewBtn').onclick = () => {
+    if (previewSource) previewSource.stop();
+    previewSource = audioCtx.createBufferSource();
+    previewSource.buffer = finalAudioBuffer;
+    previewSource.loop = true; 
+    previewSource.connect(audioCtx.destination);
+    previewSource.start();
+    
+    document.getElementById('previewBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'block';
+    statusEl.innerText = "Streaming infinite loop...";
+    statusEl.style.color = "#38bdf8";
+};
+
+document.getElementById('stopBtn').onclick = () => {
+    if (previewSource) {
+        previewSource.stop();
+        previewSource = null;
+    }
+    document.getElementById('previewBtn').style.display = 'block';
+    document.getElementById('stopBtn').style.display = 'none';
+    statusEl.innerText = "Playback terminated.";
+    statusEl.style.color = "var(--text-muted)";
+};
+</script>
+
+</body>
+</html>
