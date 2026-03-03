@@ -1,0 +1,4 @@
+12345668890
+
+sync-site
+syncs local files in echo "alias sync-site='cp -r ~/storage/downloads/andysdevstudio/projects/* ~/dev/projects/'" >> ~/.bashrc

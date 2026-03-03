@@ -6,3 +6,18 @@ coverage/
 *.log
 .env*
 !.env.example
+# Local IDE and System Files
+.vscode/
+.idea/
+.thumb*
+okular*
+
+# Production / Vite
+dist/
+dist-ssr/
+*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
