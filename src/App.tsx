@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Twitter, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2, SkipForward, SkipBack, Play, Pause } from 'lucide-react';
+import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Twitter, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2, SkipForward, SkipBack, Play, Pause, Sparkles } from 'lucide-react';
 import { chroniclesData } from './data/chronicles';
 import { cargoData } from './data/cargo';
 import { projectsData } from './data/projects';
@@ -7,6 +7,7 @@ import { forgeData } from './data/forge';
 import { ledgerData } from './data/ledger';
 import { searchIndexData } from './data/searchIndex';
 import { audio } from './utils/audio';
+import XyrtaniaCinematicSite from './XyrtaniaCinematicSite';
 
 const NavItem = ({ icon: Icon, label, onClick, active = false }: { icon: React.ElementType, label: string, onClick: () => void, active?: boolean }) => (
   <button 
@@ -1085,6 +1086,15 @@ export default function App() {
 
   const [bootSequence, setBootSequence] = useState(true);
   const [progress, setProgress] = useState(0);
+  
+  // Smart domain-level or query/hash-level routing to serve Xyrtania cinematic site automatically
+  const isXyrtaniaDomain = typeof window !== 'undefined' && (
+    window.location.hostname.includes('xyrtania') || 
+    window.location.search.includes('site=xyrtania') || 
+    window.location.hash.includes('xyrtania')
+  );
+  const [siteMode, setSiteMode] = useState<'studio' | 'xyrtania'>(isXyrtaniaDomain ? 'xyrtania' : 'studio');
+
   const [activeTab, setActiveTab] = useState('field-desk');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [activeProject, setActiveProject] = useState<string | null>(null);
@@ -1202,6 +1212,16 @@ export default function App() {
     setIsInstallable(false);
   };
 
+  // Turn off any studio music when entering the Xyrtania cinematic site to prevent overlapping music
+  useEffect(() => {
+    if (siteMode === 'xyrtania') {
+      if (isMusicOn) {
+        setIsMusicOn(false);
+        audio.toggleMusic(false);
+      }
+    }
+  }, [siteMode, isMusicOn]);
+
   useEffect(() => {
     if (progress < 100) {
       const timer = setTimeout(() => setProgress(p => Math.min(p + Math.random() * 15, 100)), 100);
@@ -1215,6 +1235,18 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
+      
+      if (hash.includes('xyrtania')) {
+        setSiteMode('xyrtania');
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        return;
+      } else {
+        const isDedicatedDomain = window.location.hostname.includes('xyrtania') || window.location.search.includes('site=xyrtania');
+        if (!isDedicatedDomain) {
+          setSiteMode('studio');
+        }
+      }
+
       if (!hash) return;
 
       const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
@@ -1250,14 +1282,18 @@ export default function App() {
     
     if (window.location.hash) {
       const hash = window.location.hash.replace('#', '');
-      const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
-      if (validTabs.includes(hash)) {
-        setActiveTab(hash);
-      } else if (projectsData[hash]) {
-        setActiveProject(hash);
-      } else if (chroniclesData.some(e => e.id === hash)) {
-        setActiveTab('chronicles');
-        // Scroll handled by useEffect if needed, or just let it be for initial load
+      if (hash.includes('xyrtania')) {
+        setSiteMode('xyrtania');
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      } else {
+        const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
+        if (validTabs.includes(hash)) {
+          setActiveTab(hash);
+        } else if (projectsData[hash]) {
+          setActiveProject(hash);
+        } else if (chroniclesData.some(e => e.id === hash)) {
+          setActiveTab('chronicles');
+        }
       }
     }
 
@@ -1405,6 +1441,57 @@ export default function App() {
     );
   }
 
+  // If the user is viewing the high-end Xyrtania Cinematic Landing Page
+  if (siteMode === 'xyrtania') {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-zinc-300 font-mono relative selection:bg-amber-500/30 selection:text-amber-200">
+        <div className="crt-overlay" />
+        
+        {/* App Launch Overlay (supporting fullscreen and autoplay sound) */}
+        {launchedAppUrl && (
+          <div className="fixed inset-0 z-[100] bg-zinc-950 flex flex-col animate-in fade-in duration-300">
+            <div className="h-12 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-4">
+              <div className="flex items-center space-x-2 text-amber-500 font-bold text-sm">
+                <Terminal className="w-4 h-4" />
+                <span>XYRTANIA_LIVE_RUNNING</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <button 
+                  onClick={() => window.open(launchedAppUrl, '_blank')}
+                  className="text-zinc-400 hover:text-amber-400 transition-colors flex items-center space-x-1 text-xs font-bold"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>OPEN IN NEW TAB</span>
+                </button>
+                <button 
+                  onClick={() => setLaunchedAppUrl(null)}
+                  className="text-zinc-400 hover:text-red-400 transition-colors text-sm font-bold tracking-wider"
+                >
+                  [ CLOSE ]
+                </button>
+              </div>
+            </div>
+            <iframe 
+              src={launchedAppUrl} 
+              className="w-full flex-1 border-none bg-zinc-950"
+              title="Launched Xyrtania Client"
+              allow="fullscreen; autoplay"
+            />
+          </div>
+        )}
+
+        <XyrtaniaCinematicSite 
+          onBackToStudio={() => {
+            window.location.hash = '';
+            setSiteMode('studio');
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          }}
+          onLaunchGame={(url) => setLaunchedAppUrl(url)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300 font-mono relative selection:bg-emerald-500/30 selection:text-emerald-200">
       <div className="crt-overlay" />
@@ -1518,6 +1605,22 @@ export default function App() {
             <NavItem icon={Shield} label="The Guild Hall" onClick={() => handleTabChange('guild-hall')} active={activeTab === 'guild-hall'} />
             <NavItem icon={Users} label="The Rookery" onClick={() => handleTabChange('rookery')} active={activeTab === 'rookery'} />
           </nav>
+
+          <button 
+            onClick={() => {
+              if (isSfxOn) {
+                audio.playClick();
+                audio.triggerInteraction();
+              }
+              window.location.hash = 'xyrtania';
+              setSiteMode('xyrtania');
+              window.scrollTo({ top: 0, behavior: 'instant' });
+            }}
+            className="w-full py-3 px-4 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 transition-all flex items-center justify-center space-x-2 font-bold tracking-wider text-xs shadow-md shadow-amber-500/5 hover:border-amber-500/50"
+          >
+            <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+            <span>XYRTANIA GATEWAY</span>
+          </button>
 
           <div className="pt-8 border-t border-zinc-800/50">
             <div className="text-xs text-zinc-500 mb-4 uppercase tracking-wider">Comms</div>
