@@ -9,6 +9,14 @@ export interface SearchItem {
 
 export const searchIndexData: SearchItem[] = [
   {
+    "id": "xyrtania",
+    "title": "XYRTANIA",
+    "description": "An immersive, multiplayer 3D online RPG being forged for modern browsers. Explore a long-lost realm in real-time.",
+    "category": "Forge",
+    "url": "javascript:openProjectPage('./forge/projects/xyrtania.html')",
+    "tags": ["Games", "3D", "Three.js", "WebGL", "WebSockets", "Multiplayer", "RPG"]
+  },
+  {
     "id": "andysaudiolooper",
     "title": "ANDYS AUDIO LOOPER",
     "description": "A tool for generating infinite, seamless audio loops directly in the browser using the Web Audio API.",

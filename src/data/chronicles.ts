@@ -11,6 +11,28 @@ export interface ChronicleEntry {
 
 export const chroniclesData: ChronicleEntry[] = [
   {
+    "id": "log-xyrtania-alpha",
+    "title": "Log ID 4.70: Entering Xyrtania — 3D Multiplayer in the Browser",
+    "date": "August 4, 2026",
+    "summary": "Deploying the first public gateway for Xyrtania. Setting up low-latency WebSockets via Render.com and custom Three.js render loops. The road to our December release starts now.",
+    "image": "/assets/xyrtania_chronicles.webp",
+    "tags": ["Update", "Multiplayer", "3D", "WebSockets"],
+    "content": `
+<p><strong>The Forge is echoing with the chords of the Ancient Chorus.</strong></p>
+<p>For months, between long hauls on the interstate and late-night hours after the family is asleep, I've been sketching out a massive vision. I wanted to build a real, high-performance 3D RPG that runs entirely in the browser—no heavy clients, no installers, just pure web-engineered power. Today, I am proud to announce the first official open-alpha gateway for <strong>Xyrtania</strong>.</p>
+<p><strong>Low-Latency Multiplayer Architecture</strong></p>
+<p>Multiplayer in a 3D environment requires solid, reliable pipes. For Xyrtania, I have engineered a dedicated real-time socket relay server hosted on <strong>Render.com</strong>. This handles player positions, rotation updates, and state synchronization. It's built on WebSockets to ensure that latency is kept to an absolute minimum, ensuring a buttery-smooth experience as multiple explorers traverse the rifts.</p>
+<p><strong>Procedural 3D World Design via Three.js</strong></p>
+<p>The visual framework is built using a custom-optimized <strong>Three.js / WebGL 2.0</strong> render pipeline. Sprawling floating monoliths and ancient ruins are procedurally synthesized on the fly, saving bandwidth and memory. To keep performance high on mobile screens and standard notebooks, the asset streaming system handles texture mipmapping dynamically.</p>
+<p><strong>The Compact Survival HUD</strong></p>
+<p>One of the design pillars of Xyrtania is immersion. To preserve visual real estate, I've designed a highly compact, responsive survival HUD. Vital statistics (Health, Energy, and local spatial coordinates) are pinned with a minimal footprint, leaving the screen open for exploration. This UI adapts gracefully, offering comfortable touch-joystick controls on mobile and precise mouse/keyboard mapping on desktops.</p>
+<p><strong>The Long Road to December</strong></p>
+<p>Make no mistake: we are in the early hours of this journey. My target is a full standalone release in <strong>December 2026</strong>. Between now and then, there are dungeon systems, loot tables, and full combat loops to forge. But a project this ambitious shouldn't be built in isolation. I want the guild to be a part of this from day one.</p>
+<p>The gateway is now open in <strong>The Forge</strong>. Click <strong>ENTER XYRTANIA</strong> to load the system, sync with the relay server, and begin mapping out the long-lost peaks.</p>
+<hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 30px 0;">
+<p style="font-style: italic; text-align: center;">"In the quiet hours of the night, we forge whole worlds from the cab of a truck."</p>`
+  },
+  {
     "id": "log-audio-looper",
     "title": "Log ID 4.66: Seamless Audio in the Browser",
     "date": "March 1, 2026",

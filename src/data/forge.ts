@@ -18,6 +18,33 @@ export interface ForgeEntry {
 
 export const forgeData: ForgeEntry[] = [
   {
+    "id": "xyrtania",
+    "title": "XYRTANIA",
+    "description": "An immersive, multiplayer 3D online RPG being forged for modern browsers. Explore a long-lost realm in real-time.",
+    "longDescription": "A massive 3D single and multiplayer exploration RPG built using Three.js, customized responsive web sockets, and procedural world design. Embark on a journey to discover a long-lost realm of floating peaks and mystical structures, optimized for standard desktop and mobile browsers.",
+    "features": [
+      "Real-time Multiplayer Sync (custom backend)",
+      "Three.js 3D Rendering & Procedural World",
+      "Compact Survival HUD Layout",
+      "Touch-responsive Joystick Navigation"
+    ],
+    "tech": [
+      "Three.js / WebGL",
+      "WebSockets",
+      "Node.js Server",
+      "Tailwind CSS"
+    ],
+    "projectPage": "xyrtania",
+    "type": "Games",
+    "version": "V0.1-alpha",
+    "status": "DEV",
+    "statusClass": "badge-alpha",
+    "buttonText": "ENTER XYRTANIA",
+    "icon": "⚔️",
+    "image": "/assets/xyrtania_card.webp",
+    "action": "launchApp('https://xyrtania.andy-596.workers.dev')"
+  },
+  {
     "id": "factor-hunter-ultimate",
     "title": "FACTOR HUNTER (ULTIMATE)",
     "description": "High-performance number theory engine. Hunt factors using algebraic forms, quadratic reciprocity, and parallel sieves.",
