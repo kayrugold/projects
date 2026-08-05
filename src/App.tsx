@@ -1091,7 +1091,7 @@ export default function App() {
   const isXyrtaniaDomain = typeof window !== 'undefined' && (
     window.location.hostname.includes('xyrtania') || 
     window.location.search.includes('site=xyrtania') || 
-    window.location.hash.includes('xyrtania')
+    (window.location.hash.includes('xyrtania') && !window.location.hash.includes('xyrtania-specs'))
   );
   const [siteMode, setSiteMode] = useState<'studio' | 'xyrtania'>(isXyrtaniaDomain ? 'xyrtania' : 'studio');
 
@@ -1236,7 +1236,7 @@ export default function App() {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       
-      if (hash.includes('xyrtania')) {
+      if (hash.includes('xyrtania') && !hash.includes('xyrtania-specs')) {
         setSiteMode('xyrtania');
         window.scrollTo({ top: 0, behavior: 'instant' });
         return;
@@ -1282,7 +1282,7 @@ export default function App() {
     
     if (window.location.hash) {
       const hash = window.location.hash.replace('#', '');
-      if (hash.includes('xyrtania')) {
+      if (hash.includes('xyrtania') && !hash.includes('xyrtania-specs')) {
         setSiteMode('xyrtania');
         window.scrollTo({ top: 0, behavior: 'instant' });
       } else {

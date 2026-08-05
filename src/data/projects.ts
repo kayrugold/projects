@@ -810,3 +810,6 @@ export const projectsData: Record<string, string> = {
 `,
 };
 
+projectsData["xyrtania-specs"] = projectsData["xyrtania"];
+
+

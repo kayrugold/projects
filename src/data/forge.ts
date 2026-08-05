@@ -34,7 +34,7 @@ export const forgeData: ForgeEntry[] = [
       "Node.js Server",
       "Tailwind CSS"
     ],
-    "projectPage": "xyrtania",
+    "projectPage": "xyrtania-specs",
     "type": "Games",
     "version": "V0.1-alpha",
     "status": "DEV",
