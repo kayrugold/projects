@@ -260,14 +260,14 @@ export default function XyrtaniaCinematicSite({ onBackToStudio, onLaunchGame }: 
     <div className="min-h-screen bg-zinc-950 text-zinc-300 font-mono relative overflow-x-hidden selection:bg-amber-500/30 selection:text-amber-200">
       
       {/* Cinematic Top Navigation Bar */}
-      <nav className="sticky top-0 z-50 bg-zinc-950/95 border-b border-zinc-800/80 backdrop-blur-md px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="relative">
+      <nav className="sticky top-0 z-50 bg-zinc-950/95 border-b border-zinc-800/80 backdrop-blur-md px-3 sm:px-6 py-3 sm:py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink min-w-0">
+            <div className="relative shrink-0">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 block animate-pulse" />
               <span className="absolute inset-0 rounded-full bg-emerald-500/50 animate-ping" />
             </div>
-            <span className="font-black text-zinc-100 tracking-[0.25em] text-sm md:text-base">XYRTANIA // GATEWAY</span>
+            <span className="font-black text-zinc-100 tracking-[0.15em] sm:tracking-[0.25em] text-xs sm:text-sm md:text-base truncate">XYRTANIA // GATEWAY</span>
           </div>
 
           <div className="hidden lg:flex items-center space-x-8 text-xs text-zinc-400">
@@ -277,38 +277,39 @@ export default function XyrtaniaCinematicSite({ onBackToStudio, onLaunchGame }: 
             <a href="#specs" className="hover:text-amber-400 transition-colors tracking-widest">[ COMPATIBILITY ]</a>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 shrink-0">
             {/* Ambient Soundtrack Toggle */}
             <button 
               onClick={toggleMusic}
-              className={`text-[10px] md:text-xs flex items-center space-x-1.5 border border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/5 px-2.5 py-1.5 rounded transition-all tracking-wider ${isPlayingTeaser ? 'text-amber-400 border-amber-500/30 bg-amber-500/5' : 'text-zinc-500'}`}
+              className={`text-[10px] md:text-xs flex items-center space-x-1.5 border border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/5 px-2 py-1.5 rounded transition-all tracking-wider ${isPlayingTeaser ? 'text-amber-400 border-amber-500/30 bg-amber-500/5' : 'text-zinc-500'}`}
               title="Ambient Soundtrack"
             >
               {isPlayingTeaser ? (
                 <>
                   <Volume2 className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-                  <span className="hidden sm:inline font-bold">STONEBRIDGE DAWN</span>
+                  <span className="hidden md:inline font-bold">STONEBRIDGE DAWN</span>
                 </>
               ) : (
                 <>
                   <VolumeX className="w-3.5 h-3.5 text-zinc-500" />
-                  <span className="hidden sm:inline">SOUNDTRACK OFF</span>
+                  <span className="hidden md:inline">SOUNDTRACK OFF</span>
                 </>
               )}
             </button>
 
             <button 
               onClick={onBackToStudio}
-              className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 rounded transition-all tracking-wider"
+              className="text-[11px] sm:text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-700 px-2 sm:px-3 py-1.5 rounded transition-all tracking-wider"
+              title="Back to Andy's Dev Studio"
             >
               [ DEV_STUDIO ]
             </button>
             <button 
               onClick={() => handleLaunchAndPause('https://xyrtania.andy-596.workers.dev')}
-              className="bg-amber-500 text-black font-black text-xs px-4 py-2 rounded shadow-md hover:bg-amber-400 transition-all flex items-center space-x-1 tracking-wider"
+              className="bg-amber-500 text-black font-black text-[11px] sm:text-xs px-2.5 sm:px-4 py-1.5 sm:py-2 rounded shadow-md hover:bg-amber-400 transition-all flex items-center space-x-1 tracking-wider"
             >
               <Play className="w-3.5 h-3.5 fill-black" />
-              <span>PLAY IN BROWSER</span>
+              <span>PLAY</span>
             </button>
           </div>
         </div>
@@ -717,42 +718,42 @@ export default function XyrtaniaCinematicSite({ onBackToStudio, onLaunchGame }: 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 font-mono text-xs text-zinc-400">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 font-mono text-xs text-zinc-400">
             <div className="space-y-3">
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">API STANDARDS</span>
-                <span className="text-right">WebGL 2.0 / GLSL ES 3.0 / Canvas2D</span>
+                <span className="text-left sm:text-right">WebGL 2.0 / GLSL ES 3.0 / Canvas2D</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">SOCKET PROTOCOL</span>
-                <span className="text-right">WebSockets (wss://) Low Latency</span>
+                <span className="text-left sm:text-right">WebSockets (wss://) Low Latency</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">HOST RELAY CLUSTER</span>
-                <span className="text-right">Render.com Gateway / Node-Group East</span>
+                <span className="text-left sm:text-right">Render.com Gateway / Node-Group East</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">AUDIO ENGINE</span>
-                <span className="text-right">Native Web Audio API Streams</span>
+                <span className="text-left sm:text-right">Native Web Audio API Streams</span>
               </div>
             </div>
 
             <div className="space-y-3">
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">COMPATIBLE BROWSERS</span>
-                <span className="text-right">Safari 15+ / Chrome 102+ / Firefox 98+</span>
+                <span className="text-left sm:text-right">Safari 15+ / Chrome 102+ / Firefox 98+</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">SYSTEM CONTROLS</span>
-                <span className="text-right">Mobile Joystick (Touch) / WASD (Desktop)</span>
+                <span className="text-left sm:text-right">Mobile Joystick (Touch) / WASD (Desktop)</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">DEPLOYMENT ECOSYSTEM</span>
-                <span className="text-right">Cloudflare Shard Edge / Pages Deployment</span>
+                <span className="text-left sm:text-right">Cloudflare Shard Edge / Pages Deployment</span>
               </div>
-              <div className="flex justify-between border-b border-zinc-900 pb-2">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 border-b border-zinc-900 pb-2">
                 <span className="text-amber-500 font-bold">ASSETS PIPELINE</span>
-                <span className="text-right">Compressed WebP &bull; Low-Bitrate OGG Streams</span>
+                <span className="text-left sm:text-right">Compressed WebP &bull; Low-Bitrate OGG Streams</span>
               </div>
             </div>
           </div>

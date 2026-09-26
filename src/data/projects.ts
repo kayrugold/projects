@@ -1,62 +1,161 @@
 export const projectsData: Record<string, string> = {
-  "win-dev-utility-pack": `
-<h1 class="page-title" style="font-size: 1.5rem; font-weight: bold; color: #f4f4f5; margin-bottom: 1rem;">Asset: WIN DEV UTILITY PACK</h1>
-
-<div class="item-card" style="border-left: 5px solid #fbbf24; padding-left: 1rem; margin-bottom: 2rem;">
-    <p class="log-date" style="color: #fbbf24; font-size: 0.8rem; font-family: monospace; margin-bottom: 0.5rem;">Classification: DEVELOPMENT TOOLKIT</p>
-    <p class="log-body" style="color: #a1a1aa; font-size: 0.9rem; line-height: 1.6;">
-        A curated collection of lightweight Windows utilities designed to streamline the game development workflow. 
-        From rapid asset packing to complex string manipulation, these tools are built for speed and portability.
-    </p>
-</div>
-
-<div class="view-section" style="margin-bottom: 2rem;">
-    <h2 class="log-title" style="font-size: 1.2rem; font-weight: bold; color: #e4e4e7; margin-bottom: 1rem;">What's Inside</h2>
-    <div class="gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-        <div class="paper-scrap" style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; padding: 1rem; border-radius: 0.5rem;">
-            <div class="scrap-title" style="color: #10b981; font-weight: bold; margin-bottom: 0.5rem;">SGS Regex Parser</div>
-            <div class="scrap-text" style="color: #a1a1aa; font-size: 0.85rem;">Real-time pattern matching for complex data logs.</div>
+  "infinite-drafting": `
+<div style="font-family: monospace; color: #e4e4e7;">
+    <!-- Header Block -->
+    <div style="position: relative; border: 1px solid #3f3f46; background: linear-gradient(135deg, rgba(9, 9, 11, 0.95) 0%, rgba(24, 24, 27, 0.95) 100%); padding: 2.5rem 2rem; border-radius: 0.75rem; margin-bottom: 2rem; box-shadow: 0 0 35px rgba(16, 185, 129, 0.08); overflow: hidden;">
+        <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #10b981;"></div>
+        
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem;">
+            <h1 style="font-size: 2.25rem; font-weight: 900; letter-spacing: 0.05em; color: #f4f4f5; margin: 0;">INFINITE DRAFTING</h1>
+            <span style="font-size: 1.1rem; font-weight: bold; color: #10b981; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.4rem 1rem; border-radius: 0.375rem;">
+                $1.99 USD
+            </span>
         </div>
-        <div class="paper-scrap" style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; padding: 1rem; border-radius: 0.5rem;">
-            <div class="scrap-title" style="color: #10b981; font-weight: bold; margin-bottom: 0.5rem;">SpriteSmith Pro</div>
-            <div class="scrap-text" style="color: #a1a1aa; font-size: 0.85rem;">Automated sprite sheet generation with JSON padding.</div>
+
+        <div style="font-size: 0.85rem; color: #10b981; letter-spacing: 0.1em; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span>CLASSIFICATION: TECHNICAL DRAFTING & GRAPH PAPER UTILITY</span>
+            <span style="color: #3f3f46;">|</span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; box-shadow: 0 0 8px #10b981;"></span>
+                STABLE PRODUCTION RELEASE
+            </span>
         </div>
-        <div class="paper-scrap" style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; padding: 1rem; border-radius: 0.5rem;">
-            <div class="scrap-title" style="color: #10b981; font-weight: bold; margin-bottom: 0.5rem;">JSON Forge</div>
-            <div class="scrap-text" style="color: #a1a1aa; font-size: 0.85rem;">Visual manifest editor for project configuration.</div>
+
+        <p style="color: #d4d4d8; font-size: 1.05rem; line-height: 1.7; max-width: 75ch; margin: 0;">
+            Infinite Drafting is an instant-open, infinite-canvas graph paper utility designed to capture technical ideas the moment inspiration strikes, bypassing the bloat and loading times of heavy design software. It is a $1.99, zero-friction pocket tool built for users who need immediate access to a reliable drafting space.
+        </p>
+    </div>
+
+    <!-- Media Showcase Bento (Square Featured + 9:16 Mobile Viewport) -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 2.5rem;">
+        <!-- Featured Image Card -->
+        <div style="background: rgba(24, 24, 27, 0.6); border: 1px solid #3f3f46; border-radius: 0.75rem; padding: 1.25rem; display: flex; flex-direction: column;">
+            <div style="font-size: 0.8rem; font-weight: bold; color: #10b981; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+                <span>FEATURED PRODUCT ARTWORK</span>
+                <span style="color: #71717a;">1:1 SQUARE FORMAT</span>
+            </div>
+            <div style="width: 100%; aspect-ratio: 1/1; border-radius: 0.5rem; overflow: hidden; border: 1px solid #27272a; background: #09090b;">
+                <img 
+                    src="/assets/infinitedrafting1.webp" 
+                    alt="Infinite Drafting Featured" 
+                    style="width: 100%; height: 100%; object-fit: cover;"
+                />
+            </div>
+            <p style="font-size: 0.75rem; color: #a1a1aa; margin-top: 0.75rem; line-height: 1.5; margin-bottom: 0;">
+                Core edition graph paper iconology featuring precision coordinates and infinite drafting grid lines.
+            </p>
+        </div>
+
+        <!-- 9:16 Vertical Interface Preview Card -->
+        <div style="background: rgba(24, 24, 27, 0.6); border: 1px solid #3f3f46; border-radius: 0.75rem; padding: 1.25rem; display: flex; flex-direction: column;">
+            <div style="font-size: 0.8rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+                <span>SHOP & FIELD VIEWPORT</span>
+                <span style="color: #71717a;">9:16 MOBILE INTERFACE</span>
+            </div>
+            <div style="width: 100%; max-height: 420px; border-radius: 0.5rem; overflow: hidden; border: 1px solid #27272a; background: #09090b; display: flex; justify-content: center; align-items: center;">
+                <img 
+                    src="/assets/infinitedrafting0.webp" 
+                    alt="Infinite Drafting Vertical Interface" 
+                    style="max-width: 100%; max-height: 420px; object-fit: contain;"
+                />
+            </div>
+            <p style="font-size: 0.75rem; color: #a1a1aa; margin-top: 0.75rem; line-height: 1.5; margin-bottom: 0;">
+                Full-height mobile drafting matrix with zero lag, instant gesture navigation, and multi-scale precision.
+            </p>
         </div>
     </div>
-</div>
 
-<div class="view-section" style="margin-top: 30px; margin-bottom: 2rem;">
-    <h2 class="log-title" style="font-size: 1.2rem; font-weight: bold; color: #e4e4e7; margin-bottom: 1rem;">Technical Specifications</h2>
-    <table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 0.9rem;">
-        <tr style="border-bottom: 1px solid #3f3f46;">
-            <td style="padding: 10px; color: #ef4444;">OS Compatibility</td>
-            <td style="padding: 10px; color: #a1a1aa;">Windows 10/11 (x64)</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #3f3f46;">
-            <td style="padding: 10px; color: #ef4444;">Dependencies</td>
-            <td style="padding: 10px; color: #a1a1aa;">None (Standalone Executables)</td>
-        </tr>
-        <tr style="border-bottom: 1px solid #3f3f46;">
-            <td style="padding: 10px; color: #ef4444;">License</td>
-            <td style="padding: 10px; color: #a1a1aa;">Personal & Commercial Use</td>
-        </tr>
-    </table>
-</div>
+    <!-- Core Pillars / Architectural Features -->
+    <div style="margin-bottom: 3rem;">
+        <h2 style="font-size: 1.35rem; font-weight: bold; color: #f4f4f5; margin-bottom: 1.25rem; letter-spacing: 0.05em; display: flex; align-items: center;">
+            <span style="color: #10b981; margin-right: 0.5rem;">##</span> CORE CAPABILITIES
+        </h2>
 
-<div class="desk-note" style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); padding: 1rem; border-radius: 0.5rem; margin-top: 40px;">
-    <div class="note-header" style="color: #fbbf24; font-weight: bold; margin-bottom: 0.5rem;">Installation Instruction</div>
-    <div class="note-hand" style="color: #d4d4d8; font-size: 0.9rem; font-style: italic;">
-        After acquisition via itch.io, extract the archive to your preferred dev directory. 
-        No registry entries are created. Portable and clean.
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #10b981; padding: 1.25rem; border-radius: 0.5rem;">
+                <div style="color: #10b981; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">⚡ Zero-Friction Startup</div>
+                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
+                    Opens instantly to a clean interface, allowing users to start drawing before a sudden idea or mathematical breakthrough slips away. No splash screens, no subscription prompts, no loading bars.
+                </div>
+            </div>
+
+            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #fbbf24; padding: 1.25rem; border-radius: 0.5rem;">
+                <div style="color: #fbbf24; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">🌌 The Boundless Canvas</div>
+                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
+                    The workspace expands endlessly, accommodating sprawling game level layouts, intricate gnomonic geometry, or modular arithmetic matrices without ever hitting a page border.
+                </div>
+            </div>
+
+            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #3b82f6; padding: 1.25rem; border-radius: 0.5rem;">
+                <div style="color: #3b82f6; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">📐 Precision Toolkit</div>
+                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
+                    Equipped with a built-in ruler, protractor, and the ability to instantly snap directional number grids. It serves as a highly accurate tool for mapping out woodworking joints or calculating material yields in the shop.
+                </div>
+            </div>
+
+            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #a855f7; padding: 1.25rem; border-radius: 0.5rem;">
+                <div style="color: #c084fc; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">🤝 Community-Minded Architecture</div>
+                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
+                    Developed alongside Google AI Studio and packaged as a native Android App Bundle via Capacitor, the app targets the Play Store while simultaneously maintaining a free, browser-based HTML5 version hosted on itch.io to support the indie development community.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Specifications Table -->
+    <div style="margin-bottom: 3rem; background: rgba(18, 18, 20, 0.8); border: 1px solid #27272a; border-radius: 0.75rem; padding: 1.75rem;">
+        <h3 style="font-size: 1.15rem; font-weight: bold; color: #fbbf24; margin-bottom: 1.25rem; border-bottom: 1px dashed #3f3f46; padding-bottom: 0.5rem;">
+            TECHNICAL SPECIFICATIONS
+        </h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <tr style="border-bottom: 1px solid #27272a;">
+                <td style="padding: 10px 0; color: #10b981; font-weight: bold; width: 40%;">Primary Target</td>
+                <td style="padding: 10px 0; color: #d4d4d8;">Google Play Store (Android Native App Bundle)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #27272a;">
+                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Web / Community Target</td>
+                <td style="padding: 10px 0; color: #d4d4d8;">itch.io (Free HTML5 Browser Edition)</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #27272a;">
+                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Core Technology</td>
+                <td style="padding: 10px 0; color: #d4d4d8;">Capacitor, High-DPI HTML5 Canvas, Vanilla TS/JS</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #27272a;">
+                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Canvas Limits</td>
+                <td style="padding: 10px 0; color: #d4d4d8;">Unbounded 2D Floating Point Coordinate Grid</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #27272a;">
+                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Integrated Tools</td>
+                <td style="padding: 10px 0; color: #d4d4d8;">Dynamic Ruler, 360° Protractor, Snap-to-Grid, Angle Guides</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #27272a;">
+                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Commercial Pricing</td>
+                <td style="padding: 10px 0; color: #d4d4d8;">$1.99 Lifetime License on Android (Zero Ads, Zero Telemetry)</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Action Launcher Buttons -->
+    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 2rem;">
+        <button 
+            onclick="window.open('https://play.google.com', '_blank')" 
+            style="background: #10b981; color: #09090b; border: none; padding: 0.85rem 1.75rem; font-weight: bold; border-radius: 0.375rem; cursor: pointer; font-size: 0.9rem; letter-spacing: 0.05em; transition: all 0.2s;"
+            onmouseover="this.style.background='#34d399'"
+            onmouseout="this.style.background='#10b981'"
+        >
+            ACQUIRE ON GOOGLE PLAY ($1.99)
+        </button>
+
+        <button 
+            onclick="window.open('https://itch.io', '_blank')" 
+            style="background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); padding: 0.85rem 1.75rem; font-weight: bold; border-radius: 0.375rem; cursor: pointer; font-size: 0.9rem; letter-spacing: 0.05em; transition: all 0.2s;"
+            onmouseover="this.style.background='rgba(251, 191, 36, 0.2)'"
+            onmouseout="this.style.background='rgba(251, 191, 36, 0.1)'"
+        >
+            LAUNCH FREE EDITION ON ITCH.IO
+        </button>
     </div>
 </div>
-
-<button onclick="window.open('https://itch.io', '_blank')" class="seal-btn" style="margin-top: 40px; background: #fbbf24; color: #000; border: 1px solid #000; padding: 0.75rem 1.5rem; font-weight: bold; border-radius: 0.25rem; cursor: pointer;">
-    ACQUIRE FROM THE LEDGER
-</button>
 `,
   "thegeneral": `
 <h1 class="page-title" style="font-size: 1.5rem; font-weight: bold; color: #f4f4f5; margin-bottom: 1rem;">Project: THE GENERAL</h1>
@@ -260,35 +359,38 @@ export const projectsData: Record<string, string> = {
 </button>
 `,
   "xyrtania": `
-<div style="font-family: 'Courier New', Courier, monospace; color: #e4e4e7;">
+<div class="xyrtania-specs-root" style="font-family: 'Courier New', Courier, monospace; color: #e4e4e7; width: 100%; max-width: 100%; overflow-x: hidden; box-sizing: border-box;">
     <!-- CSS Embed for 3D Monolith, Animations, and Layout Styling -->
     <style>
         @keyframes xyrtania_spin {
             0% { transform: rotateY(0deg) rotateX(12deg); }
             100% { transform: rotateY(360deg) rotateX(12deg); }
         }
+        .xyrtania-specs-root * {
+            box-sizing: border-box;
+        }
         .xyrtania-3d-scene {
             perspective: 600px;
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 260px;
+            height: 240px;
             width: 100%;
             background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, rgba(9, 9, 11, 0) 70%);
             border-radius: 0.5rem;
             position: relative;
         }
         .xyrtania-3d-prism {
-            width: 90px;
-            height: 180px;
+            width: 80px;
+            height: 160px;
             position: relative;
             transform-style: preserve-3d;
             animation: xyrtania_spin 14s linear infinite;
         }
         .xyrtania-face {
             position: absolute;
-            width: 90px;
-            height: 180px;
+            width: 80px;
+            height: 160px;
             border: 1px solid rgba(251, 191, 36, 0.4);
             background: rgba(9, 9, 11, 0.9);
             box-shadow: 0 0 20px rgba(251, 191, 36, 0.1);
@@ -300,18 +402,18 @@ export const projectsData: Record<string, string> = {
             letter-spacing: 0.1em;
             color: rgba(251, 191, 36, 0.7);
         }
-        .xyrtania-face-front  { transform: translateZ(45px); }
-        .xyrtania-face-back   { transform: rotateY(180deg) translateZ(45px); }
-        .xyrtania-face-left   { transform: rotateY(-90deg) translateZ(45px); }
-        .xyrtania-face-right  { transform: rotateY(90deg) translateZ(45px); }
+        .xyrtania-face-front  { transform: translateZ(40px); }
+        .xyrtania-face-back   { transform: rotateY(180deg) translateZ(40px); }
+        .xyrtania-face-left   { transform: rotateY(-90deg) translateZ(40px); }
+        .xyrtania-face-right  { transform: rotateY(90deg) translateZ(40px); }
         .xyrtania-face-top    { 
-            transform: rotateX(90deg) translateZ(45px); 
-            height: 90px; 
+            transform: rotateX(90deg) translateZ(40px); 
+            height: 80px; 
             border-color: rgba(16, 185, 129, 0.4);
         }
         .xyrtania-face-bottom { 
-            transform: rotateX(-90deg) translateZ(135px); 
-            height: 90px; 
+            transform: rotateX(-90deg) translateZ(120px); 
+            height: 80px; 
             border-color: rgba(16, 185, 129, 0.4);
         }
         
@@ -319,33 +421,80 @@ export const projectsData: Record<string, string> = {
             background: #fbbf24;
             color: #000;
             border: none;
-            padding: 0.85rem 1.75rem;
+            padding: 0.85rem 1.5rem;
             font-weight: bold;
             font-family: monospace;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             letter-spacing: 0.05em;
             border-radius: 0.375rem;
             cursor: pointer;
             box-shadow: 0 0 15px rgba(251, 191, 36, 0.35);
             transition: all 0.25s ease-in-out;
+            width: 100%;
+            text-align: center;
+            word-break: break-word;
+        }
+        @media (min-width: 640px) {
+            .xyrtania-glow-button {
+                width: auto;
+            }
         }
         .xyrtania-glow-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 0 25px rgba(251, 191, 36, 0.6);
             background: #fcd34d;
         }
+
+        .xyrtania-btn-secondary {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            padding: 0.85rem 1.5rem;
+            font-weight: bold;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            transition: all 0.25s ease-in-out;
+            width: 100%;
+            text-align: center;
+            word-break: break-word;
+        }
+        @media (min-width: 640px) {
+            .xyrtania-btn-secondary {
+                width: auto;
+            }
+        }
+        .xyrtania-btn-secondary:hover {
+            background: rgba(16, 185, 129, 0.25);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+        }
         
         .xyrtania-nav-link {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #a1a1aa;
             cursor: pointer;
             transition: color 0.15s ease;
             text-decoration: none;
             border-bottom: 1px dashed transparent;
+            padding: 3px 5px;
+            display: inline-block;
         }
         .xyrtania-nav-link:hover {
             color: #fbbf24;
             border-color: #fbbf24;
+        }
+
+        .xyrtania-header-box {
+            position: relative;
+            border: 1px solid #3f3f46;
+            background: linear-gradient(135deg, rgba(9, 9, 11, 0.95) 0%, rgba(20, 20, 23, 0.95) 100%);
+            padding: 2.5rem 2rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 0 35px rgba(16, 185, 129, 0.08);
+            overflow: hidden;
         }
 
         .xyrtania-section-container {
@@ -358,9 +507,9 @@ export const projectsData: Record<string, string> = {
             overflow: hidden;
         }
         .xyrtania-section-header {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             font-weight: bold;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.08em;
             color: #fbbf24;
             margin-bottom: 1.5rem;
             border-bottom: 1px dashed #3f3f46;
@@ -368,21 +517,139 @@ export const projectsData: Record<string, string> = {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .xyrtania-spec-label {
-            color: #fbbf24;
-            font-weight: bold;
-            width: 140px;
-            display: inline-block;
+        
+        .xyrtania-two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .xyrtania-two-col-grid {
+                grid-template-columns: 1fr 1.2fr;
+                gap: 30px;
+                align-items: center;
+            }
+        }
+
+        .xyrtania-hud-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .xyrtania-hud-grid {
+                grid-template-columns: 1fr 1.3fr;
+                gap: 30px;
+            }
+        }
+
+        .xyrtania-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        @media (min-width: 540px) {
+            .xyrtania-actions-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .xyrtania-telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            align-items: stretch;
+            margin-bottom: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .xyrtania-telemetry-grid {
+                grid-template-columns: 1fr 1.8fr;
+            }
+        }
+
+        .xyrtania-specs-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media (min-width: 768px) {
+            .xyrtania-specs-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+            }
+        }
+
+        .xyrtania-features-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        @media (min-width: 640px) {
+            .xyrtania-features-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+            }
+        }
+
+        .xyrtania-btn-cluster {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 2rem;
+        }
+        @media (min-width: 640px) {
+            .xyrtania-btn-cluster {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+        }
+
+        .xyrtania-spec-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #a1a1aa;
+        }
+        .xyrtania-spec-row {
+            border-bottom: 1px solid #27272a;
+        }
+
+        /* Note 20 & Mobile Screen Optimization */
+        @media (max-width: 640px) {
+            .xyrtania-header-box {
+                padding: 1.5rem 1rem !important;
+            }
+            .xyrtania-section-container {
+                padding: 1.25rem 0.9rem !important;
+            }
+            .xyrtania-section-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 4px !important;
+            }
+            .xyrtania-spec-row {
+                display: flex !important;
+                flex-direction: column !important;
+                padding: 8px 0 !important;
+            }
+            .xyrtania-spec-row td {
+                padding: 2px 0 !important;
+                text-align: left !important;
+                width: 100% !important;
+            }
         }
     </style>
 
     <!-- Header & Interactive Navigation Menu -->
-    <div style="position: relative; border: 1px solid #3f3f46; background: linear-gradient(135deg, rgba(9, 9, 11, 0.95) 0%, rgba(20, 20, 23, 0.95) 100%); padding: 3rem 2.5rem; border-radius: 0.75rem; margin-bottom: 2rem; box-shadow: 0 0 35px rgba(16, 185, 129, 0.08); overflow: hidden;">
+    <div class="xyrtania-header-box">
         <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #fbbf24;"></div>
         
         <!-- Interactive Navigation Links -->
-        <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 2rem; border-bottom: 1px solid #27272a; padding-bottom: 1rem;">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 1.5rem; border-bottom: 1px solid #27272a; padding-bottom: 1rem;">
             <a onclick="xyrtaniaScrollTo('xyrtania_overview_sec')" class="xyrtania-nav-link">[ 🌐 OVERVIEW ]</a>
             <a onclick="xyrtaniaScrollTo('xyrtania_interactive_hud_sec')" class="xyrtania-nav-link">[ 📊 SURVIVAL HUD ]</a>
             <a onclick="xyrtaniaScrollTo('xyrtania_monolith_sec')" class="xyrtania-nav-link">[ 🔮 RIFT MONOLITH ]</a>
@@ -390,8 +657,9 @@ export const projectsData: Record<string, string> = {
             <a onclick="xyrtaniaScrollTo('xyrtania_specs_sec')" class="xyrtania-nav-link">[ ⚙️ SPECIFICATIONS ]</a>
         </div>
 
-        <h2 style="font-size: 2.75rem; font-weight: 900; letter-spacing: 0.2em; color: #fbbf24; margin-bottom: 0.5rem; text-shadow: 0 0 15px rgba(251, 191, 36, 0.3);">XYRTANIA</h2>
-        <div style="font-family: monospace; font-size: 0.85rem; color: #10b981; letter-spacing: 0.15em; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <h2 style="font-size: clamp(1.85rem, 7vw, 2.75rem); font-weight: 900; letter-spacing: clamp(0.06em, 2vw, 0.2em); color: #fbbf24; margin-bottom: 0.5rem; text-shadow: 0 0 15px rgba(251, 191, 36, 0.3); word-break: break-word;">XYRTANIA</h2>
+        
+        <div style="font-family: monospace; font-size: 0.8rem; color: #10b981; letter-spacing: 0.1em; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span>SYSTEM: 3D MULTIPLAYER ADVENTURE</span>
             <span style="color: #3f3f46;">|</span>
             <span style="display: flex; align-items: center; gap: 6px;">
@@ -399,7 +667,8 @@ export const projectsData: Record<string, string> = {
                 ALPHA GATEWAY ACTIVE
             </span>
         </div>
-        <p style="color: #a1a1aa; font-size: 1.05rem; line-height: 1.75; max-width: 72ch; margin: 0;">
+
+        <p style="color: #a1a1aa; font-size: 0.95rem; line-height: 1.7; max-width: 72ch; margin: 0;">
             Welcome to the future of browser architecture. Xyrtania merges WebGL rendering with real-time state synchronization, launching a complete multi-user exploration RPG straight from a single URL. Direct client connection, procedural rifts, and tactile combat pipelines await.
         </p>
     </div>
@@ -411,10 +680,10 @@ export const projectsData: Record<string, string> = {
         <div id="xyrtania_monolith_sec" class="xyrtania-section-container">
             <div class="xyrtania-section-header">
                 <span>[🔮] RIFT MONOLITH CALIBRATION</span>
-                <span style="font-size: 0.75rem; color: #a1a1aa;">ACTIVE WEbGL WIREFRAME SIMULATOR</span>
+                <span style="font-size: 0.72rem; color: #a1a1aa;">ACTIVE WEBGL WIREFRAME SIMULATOR</span>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr md:1.2fr; gap: 30px; align-items: center;">
+            <div class="xyrtania-two-col-grid">
                 <div class="xyrtania-3d-scene">
                     <div id="xyrtania_prism" class="xyrtania-3d-prism">
                         <div class="xyrtania-face xyrtania-face-front">RIFT_A</div>
@@ -427,8 +696,8 @@ export const projectsData: Record<string, string> = {
                 </div>
                 
                 <div>
-                    <h4 style="font-size: 1.1rem; color: #f4f4f5; margin-bottom: 0.75rem; font-weight: bold;">Procedural Geometry Manipulation</h4>
-                    <p style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                    <h4 style="font-size: 1.05rem; color: #f4f4f5; margin-bottom: 0.75rem; font-weight: bold;">Procedural Geometry Manipulation</h4>
+                    <p style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6; margin-bottom: 1.25rem;">
                         This wireframe replicates the 3D mathematical anchors used inside Xyrtania's Three.js matrix. Drag the control slider below to adjust the angular velocity of the spatial engine, simulating varying warp frequencies inside the rift structures.
                     </p>
                     <div style="background: rgba(24, 24, 27, 0.6); padding: 1rem; border-radius: 0.5rem; border: 1px solid #27272a;">
@@ -447,16 +716,16 @@ export const projectsData: Record<string, string> = {
         <div id="xyrtania_interactive_hud_sec" class="xyrtania-section-container">
             <div class="xyrtania-section-header">
                 <span>[📊] SURVIVAL HUD TELEMETRY</span>
-                <span style="font-size: 0.75rem; color: #a1a1aa;">VITAL STATE PREVIEWER</span>
+                <span style="font-size: 0.72rem; color: #a1a1aa;">VITAL STATE PREVIEWER</span>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr md:1.3fr; gap: 30px;">
+            <div class="xyrtania-hud-grid">
                 <!-- HUD Gauges Box -->
-                <div style="background: rgba(9, 9, 11, 0.7); border: 1px solid #27272a; padding: 1.5rem; border-radius: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+                <div style="background: rgba(9, 9, 11, 0.7); border: 1px solid #27272a; padding: 1.25rem; border-radius: 0.5rem; display: flex; flex-direction: column; gap: 1.15rem;">
                     <!-- Health Gauge -->
                     <div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.35rem;">
-                            <span style="color: #ef4444;">❤ COGNITIVE INTEGRITY (HEALTH)</span>
+                            <span style="color: #ef4444;">❤ INTEGRITY (HEALTH)</span>
                             <span id="xyrtania_health_text" style="color: #ef4444;">85%</span>
                         </div>
                         <div style="height: 10px; background: #27272a; border-radius: 5px; overflow: hidden; border: 1px solid rgba(239, 68, 68, 0.25);">
@@ -467,7 +736,7 @@ export const projectsData: Record<string, string> = {
                     <!-- Energy Gauge -->
                     <div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.35rem;">
-                            <span style="color: #fbbf24;">⚡ KINETIC CAPACITANCE (ENERGY)</span>
+                            <span style="color: #fbbf24;">⚡ CAPACITANCE (ENERGY)</span>
                             <span id="xyrtania_energy_text" style="color: #fbbf24;">90%</span>
                         </div>
                         <div style="height: 10px; background: #27272a; border-radius: 5px; overflow: hidden; border: 1px solid rgba(251, 191, 36, 0.25);">
@@ -478,7 +747,7 @@ export const projectsData: Record<string, string> = {
                     <!-- Mana Gauge -->
                     <div>
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.35rem;">
-                            <span style="color: #3b82f6;">🔮 ANOMALOUS RESERVE (MANA)</span>
+                            <span style="color: #3b82f6;">🔮 RESERVE (MANA)</span>
                             <span id="xyrtania_mana_text" style="color: #3b82f6;">60%</span>
                         </div>
                         <div style="height: 10px; background: #27272a; border-radius: 5px; overflow: hidden; border: 1px solid rgba(59, 130, 246, 0.25);">
@@ -487,16 +756,16 @@ export const projectsData: Record<string, string> = {
                     </div>
 
                     <!-- Spatial Coordinates display -->
-                    <div style="border-top: 1px solid #27272a; padding-top: 1rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; font-size: 0.75rem;">
-                        <div>
+                    <div style="border-top: 1px solid #27272a; padding-top: 0.85rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center; font-size: 0.7rem;">
+                        <div style="overflow: hidden; text-overflow: ellipsis;">
                             <div style="color: #71717a; margin-bottom: 2px;">RIFT_X</div>
                             <div id="xyrtania_coord_x" style="color: #10b981; font-weight: bold;">479.23</div>
                         </div>
-                        <div>
+                        <div style="overflow: hidden; text-overflow: ellipsis;">
                             <div style="color: #71717a; margin-bottom: 2px;">RIFT_Y</div>
                             <div id="xyrtania_coord_y" style="color: #10b981; font-weight: bold;">102.84</div>
                         </div>
-                        <div>
+                        <div style="overflow: hidden; text-overflow: ellipsis;">
                             <div style="color: #71717a; margin-bottom: 2px;">RIFT_Z</div>
                             <div id="xyrtania_coord_z" style="color: #10b981; font-weight: bold;">-884.12</div>
                         </div>
@@ -505,19 +774,19 @@ export const projectsData: Record<string, string> = {
                 
                 <!-- Controller Actions -->
                 <div style="display: flex; flex-direction: column; justify-content: center;">
-                    <h4 style="font-size: 1.1rem; color: #f4f4f5; margin-bottom: 0.75rem; font-weight: bold;">Survival Telemetry Matrix</h4>
-                    <p style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                    <h4 style="font-size: 1.05rem; color: #f4f4f5; margin-bottom: 0.75rem; font-weight: bold;">Survival Telemetry Matrix</h4>
+                    <p style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6; margin-bottom: 1.25rem;">
                         Survival in Xyrtania's floating rifts requires persistent regulation of core neural systems. Click the control triggers below to interact with the simulated HUD, modeling real-time client-side actions and positional shifts.
                     </p>
                     
-                    <div style="display: grid; grid-template-columns: 1fr sm:1fr; gap: 10px;">
-                        <button onclick="xyrtaniaSimulateEncounter()" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.65rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.2)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.1)'">
+                    <div class="xyrtania-actions-grid">
+                        <button onclick="xyrtaniaSimulateEncounter()" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.65rem 0.5rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.2)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.1)'">
                             ⚔️ SIMULATE COMBAT
                         </button>
-                        <button onclick="xyrtaniaUseElixir()" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.65rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.2)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.1)'">
+                        <button onclick="xyrtaniaUseElixir()" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.65rem 0.5rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background 0.2s;" onmouseover="this.style.background='rgba(16, 185, 129, 0.2)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.1)'">
                             🧪 DRINK HEALTH ELIXIR
                         </button>
-                        <button onclick="xyrtaniaRiftShift()" style="background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); padding: 0.65rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background 0.2s; grid-column: span 2;" onmouseover="this.style.background='rgba(251, 191, 36, 0.2)'" onmouseout="this.style.background='rgba(251, 191, 36, 0.1)'">
+                        <button onclick="xyrtaniaRiftShift()" style="background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); padding: 0.65rem 1rem; border-radius: 0.375rem; cursor: pointer; font-size: 0.75rem; font-weight: bold; transition: background 0.2s; grid-column: 1 / -1;" onmouseover="this.style.background='rgba(251, 191, 36, 0.2)'" onmouseout="this.style.background='rgba(251, 191, 36, 0.1)'">
                             🌀 TRANS-COORDINATE RIFT SHIFT
                         </button>
                     </div>
@@ -529,36 +798,36 @@ export const projectsData: Record<string, string> = {
         <div id="xyrtania_console_sec" class="xyrtania-section-container">
             <div class="xyrtania-section-header">
                 <span>[💻] SOCKET MULTIPLAYER GATEWAY</span>
-                <span style="font-size: 0.75rem; color: #a1a1aa;">LIVE TELeMETRY PIPELINE LOGS</span>
+                <span style="font-size: 0.72rem; color: #a1a1aa;">LIVE TELEMETRY PIPELINE LOGS</span>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr md:1.8fr; gap: 20px; align-items: stretch; margin-bottom: 1.5rem;">
+            <div class="xyrtania-telemetry-grid">
                 <!-- Telemetry Stats Panel -->
-                <div style="background: rgba(9, 9, 11, 0.5); border: 1px solid #27272a; padding: 1.25rem; border-radius: 0.5rem; display: flex; flex-direction: column; justify-content: space-around; gap: 10px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; border-bottom: 1px dashed #27272a; padding-bottom: 6px;">
+                <div style="background: rgba(9, 9, 11, 0.5); border: 1px solid #27272a; padding: 1.15rem; border-radius: 0.5rem; display: flex; flex-direction: column; justify-content: space-around; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; border-bottom: 1px dashed #27272a; padding-bottom: 6px;">
                         <span style="color: #a1a1aa;">RELAY GATEWAY:</span>
                         <span style="color: #fbbf24; font-weight: bold;">Render.com</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; border-bottom: 1px dashed #27272a; padding-bottom: 6px;">
-                        <span style="color: #a1a1aa;">ACTIVE CONCURRENCY:</span>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; border-bottom: 1px dashed #27272a; padding-bottom: 6px;">
+                        <span style="color: #a1a1aa;">ACTIVE PLAYERS:</span>
                         <span><span id="xyrtania_active_players" style="color: #10b981; font-weight: bold;">24</span> <span style="color: #71717a;">Wanderers</span></span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; border-bottom: 1px dashed #27272a; padding-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; border-bottom: 1px dashed #27272a; padding-bottom: 6px;">
                         <span style="color: #a1a1aa;">SOCKET LATENCY:</span>
                         <span id="xyrtania_latency" style="color: #10b981; font-weight: bold;">42ms</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; padding-bottom: 2px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; padding-bottom: 2px;">
                         <span style="color: #a1a1aa;">CLIENT THREADS:</span>
                         <span style="color: #10b981; font-weight: bold;">Web Worker (0)</span>
                     </div>
                 </div>
 
                 <!-- Scrolling Console Output Box -->
-                <div style="background: #09090b; border: 1px solid #27272a; border-radius: 0.5rem; padding: 1rem; position: relative;">
-                    <div id="xyrtania_terminal_lines" style="height: 140px; overflow-y: auto; font-size: 0.75rem; line-height: 1.5; color: #a1a1aa; font-family: monospace; scrollbar-width: thin;">
+                <div style="background: #09090b; border: 1px solid #27272a; border-radius: 0.5rem; padding: 0.85rem; position: relative;">
+                    <div id="xyrtania_terminal_lines" style="height: 130px; overflow-y: auto; overflow-x: hidden; font-size: 0.7rem; line-height: 1.5; color: #a1a1aa; font-family: monospace; scrollbar-width: thin; word-break: break-all; overflow-wrap: anywhere;">
                         <!-- Dynamically filled logs -->
                     </div>
-                    <div style="position: absolute; bottom: 4px; right: 8px; font-size: 0.6rem; color: #3f3f46;">GATEWAY_MONITOR_SYS</div>
+                    <div style="position: absolute; bottom: 4px; right: 8px; font-size: 0.55rem; color: #3f3f46;">GATEWAY_MONITOR_SYS</div>
                 </div>
             </div>
             
@@ -571,37 +840,37 @@ export const projectsData: Record<string, string> = {
 
     <!-- Features & Core Game Details -->
     <div style="margin-bottom: 3rem;">
-        <h3 style="font-size: 1.3rem; font-weight: bold; color: #f4f4f5; margin-bottom: 1.5rem; letter-spacing: 0.05em; display: flex; align-items: center;">
+        <h3 style="font-size: 1.25rem; font-weight: bold; color: #f4f4f5; margin-bottom: 1.25rem; letter-spacing: 0.05em; display: flex; align-items: center;">
             <span style="color: #fbbf24; margin-right: 0.5rem;">[</span> CORE SYSTEM FEATURES <span style="color: #fbbf24; margin-left: 0.5rem;">]</span>
         </h3>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+        <div class="xyrtania-features-grid">
             <!-- Grid Feature 1 -->
-            <div style="background: rgba(24, 24, 27, 0.4); border: 1px solid #27272a; padding: 1.5rem; border-radius: 0.5rem;">
-                <div style="font-size: 1.1rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px;">
+            <div style="background: rgba(24, 24, 27, 0.4); border: 1px solid #27272a; padding: 1.25rem; border-radius: 0.5rem;">
+                <div style="font-size: 1rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 8px;">
                     <span>🌐</span> REAL-TIME MULTIPLAYER
                 </div>
-                <p style="color: #a1a1aa; font-size: 0.875rem; line-height: 1.65; margin: 0;">
+                <p style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6; margin: 0;">
                     Shared coordinate systems. Engage with fellow guild members directly in-game. Instantly exchange player state matrices, movement tracks, and dimensional rift entries.
                 </p>
             </div>
             
             <!-- Grid Feature 2 -->
-            <div style="background: rgba(24, 24, 27, 0.4); border: 1px solid #27272a; padding: 1.5rem; border-radius: 0.5rem;">
-                <div style="font-size: 1.1rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px;">
+            <div style="background: rgba(24, 24, 27, 0.4); border: 1px solid #27272a; padding: 1.25rem; border-radius: 0.5rem;">
+                <div style="font-size: 1rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 8px;">
                     <span>📐</span> WEBGL 3D WORLD DESIGN
                 </div>
-                <p style="color: #a1a1aa; font-size: 0.875rem; line-height: 1.65; margin: 0;">
+                <p style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6; margin: 0;">
                     Procedural geometry mapping with efficient asset sizes. Custom Three.js chunk streaming buffers render floating structures smoothly, even on portable mobile browsers.
                 </p>
             </div>
             
             <!-- Grid Feature 3 -->
-            <div style="background: rgba(24, 24, 27, 0.4); border: 1px solid #27272a; padding: 1.5rem; border-radius: 0.5rem;">
-                <div style="font-size: 1.1rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px;">
+            <div style="background: rgba(24, 24, 27, 0.4); border: 1px solid #27272a; padding: 1.25rem; border-radius: 0.5rem;">
+                <div style="font-size: 1rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.65rem; display: flex; align-items: center; gap: 8px;">
                     <span>📱</span> ADAPTIVE MOBILE JOYSTICK
                 </div>
-                <p style="color: #a1a1aa; font-size: 0.875rem; line-height: 1.65; margin: 0;">
+                <p style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6; margin: 0;">
                     Smooth touch input integration. On-screen relative joystick mapping triggers reactive movement, while desktop standard keyboard WASD binds map cleanly on larger screens.
                 </p>
             </div>
@@ -612,55 +881,55 @@ export const projectsData: Record<string, string> = {
     <div id="xyrtania_specs_sec" class="xyrtania-section-container" style="margin-bottom: 3rem;">
         <div class="xyrtania-section-header">
             <span>[⚙️] RUNTIME SPECIFICATIONS SHEET</span>
-            <span style="font-size: 0.75rem; color: #a1a1aa;">COMPATIBILITY STANDARD 2026</span>
+            <span style="font-size: 0.72rem; color: #a1a1aa;">COMPATIBILITY STANDARD 2026</span>
         </div>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
+        <div class="xyrtania-specs-grid">
             <div>
-                <table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 0.85rem; color: #a1a1aa;">
-                    <tr style="border-bottom: 1px solid #27272a;">
-                        <td style="padding: 10px 0; color: #fbbf24; font-weight: bold;">API STANDARD</td>
-                        <td style="padding: 10px 0; text-align: right;">WebGL 2.0 / GLSL ES 3.0</td>
+                <table class="xyrtania-spec-table">
+                    <tr class="xyrtania-spec-row">
+                        <td style="padding: 9px 0; color: #fbbf24; font-weight: bold; width: 45%;">API STANDARD</td>
+                        <td style="padding: 9px 0; text-align: right; word-break: break-word;">WebGL 2.0 / GLSL ES 3.0</td>
                     </tr>
-                    <tr style="border-bottom: 1px solid #27272a;">
-                        <td style="padding: 10px 0; color: #fbbf24; font-weight: bold;">SOCKET LAYER</td>
-                        <td style="padding: 10px 0; text-align: right;">WebSockets (Low Latency)</td>
+                    <tr class="xyrtania-spec-row">
+                        <td style="padding: 9px 0; color: #fbbf24; font-weight: bold; width: 45%;">SOCKET LAYER</td>
+                        <td style="padding: 9px 0; text-align: right; word-break: break-word;">WebSockets (Low Latency)</td>
                     </tr>
-                    <tr style="border-bottom: 1px solid #27272a;">
-                        <td style="padding: 10px 0; color: #fbbf24; font-weight: bold;">HOST GATE</td>
-                        <td style="padding: 10px 0; text-align: right;">Render.com WebSocket Node</td>
+                    <tr class="xyrtania-spec-row">
+                        <td style="padding: 9px 0; color: #fbbf24; font-weight: bold; width: 45%;">HOST GATE</td>
+                        <td style="padding: 9px 0; text-align: right; word-break: break-word;">Render.com WebSocket Node</td>
                     </tr>
                 </table>
             </div>
             
             <div>
-                <table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 0.85rem; color: #a1a1aa;">
-                    <tr style="border-bottom: 1px solid #27272a;">
-                        <td style="padding: 10px 0; color: #fbbf24; font-weight: bold;">SUPPORTED SYSTEMS</td>
-                        <td style="padding: 10px 0; text-align: right;">iOS / Android / macOS / Windows / Linux</td>
+                <table class="xyrtania-spec-table">
+                    <tr class="xyrtania-spec-row">
+                        <td style="padding: 9px 0; color: #fbbf24; font-weight: bold; width: 45%;">SUPPORTED SYSTEMS</td>
+                        <td style="padding: 9px 0; text-align: right; word-break: break-word;">iOS / Android / macOS / Windows</td>
                     </tr>
-                    <tr style="border-bottom: 1px solid #27272a;">
-                        <td style="padding: 10px 0; color: #fbbf24; font-weight: bold;">BROWSER COMPAT</td>
-                        <td style="padding: 10px 0; text-align: right;">Safari 15+ / Chrome 100+ / Firefox 95+</td>
+                    <tr class="xyrtania-spec-row">
+                        <td style="padding: 9px 0; color: #fbbf24; font-weight: bold; width: 45%;">BROWSER COMPAT</td>
+                        <td style="padding: 9px 0; text-align: right; word-break: break-word;">Safari 15+ / Chrome 100+ / Firefox</td>
                     </tr>
-                    <tr style="border-bottom: 1px solid #27272a;">
-                        <td style="padding: 10px 0; color: #fbbf24; font-weight: bold;">CORE DEPS</td>
-                        <td style="padding: 10px 0; text-align: right;">Three.js / Canvas2D / Web Audio</td>
+                    <tr class="xyrtania-spec-row">
+                        <td style="padding: 9px 0; color: #fbbf24; font-weight: bold; width: 45%;">CORE DEPS</td>
+                        <td style="padding: 9px 0; text-align: right; word-break: break-word;">Three.js / Canvas2D / Web Audio</td>
                     </tr>
                 </table>
             </div>
         </div>
     </div>
 
-    <hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 30px 0;">
+    <hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 24px 0;">
 
     <!-- Action Launcher Buttons -->
-    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 2rem;">
+    <div class="xyrtania-btn-cluster">
         <button onclick="window.launchApp('https://xyrtania.andy-596.workers.dev')" class="xyrtania-glow-button">
             ENTER XYRTANIA (LAUNCH CLIENT)
         </button>
         
-        <button onclick="window.open('https://xyrtania.andy-596.workers.dev', '_blank')" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 1rem 2rem; font-weight: bold; border-radius: 0.375rem; cursor: pointer; font-family: monospace; font-size: 0.95rem; letter-spacing: 0.05em; transition: all 0.25s ease-in-out;" onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'; this.style.boxShadow='0 0 15px rgba(16, 185, 129, 0.15)';" onmouseout="this.style.background='rgba(16, 185, 129, 0.1)'; this.style.boxShadow='none';">
+        <button onclick="window.open('https://xyrtania.andy-596.workers.dev', '_blank')" class="xyrtania-btn-secondary">
             OPEN IN NEW TAB
         </button>
     </div>
@@ -755,7 +1024,14 @@ export const projectsData: Record<string, string> = {
             const time = new Date().toTimeString().split(' ')[0];
             const line = document.createElement('div');
             line.style.marginBottom = '4px';
-            line.innerHTML = '<span style=&quot;color: #10b981;&quot;>[' + time + ']</span> <span style=&quot;color: #d4d4d8;&quot;>' + message + '</span>';
+            const s1 = document.createElement('span');
+            s1.style.color = '#10b981';
+            s1.textContent = '[' + time + '] ';
+            const s2 = document.createElement('span');
+            s2.style.color = '#d4d4d8';
+            s2.textContent = message;
+            line.appendChild(s1);
+            line.appendChild(s2);
             terminalLines.appendChild(line);
             terminalLines.scrollTop = terminalLines.scrollHeight;
             if (terminalLines.children.length > 25) {

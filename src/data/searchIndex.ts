@@ -9,6 +9,14 @@ export interface SearchItem {
 
 export const searchIndexData: SearchItem[] = [
   {
+    "id": "system-version",
+    "title": "SYSTEM MANIFEST & VERSION CONTROL",
+    "description": "Release milestones, architecture manifest, and Git commit logs for Andy's Dev Studio (v4.70).",
+    "category": "System",
+    "url": "#version",
+    "tags": ["Version", "Git", "Commits", "Changelog", "Releases", "Manifest", "v4.70"]
+  },
+  {
     "id": "xyrtania",
     "title": "XYRTANIA",
     "description": "An immersive, multiplayer 3D online RPG being forged for modern browsers. Explore a long-lost realm in real-time.",
@@ -89,36 +97,12 @@ export const searchIndexData: SearchItem[] = [
     "tags": ["Tools", "Math", "Modulus"]
   },
   {
-    "id": "pixel-alchemist",
-    "title": "PIXEL ALCHEMIST",
-    "description": "Transmute sprites into code arrays.",
-    "category": "Forge",
-    "url": "javascript:launchApp('./forge/entries/pixel-alchemist/index.html')",
-    "tags": ["Tools", "Sprites", "Graphics"]
-  },
-  {
-    "id": "void-compass",
-    "title": "VOID COMPASS",
-    "description": "Procedural map generation for dungeons.",
-    "category": "Forge",
-    "url": "javascript:launchApp('./forge/entries/void-compass/index.html')",
-    "tags": ["Prototypes", "Procedural", "Generation"]
-  },
-  {
-    "id": "win-dev-pack",
-    "title": "WIN DEV UTILITY PACK",
-    "description": "Regex parsers, sprite packers, and JSON smithing tools.",
+    "id": "infinite-drafting",
+    "title": "INFINITE DRAFTING",
+    "description": "Instant-open, infinite-canvas graph paper utility designed to capture technical ideas the moment inspiration strikes.",
     "category": "Ledger",
-    "url": "javascript:openProjectPage('./market/projects/win-dev-pack.html')",
-    "tags": ["Windows x64", "Standalone .exe", "Portable", "SGS Regex", "SpriteSmith", "JSON"]
-  },
-  {
-    "id": "sound-module",
-    "title": "AETHER AUDIO MODULE",
-    "description": "Procedural soundscapes for the modern web weaver.",
-    "category": "Ledger",
-    "url": "javascript:window.open('https://itch.io', '_blank')",
-    "tags": ["Web Audio API", "JavaScript", "Zero Dependencies", "Procedural Generation"]
+    "url": "javascript:openProjectPage('infinite-drafting')",
+    "tags": ["Drafting", "Graph Paper", "Infinite Canvas", "Capacitor", "Android", "Ruler", "Protractor", "Woodworking", "Math"]
   },
   {
     "id": "factor-hunter-shirt",

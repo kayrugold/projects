@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Twitter, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2, SkipForward, SkipBack, Play, Pause, Sparkles } from 'lucide-react';
+import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Youtube, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2, SkipForward, SkipBack, Play, Pause, Sparkles, GitCommit } from 'lucide-react';
 import { chroniclesData } from './data/chronicles';
 import { cargoData } from './data/cargo';
 import { projectsData } from './data/projects';
 import { forgeData } from './data/forge';
 import { ledgerData } from './data/ledger';
 import { searchIndexData } from './data/searchIndex';
+import { CURRENT_STUDIO_VERSION } from './data/versions';
 import { audio } from './utils/audio';
 import XyrtaniaCinematicSite from './XyrtaniaCinematicSite';
+import { TheVersionContent } from './components/TheVersionContent';
+import { TerminalPrompt } from './components/TerminalPrompt';
+import { SmileyOverlay } from './components/SmileyOverlay';
+
+const STUDIO_VERSION = CURRENT_STUDIO_VERSION;
 
 const NavItem = ({ icon: Icon, label, onClick, active = false }: { icon: React.ElementType, label: string, onClick: () => void, active?: boolean }) => (
   <button 
@@ -31,6 +37,17 @@ const SectionHeader = ({ title, subtitle }: { title: string, subtitle?: string }
     </h2>
     {subtitle && <p className="text-zinc-500 mt-2 italic">"{subtitle}"</p>}
   </div>
+);
+
+const PinterestIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+    aria-hidden="true"
+  >
+    <path d="M12 0C5.373 0 0 5.372 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.098.119.112.224.083.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.627 0 12-5.373 12-12 0-6.628-5.373-12-12-12z" />
+  </svg>
 );
 
 const SocialLink = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href: string }) => (
@@ -157,78 +174,112 @@ const TerminalSection = ({ title, subtitle, children }: { title: string, subtitl
   </div>
 );
 
-const TheForgeContent = ({ onOpenProject, onLaunchApp }: { onOpenProject: (id: string) => void, onLaunchApp: (url: string) => void }) => (
-  <TerminalSection title="The Forge" subtitle="Where raw ideas live. Experimental, rough, sometimes broken.">
-    <div className="columns-1 lg:columns-2 gap-6">
-      {forgeData.map((project) => (
-        <div key={project.id} className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/50 p-6 rounded-lg space-y-4 flex flex-col group hover:border-emerald-500/50 transition-colors">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-center space-x-3 mb-2">
-                <h3 className="text-zinc-200 font-bold text-lg group-hover:text-emerald-400 transition-colors">{project.title}</h3>
-                <span className={`px-2 py-0.5 text-[10px] font-bold tracking-wider rounded border ${
-                  project.status === 'LIVE' ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10' :
-                  project.status === 'BETA' ? 'border-blue-500/50 text-blue-400 bg-blue-500/10' :
-                  project.status === 'DEV' ? 'border-amber-500/50 text-amber-400 bg-amber-500/10' :
-                  'border-purple-500/50 text-purple-400 bg-purple-500/10'
-                }`}>
-                  {project.status}
-                </span>
-              </div>
-              <div className="text-xs text-zinc-500 font-mono mb-3">{project.type} // {project.version}</div>
-            </div>
-            {project.icon && <span className="text-2xl opacity-50">{project.icon}</span>}
-          </div>
-          
-          {project.image && (
-            <div className="w-full h-48 bg-zinc-950 rounded border border-zinc-800 overflow-hidden relative group-hover:border-emerald-500/30 transition-colors">
-               <img 
-                 src={project.image} 
-                 alt={project.title} 
-                 className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                 referrerPolicy="no-referrer"
-               />
-            </div>
-          )}
+const TheForgeContent = ({ onOpenProject, onLaunchApp }: { onOpenProject: (id: string) => void, onLaunchApp: (url: string) => void }) => {
+  // Sticky Xyrtania / pinned flagship permanently at the top of The Forge
+  const pinnedProject = forgeData.find(p => p.id === 'xyrtania' || p.pinned);
+  const otherProjects = forgeData.filter(p => p !== pinnedProject);
+  const sortedProjects = pinnedProject ? [pinnedProject, ...otherProjects] : forgeData;
 
-          <p className="text-zinc-400 text-sm leading-relaxed flex-1">{project.description}</p>
-          
-          <div className="flex gap-2 pt-4 border-t border-zinc-800/50 mt-auto">
-            <button 
-              onClick={() => {
-                if (project.action.includes('launchApp')) {
-                  const match = project.action.match(/'([^']+)'/);
-                  if (match && match[1]) {
-                    onLaunchApp(match[1]);
-                  }
-                } else {
-                  alert(`Execute: ${project.action}`);
-                }
-              }}
-              className="flex-1 py-2 bg-zinc-800 text-zinc-300 rounded hover:bg-zinc-700 transition-colors text-sm font-bold flex items-center justify-center space-x-2"
+  return (
+    <TerminalSection title="The Forge" subtitle="Where raw ideas live. Experimental, rough, sometimes broken.">
+      <div className="columns-1 lg:columns-2 gap-6">
+        {sortedProjects.map((project) => {
+          const isFlagship = project.id === 'xyrtania' || project.pinned;
+          return (
+            <div 
+              key={project.id} 
+              className={`break-inside-avoid mb-6 border p-6 rounded-lg space-y-4 flex flex-col group transition-all ${
+                isFlagship 
+                  ? 'border-amber-500/50 bg-gradient-to-b from-zinc-900/90 to-zinc-950/80 shadow-lg shadow-amber-500/5 hover:border-amber-400' 
+                  : 'border-zinc-800 bg-zinc-900/50 hover:border-emerald-500/50'
+              }`}
             >
-              <Terminal className="w-4 h-4" />
-              <span>{project.buttonText}</span>
-            </button>
-            
-            {project.projectPage && (
-              <button 
-                onClick={() => onOpenProject(project.projectPage!)}
-                className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded hover:bg-emerald-500/20 transition-colors text-sm font-bold flex items-center space-x-2"
-                title="View Project Specs"
-              >
-                <FileText className="w-4 h-4" />
-                <span className="hidden sm:inline">Specs</span>
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  </TerminalSection>
-);
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center space-x-2.5 mb-2 flex-wrap gap-y-1.5">
+                    <h3 className={`font-bold text-lg transition-colors ${isFlagship ? 'text-zinc-100 group-hover:text-amber-400' : 'text-zinc-200 group-hover:text-emerald-400'}`}>
+                      {project.title}
+                    </h3>
 
-const TheLedgerContent = () => (
+                    {isFlagship && (
+                      <span className="px-2 py-0.5 text-[10px] font-mono font-bold tracking-wider rounded border border-amber-500/60 text-amber-300 bg-amber-500/10 flex items-center space-x-1 shadow-sm">
+                        <span>⭐ PINNED FLAGSHIP</span>
+                      </span>
+                    )}
+
+                    <span className={`px-2 py-0.5 text-[10px] font-bold tracking-wider rounded border ${
+                      project.status === 'LIVE' ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10' :
+                      project.status === 'BETA' ? 'border-blue-500/50 text-blue-400 bg-blue-500/10' :
+                      project.status === 'DEV' ? 'border-amber-500/50 text-amber-400 bg-amber-500/10' :
+                      'border-purple-500/50 text-purple-400 bg-purple-500/10'
+                    }`}>
+                      {project.status}
+                    </span>
+                  </div>
+                  <div className="text-xs text-zinc-500 font-mono mb-3">{project.type} // {project.version}</div>
+                </div>
+                {project.icon && <span className="text-2xl opacity-70">{project.icon}</span>}
+              </div>
+              
+              {project.image && (
+                <div className={`w-full aspect-video bg-zinc-950 rounded border overflow-hidden relative transition-colors flex items-center justify-center ${isFlagship ? 'border-amber-500/30 group-hover:border-amber-500/50' : 'border-zinc-800 group-hover:border-emerald-500/30'}`}>
+                   <img 
+                     src={project.image} 
+                     alt={project.title} 
+                     className="w-full h-full object-contain opacity-95 group-hover:opacity-100 transition-opacity"
+                     referrerPolicy="no-referrer"
+                   />
+                </div>
+              )}
+
+              <p className="text-zinc-400 text-sm leading-relaxed flex-1">{project.description}</p>
+              
+              <div className="flex gap-2 pt-4 border-t border-zinc-800/50 mt-auto">
+                <button 
+                  onClick={() => {
+                    if (project.action.includes('launchApp')) {
+                      const match = project.action.match(/'([^']+)'/);
+                      if (match && match[1]) {
+                        onLaunchApp(match[1]);
+                      }
+                    } else {
+                      alert(`Execute: ${project.action}`);
+                    }
+                  }}
+                  className={`flex-1 py-2 rounded transition-colors text-sm font-bold flex items-center justify-center space-x-2 ${
+                    isFlagship 
+                      ? 'bg-amber-500 hover:bg-amber-400 text-black font-black shadow-md shadow-amber-500/10' 
+                      : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                  }`}
+                >
+                  <Terminal className="w-4 h-4" />
+                  <span>{project.buttonText}</span>
+                </button>
+                
+                {project.projectPage && (
+                  <button 
+                    onClick={() => onOpenProject(project.projectPage!)}
+                    className={`px-4 py-2 rounded transition-colors text-sm font-bold flex items-center space-x-2 ${
+                      isFlagship
+                        ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                        : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                    }`}
+                    title="View Project Specs"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span className="hidden sm:inline">Specs</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </TerminalSection>
+  );
+};
+
+const TheLedgerContent = ({ onOpenProject }: { onOpenProject?: (id: string) => void }) => (
   <TerminalSection title="The Ledger" subtitle="Where finished work lands. Verified releases, utility packs, and digital assets.">
     <div className="space-y-6">
       {ledgerData.map((item) => (
@@ -267,18 +318,30 @@ const TheLedgerContent = () => (
               </div>
             )}
 
-            <div className="mt-auto pt-4 border-t border-zinc-800/50 flex items-center justify-between">
+            <div className="mt-auto pt-4 border-t border-zinc-800/50 flex flex-wrap items-center justify-between gap-4">
               <span className="text-xs text-zinc-500 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-500/50" />
                 Verified Release
               </span>
-              <button 
-                onClick={() => window.open(item.url, '_blank')}
-                className="px-6 py-2 bg-emerald-500 text-zinc-950 rounded hover:bg-emerald-400 transition-colors text-sm font-bold flex items-center space-x-2 shadow-lg shadow-emerald-500/20"
-              >
-                <Download className="w-4 h-4" />
-                <span>Get on {item.platform}</span>
-              </button>
+              <div className="flex items-center gap-3">
+                {item.projectPage && (
+                  <button 
+                    onClick={() => onOpenProject?.(item.projectPage!)}
+                    className="px-4 py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-colors text-sm font-bold flex items-center space-x-2"
+                    title="View Product Specs & Details"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Specs</span>
+                  </button>
+                )}
+                <button 
+                  onClick={() => window.open(item.url, '_blank')}
+                  className="px-6 py-2 bg-emerald-500 text-zinc-950 rounded hover:bg-emerald-400 transition-colors text-sm font-bold flex items-center space-x-2 shadow-lg shadow-emerald-500/20"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Get on {item.platform}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1021,35 +1084,6 @@ declare global {
   }
 }
 
-const TerminalPrompt = ({ onCommand }: { onCommand: (cmd: string) => void }) => {
-  const [input, setInput] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      onCommand(input.trim());
-      setInput('');
-    }
-  };
-
-  return (
-    <div className="fixed bottom-0 left-0 w-full bg-zinc-950 border-t border-emerald-500/30 p-2 flex items-center font-mono text-sm z-50 shadow-[0_-4px_20px_rgba(16,185,129,0.1)]" onClick={() => inputRef.current?.focus()}>
-      <span className="text-emerald-500 mr-2 ml-4">root@system:~$</span>
-      <input
-        ref={inputRef}
-        type="text"
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="bg-transparent border-none outline-none text-zinc-300 flex-1 caret-transparent"
-        autoFocus
-        spellCheck={false}
-      />
-      <span className="animate-pulse w-2 h-4 bg-emerald-500 inline-block ml-1"></span>
-    </div>
-  );
-};
-
 const MediaPlayer = ({ onClose, audioMode, setAudioMode, isMusicOn, toggleMusic }: { onClose: () => void, audioMode: string, setAudioMode: (mode: 'file' | 'procedural') => void, isMusicOn: boolean, toggleMusic: () => void }) => {
   const [currentTrack, setCurrentTrack] = useState(audio.getCurrentTrack());
 
@@ -1145,18 +1179,24 @@ export default function App() {
   const [bootSequence, setBootSequence] = useState(!hasDirectDeepLink);
   const [progress, setProgress] = useState(hasDirectDeepLink ? 100 : 0);
   
+  const isXyrtaniaGatewayHash = (hashStr: string) => {
+    const clean = hashStr.replace(/^#/, '');
+    return clean === 'xyrtania' || clean === 'xyrtania-gateway' || clean === 'gateway';
+  };
+
   // Smart domain-level or query/hash-level routing to serve Xyrtania cinematic site automatically
   const isXyrtaniaDomain = typeof window !== 'undefined' && (
     window.location.hostname.includes('xyrtania') || 
     window.location.search.includes('site=xyrtania') || 
-    (window.location.hash.includes('xyrtania') && !window.location.hash.includes('xyrtania-specs'))
+    isXyrtaniaGatewayHash(window.location.hash)
   );
   const [siteMode, setSiteMode] = useState<'studio' | 'xyrtania'>(isXyrtaniaDomain ? 'xyrtania' : 'studio');
 
   const getInitialTab = () => {
+    if (initialHash === 'version' || initialHash === 'changelog' || initialHash === 'manifest' || initialHash === 'system-version') return 'version';
     if (guildSubAnchors.includes(initialHash)) return 'guild-hall';
     if (initialHash === 'emulator' || initialHash === 'the-forge') return 'forge';
-    const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
+    const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version'];
     if (validTabs.includes(initialHash)) return initialHash;
     if (chroniclesData.some(e => e.id === initialHash)) return 'chronicles';
     return 'field-desk';
@@ -1172,6 +1212,7 @@ export default function App() {
   const [isSfxOn, setIsSfxOn] = useState(false);
   const [showMediaPlayer, setShowMediaPlayer] = useState(false);
   const [audioMode, setAudioMode] = useState<'file' | 'procedural'>('file');
+  const [showSmiley, setShowSmiley] = useState(false);
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
@@ -1303,7 +1344,7 @@ export default function App() {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       
-      if (hash.includes('xyrtania') && !hash.includes('xyrtania-specs')) {
+      if (isXyrtaniaGatewayHash(hash)) {
         setSiteMode('xyrtania');
         window.scrollTo({ top: 0, behavior: 'instant' });
         return;
@@ -1316,7 +1357,7 @@ export default function App() {
 
       if (!hash) return;
 
-      const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
+      const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version'];
       const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
       
       // Direct app launcher via deep link: #launch=app-id or #play=app-id
@@ -1338,6 +1379,9 @@ export default function App() {
       setTimeout(() => {
         if (hash === 'emulator' || hash === 'the-forge') {
           setActiveTab('forge');
+          setActiveProject(null);
+        } else if (hash === 'version' || hash === 'changelog' || hash === 'manifest' || hash === 'system-version') {
+          setActiveTab('version');
           setActiveProject(null);
         } else if (validTabs.includes(hash)) {
           setActiveTab(hash);
@@ -1386,7 +1430,7 @@ export default function App() {
     
     if (window.location.hash) {
       const hash = window.location.hash.replace('#', '');
-      if (hash.includes('xyrtania') && !hash.includes('xyrtania-specs')) {
+      if (isXyrtaniaGatewayHash(hash)) {
         setSiteMode('xyrtania');
         window.scrollTo({ top: 0, behavior: 'instant' });
       } else if (hash.startsWith('launch=') || hash.startsWith('play=') || hash.startsWith('emulator=')) {
@@ -1400,10 +1444,12 @@ export default function App() {
           }
         }
       } else {
-        const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
+        const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version'];
         const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
         if (hash === 'emulator' || hash === 'the-forge') {
           setActiveTab('forge');
+        } else if (hash === 'version' || hash === 'changelog' || hash === 'manifest' || hash === 'system-version') {
+          setActiveTab('version');
         } else if (validTabs.includes(hash)) {
           setActiveTab(hash);
         } else if (guildSubAnchors.includes(hash)) {
@@ -1543,11 +1589,12 @@ export default function App() {
     switch (activeTab) {
       case 'field-desk': return <FieldDeskContent onNavigate={handleTabChange} />;
       case 'forge': return <TheForgeContent onOpenProject={handleOpenProject} onLaunchApp={handleLaunchApp} />;
-      case 'ledger': return <TheLedgerContent />;
+      case 'ledger': return <TheLedgerContent onOpenProject={handleOpenProject} />;
       case 'cargo-bay': return <TheCargoBayContent />;
       case 'chronicles': return <TheChroniclesContent />;
       case 'guild-hall': return <TheGuildHallContent onNavigate={handleTabChange} />;
       case 'rookery': return <TheRookeryContent />;
+      case 'version': return <TheVersionContent onNavigate={handleTabChange} />;
       default: return <FieldDeskContent onNavigate={handleTabChange} />;
     }
   };
@@ -1667,7 +1714,22 @@ export default function App() {
           <div className="space-y-2">
             <h1 className="text-xl font-bold text-emerald-400 terminal-glow">Andy's Dev Studio</h1>
             <div className="text-xs text-zinc-500 space-y-1">
-              <div>Version: ---</div>
+              <div className="flex items-center space-x-1.5 font-mono">
+                <span>Version:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isSfxOn) audio.playClick();
+                    setSiteMode('studio');
+                    setActiveProject(null);
+                    handleTabChange('version');
+                  }}
+                  className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer tracking-wider hover:underline"
+                  title="View System Version & Git Commits Manifest"
+                >
+                  {CURRENT_STUDIO_VERSION}
+                </button>
+              </div>
               <div className="flex items-center space-x-2">
                 <span>System:</span>
                 <span className="text-emerald-500 flex items-center">
@@ -1736,6 +1798,7 @@ export default function App() {
             <NavItem icon={BookOpen} label="The Chronicles" onClick={() => handleTabChange('chronicles')} active={activeTab === 'chronicles'} />
             <NavItem icon={Shield} label="The Guild Hall" onClick={() => handleTabChange('guild-hall')} active={activeTab === 'guild-hall'} />
             <NavItem icon={Users} label="The Rookery" onClick={() => handleTabChange('rookery')} active={activeTab === 'rookery'} />
+            <NavItem icon={GitCommit} label="The Manifest" onClick={() => handleTabChange('version')} active={activeTab === 'version'} />
           </nav>
 
           <button 
@@ -1757,12 +1820,12 @@ export default function App() {
           <div className="pt-8 border-t border-zinc-800/50">
             <div className="text-xs text-zinc-500 mb-4 uppercase tracking-wider">Comms</div>
             <div className="grid grid-cols-2 gap-4">
+              <SocialLink icon={Facebook} label="Facebook" href="https://www.facebook.com/andysdevstudio.pages.dev" />
               <SocialLink icon={Github} label="GitHub" href="https://github.com/kayrugold" />
+              <SocialLink icon={PinterestIcon} label="Pinterest" href="https://www.pinterest.com/andysdevstudio/" />
               <SocialLink icon={MessageSquare} label="Discord" href="https://discord.gg/2RtH68T9fn" />
-              <SocialLink icon={Smartphone} label="Xbox" href="https://www.xbox.com/en-US/play/user/Kayrugold7036" />
-              <SocialLink icon={Facebook} label="Facebook" href="https://facebook.com/andysdevstudio/" />
-              <SocialLink icon={Instagram} label="Insta" href="https://instagram.com/andysdevstudio" />
-              <SocialLink icon={Twitter} label="X.com" href="https://x.com/@andysdevstudio" />
+              <SocialLink icon={Instagram} label="Instagram" href="https://instagram.com/andysdevstudio" />
+              <SocialLink icon={Youtube} label="YouTube" href="https://www.youtube.com/@andysdevstudio" />
             </div>
 
             <div className="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-zinc-800/50">
@@ -1817,10 +1880,14 @@ export default function App() {
             <span>&copy; {new Date().getFullYear()} Andy's Dev Studio. All rights reserved.</span>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="flex items-center">
+            <button 
+              onClick={() => handleTabChange('version')}
+              className="flex items-center hover:text-emerald-400 transition-colors cursor-pointer"
+              title="View Version Manifest & Git Commits"
+            >
               <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
-              System Online
-            </span>
+              <span>System Online ({CURRENT_STUDIO_VERSION})</span>
+            </button>
             <span className="hidden md:inline">|</span>
             <span className="hidden md:inline">Forged in code, tested on the road.</span>
           </div>
@@ -1837,7 +1904,26 @@ export default function App() {
         />
       )}
       
-      <TerminalPrompt onCommand={handleTerminalCommand} />
+      {showSmiley && (
+        <SmileyOverlay onComplete={() => setShowSmiley(false)} />
+      )}
+      
+      <TerminalPrompt 
+        onNavigateTab={handleTabChange}
+        onOpenProject={handleOpenProject}
+        onToggleMusic={toggleMusic}
+        onToggleSfx={toggleSfx}
+        onToggleFullscreen={toggleFullscreen}
+        onOpenMediaPlayer={() => setShowMediaPlayer(true)}
+        onTriggerSmiley={() => {
+          if (isSfxOn) audio.triggerInteraction();
+          setShowSmiley(true);
+        }}
+        isMusicOn={isMusicOn}
+        isSfxOn={isSfxOn}
+        isFullscreen={isFullscreen}
+        activeTab={activeTab}
+      />
     </div>
   );
 }

@@ -14,12 +14,14 @@ export interface ForgeEntry {
   icon?: string;
   image?: string;
   action: string;
+  pinned?: boolean;
 }
 
 export const forgeData: ForgeEntry[] = [
   {
     "id": "xyrtania",
     "title": "XYRTANIA",
+    "pinned": true,
     "description": "An immersive, multiplayer 3D online RPG being forged for modern browsers. Explore a long-lost realm in real-time.",
     "longDescription": "A massive 3D single and multiplayer exploration RPG built using Three.js, customized responsive web sockets, and procedural world design. Embark on a journey to discover a long-lost realm of floating peaks and mystical structures, optimized for standard desktop and mobile browsers.",
     "features": [
@@ -196,30 +198,6 @@ export const forgeData: ForgeEntry[] = [
     "icon": "🔭",
     "image": "/assets/residuescanner.webp",
     "action": "launchApp('./apps/residue-scanner.html')"
-  },
-  {
-    "id": "pixel-alchemist",
-    "title": "PIXEL ALCHEMIST",
-    "description": "Transmute sprites into code arrays.",
-    "type": "Tools",
-    "version": "V0.1",
-    "status": "TESTING",
-    "statusClass": "badge-alpha",
-    "buttonText": "BREW",
-    "icon": "🧪",
-    "action": "launchApp('./forge/entries/pixel-alchemist/index.html')"
-  },
-  {
-    "id": "void-compass",
-    "title": "VOID COMPASS",
-    "description": "Procedural map generation for dungeons.",
-    "type": "Prototypes",
-    "version": "V0.0.1",
-    "status": "ALPHA",
-    "statusClass": "badge-alpha",
-    "buttonText": "VIEW",
-    "icon": "🧭",
-    "action": "launchApp('./forge/entries/void-compass/index.html')"
   },
   {
     "id": "andysaudiolooper",
