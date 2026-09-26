@@ -453,7 +453,36 @@ const TheChroniclesContent = () => {
   );
 };
 
-const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void }) => (
+const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void }) => {
+  useEffect(() => {
+    const handleDeepLink = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (!hash) return;
+      let targetId = hash;
+      if (hash === 'privacy') targetId = 'privacy-policy';
+      if (hash === 'terms') targetId = 'eula';
+      if (hash === 'shipping') targetId = 'shipping-policy';
+      if (hash === 'return-policy' || hash === 'returns') targetId = 'return-policy-physical';
+      const el = document.getElementById(targetId);
+      if (el) {
+        const yOffset = -100;
+        const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    };
+
+    handleDeepLink();
+    const t1 = setTimeout(handleDeepLink, 100);
+    const t2 = setTimeout(handleDeepLink, 300);
+    window.addEventListener('hashchange', handleDeepLink);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('hashchange', handleDeepLink);
+    };
+  }, []);
+
+  return (
   <TerminalSection title="The Guild Hall & Records" subtitle="The community hub and studio documentation.">
     
     {/* Guild Access - New Section */}
@@ -523,7 +552,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <Mail className="w-5 h-5 text-indigo-400" />
           <span>Smith's Contact</span>
         </h3>
-        <p className="text-sm text-zinc-400 mb-6">Prefer to reach me directly? Use the Send a Raven form above, or find me on Discord.</p>
+        <p className="text-sm text-zinc-400 mb-6">Prefer to reach me directly? Use the Send a Raven form above, email me at <a href="mailto:andys.dev.studio@gmail.com" className="text-emerald-400 underline">andys.dev.studio@gmail.com</a>, or find me on Discord.</p>
         
         <hr className="border-t border-dashed border-zinc-700 my-6" />
         
@@ -578,27 +607,32 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
       </div>
 
       {/* The Legal Scrolls */}
-      <div className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg">
+      <div className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg" id="legal-scrolls">
         <h3 className="text-lg font-bold text-zinc-100 mb-6 flex items-center space-x-2">
           <ShieldCheck className="w-5 h-5 text-zinc-400" />
           <span>The Legal Scrolls</span>
         </h3>
         
         <div className="space-y-8">
-          <div>
+          <div id="privacy-policy" className="scroll-mt-24">
             <h4 className="text-md font-bold text-zinc-200 mb-1 flex items-center space-x-2">
               <Shield className="w-4 h-4 text-emerald-400" />
               <span>Privacy Policy</span>
             </h4>
-            <p className="text-xs text-zinc-500 italic mb-4">Effective Date: Oct 24, 2023</p>
-            <p className="text-sm text-zinc-400 mb-4">I, Andy Davis, operate Andy's Dev Studio as a personal portfolio. I respect your privacy because I have no interest in your data.</p>
+            <p className="text-xs text-zinc-500 italic mb-4">Effective Date: Oct 24, 2023 (Updated: Feb 2026)</p>
+            <p className="text-sm text-zinc-400 mb-4">I, Andy Davis, operate Andy's Dev Studio as a personal portfolio. I respect your privacy because I have no interest in your data. Applies to Infinite Drafting, Factor Hunter, and all studio software.</p>
             <ul className="list-disc list-inside text-sm text-zinc-400 space-y-2">
-              <li><strong className="text-zinc-300">Data Collection:</strong> This site does not use cookies for tracking or analytics. Any saved data (like Tester progress) stays on your device via <code className="bg-zinc-950 px-1 py-0.5 rounded text-emerald-300">localStorage</code>.</li>
-              <li><strong className="text-zinc-300">Communications:</strong> If you contact me, I will see your info. I will never sell it or share it.</li>
+              <li><strong className="text-zinc-300">Data Collection:</strong> This site does not use cookies for tracking or analytics. Any saved data (like Tester progress or drafting state) stays on your device via <code className="bg-zinc-950 px-1 py-0.5 rounded text-emerald-300">localStorage</code>.</li>
+              <li><strong className="text-zinc-300">Communications:</strong> If you contact me at <a href="mailto:andys.dev.studio@gmail.com" className="text-emerald-400 underline">andys.dev.studio@gmail.com</a>, I will see your info. I will never sell it or share it.</li>
             </ul>
+            <div className="mt-4 pt-3 border-t border-zinc-800">
+              <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline flex items-center space-x-1">
+                <span>View Full Standalone Privacy Policy Page (Google Play Verified) &rarr;</span>
+              </a>
+            </div>
           </div>
 
-          <div>
+          <div id="eula" className="scroll-mt-24">
             <h4 className="text-md font-bold text-zinc-200 mb-1 flex items-center space-x-2">
               <FileText className="w-4 h-4 text-emerald-400" />
               <span>End User License Agreement (EULA)</span>
@@ -608,12 +642,17 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
               <li><strong className="text-zinc-300">License:</strong> You are granted a non-exclusive license to use the software. You own the files you download.</li>
               <li><strong className="text-zinc-300">Warranty:</strong> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. I am a solo dev, not a QA department. Bugs may exist.</li>
             </ul>
+            <div className="mt-4 pt-3 border-t border-zinc-800">
+              <a href="/eula.html" target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline flex items-center space-x-1">
+                <span>View Full Standalone EULA & Terms Page &rarr;</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Shipping Policy */}
-      <div className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg">
+      <div className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg" id="shipping-policy">
         <h3 className="text-lg font-bold text-zinc-100 mb-1 flex items-center space-x-2">
           <Truck className="w-5 h-5 text-zinc-400" />
           <span>Shipping Policy</span>
@@ -626,6 +665,11 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <li><strong className="text-zinc-300">Shipping:</strong> Standard shipping typically takes 2-5 business days within the US. International times vary.</li>
           <li><strong className="text-zinc-300">Rates:</strong> Accurate shipping costs are calculated at checkout based on your delivery address.</li>
         </ul>
+        <div className="mt-4 pt-3 border-t border-zinc-800">
+          <a href="/shipping-policy.html" target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline flex items-center space-x-1">
+            <span>View Full Standalone Shipping Policy Page &rarr;</span>
+          </a>
+        </div>
       </div>
 
       {/* Return Policy: Physical Goods */}
@@ -643,6 +687,11 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <li><strong className="text-zinc-300">Defective Items:</strong> If your item arrived damaged or defective, I will cover return shipping and issue a full replacement or refund — no argument.</li>
           <li><strong className="text-zinc-300">Non-Returnable:</strong> Custom or made-to-order items cannot be returned unless they arrive defective.</li>
         </ul>
+        <div className="mt-4 pt-3 border-t border-zinc-800">
+          <a href="/return-policy.html#physical" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 font-bold underline flex items-center space-x-1">
+            <span>View Full Standalone Return Policy (Physical Goods) &rarr;</span>
+          </a>
+        </div>
       </div>
 
       {/* Return Policy: Digital Goods */}
@@ -658,6 +707,11 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <li><strong className="text-zinc-300">Exceptions:</strong> If a digital product is non-functional, corrupted, or materially different from its description, contact me within <strong className="text-zinc-300">14 days</strong> of purchase for a full refund.</li>
           <li><strong className="text-zinc-300">Apps (Google Play):</strong> Refund requests for Android applications are governed by Google Play's standard refund policy. For issues beyond their window, send a raven and I will review it case by case.</li>
         </ul>
+        <div className="mt-4 pt-3 border-t border-zinc-800">
+          <a href="/return-policy.html#digital" target="_blank" rel="noopener noreferrer" className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline flex items-center space-x-1">
+            <span>View Full Standalone Return Policy (Digital & Play Store) &rarr;</span>
+          </a>
+        </div>
 
         <hr className="border-t border-dashed border-zinc-700 my-6" />
 
@@ -668,7 +722,8 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
 
     </div>
   </TerminalSection>
-);
+  );
+};
 
 const TheRookeryContent = () => {
   const [copied, setCopied] = useState(false);
@@ -1084,8 +1139,11 @@ export default function App() {
     );
   }
 
-  const [bootSequence, setBootSequence] = useState(true);
-  const [progress, setProgress] = useState(0);
+  const initialHash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+  const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
+  const hasDirectDeepLink = Boolean(initialHash && initialHash !== '');
+  const [bootSequence, setBootSequence] = useState(!hasDirectDeepLink);
+  const [progress, setProgress] = useState(hasDirectDeepLink ? 100 : 0);
   
   // Smart domain-level or query/hash-level routing to serve Xyrtania cinematic site automatically
   const isXyrtaniaDomain = typeof window !== 'undefined' && (
@@ -1095,7 +1153,16 @@ export default function App() {
   );
   const [siteMode, setSiteMode] = useState<'studio' | 'xyrtania'>(isXyrtaniaDomain ? 'xyrtania' : 'studio');
 
-  const [activeTab, setActiveTab] = useState('field-desk');
+  const getInitialTab = () => {
+    if (guildSubAnchors.includes(initialHash)) return 'guild-hall';
+    if (initialHash === 'emulator' || initialHash === 'the-forge') return 'forge';
+    const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
+    if (validTabs.includes(initialHash)) return initialHash;
+    if (chroniclesData.some(e => e.id === initialHash)) return 'chronicles';
+    return 'field-desk';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [launchedAppUrl, setLaunchedAppUrl] = useState<string | null>(null);
@@ -1250,12 +1317,49 @@ export default function App() {
       if (!hash) return;
 
       const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
+      const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
       
+      // Direct app launcher via deep link: #launch=app-id or #play=app-id
+      if (hash.startsWith('launch=') || hash.startsWith('play=') || hash.startsWith('emulator=')) {
+        const appId = hash.split('=')[1];
+        const forgeItem = forgeData.find(f => f.id === appId || f.id.replace(/-/g, '') === appId.replace(/-/g, ''));
+        if (forgeItem && forgeItem.action.includes('launchApp')) {
+          const match = forgeItem.action.match(/'([^']+)'/);
+          if (match && match[1]) {
+            setActiveTab('forge');
+            setActiveProject(null);
+            handleLaunchApp(match[1]);
+            return;
+          }
+        }
+      }
+
       setIsTransitioning(true);
       setTimeout(() => {
-        if (validTabs.includes(hash)) {
+        if (hash === 'emulator' || hash === 'the-forge') {
+          setActiveTab('forge');
+          setActiveProject(null);
+        } else if (validTabs.includes(hash)) {
           setActiveTab(hash);
           setActiveProject(null);
+        } else if (guildSubAnchors.includes(hash)) {
+          setActiveTab('guild-hall');
+          setActiveProject(null);
+          setTimeout(() => {
+            let targetId = hash;
+            if (hash === 'privacy') targetId = 'privacy-policy';
+            if (hash === 'terms') targetId = 'eula';
+            if (hash === 'shipping') targetId = 'shipping-policy';
+            if (hash === 'return-policy' || hash === 'returns') targetId = 'return-policy-physical';
+            const el = document.getElementById(targetId);
+            if (el) {
+              const yOffset = -100;
+              const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+              window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+          }, 100);
+          setIsTransitioning(false);
+          return;
         } else if (projectsData[hash]) {
           setActiveProject(hash);
         } else if (chroniclesData.some(e => e.id === hash)) {
@@ -1285,10 +1389,38 @@ export default function App() {
       if (hash.includes('xyrtania') && !hash.includes('xyrtania-specs')) {
         setSiteMode('xyrtania');
         window.scrollTo({ top: 0, behavior: 'instant' });
+      } else if (hash.startsWith('launch=') || hash.startsWith('play=') || hash.startsWith('emulator=')) {
+        const appId = hash.split('=')[1];
+        const forgeItem = forgeData.find(f => f.id === appId || f.id.replace(/-/g, '') === appId.replace(/-/g, ''));
+        if (forgeItem && forgeItem.action.includes('launchApp')) {
+          const match = forgeItem.action.match(/'([^']+)'/);
+          if (match && match[1]) {
+            setActiveTab('forge');
+            setTimeout(() => handleLaunchApp(match[1]), 200);
+          }
+        }
       } else {
         const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery'];
-        if (validTabs.includes(hash)) {
+        const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
+        if (hash === 'emulator' || hash === 'the-forge') {
+          setActiveTab('forge');
+        } else if (validTabs.includes(hash)) {
           setActiveTab(hash);
+        } else if (guildSubAnchors.includes(hash)) {
+          setActiveTab('guild-hall');
+          setTimeout(() => {
+            let targetId = hash;
+            if (hash === 'privacy') targetId = 'privacy-policy';
+            if (hash === 'terms') targetId = 'eula';
+            if (hash === 'shipping') targetId = 'shipping-policy';
+            if (hash === 'return-policy' || hash === 'returns') targetId = 'return-policy-physical';
+            const el = document.getElementById(targetId);
+            if (el) {
+              const yOffset = -100;
+              const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+              window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+          }, 300);
         } else if (projectsData[hash]) {
           setActiveProject(hash);
         } else if (chroniclesData.some(e => e.id === hash)) {
