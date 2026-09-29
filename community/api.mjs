@@ -36,10 +36,10 @@ export async function handleCommunity(request, env) {
         if (!['forum', 'discussion', 'bug', 'chat', 'reply'].includes(kind)) fail('Unknown board.');
         let result;
         const id = url.searchParams.get('id');
-        if (id) result = await db.prepare('SELECT * FROM entries WHERE id=? AND kind=? AND hidden=0 AND parent IS NULL').bind(id, kind).all();
-        else if (parent) result = await db.prepare('SELECT e.* FROM entries e JOIN entries p ON e.parent=p.id WHERE e.parent=? AND e.hidden=0 AND p.hidden=0 ORDER BY e.created ASC LIMIT 200').bind(parent).all();
-        else if (url.searchParams.has('project')) result = await db.prepare('SELECT e.*, (SELECT COUNT(*) FROM entries r WHERE r.parent=e.id AND r.hidden=0) AS replies FROM entries e WHERE e.kind=? AND e.project=? AND e.hidden=0 ORDER BY e.created DESC LIMIT 100').bind(kind, text(url.searchParams.get('project'),100)).all();
-        else result = await db.prepare('SELECT e.*, (SELECT COUNT(*) FROM entries r WHERE r.parent=e.id AND r.hidden=0) AS replies FROM entries e WHERE e.kind=? AND e.hidden=0 ORDER BY e.created DESC LIMIT 100').bind(kind).all();
+        if (id) result = await db.prepare('SELECT * FROM community_entries WHERE id=? AND kind=? AND hidden=0 AND parent IS NULL').bind(id, kind).all();
+        else if (parent) result = await db.prepare('SELECT e.* FROM community_entries e JOIN entries p ON e.parent=p.id WHERE e.parent=? AND e.hidden=0 AND p.hidden=0 ORDER BY e.created ASC LIMIT 200').bind(parent).all();
+        else if (url.searchParams.has('project')) result = await db.prepare('SELECT e.*, (SELECT COUNT(*) FROM entries r WHERE r.parent=e.id AND r.hidden=0) AS replies FROM community_entries e WHERE e.kind=? AND e.project=? AND e.hidden=0 ORDER BY e.pinned DESC,e.created DESC LIMIT 100').bind(kind, text(url.searchParams.get('project'),100)).all();
+        else result = await db.prepare('SELECT e.*, (SELECT COUNT(*) FROM entries r WHERE r.parent=e.id AND r.hidden=0) AS replies FROM community_entries e WHERE e.kind=? AND e.hidden=0 ORDER BY e.pinned DESC,e.created DESC LIMIT 100').bind(kind).all();
         return reply({ entries: result.results });
       }
       fail('Not found.', 404);
@@ -68,7 +68,7 @@ export async function handleCommunity(request, env) {
     if (!used.meta.changes) fail('This request has already been used.', 409);
     await db.batch([db.prepare('DELETE FROM nonces WHERE expires<?').bind(now), db.prepare('DELETE FROM limits WHERE expires<?').bind(now)]);
     const member = await db.prepare('SELECT * FROM members WHERE id=?').bind(author).first();
-    if (member?.banned) fail('This identity has been suspended.', 403);
+    if (member?.banned && !path.endsWith('/delete')) fail('This identity has been suspended.', 403);
     if (path.endsWith('/join')) {
       if (member) return reply({ id: author });
       await limited(db, `join:${await digest(`${env.ABUSE_SALT || 'local'}:${ip}`)}`, 5, 3600);
@@ -87,7 +87,7 @@ export async function handleCommunity(request, env) {
       const kind = data.kind;
       if (!['forum', 'discussion', 'bug', 'chat', 'reply'].includes(kind)) fail('Unknown board.');
       const parent = kind === 'reply' ? text(data.parent, 36, 36) : null;
-      if (parent) { const thread = await db.prepare('SELECT * FROM entries WHERE id=? AND hidden=0').bind(parent).first(); if (!thread || !['forum','discussion','bug'].includes(thread.kind)) fail('Thread unavailable.', 404); }
+      if (parent) { const thread = await db.prepare('SELECT * FROM community_entries WHERE id=? AND hidden=0').bind(parent).first(); if (!thread || !['forum','discussion','bug'].includes(thread.kind)) fail('Thread unavailable.', 404); if (thread.locked) fail('Replies are locked for this topic.',403); }
       const body = text(data.body, kind === 'chat' ? 1000 : 6000), title = ['chat','reply'].includes(kind) ? '' : text(data.title, 140, 3);
       const project = text(data.project || 'Studio', 100), id = crypto.randomUUID();
       await limited(db, `post:${author}`, 100, 86400);
@@ -95,16 +95,52 @@ export async function handleCommunity(request, env) {
       return reply({ id }, 201);
     }
     if (path.endsWith('/flag')) {
-      const entry = await db.prepare('SELECT id FROM entries WHERE id=? AND hidden=0').bind(text(data.id,36,36)).first();
+      const entry = await db.prepare('SELECT id FROM community_entries WHERE id=? AND hidden=0 AND deleted=0').bind(text(data.id,36,36)).first();
       if (!entry) fail('Post unavailable.',404);
       await db.prepare('INSERT OR IGNORE INTO flags(entry,author,created) VALUES(?,?,?)').bind(data.id,author,now).run();
       return reply({ ok:true });
     }
-    if (path.endsWith('/moderate') || path.endsWith('/flags')) {
+    if (path.endsWith('/delete')) {
+      const entry = await db.prepare('SELECT * FROM community_entries WHERE id=?').bind(text(data.id,36,36)).first();
+      if (!entry) fail('Post unavailable.',404);
+      if (entry.author !== author && author !== env.MODERATOR_KEY_ID) fail('You can only delete your own posts.',403);
+      // Remove content permanently, retaining the thread anchor for other people's replies.
+      await db.batch([
+        db.prepare("UPDATE entries SET title='',body='' WHERE id=?").bind(entry.id),
+        db.prepare('INSERT INTO entry_controls(entry,deleted,pinned,highlighted) VALUES(?,1,0,0) ON CONFLICT(entry) DO UPDATE SET deleted=1,pinned=0,highlighted=0').bind(entry.id),
+        db.prepare('DELETE FROM flags WHERE entry=?').bind(entry.id)
+      ]);
+      return reply({ok:true});
+    }
+    if (path.endsWith('/moderate') || path.endsWith('/flags') || path.endsWith('/desk')) {
       if (author !== env.MODERATOR_KEY_ID) fail('Moderator access required.', 403);
+      if (path.endsWith('/desk')) {
+        const offset = Number(data.offset || 0);
+        if (!Number.isSafeInteger(offset) || offset < 0) fail('Invalid page.');
+        if (data.view === 'suspended') return reply({members:(await db.prepare('SELECT id,created FROM members WHERE banned=1 ORDER BY created DESC,id LIMIT 51 OFFSET ?').bind(offset).all()).results});
+        const filters = {reported:'EXISTS(SELECT 1 FROM flags f WHERE f.entry=e.id)',all:'1=1',hidden:'e.hidden=1'};
+        if (!Object.hasOwn(filters,data.view)) fail('Unknown desk view.');
+        return reply({entries:(await db.prepare(`SELECT e.*, (SELECT COUNT(*) FROM flags f WHERE f.entry=e.id) AS flags FROM community_entries e WHERE ${filters[data.view]} ORDER BY e.created DESC,e.id LIMIT 51 OFFSET ?`).bind(offset).all()).results});
+      }
       if (path.endsWith('/flags')) return reply({ entries: (await db.prepare('SELECT e.*, COUNT(f.author) AS flags FROM entries e JOIN flags f ON f.entry=e.id WHERE e.hidden=0 GROUP BY e.id ORDER BY flags DESC LIMIT 100').all()).results });
-      if (data.action === 'ban') await db.prepare('UPDATE members SET banned=1 WHERE id=?').bind(text(data.author,64,64)).run();
-      else if (data.action === 'hide') await db.prepare('UPDATE entries SET hidden=1 WHERE id=?').bind(text(data.id,36,36)).run();
+      if (data.action === 'ban' || data.action === 'unban') {
+        const target = text(data.author,64,64);
+        if (target === author) fail('You cannot suspend yourself.');
+        const changed = await db.prepare('UPDATE members SET banned=? WHERE id=?').bind(data.action==='ban'?1:0,target).run();
+        if (!changed.meta.changes) fail('Member unavailable.',404);
+        return reply({ok:true});
+      }
+      const entry = await db.prepare('SELECT * FROM community_entries WHERE id=?').bind(text(data.id,36,36)).first();
+      if (!entry) fail('Post unavailable.',404);
+      if (data.action === 'hide' || data.action === 'restore') await db.prepare('UPDATE entries SET hidden=? WHERE id=?').bind(data.action==='hide'?1:0,entry.id).run();
+      else if (data.action === 'resolve') await db.prepare('DELETE FROM flags WHERE entry=?').bind(entry.id).run();
+      else if (['pin','highlight','lock'].includes(data.action)) {
+        if (entry.deleted) fail('Deleted content cannot be featured or locked.');
+        if (data.action !== 'highlight' && !['forum','discussion','bug'].includes(entry.kind)) fail('This control applies to topics only.');
+        if (typeof data.enabled !== 'boolean') fail('Choose enabled or disabled.');
+        const column = {pin:'pinned',highlight:'highlighted',lock:'locked'}[data.action];
+        await db.prepare(`INSERT INTO entry_controls(entry,${column}) VALUES(?,?) ON CONFLICT(entry) DO UPDATE SET ${column}=excluded.${column}`).bind(entry.id,data.enabled?1:0).run();
+      }
       else if (data.action === 'status' && ['open','investigating','planned','fixed','closed'].includes(data.status)) await db.prepare("UPDATE entries SET status=? WHERE id=? AND kind='bug'").bind(data.status,text(data.id,36,36)).run();
       else fail('Unknown moderation action.');
       return reply({ ok:true });

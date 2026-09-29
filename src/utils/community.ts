@@ -2,7 +2,7 @@ const enc = new TextEncoder();
 const base64 = (bytes: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
 const unbase64 = (value: string) => Uint8Array.from(atob(value), c => c.charCodeAt(0));
 export type Identity = { id: string; publicKey: CryptoKey; privateKey: CryptoKey };
-export type Entry = { id: string; kind: string; parent: string | null; project: string; title: string; body: string; author: string; created: number; status: string; replies?: number; flags?: number };
+export type Entry = { id: string; kind: string; parent: string | null; project: string; title: string; body: string; author: string; created: number; status: string; hidden?: number; pinned?: number; highlighted?: number; locked?: number; deleted?: number; replies?: number; flags?: number };
 export type Configuration = { local: boolean; siteKey: string | null; moderator: string };
 async function identityStore(mode: IDBTransactionMode, value?: Identity): Promise<Identity | null> {
   return new Promise((resolve, reject) => {

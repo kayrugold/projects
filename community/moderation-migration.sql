@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS entry_controls (entry TEXT PRIMARY KEY REFERENCES entries(id), pinned INTEGER NOT NULL DEFAULT 0, highlighted INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0, deleted INTEGER NOT NULL DEFAULT 0);
+CREATE VIEW IF NOT EXISTS community_entries AS SELECT e.*, COALESCE(c.pinned,0) AS pinned, COALESCE(c.highlighted,0) AS highlighted, COALESCE(c.locked,0) AS locked, COALESCE(c.deleted,0) AS deleted FROM entries e LEFT JOIN entry_controls c ON c.entry=e.id;
