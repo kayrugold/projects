@@ -1,3 +1,6 @@
+import { TerminalAdventure, primeMessage } from './TerminalAdventure';
+import { StudioBeacon } from './StudioBeacon';
+import { extraCommands, findProjects, terminalProjects } from '../data/terminalCatalog';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ChevronUp, 
@@ -23,6 +26,9 @@ interface CommandLogEntry {
 interface TerminalPromptProps {
   onNavigateTab: (tab: string) => void;
   onOpenProject?: (projectId: string) => void;
+  onLaunchApp: (url: string) => void;
+  onToggleCrt: () => void;
+  crtEnabled: boolean;
   onToggleMusic: () => void;
   onToggleSfx: () => void;
   onToggleFullscreen: () => void;
@@ -46,6 +52,9 @@ const QUOTES = [
 export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
   onNavigateTab,
   onOpenProject,
+  onLaunchApp,
+  onToggleCrt,
+  crtEnabled,
   onToggleMusic,
   onToggleSfx,
   onToggleFullscreen,
@@ -79,12 +88,12 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
   ]);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const latestLogRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll terminal log when new entries arrive
   useEffect(() => {
     if (isExpanded) {
-      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      latestLogRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     }
   }, [logs, isExpanded]);
 
@@ -95,7 +104,7 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
 
   const addLog = (output: React.ReactNode, type: CommandLogEntry['type'] = 'info', command?: string) => {
     setLogs(prev => [
-      ...prev,
+      ...prev.slice(-99),
       {
         id: Math.random().toString(36).substring(2, 9),
         command,
@@ -111,7 +120,7 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
     if (!trimmed) return;
 
     // Save to history
-    setHistory(prev => [...prev, trimmed]);
+    setHistory(prev => [...prev.slice(-99), trimmed]);
     setHistoryIndex(-1);
 
     // Normalize command: remove leading slash if present
@@ -123,7 +132,57 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
     // Always expand so user can see result
     setIsExpanded(true);
 
+    const showProjects = (query: string) => {
+      const matches = findProjects(query);
+      addLog(<div className="terminal-project-results">{matches.length ? matches.map(project => <div key={project.id}><button type="button" onClick={() => onOpenProject?.(project.page)}>{project.title} ↗</button><code>{project.id}</code><p>{project.description}</p></div>) : <p>No matching project. Try /projects to see the catalog.</p>}</div>, matches.length ? 'info' : 'warn', trimmed);
+    };
     switch (cmd) {
+      case 'chat': { window.dispatchEvent(new Event('studio-chat')); setIsExpanded(false); break; }
+      case 'forum': { onNavigateTab('rookery'); addLog(<div>Rookery conversations ready.</div>, 'success', trimmed); break; }
+      case 'xyrtania': { onLaunchApp('https://xyrtania.andy-596.workers.dev'); addLog(<div>Entering Xyrtania.</div>, 'success', trimmed); break; }
+      case 'adventure': case 'campfire': { addLog(<TerminalAdventure />, 'success', trimmed); break; }
+      case 'raven': { addLog(<div><pre>{'   ,_\n  (o )>  caw.\n  / )\\\n  " "'}</pre><p>A raven lands on your monitor. “Have you tried /adventure?”</p></div>, 'ascii', trimmed); break; }
+      case 'stars': { addLog(<div><pre>{'  .       *            .\n      .        +\n *        .       *\n      /\       .       .\n ____/  \\______________'}</pre><p>Somewhere under this sky, a new idea is keeping a developer awake.</p></div>, 'ascii', trimmed); break; }
+      case '42': { addLog(<div>Answer located. The question is still compiling.</div>, 'success', trimmed); break; }
+      case 'sudo': { addLog(<div>Permission granted to make a cup of tea. All other requests require a raven.</div>, 'warn', trimmed); break; }
+      case 'xyzzy': { addLog(<div>A hollow voice says: “You are already somewhere interesting.” Try /adventure.</div>, 'success', trimmed); break; }
+      case 'prime': { addLog(<div>{primeMessage(args.join(' '))}</div>, 'info', trimmed); break; }
+      case 'eggs': { addLog(<div>Signals worth investigating: /raven · /stars · /adventure · /prime 101. Some doors have familiar old passwords.</div>, 'info', trimmed); break; }
+      case 'projects': case 'ls': { showProjects(''); break; }
+      case 'find': case 'search': {
+        if (!args.length) addLog(<div>Usage: /find &lt;words&gt; — for example /find audio</div>, 'warn', trimmed);
+        else showProjects(args.join(' '));
+        break;
+      }
+      case 'open': case 'launch': {
+        if (!args.length) { addLog(<div>Usage: /{cmd} &lt;project&gt;. Try /{cmd} audio or /projects.</div>, 'warn', trimmed); break; }
+        const matches = findProjects(args.join(' '));
+        if (matches.length !== 1) { showProjects(args.join(' ')); break; }
+        const project = matches[0];
+        if (cmd === 'open') { onOpenProject?.(project.page); addLog(<div>Opened {project.title}.</div>, 'success', trimmed); }
+        else if (project.url) { onLaunchApp(project.url); addLog(<div>Launching {project.title}.</div>, 'success', trimmed); }
+        else addLog(<div>{project.title} is preparing for release. Use /open {project.id} for details.</div>, 'info', trimmed);
+        break;
+      }
+      case 'beacon': { addLog(<StudioBeacon compact />, 'info', trimmed); break; }
+      case 'crt': {
+        const mode = args[0]?.toLowerCase() || 'toggle';
+        if (!['on', 'off', 'toggle'].includes(mode) || args.length > 1) { addLog(<div>Usage: /crt [on|off|toggle]</div>, 'warn', trimmed); break; }
+        const next = mode === 'toggle' ? !crtEnabled : mode === 'on';
+        if (next !== crtEnabled) onToggleCrt();
+        addLog(<div>CRT effects {next ? 'on' : 'off'}.</div>, 'success', trimmed); break;
+      }
+      case 'history': { addLog(<ol className="space-y-1">{[...history, trimmed].slice(-30).map((command, i) => <li key={i}><button type="button" className="text-emerald-300 hover:underline" onClick={() => { setInput(command); inputRef.current?.focus(); }}>{i + 1}. {command}</button></li>)}</ol>, 'info', trimmed); break; }
+      case 'about': { addLog(<div>Andy Davis builds browser tools, mathematical experiments, and games from a studio on the road. <button type="button" className="text-emerald-300 underline" onClick={() => onNavigateTab('guild-hall')}>Visit the Guild Hall</button></div>, 'info', trimmed); break; }
+      case 'report': { onNavigateTab('rookery'); addLog(<div>The Rookery has exploration prompts, Discord, and an email feedback option.</div>, 'info', trimmed); break; }
+      case 'pwd': { addLog(<div>{window.location.hash || '#field-desk'}</div>, 'info', trimmed); break; }
+      case 'roll': {
+        const sides = args.length ? Number(args[0]) : 6;
+        if (args.length > 1 || !Number.isInteger(sides) || sides < 2 || sides > 1000) { addLog(<div>Usage: /roll [sides] — choose a whole number from 2 to 1000.</div>, 'warn', trimmed); break; }
+        addLog(<div>⚄ d{sides} → <strong className="text-amber-300">{1 + Math.floor(Math.random() * sides)}</strong></div>, 'success', trimmed); break;
+      }
+      case 'coin': { addLog(<div>◉ {Math.random() < .5 ? 'Heads' : 'Tails'}. The coin has spoken.</div>, 'success', trimmed); break; }
+
       case 'help':
       case '?': {
         addLog(
@@ -132,6 +191,7 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
               SYSTEM COMMAND REGISTER — AVAILABLE INSTRUCTIONS
             </div>
             
+            <div className="terminal-new-commands"><div className="text-amber-300 font-bold">WORKBENCH COMMANDS</div>{extraCommands.map(([command, description]) => <div key={command}><button type="button" onClick={() => { setInput(command.split(' ')[0] + (command.includes(' ') ? ' ' : '')); inputRef.current?.focus(); }}>{command}</button><span>{description}</span></div>)}<p>Click to prepare a command. Tab completes project IDs; ↑ / ↓ recalls history. /ls aliases /projects; /search aliases /find.</p></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[11px]">
               <div>
                 <span className="text-emerald-400 font-bold">/help, /?</span>
@@ -229,7 +289,7 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
           <div className="space-y-1 font-mono text-xs">
             <div className="text-emerald-400 font-bold">Andy's Dev Studio — [{CURRENT_STUDIO_VERSION}]</div>
             <div className="text-zinc-400">Codename: Orion Forge &amp; Navigation Matrix</div>
-            <div className="text-zinc-400">Git Branch: <span className="text-emerald-300">main</span> | Head: <span className="text-emerald-300">a7f921d</span></div>
+            <div className="text-zinc-400">This website does not expose a live Git commit identifier.</div>
             <div className="text-zinc-500">To inspect the full commit log and architecture, type <span className="text-emerald-400 font-semibold">/goto version</span></div>
           </div>,
           'success',
@@ -246,8 +306,8 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
             <div className="text-zinc-300">&bull; Ambient Music: <span className={isMusicOn ? 'text-emerald-400' : 'text-zinc-500'}>{isMusicOn ? 'ACTIVE [LOOPING]' : 'MUTED'}</span></div>
             <div className="text-zinc-300">&bull; Sound Effects: <span className={isSfxOn ? 'text-emerald-400' : 'text-zinc-500'}>{isSfxOn ? 'ACTIVE [SYNTHESIS]' : 'MUTED'}</span></div>
             <div className="text-zinc-300">&bull; Display Mode: <span className="text-emerald-300">{isFullscreen ? 'FULLSCREEN' : 'WINDOWED'}</span></div>
-            <div className="text-zinc-300">&bull; Core Engine: <span className="text-zinc-400">React 18 + Vite 6 + Web Audio API</span></div>
-            <div className="text-emerald-400 font-semibold pt-1">All telemetry nominal. Engine running at 60 FPS.</div>
+            <div className="text-zinc-300">&bull; Core Engine: <span className="text-zinc-400">React 19 + Vite 6 + Web Audio API</span></div>
+            <div className="text-emerald-400 font-semibold pt-1">Session settings shown above; frame rate and server health are not measured.</div>
           </div>,
           'info',
           trimmed
@@ -497,8 +557,18 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
     }
   };
 
+  const suggestedCommands = [...extraCommands.map(([command]) => command.split(' ')[0]), '/help', '/desk', '/forge', '/ledger', '/cargo', '/rookery', '/chronicles', '/guild', '/status', '/version', '/clear', '/music', '/sfx', '/fullscreen', '/mp3player', '/truck', '/quote', '/coffee', '/smiley', '/matrix', '/time', '/collapse'];
+  const normalizedInput = input.trimStart().toLowerCase().replace(/^\/?/, '/');
+  const projectCommand = normalizedInput.match(/^\/(open|launch)\s+(.*)$/);
+  const matchingCommands = projectCommand
+    ? terminalProjects.filter(p => p.id.startsWith(projectCommand[2])).map(p => '/' + projectCommand[1] + ' ' + p.id)
+    : input.trim() ? suggestedCommands.filter(command => command.startsWith(normalizedInput)) : ['/help', '/projects', '/beacon', '/roll'];
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Tab' && input.trim() && matchingCommands.length === 1 && input !== matchingCommands[0]) {
+      e.preventDefault();
+      setInput(matchingCommands[0]);
+    } else if (e.key === 'Enter') {
       handleCommand(input);
       setInput('');
     } else if (e.key === 'ArrowUp') {
@@ -523,6 +593,7 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
 
   return (
     <div className="fixed bottom-0 left-0 w-full z-50 transition-all duration-300 font-mono text-sm bg-zinc-950 border-t border-emerald-500/40 shadow-[0_-6px_25px_rgba(16,185,129,0.15)]">
+      {(isExpanded || input.trim()) && matchingCommands.length > 0 && <div className="studio-command-suggestions" aria-label="Command suggestions"><span>Prepare a command:</span>{matchingCommands.map(command => <button type="button" key={command} onClick={() => { setInput(command); inputRef.current?.focus(); }}>{command}</button>)}</div>}
       {/* Expanded Console Window */}
       {isExpanded && (
         <div className="h-64 sm:h-72 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-md overflow-y-auto p-4 space-y-3 relative text-xs">
@@ -565,8 +636,8 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
 
           {/* Rendered Log History */}
           <div className="space-y-2.5 pt-1">
-            {logs.map((log) => (
-              <div key={log.id} className="space-y-1">
+            {logs.map((log, index) => (
+              <div key={log.id} ref={index === logs.length - 1 ? latestLogRef : undefined} className="space-y-1" style={{ scrollMarginTop: 40 }}>
                 {log.command && (
                   <div className="flex items-center space-x-2 text-zinc-500 text-[11px]">
                     <span className="text-emerald-500 font-bold">&gt;</span>
@@ -577,7 +648,7 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
                 <div className="pl-3">{log.output}</div>
               </div>
             ))}
-            <div ref={logsEndRef} />
+
           </div>
         </div>
       )}
@@ -590,6 +661,7 @@ export const TerminalPrompt: React.FC<TerminalPromptProps> = ({
         <div className="flex items-center flex-1 min-w-0">
           <span className="text-emerald-400 mr-2 font-bold shrink-0 select-none">root@system:~$</span>
           <input
+            aria-label="Studio terminal command"
             ref={inputRef}
             type="text"
             value={input}

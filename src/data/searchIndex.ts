@@ -99,10 +99,10 @@ export const searchIndexData: SearchItem[] = [
   {
     "id": "infinite-drafting",
     "title": "INFINITE DRAFTING",
-    "description": "Instant-open, infinite-canvas graph paper utility designed to capture technical ideas the moment inspiration strikes.",
+    "description": "An infinite graph-paper canvas for sketches, layouts, and ideas. Android release planned at $1.99; free web edition planned for itch.io.",
     "category": "Ledger",
     "url": "javascript:openProjectPage('infinite-drafting')",
-    "tags": ["Drafting", "Graph Paper", "Infinite Canvas", "Capacitor", "Android", "Ruler", "Protractor", "Woodworking", "Math"]
+    "tags": ["Drafting", "Graph Paper", "Infinite Canvas", "Layers", "Android", "Ruler", "Protractor", "Woodworking", "Math"]
   },
   {
     "id": "factor-hunter-shirt",

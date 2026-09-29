@@ -1,4 +1,5 @@
 node_modules/
+.local-backups/
 build/
 dist/
 coverage/
@@ -6,3 +7,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+.local-community/
+.wrangler/
+.dev.vars

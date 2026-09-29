@@ -94,6 +94,7 @@ export const chroniclesData: ChronicleEntry[] = [
     "tags": ["Video", "Update", "Pipeline"],
     "content": `
 <p>I had to bail on my original recording spot because my coworkers were rolling in, so I retreated to the cab of the truck to film this. The lighting isn't great, and I actually ended up jump-scaring myself with my own hand reflection in the window at the 10-minute mark, but we got the mission parameters outlined.</p>
+<p><strong>Current studio note:</strong> This older entry describes the studio’s original testing plan. The studio now uses an organization account, and The Rookery is an open feedback workshop with no attendance requirement.</p>
 <p>In this video, I walk through exactly why Andy's Dev Studio exists. I break down Google's rigorous 14-Day/20-Tester requirement for new developers, and how this community is the ultimate answer to that hurdle. I also give a tour of how to use <strong>The Forge</strong> for free prototypes, and how to get your security clearance to test professional apps in <strong>The Rookery</strong>.</p>
 <p>Give it a watch, and if you haven't yet, join the Discord to get your Elite Raven badge.</p>
 <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 4px; border: 1px solid rgba(255,215,0,0.3); margin-top: 20px;">
@@ -114,6 +115,7 @@ export const chroniclesData: ChronicleEntry[] = [
 <p>Everything begins in <strong>The Forge</strong>. This is the sandbox. It’s where I drop experimental math engines, game mechanics, and utility prototypes that are still rough around the edges. When you load a project here, you aren't just playing a game—you are stress-testing the metal. </p>
 <p>If a prototype sparks joy (or breaks spectacularly), use the <strong>Send a Raven</strong> link. Your feedback is the hammer that shapes the next version.</p>
 <p><strong>Phase 2: The Rookery (The Crucible)</strong></p>
+<p><strong>Current studio note:</strong> The testing plan below is historical. The studio now uses an organization account. Visit The Rookery to share feedback without a roster or daily check-in.</p>
 <p>This is where things get serious. For an Android app to reach the Play Store today, Google demands a rigorous standard: <strong>20 testers opted-in for 14 continuous days</strong>. That is a massive hurdle for independent developers.</p>
 <p><strong>The Rookery</strong> is our answer to that gate. When a project graduates from The Forge, it lands here for "The 14-Day Watch." This isn't just checking for bugs; it’s a community mission to clear the gates for release. If you see an app in the Rookery, I am asking for your shield and your time to get it across the finish line.</p>
 <p><strong>Phase 3: The Ledger (The Market)</strong></p>

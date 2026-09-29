@@ -99,7 +99,7 @@ export const forgeData: ForgeEntry[] = [
     "id": "stride-hunter",
     "title": "STRIDE HUNTER",
     "description": "The Perfected Alignment Engine. Deploy a fleet of threads to hunt for factors using geometric sieving.",
-    "longDescription": "Stride Hunter utilizes the 'Geometric Soul of the Sieve' to find collisions in modular space. It utilizes multi-threaded Web Workers to scan high-altitude exponents for prime factors with zero UI lag.",
+    "longDescription": "Stride Hunter utilizes the 'Geometric Soul of the Sieve' to find collisions in modular space. It utilizes multi-threaded Web Workers to scan high-altitude exponents for prime factors while keeping computation off the main interface thread.",
     "features": [
       "Multi-core Fleet Deployment",
       "Geometric Sieve Theorem Integration",
@@ -148,7 +148,7 @@ export const forgeData: ForgeEntry[] = [
     "id": "thegeneral",
     "title": "THE GENERAL",
     "description": "Hunt factors with the SGS Poly-algo squad in real time in your browser and fast.",
-    "longDescription": "A high-performance modular visualizer and factor hunting engine. Built to utilize parallel browser threads for intense number crunching without UI lag.",
+    "longDescription": "A high-performance modular visualizer and factor hunting engine. Built to utilize parallel browser threads for intense number crunching using background workers.",
     "features": ["Real-time visual lattice", "SGS Poly-algo integration", "Multi-threaded processing"],
     "tech": ["JS BigInt", "Web Workers", "Canvas API"],
     "projectPage": "thegeneral",
@@ -203,7 +203,7 @@ export const forgeData: ForgeEntry[] = [
     "id": "andysaudiolooper",
     "title": "ANDY'S AUDIO LOOPER",
     "description": "Crossfades tracks to create a pretty solid audio loop from any mp3, wav, or ogg.",
-    "longDescription": "A dynamic loop generator that utilizes the Web Audio API to analyze an audio file, calculate the optimal crossfade points based on a target BPM, and generate a perfectly seamless loop. Designed for game developers and audio engineers who need quick, reliable background tracks.",
+    "longDescription": "A dynamic loop generator that utilizes the Web Audio API to analyze an audio file, calculate the optimal crossfade points based on a target BPM, and generate a crossfaded loop. Designed for game developers and audio engineers who need quick, reliable background tracks.",
     "features": [
       "Client-Side Processing",
       "Equal-Power Crossfading",

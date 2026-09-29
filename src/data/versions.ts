@@ -51,6 +51,20 @@ export const versionsData: VersionRelease[] = [
     },
     commits: [
       {
+        hash: 'a4e82d9',
+        date: '2026-09-26 17:46',
+        message: 'fix(rookery): wire up interactive handlers for bug dispatcher email/discord, QA arsenal specs & viewport HUD, and 14-day attendance ledger',
+        author: 'Andy (Kayrugold)',
+        scope: 'core'
+      },
+      {
+        hash: 'f9d32b1',
+        date: '2026-09-26 17:21',
+        message: 'fix(responsive): refine hero title typography tracking & fluid font sizing for Note 20 portrait display',
+        author: 'Andy (Kayrugold)',
+        scope: 'ui'
+      },
+      {
         hash: 'c8d41e2',
         date: '2026-09-26 04:28',
         message: 'fix(specs): resolve unescaped attribute quote syntax error in live telemetry logger',

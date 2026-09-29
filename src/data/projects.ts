@@ -1,162 +1,7 @@
+import { infiniteDraftingPage } from "./infiniteDrafting";
+
 export const projectsData: Record<string, string> = {
-  "infinite-drafting": `
-<div style="font-family: monospace; color: #e4e4e7;">
-    <!-- Header Block -->
-    <div style="position: relative; border: 1px solid #3f3f46; background: linear-gradient(135deg, rgba(9, 9, 11, 0.95) 0%, rgba(24, 24, 27, 0.95) 100%); padding: 2.5rem 2rem; border-radius: 0.75rem; margin-bottom: 2rem; box-shadow: 0 0 35px rgba(16, 185, 129, 0.08); overflow: hidden;">
-        <div style="position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #10b981;"></div>
-        
-        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem;">
-            <h1 style="font-size: 2.25rem; font-weight: 900; letter-spacing: 0.05em; color: #f4f4f5; margin: 0;">INFINITE DRAFTING</h1>
-            <span style="font-size: 1.1rem; font-weight: bold; color: #10b981; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 0.4rem 1rem; border-radius: 0.375rem;">
-                $1.99 USD
-            </span>
-        </div>
-
-        <div style="font-size: 0.85rem; color: #10b981; letter-spacing: 0.1em; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <span>CLASSIFICATION: TECHNICAL DRAFTING & GRAPH PAPER UTILITY</span>
-            <span style="color: #3f3f46;">|</span>
-            <span style="display: flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; box-shadow: 0 0 8px #10b981;"></span>
-                STABLE PRODUCTION RELEASE
-            </span>
-        </div>
-
-        <p style="color: #d4d4d8; font-size: 1.05rem; line-height: 1.7; max-width: 75ch; margin: 0;">
-            Infinite Drafting is an instant-open, infinite-canvas graph paper utility designed to capture technical ideas the moment inspiration strikes, bypassing the bloat and loading times of heavy design software. It is a $1.99, zero-friction pocket tool built for users who need immediate access to a reliable drafting space.
-        </p>
-    </div>
-
-    <!-- Media Showcase Bento (Square Featured + 9:16 Mobile Viewport) -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 2.5rem;">
-        <!-- Featured Image Card -->
-        <div style="background: rgba(24, 24, 27, 0.6); border: 1px solid #3f3f46; border-radius: 0.75rem; padding: 1.25rem; display: flex; flex-direction: column;">
-            <div style="font-size: 0.8rem; font-weight: bold; color: #10b981; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
-                <span>FEATURED PRODUCT ARTWORK</span>
-                <span style="color: #71717a;">1:1 SQUARE FORMAT</span>
-            </div>
-            <div style="width: 100%; aspect-ratio: 1/1; border-radius: 0.5rem; overflow: hidden; border: 1px solid #27272a; background: #09090b;">
-                <img 
-                    src="/assets/infinitedrafting1.webp" 
-                    alt="Infinite Drafting Featured" 
-                    style="width: 100%; height: 100%; object-fit: cover;"
-                />
-            </div>
-            <p style="font-size: 0.75rem; color: #a1a1aa; margin-top: 0.75rem; line-height: 1.5; margin-bottom: 0;">
-                Core edition graph paper iconology featuring precision coordinates and infinite drafting grid lines.
-            </p>
-        </div>
-
-        <!-- 9:16 Vertical Interface Preview Card -->
-        <div style="background: rgba(24, 24, 27, 0.6); border: 1px solid #3f3f46; border-radius: 0.75rem; padding: 1.25rem; display: flex; flex-direction: column;">
-            <div style="font-size: 0.8rem; font-weight: bold; color: #fbbf24; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
-                <span>SHOP & FIELD VIEWPORT</span>
-                <span style="color: #71717a;">9:16 MOBILE INTERFACE</span>
-            </div>
-            <div style="width: 100%; max-height: 420px; border-radius: 0.5rem; overflow: hidden; border: 1px solid #27272a; background: #09090b; display: flex; justify-content: center; align-items: center;">
-                <img 
-                    src="/assets/infinitedrafting0.webp" 
-                    alt="Infinite Drafting Vertical Interface" 
-                    style="max-width: 100%; max-height: 420px; object-fit: contain;"
-                />
-            </div>
-            <p style="font-size: 0.75rem; color: #a1a1aa; margin-top: 0.75rem; line-height: 1.5; margin-bottom: 0;">
-                Full-height mobile drafting matrix with zero lag, instant gesture navigation, and multi-scale precision.
-            </p>
-        </div>
-    </div>
-
-    <!-- Core Pillars / Architectural Features -->
-    <div style="margin-bottom: 3rem;">
-        <h2 style="font-size: 1.35rem; font-weight: bold; color: #f4f4f5; margin-bottom: 1.25rem; letter-spacing: 0.05em; display: flex; align-items: center;">
-            <span style="color: #10b981; margin-right: 0.5rem;">##</span> CORE CAPABILITIES
-        </h2>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
-            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #10b981; padding: 1.25rem; border-radius: 0.5rem;">
-                <div style="color: #10b981; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">⚡ Zero-Friction Startup</div>
-                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
-                    Opens instantly to a clean interface, allowing users to start drawing before a sudden idea or mathematical breakthrough slips away. No splash screens, no subscription prompts, no loading bars.
-                </div>
-            </div>
-
-            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #fbbf24; padding: 1.25rem; border-radius: 0.5rem;">
-                <div style="color: #fbbf24; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">🌌 The Boundless Canvas</div>
-                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
-                    The workspace expands endlessly, accommodating sprawling game level layouts, intricate gnomonic geometry, or modular arithmetic matrices without ever hitting a page border.
-                </div>
-            </div>
-
-            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #3b82f6; padding: 1.25rem; border-radius: 0.5rem;">
-                <div style="color: #3b82f6; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">📐 Precision Toolkit</div>
-                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
-                    Equipped with a built-in ruler, protractor, and the ability to instantly snap directional number grids. It serves as a highly accurate tool for mapping out woodworking joints or calculating material yields in the shop.
-                </div>
-            </div>
-
-            <div style="background: rgba(24, 24, 27, 0.8); border: 1px solid #3f3f46; border-left: 3px solid #a855f7; padding: 1.25rem; border-radius: 0.5rem;">
-                <div style="color: #c084fc; font-weight: bold; font-size: 1rem; margin-bottom: 0.5rem;">🤝 Community-Minded Architecture</div>
-                <div style="color: #a1a1aa; font-size: 0.85rem; line-height: 1.6;">
-                    Developed alongside Google AI Studio and packaged as a native Android App Bundle via Capacitor, the app targets the Play Store while simultaneously maintaining a free, browser-based HTML5 version hosted on itch.io to support the indie development community.
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Technical Specifications Table -->
-    <div style="margin-bottom: 3rem; background: rgba(18, 18, 20, 0.8); border: 1px solid #27272a; border-radius: 0.75rem; padding: 1.75rem;">
-        <h3 style="font-size: 1.15rem; font-weight: bold; color: #fbbf24; margin-bottom: 1.25rem; border-bottom: 1px dashed #3f3f46; padding-bottom: 0.5rem;">
-            TECHNICAL SPECIFICATIONS
-        </h3>
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-            <tr style="border-bottom: 1px solid #27272a;">
-                <td style="padding: 10px 0; color: #10b981; font-weight: bold; width: 40%;">Primary Target</td>
-                <td style="padding: 10px 0; color: #d4d4d8;">Google Play Store (Android Native App Bundle)</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #27272a;">
-                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Web / Community Target</td>
-                <td style="padding: 10px 0; color: #d4d4d8;">itch.io (Free HTML5 Browser Edition)</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #27272a;">
-                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Core Technology</td>
-                <td style="padding: 10px 0; color: #d4d4d8;">Capacitor, High-DPI HTML5 Canvas, Vanilla TS/JS</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #27272a;">
-                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Canvas Limits</td>
-                <td style="padding: 10px 0; color: #d4d4d8;">Unbounded 2D Floating Point Coordinate Grid</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #27272a;">
-                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Integrated Tools</td>
-                <td style="padding: 10px 0; color: #d4d4d8;">Dynamic Ruler, 360° Protractor, Snap-to-Grid, Angle Guides</td>
-            </tr>
-            <tr style="border-bottom: 1px solid #27272a;">
-                <td style="padding: 10px 0; color: #10b981; font-weight: bold;">Commercial Pricing</td>
-                <td style="padding: 10px 0; color: #d4d4d8;">$1.99 Lifetime License on Android (Zero Ads, Zero Telemetry)</td>
-            </tr>
-        </table>
-    </div>
-
-    <!-- Action Launcher Buttons -->
-    <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 2rem;">
-        <button 
-            onclick="window.open('https://play.google.com', '_blank')" 
-            style="background: #10b981; color: #09090b; border: none; padding: 0.85rem 1.75rem; font-weight: bold; border-radius: 0.375rem; cursor: pointer; font-size: 0.9rem; letter-spacing: 0.05em; transition: all 0.2s;"
-            onmouseover="this.style.background='#34d399'"
-            onmouseout="this.style.background='#10b981'"
-        >
-            ACQUIRE ON GOOGLE PLAY ($1.99)
-        </button>
-
-        <button 
-            onclick="window.open('https://itch.io', '_blank')" 
-            style="background: rgba(251, 191, 36, 0.1); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4); padding: 0.85rem 1.75rem; font-weight: bold; border-radius: 0.375rem; cursor: pointer; font-size: 0.9rem; letter-spacing: 0.05em; transition: all 0.2s;"
-            onmouseover="this.style.background='rgba(251, 191, 36, 0.2)'"
-            onmouseout="this.style.background='rgba(251, 191, 36, 0.1)'"
-        >
-            LAUNCH FREE EDITION ON ITCH.IO
-        </button>
-    </div>
-</div>
-`,
+  "infinite-drafting": infiniteDraftingPage,
   "thegeneral": `
 <h1 class="page-title" style="font-size: 1.5rem; font-weight: bold; color: #f4f4f5; margin-bottom: 1rem;">Project: THE GENERAL</h1>
 
@@ -172,7 +17,7 @@ export const projectsData: Record<string, string> = {
 <div class="view-section" style="margin-bottom: 2rem;">
     <h2 class="log-title" style="font-size: 1.2rem; font-weight: bold; color: #e4e4e7; margin-bottom: 1rem;">Technical Objectives</h2>
     <ul class="card-bullets" style="font-size: 1rem; line-height: 1.8; color: #a1a1aa; list-style-type: disc; padding-left: 1.5rem;">
-        <li>Demonstrate zero-latency UI during BigInt operations.</li>
+        <li>Keep the interface responsive during BigInt operations.</li>
         <li>Implement a "Radar" view for composite density.</li>
         <li>Export results to CSV for external cryptography analysis.</li>
     </ul>
@@ -342,7 +187,7 @@ export const projectsData: Record<string, string> = {
     <p style="margin-bottom: 1.5rem;"><strong>The Mission:</strong> To create seamless, infinite audio loops from standard audio files (mp3, wav, ogg) directly in the browser.</p>
     
     <h4 style="font-size: 1.1rem; font-weight: bold; color: #e4e4e7; margin-bottom: 0.5rem;">How it Works</h4>
-    <p style="margin-bottom: 1.5rem;">This tool utilizes the Web Audio API to analyze an audio file, calculate the optimal crossfade points based on a target BPM, and generate a perfectly seamless loop. It's designed for game developers and audio engineers who need quick, reliable background tracks without opening a heavy DAW.</p>
+    <p style="margin-bottom: 1.5rem;">This tool utilizes the Web Audio API to analyze an audio file, calculate the optimal crossfade points based on a target BPM, and generate a crossfaded loop. It's designed for game developers and audio engineers who need quick, reliable background tracks without opening a heavy DAW.</p>
 
     <h4 style="font-size: 1.1rem; font-weight: bold; color: #e4e4e7; margin-bottom: 0.5rem;">Technical Specs</h4>
     <ul style="list-style-type: square; padding-left: 1.5rem; margin-bottom: 2rem;">
@@ -657,7 +502,7 @@ export const projectsData: Record<string, string> = {
             <a onclick="xyrtaniaScrollTo('xyrtania_specs_sec')" class="xyrtania-nav-link">[ ⚙️ SPECIFICATIONS ]</a>
         </div>
 
-        <h2 style="font-size: clamp(1.85rem, 7vw, 2.75rem); font-weight: 900; letter-spacing: clamp(0.06em, 2vw, 0.2em); color: #fbbf24; margin-bottom: 0.5rem; text-shadow: 0 0 15px rgba(251, 191, 36, 0.3); word-break: break-word;">XYRTANIA</h2>
+        <h2 style="font-size: clamp(1.6rem, 7vw, 2.75rem); font-weight: 900; letter-spacing: clamp(0.05em, 2vw, 0.2em); padding-left: clamp(0.05em, 2vw, 0.2em); color: #fbbf24; margin-bottom: 0.5rem; text-shadow: 0 0 15px rgba(251, 191, 36, 0.3); word-break: break-word; max-width: 100%;">XYRTANIA</h2>
         
         <div style="font-family: monospace; font-size: 0.8rem; color: #10b981; letter-spacing: 0.1em; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             <span>SYSTEM: 3D MULTIPLAYER ADVENTURE</span>

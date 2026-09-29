@@ -5,7 +5,8 @@ export interface LedgerEntry {
   description: string;
   image: string;
   platform: 'Itch.io' | 'Play Store' | 'Other';
-  url: string;
+  url?: string;
+  releaseStatus?: string;
   features?: string[];
   projectPage?: string;
 }
@@ -15,16 +16,14 @@ export const ledgerData: LedgerEntry[] = [
     id: "infinite-drafting",
     title: "INFINITE DRAFTING",
     price: "$1.99",
-    description: "An instant-open, infinite-canvas graph paper utility designed to capture technical ideas the moment inspiration strikes, bypassing the bloat and loading times of heavy design software. A zero-friction pocket tool for immediate drafting access.",
+    description: "Sketch a level, explore a pattern, or work through your next build. An open-ended graph-paper canvas with drawing tools, layers, and guides to help turn a passing idea into a plan.",
     image: "/assets/infinitedrafting1.webp",
     platform: "Play Store",
-    url: "https://play.google.com",
+    releaseStatus: "Preparing for launch",
     features: [
-      "Zero-Friction Startup",
-      "The Boundless Canvas",
-      "Precision Ruler & Protractor",
-      "Snap Directional Grids",
-      "Android & HTML5"
+      "Infinite canvas",
+      "Ruler & angle guides",
+      "Layers & project files"
     ],
     projectPage: "infinite-drafting"
   }
