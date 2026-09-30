@@ -1,0 +1,8 @@
+{
+  "name": "Infinite Drafting",
+  "description": "A lightweight tablet-first infinite graph-paper drawing app optimized for S Pen use.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

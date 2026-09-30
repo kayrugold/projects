@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Default Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions for user authentication and authorization
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Sessions Validation Helper
+    function isValidSession(data, userId) {
+      return data.keys().hasAll(['userId', 'title', 'layersData', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'title', 'layersData', 'createdAt', 'updatedAt'])
+        && data.userId == userId
+        && data.title is string
+        && data.title.size() <= 200
+        && data.layersData is string
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSessionUpdate(data, prevData, userId) {
+      return data.diff(prevData).affectedKeys().hasOnly(['title', 'layersData', 'updatedAt'])
+        && data.title is string
+        && data.title.size() <= 200
+        && data.layersData is string
+        && data.updatedAt is timestamp
+        && data.userId == prevData.userId
+        && data.createdAt == prevData.createdAt;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      match /sessions/{sessionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidSession(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidSessionUpdate(request.resource.data, resource.data, userId);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

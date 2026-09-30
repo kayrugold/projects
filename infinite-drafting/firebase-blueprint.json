@@ -1,0 +1,39 @@
+{
+  "entities": {
+    "Session": {
+      "title": "Drawing Session",
+      "description": "A saved canvas drawing session containing layers and strokes.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns the drawing."
+        },
+        "title": {
+          "type": "string"
+        },
+        "layersData": {
+          "type": "string",
+          "description": "JSON stringified representation of the layers array to avoid complex nested rules and potential index limits."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "timestamp"
+        }
+      },
+      "required": ["userId", "title", "layersData", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/sessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/entities/Session"
+      },
+      "description": "The saved drawing sessions for a specific user."
+    }
+  }
+}

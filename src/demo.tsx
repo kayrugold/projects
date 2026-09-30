@@ -1,7 +1,8 @@
-import React,{useRef,useState} from 'react';
-import {createRoot} from 'react-dom/client';
-import {CanvasWorkspace,CanvasWorkspaceRef} from '../infinite-drafting/src/components/CanvasWorkspace';
-import type {Layer,Tool} from '../infinite-drafting/src/types';
-import './index.css';
-import './demo.css';
-function Demo(){const [layers,setLayers]=useState<Layer[]>([{id:'demo',name:'Practice',visible:true,locked:false,strokes:[]}]),[tool,setTool]=useState<Tool>('pen'),[snap,setSnap]=useState(false);const canvas=useRef<CanvasWorkspaceRef>(null);return <main className="drafting-demo"><header><strong>Infinite Drafting <small>CANVAS DEMO</small></strong><span>{layers[0].strokes.length} strokes · not saved</span></header><nav aria-label="Drawing tools">{(['pen','line','move','erase'] as Tool[]).map(t=><button key={t} aria-pressed={tool===t} onClick={()=>setTool(t)}>{t==='move'?'Pan':t==='erase'?'Erase':t==='line'?'Line':'Draw'}</button>)}<button aria-pressed={snap} onClick={()=>setSnap(v=>!v)}>Snap {snap?'on':'off'}</button><button onClick={()=>canvas.current?.resetView()}>Reset view</button><button disabled={!layers[0].strokes.length} onClick={()=>setLayers(v=>[{...v[0],strokes:v[0].strokes.slice(0,-1)}])}>Undo</button><button onClick={()=>setLayers(v=>[{...v[0],strokes:[]}])}>Clear</button></nav><div className="demo-canvas"><CanvasWorkspace ref={canvas} layers={layers} activeLayerId="demo" tool={tool} color="#1e293b" snapEnabled={snap} angleGuidesEnabled={false} protractorEnabled={false} rulerEnabled={false} boxGridStartNumber={1} inputMode="hybrid" onLayersChange={setLayers}/></div><footer>Draw with mouse, touch, or pen. Select Pan to move around; scroll over the canvas to zoom. Practice work disappears when closed.</footer></main>};createRoot(document.getElementById('root')!).render(<Demo/>);
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import InfiniteDrafting from '../infinite-drafting/src/App';
+import '../infinite-drafting/src/index.css';
+
+// Embed the same application used by the standalone release. Its separate entry
+// owns PWA registration; this page must not replace the studio's service worker.
+createRoot(document.getElementById('root')!).render(<InfiniteDrafting embedded />);

@@ -1,3 +1,4 @@
+import { isDemo } from '../lib/runtime';
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Layer, Point, Stroke, Tool, Camera } from '../types';
 
@@ -305,7 +306,7 @@ export const CanvasWorkspace = forwardRef<CanvasWorkspaceRef, CanvasProps>(({
 
   useEffect(() => {
     try {
-      localStorage.removeItem('infinite_drafting_input_mode');
+      if (!isDemo) localStorage.removeItem('infinite_drafting_input_mode');
     } catch {}
     const handleGlobalPointerCleanup = (e: PointerEvent) => {
       if (e.pointerType === 'touch') {
