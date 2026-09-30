@@ -1,4 +1,5 @@
-import { ContextDiscussion } from './components/Community';
+import { StudioBoot } from './components/StudioBoot';
+import { ContextDiscussion, SiteChat } from './components/Community';
 import { ProductDemo } from './components/ProductDemo';
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Menu, X, Monitor } from 'lucide-react';
@@ -634,9 +635,7 @@ export default function App() {
 
   const initialHash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
   const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
-  const hasDirectDeepLink = Boolean(initialHash && initialHash !== '');
-  const [bootSequence, setBootSequence] = useState(!hasDirectDeepLink);
-  const [progress, setProgress] = useState(hasDirectDeepLink ? 100 : 0);
+  const [bootSequence, setBootSequence] = useState(true);
   
   const isXyrtaniaGatewayHash = (hashStr: string) => {
     const clean = hashStr.replace(/^#/, '');
@@ -792,16 +791,6 @@ export default function App() {
       }
     }
   }, [siteMode, isMusicOn]);
-
-  useEffect(() => {
-    if (progress < 100) {
-      const timer = setTimeout(() => setProgress(p => Math.min(p + Math.random() * 15, 100)), 100);
-      return () => clearTimeout(timer);
-    } else {
-      const timer = setTimeout(() => setBootSequence(false), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [progress]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -1067,24 +1056,11 @@ export default function App() {
   };
 
   if (bootSequence) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 font-mono">
-        <div className="w-full max-w-md space-y-4">
-          <div className="text-emerald-500 text-sm mb-2">## SYSTEM UPDATE</div>
-          <div className="text-zinc-400 text-xs">Downloading New Assets...</div>
-          <div className="flex items-center space-x-4">
-            <div className="text-emerald-400">[{progress < 100 ? 'v---' : ' OK '}]</div>
-            <div className="flex-1 h-1 bg-zinc-900 rounded overflow-hidden">
-              <div 
-                className="h-full bg-emerald-500 transition-all duration-100 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="text-zinc-500 text-xs w-12 text-right">{Math.floor(progress)}%</div>
-          </div>
-        </div>
-      </div>
-    );
+    return <StudioBoot installable={isInstallable} onInstall={handleInstallClick} onEnter={()=>{
+      // Keep audio activation inside the trusted click, including keyboard activation.
+      audio.toggleMusic(true); audio.playClick();
+      setIsMusicOn(true); setIsSfxOn(true); setBootSequence(false);
+    }}/>;
   }
 
   return (
@@ -1259,7 +1235,7 @@ export default function App() {
               <button 
                 onClick={toggleMusic}
                 className={`p-2 rounded border transition-all flex items-center justify-center ${isMusicOn ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30'}`}
-                title="Toggle Music"
+                title="Toggle Music" aria-pressed={isMusicOn}
               >
                 {isMusicOn ? <Music2 className="w-4 h-4 animate-pulse" /> : <Music className="w-4 h-4" />}
               </button>
@@ -1267,7 +1243,7 @@ export default function App() {
               <button 
                 onClick={toggleSfx}
                 className={`p-2 rounded border transition-all flex items-center justify-center ${isSfxOn ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30'}`}
-                title="Toggle SFX"
+                title="Toggle SFX" aria-pressed={isSfxOn}
               >
                 {isSfxOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
@@ -1328,6 +1304,7 @@ export default function App() {
         <SmileyOverlay onComplete={() => setShowSmiley(false)} />
       )}
       
+      <SiteChat />
       <TerminalPrompt 
         onNavigateTab={handleTabChange}
         onOpenProject={handleOpenProject}
