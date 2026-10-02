@@ -1,6 +1,6 @@
-.studio-boot{min-height:100svh;display:grid;place-items:center;padding:24px;background:#09090b;color:#94949d;font:11px/1.6 'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate}
+.studio-boot{min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr);place-items:center;padding:24px;background:#09090b;color:#94949d;font:11px/1.6 'JetBrains Mono',ui-monospace,monospace;position:relative;isolation:isolate}
 .studio-boot::after{content:'';position:fixed;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0px,rgba(0,0,0,.28) 2px,transparent 2px,transparent 4px);box-shadow:inset 0 0 160px 40px rgba(0,0,0,.45)}
-.bios-panel{width:448px;max-width:100%;padding:32px;border:1px solid #075e46;border-radius:12px;background:#101112;box-shadow:0 0 35px #00ce8910}
+.bios-panel{box-sizing:border-box;width:100%;max-width:448px;min-width:0;padding:32px;border:1px solid #075e46;border-radius:12px;background:#101112;box-shadow:0 0 35px #00ce8910}
 .bios-panel header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #222526;color:#00d99d}
 .bios-panel h1{font:700 12px/1.6 'JetBrains Mono',ui-monospace,monospace;letter-spacing:1px;color:#00e7aa;margin:0;text-shadow:0 0 7px #00d99d66}
 .bios-panel header>span{white-space:nowrap;font-size:12px}
