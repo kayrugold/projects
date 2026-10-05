@@ -11,3 +11,6 @@ coverage/
 .local-community/
 .wrangler/
 .dev.vars
+
+# Original store marketing exports; website copies live in public/assets/infinite-drafting/.
+/InfiniteDraftingMarketing/

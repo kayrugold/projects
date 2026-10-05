@@ -11,6 +11,30 @@ export interface ChronicleEntry {
 
 export const chroniclesData: ChronicleEntry[] = [
   {
+    id: 'infinite-drafting-launch',
+    title: 'Infinite Drafting Is Live — From the Workbench to Google Play',
+    date: 'October 5, 2026',
+    summary: 'My first Google Play release is here. Infinite Drafting is now available on Android and itch.io—an open canvas for sketches, plans, and the next idea.',
+    image: '/assets/infinite-drafting/promo-poster.webp',
+    tags: ['Release', 'Infinite Drafting', 'Android', 'Video'],
+    content: `
+<p><strong>Infinite Drafting has made it from the workbench to The Ledger—and onto Google Play.</strong></p>
+<p>This is my first Google Play release, and it means a lot to see it available. I built Infinite Drafting to give ideas room to grow: a graph-paper workspace where you can sketch a layout, explore a pattern, or work through a plan without running out of page.</p>
+<h3>A little structure. A lot of possibility.</h3>
+<p>The app brings together freehand drawing, straight lines, layers, numbered grids, and ruler and angle guides. You can keep drafts on your device and import or export editable project files. It is a place to sketch and explore, rather than a replacement for engineering or CAD software.</p>
+<h3>Choose your workspace</h3>
+<p><a href="https://play.google.com/store/apps/details?id=com.andysdevstudio.infinitedrafting" target="_blank" rel="noopener noreferrer">Infinite Drafting on Google Play</a> is $1.99 USD. The <a href="https://kayrugold.itch.io/infinite-drafting" target="_blank" rel="noopener noreferrer">web edition on itch.io</a> is free, with donations welcome. That free edition is a friendly gesture to the developers, makers, and curious people who might find it useful.</p>
+<p>You can also <a href="#infinite-drafting">try the temporary demo in The Ledger</a> before choosing an edition.</p>
+<h3>Visual Dispatch: Infinite Drafting</h3>
+<p>Here is the promotional video to mark the launch. A hands-on demonstration will follow in a separate post.</p>
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 4px; border: 1px solid rgba(255,215,0,0.3); margin-top: 20px;">
+  <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="https://www.youtube-nocookie.com/embed/wY9mfjGC5B8?rel=0&playsinline=1" title="Infinite Drafting promotional video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
+<p><a href="https://youtu.be/wY9mfjGC5B8" target="_blank" rel="noopener noreferrer">Watch the promo on YouTube ↗</a></p>
+<p>If you try it, I would love to hear what you make and what could work better. Leave a note on the product page or <a href="https://discord.gg/nXtrdRYWfH" target="_blank" rel="noopener noreferrer">join the studio on Discord</a>.</p>
+<p>Thank you for supporting this first release.<br>— Andy</p>`
+  },
+  {
     "id": "log-xyrtania-alpha",
     "title": "Log ID 4.70: Entering Xyrtania — 3D Multiplayer in the Browser",
     "date": "August 4, 2026",

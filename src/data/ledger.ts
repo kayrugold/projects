@@ -17,9 +17,10 @@ export const ledgerData: LedgerEntry[] = [
     title: "INFINITE DRAFTING",
     price: "$1.99",
     description: "Sketch a level, explore a pattern, or work through your next build. An open-ended graph-paper canvas with drawing tools, layers, and guides to help turn a passing idea into a plan.",
-    image: "/assets/infinitedrafting1.webp",
+    image: "/assets/infinite-drafting/desktop-2.webp",
     platform: "Play Store",
-    releaseStatus: "Preparing for launch",
+    releaseStatus: "Available now",
+    url: "https://play.google.com/store/apps/details?id=com.andysdevstudio.infinitedrafting",
     features: [
       "Infinite canvas",
       "Ruler & angle guides",

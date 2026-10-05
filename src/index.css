@@ -19,6 +19,19 @@
 .drafting-button:focus-visible, .drafting-faq summary:focus-visible { outline: 3px solid #fbbf24; outline-offset: 5px; }
 .drafting-showcase { margin: 24px 0 0; overflow: hidden; border: 1px solid #33423e; border-radius: 12px; background: #141b19; }
 .drafting-showcase img { display: block; width: 100%; height: auto; }
+.drafting-showcase video { display: block; width: 100%; max-height: 70svh; background: #09090b; object-fit: contain; }
+.drafting-media details { margin-top: 16px; border: 1px solid #33423e; border-radius: 12px; overflow: hidden; background: #111a15; }
+.drafting-media summary { cursor: pointer; padding: 18px 20px; color: #dde5df; font-size: 13px; }
+.drafting-media summary span { margin-left: 12px; color: #a8b4ac; font-size: 10px; white-space: nowrap; }
+.drafting-screenshots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 0 20px 20px; }
+.drafting-screenshots-mobile { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.drafting-screenshots figure { min-width: 0; margin: 0; }
+.drafting-screenshots a { display: flex; align-items: center; justify-content: center; padding: 8px; background: #09090b; border: 1px solid #33423e; border-radius: 8px; overflow: hidden; }
+.drafting-screenshots img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: contain; margin: 0; }
+.drafting-screenshots-mobile img { aspect-ratio: 9 / 20; }
+.drafting-screenshots figcaption { margin-top: 8px; font-size: 11px; line-height: 1.6; color: #b3bcb7; }
+.drafting-media summary:focus-visible, .drafting-screenshots a:focus-visible { outline: 3px solid #fbbf24; outline-offset: -3px; }
+@media (max-width: 640px) { .drafting-screenshots-desktop { grid-template-columns: minmax(0, 1fr); } .drafting-screenshots-mobile { grid-template-columns: repeat(2, minmax(0, 1fr)); } .drafting-screenshots { gap: 12px; padding: 0 12px 12px; } .drafting-media summary { padding: 16px 12px; } }
 .drafting-showcase figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 14px 20px; font-size: 10px; color: #b3bcb7; }
 .drafting-showcase figcaption span:last-child { color: #a1a1aa; }
 .drafting-section { margin-top: 56px; }
@@ -102,3 +115,34 @@
     text-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
   }
 }
+
+.drafting-lightbox { position: fixed; inset: 0; margin: auto; padding: 0; width: min(1200px, 96vw); max-width: 96vw; max-height: 94dvh; border: 1px solid #497763; border-radius: 12px; background: #0b1310; color: #dcf4e7; box-shadow: 0 20px 100px #000c; }
+.drafting-lightbox::backdrop { background: #000d; backdrop-filter: blur(5px); }
+.drafting-lightbox-content { display: flex; flex-direction: column; max-height: 94dvh; }
+.drafting-lightbox header, .drafting-lightbox footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; font: 12px/1.5 ui-monospace, monospace; flex-shrink: 0; }
+.drafting-lightbox header span { min-width: 0; }
+.drafting-lightbox img { display: block; width: 100%; min-height: 0; flex: 1 1 auto; object-fit: contain; background: #050807; }
+.drafting-lightbox button { cursor: pointer; border: 1px solid #497763; border-radius: 6px; padding: 9px 12px; background: #172b21; white-space: nowrap; }
+.drafting-lightbox button:hover { background: #264936; }
+.drafting-lightbox button:focus-visible { outline: 2px solid #6ee7b7; outline-offset: 3px; }
+@media (max-width: 640px) { .drafting-lightbox footer span { display: none; } .drafting-lightbox header, .drafting-lightbox footer { padding: 10px; } }
+
+.drafting-showcase video { aspect-ratio: 16 / 9; }
+/* Put release choices directly in the opening product overview. */
+.drafting-page > .drafting-hero { padding: 24px; }
+.drafting-hero h1 { margin: 12px 0; }
+.drafting-hero h1 > span { margin-top: 8px; font-size: clamp(30px, 4vw, 46px); }
+.drafting-hero-footer { margin-top: 16px; }
+.drafting-hero + .drafting-editions { margin-top: 24px; }
+.drafting-hero + .drafting-editions .drafting-edition-grid { margin-top: 16px; }
+.drafting-edition { padding: 20px; }
+.drafting-edition h3 { margin-top: 14px; }
+.drafting-price { margin: 4px 0 10px; }
+.drafting-availability { margin-top: 16px; padding-top: 12px; }
+.drafting-hero .drafting-editions { margin-top: 16px; }
+.drafting-hero .drafting-choose-heading { font: 700 12px/1.5 ui-monospace, monospace; color: #b9d8c9; margin: 0; letter-spacing: 0; }
+.drafting-hero .drafting-edition-grid { margin-top: 10px; gap: 12px; }
+.drafting-hero .drafting-edition { padding: 14px; }
+.drafting-hero .drafting-price { font-size: 32px; }
+.drafting-hero .drafting-lead { line-height: 1.6; font-size: 13px; }
+@media (min-width: 480px) { .drafting-hero .drafting-edition-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

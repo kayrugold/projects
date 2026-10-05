@@ -3,6 +3,8 @@ class AudioEngine {
   private masterGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
+  private musicDuckGain: GainNode | null = null;
+  private musicDucked = false;
   
   private bgmElement: HTMLAudioElement | null = null;
   private currentMode: 'file' | 'procedural' = 'file';
@@ -39,7 +41,10 @@ class AudioEngine {
       compressor.connect(this.ctx.destination);
 
       this.musicGain = this.ctx.createGain();
-      this.musicGain.connect(this.masterGain);
+      this.musicDuckGain = this.ctx.createGain();
+      this.musicDuckGain.gain.value = this.musicDucked ? 0 : 1;
+      this.musicGain.connect(this.musicDuckGain);
+      this.musicDuckGain.connect(this.masterGain);
 
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.connect(this.masterGain);
@@ -86,7 +91,27 @@ class AudioEngine {
     this.bgmElement = new Audio(this.playlist[this.currentTrackIndex]);
     this.bgmElement.loop = true;
     this.bgmElement.volume = 0.4;
-    this.bgmElement.play().catch(e => console.error("Audio play failed:", e));
+    if (!this.musicDucked) this.bgmElement.play().catch(e => {
+      if (e.name !== 'AbortError') console.error("Audio play failed:", e);
+    });
+  }
+
+  // Pause the current track without restarting it or changing the music preference.
+  setMusicDucked(ducked: boolean) {
+    if (this.musicDucked === ducked) return;
+    this.musicDucked = ducked;
+    if (this.bgmElement) {
+      if (ducked) this.bgmElement.pause();
+      else if (this.isMusicPlaying && this.currentMode === 'file') {
+        this.bgmElement.play().catch(e => {
+          if (e.name !== 'AbortError') console.error('Audio resume failed:', e);
+        });
+      }
+    }
+    if (this.ctx && this.musicDuckGain) {
+      this.musicDuckGain.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.musicDuckGain.gain.setTargetAtTime(ducked ? 0 : 1, this.ctx.currentTime, 0.05);
+    }
   }
 
   toggleMusic(enable: boolean) {
@@ -352,6 +377,16 @@ class AudioEngine {
     const id = window.setTimeout(fn, delay);
     this.timeouts.push(id);
   }
+
+  dispose() {
+    this.stopMusic();
+    if (this.ctx) void this.ctx.close();
+    this.ctx = null;
+  }
 }
 
 export const audio = new AudioEngine();
+
+// Vite replaces this module during local editing. Retire its audio first so an
+// unreachable old player cannot keep looping beside the replacement engine.
+if (import.meta.hot) import.meta.hot.dispose(() => audio.dispose());

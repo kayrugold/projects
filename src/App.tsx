@@ -1,3 +1,5 @@
+import { DeveloperBio } from './components/DeveloperBio';
+import { DraftingDetails } from './components/DraftingDetails';
 import { StudioBoot } from './components/StudioBoot';
 import { ContextDiscussion, SiteChat } from './components/Community';
 import { ProductDemo } from './components/ProductDemo';
@@ -21,11 +23,11 @@ import { SmileyOverlay } from './components/SmileyOverlay';
 const STUDIO_VERSION = CURRENT_STUDIO_VERSION;
 
 const NavItem = ({ icon: Icon, label, onClick, active = false }: { icon: React.ElementType, label: string, onClick: () => void, active?: boolean }) => (
-  <button 
+  <button
     onClick={onClick}
     className={`w-full text-left flex items-center space-x-3 px-4 py-3 rounded-lg border transition-all duration-300 group
-      ${active 
-        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
+      ${active
+        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
         : 'border-zinc-800 hover:border-emerald-500/30 hover:bg-zinc-900 text-zinc-400 hover:text-emerald-300'
       }`}
   >
@@ -45,9 +47,9 @@ const SectionHeader = ({ title, subtitle }: { title: string, subtitle?: string }
 );
 
 const PinterestIcon = ({ className }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="currentColor" 
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
     className={className}
     aria-hidden="true"
   >
@@ -56,7 +58,7 @@ const PinterestIcon = ({ className }: { className?: string }) => (
 );
 
 const SocialLink = ({ icon: Icon, label, href }: { icon: React.ElementType, label: string, href: string }) => (
-  <a 
+  <a
     href={href}
     target="_blank"
     rel="noopener noreferrer"
@@ -109,9 +111,9 @@ const TheCargoBayContent = () => (
         <div key={item.id} className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg text-center space-y-4 flex flex-col group">
           <div className="w-full aspect-square bg-zinc-950 border border-zinc-800 rounded flex items-center justify-center mb-4 overflow-hidden relative">
             {item.image ? (
-              <img 
-                src={item.image} 
-                alt={item.title} 
+              <img
+                src={item.image}
+                alt={item.title}
                 className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                 referrerPolicy="no-referrer"
               />
@@ -123,9 +125,9 @@ const TheCargoBayContent = () => (
             <h3 className="text-zinc-200 font-bold text-lg mb-1">{item.title}</h3>
             <span className="text-emerald-500 font-bold text-sm mb-3">{item.price}</span>
             <p className="text-zinc-500 text-sm mb-6 flex-1">{item.description}</p>
-            
+
             <div className="mt-auto">
-              <button 
+              <button
                 onClick={() => window.open(item.actionUrl, '_blank')}
                 className="w-full py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded hover:bg-emerald-500/20 transition-colors text-sm font-bold flex items-center justify-center space-x-2"
               >
@@ -154,7 +156,7 @@ const TheChroniclesContent = () => {
       if (index >= 0 && index >= visibleCount) {
         // Expand to show this entry
         setVisibleCount(Math.ceil((index + 1) / 5) * 5);
-        
+
         // Scroll to it after render
         setTimeout(() => {
           const el = document.getElementById(hash);
@@ -183,8 +185,8 @@ const TheChroniclesContent = () => {
     // Listen for hash changes
     window.addEventListener('hashchange', handleDeepLink);
     return () => window.removeEventListener('hashchange', handleDeepLink);
-  }, [visibleCount]); // Re-run if visibleCount changes to ensure we don't miss scroll? No, that might cause loops. 
-  // Actually, we only need to run this when hash changes. 
+  }, [visibleCount]); // Re-run if visibleCount changes to ensure we don't miss scroll? No, that might cause loops.
+  // Actually, we only need to run this when hash changes.
   // If we update visibleCount, the component re-renders, and we might want to scroll then?
   // Let's keep it simple: run on mount and hashchange.
 
@@ -200,12 +202,12 @@ const TheChroniclesContent = () => {
                 <div className="absolute top-5 -bottom-12 w-px bg-zinc-800 group-hover:bg-emerald-500/30 transition-colors" />
               )}
             </div>
-            
+
             {/* Content */}
             <div className="flex-1 pb-2">
               <div className="text-emerald-500 text-sm mb-2 font-bold tracking-wider">{entry.date.toUpperCase()}</div>
               <h3 className="text-zinc-100 font-bold text-xl mb-3">{entry.title}</h3>
-              
+
               {entry.tags && entry.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
                   {entry.tags.map(tag => (
@@ -220,8 +222,8 @@ const TheChroniclesContent = () => {
                 <div className="mb-6 border border-zinc-800 bg-zinc-950/50 p-1 rounded max-w-2xl group/image">
                   <div className="relative overflow-hidden rounded border border-zinc-900">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 pointer-events-none bg-[length:100%_2px,3px_100%] opacity-20 group-hover/image:opacity-10 transition-opacity" />
-                    <img 
-                      src={entry.image} 
+                    <img
+                      src={entry.image}
                       alt={`Asset for ${entry.title}`}
                       className="w-full h-auto object-cover opacity-80 group-hover/image:opacity-100 transition-opacity duration-500 grayscale group-hover/image:grayscale-0"
                       referrerPolicy="no-referrer"
@@ -238,11 +240,11 @@ const TheChroniclesContent = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="prose prose-invert prose-zinc max-w-none">
                 <p className="text-zinc-300 font-medium text-base leading-relaxed">{entry.summary}</p>
                 {entry.content && (
-                  <div 
+                  <div
                     className="text-zinc-400 mt-4 text-sm leading-relaxed prose-a:text-emerald-400 hover:prose-a:text-emerald-300 prose-headings:text-zinc-200 prose-strong:text-zinc-300 [&_p]:mb-4 [&_p:last-child]:mb-0"
                     dangerouslySetInnerHTML={{ __html: entry.content }}
                   />
@@ -255,7 +257,7 @@ const TheChroniclesContent = () => {
 
         {hasMore && (
           <div className="flex justify-center pt-8 border-t border-zinc-800/50">
-            <button 
+            <button
               onClick={() => setVisibleCount(prev => prev + 5)}
               className="group flex items-center space-x-3 px-6 py-3 bg-zinc-900 border border-zinc-700 hover:border-emerald-500/50 text-zinc-400 hover:text-emerald-400 rounded transition-all"
             >
@@ -300,13 +302,13 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
 
   return (
   <TerminalSection title="The Guild Hall & Records" subtitle="The community hub and studio documentation.">
-    
+
     {/* Guild Access - New Section */}
     <div className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="border border-indigo-500/30 bg-zinc-900/80 p-6 rounded-lg relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
         <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        
+
         <h3 className="text-xl font-bold text-indigo-400 mb-2 flex items-center space-x-2 relative z-10">
           <MessageSquare className="w-5 h-5" />
           <span>The Live Feed</span>
@@ -314,9 +316,9 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
         <p className="text-sm text-zinc-400 mb-6 relative z-10">
           Join a new community for studio updates, project discussions, and sharing what you are working on.
         </p>
-        <a 
-          href="https://discord.gg/WHhnBXpDSW" 
-          target="_blank" 
+        <a
+          href="https://discord.gg/nXtrdRYWfH"
+          target="_blank"
           rel="noopener noreferrer"
           className="relative z-10 block w-full py-3 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 font-bold rounded hover:bg-indigo-500/20 transition-colors text-center"
         >
@@ -327,7 +329,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
       <div className="border border-emerald-500/30 bg-zinc-900/80 p-6 rounded-lg relative overflow-hidden group">
         <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
         <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-        
+
         <h3 className="text-xl font-bold text-emerald-400 mb-2 flex items-center space-x-2 relative z-10">
           <BookOpen className="w-5 h-5" />
           <span>The Async Archive</span>
@@ -335,7 +337,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
         <p className="text-sm text-zinc-400 mb-6 relative z-10">
           Access the developer's logbook. Patch notes, field reports, and video dispatches from the road.
         </p>
-        <button 
+        <button
           onClick={() => onNavigate('chronicles')}
           className="relative z-10 block w-full py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold rounded hover:bg-emerald-500/20 transition-colors text-center"
         >
@@ -345,7 +347,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
     </div>
 
     <div className="columns-1 lg:columns-2 gap-6">
-      
+
       {/* Send a Raven */}
       <div className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg">
         <h3 className="text-lg font-bold text-zinc-100 mb-4 flex items-center space-x-2">
@@ -369,11 +371,11 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <span>Smith's Contact</span>
         </h3>
         <p className="text-sm text-zinc-400 mb-6">Prefer to reach me directly? Use the Send a Raven form above, email me at <a href="mailto:andys.dev.studio@gmail.com" className="text-emerald-400 underline">andys.dev.studio@gmail.com</a>, or find me on Discord.</p>
-        
+
         <hr className="border-t border-dashed border-zinc-700 my-6" />
-        
+
         <p className="text-sm text-zinc-500 italic mb-4">If you find value in these tools, please consider leaving a donation. Every bit helps me keep the lights on in the Forge while I'm out on the next shift.</p>
-        
+
         <a href="https://www.buymeacoffee.com/kayrugold" target="_blank" rel="noopener noreferrer" className="block w-full py-3 bg-[#FFDD00] text-black border-2 border-black font-bold rounded shadow-[3px_3px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-all text-center flex items-center justify-center space-x-2">
           <Coffee className="w-5 h-5" />
           <span>BUY ME A COFFEE</span>
@@ -388,9 +390,9 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
         </h3>
         <p className="text-sm text-zinc-400 mb-4">Authorized to trade and operate within the realm of California.</p>
         <div className="bg-zinc-950 p-2 rounded border border-zinc-800 flex items-center justify-center min-h-[200px] overflow-hidden group">
-          <img 
-            src="/assets/sellers_permit.webp" 
-            alt="California Seller's Permit" 
+          <img
+            src="/assets/sellers_permit.webp"
+            alt="California Seller's Permit"
             className="w-full h-auto object-contain opacity-80 group-hover:opacity-100 transition-opacity"
             referrerPolicy="no-referrer"
           />
@@ -404,7 +406,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <span>About Andy's Dev Studio</span>
         </h3>
         <div className="space-y-4 text-sm text-zinc-400 leading-relaxed">
-          <p>Welcome to The Forge. My name is Andy. By day, I am a professional truck driver; by night, I am a developer and a dedicated father.</p>
+          <p><a href="#developer" className="text-emerald-400 underline">Meet the developer →</a></p><p>Welcome to The Forge. My name is Andy. By day, I am a professional truck driver; by night, I am a developer and a dedicated father.</p>
           <p>My "development studio" is rarely a desk. It is often the cab of my truck or a bedside table after the kids have drifted off to sleep. Most of the logic you see here was written directly on my phone in those quiet hours, tapping out code one line at a time.</p>
           <p>When I can secure a few hours at my laptop, I forge these web prototypes into full Android applications. If you are part of the testing guild, I can provide you with direct Play Store links or secure download keys to try the native versions.</p>
         </div>
@@ -428,7 +430,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <ShieldCheck className="w-5 h-5 text-zinc-400" />
           <span>The Legal Scrolls</span>
         </h3>
-        
+
         <div className="space-y-8">
           <div id="privacy-policy" className="scroll-mt-24">
             <h4 className="text-md font-bold text-zinc-200 mb-1 flex items-center space-x-2">
@@ -475,7 +477,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
         </h3>
         <p className="text-xs text-zinc-500 italic mb-4">Fulfilled by Printify</p>
         <p className="text-sm text-zinc-400 mb-4">All physical goods (apparel, mugs, etc.) are made to order and shipped directly from our print partners.</p>
-        
+
         <ul className="list-disc list-inside text-sm text-zinc-400 space-y-2">
           <li><strong className="text-zinc-300">Production Time:</strong> Please allow 2-5 business days for your item to be created.</li>
           <li><strong className="text-zinc-300">Shipping:</strong> Standard shipping typically takes 2-5 business days within the US. International times vary.</li>
@@ -517,7 +519,7 @@ const TheGuildHallContent = ({ onNavigate }: { onNavigate: (tab: string) => void
           <span>Return Policy: Digital Goods</span>
         </h3>
         <p className="text-xs text-zinc-500 italic mb-4">Effective Date: Feb 22, 2026</p>
-        
+
         <ul className="list-disc list-inside text-sm text-zinc-400 space-y-2">
           <li><strong className="text-zinc-300">General Policy:</strong> Due to the nature of digital downloads, all sales are final once a file has been accessed or downloaded.</li>
           <li><strong className="text-zinc-300">Exceptions:</strong> If a digital product is non-functional, corrupted, or materially different from its description, contact me within <strong className="text-zinc-300">14 days</strong> of purchase for a full refund.</li>
@@ -574,7 +576,7 @@ const MediaPlayer = ({ onClose, audioMode, setAudioMode, isMusicOn, toggleMusic 
             {audioMode === 'file' ? `> Playing: ${currentTrack}` : '> Playing: Lo-Fi Cyber Chill'}
           </span>
         </div>
-        
+
         <div className="flex justify-center items-center gap-4 mb-4">
           <button onClick={handlePrev} disabled={audioMode !== 'file'} className={`p-1 transition-colors ${audioMode === 'file' ? 'text-zinc-400 hover:text-emerald-400' : 'text-zinc-700 cursor-not-allowed'}`}>
             <SkipBack className="w-5 h-5" />
@@ -588,14 +590,14 @@ const MediaPlayer = ({ onClose, audioMode, setAudioMode, isMusicOn, toggleMusic 
         </div>
 
         <div className="flex gap-2 mb-2">
-          <button 
-            onClick={() => setAudioMode('file')} 
+          <button
+            onClick={() => setAudioMode('file')}
             className={`flex-1 py-2 border transition-colors ${audioMode === 'file' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}
           >
             PLAYLIST
           </button>
-          <button 
-            onClick={() => setAudioMode('procedural')} 
+          <button
+            onClick={() => setAudioMode('procedural')}
             className={`flex-1 py-2 border transition-colors ${audioMode === 'procedural' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}
           >
             PROCEDURAL
@@ -636,7 +638,7 @@ export default function App() {
   const initialHash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
   const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
   const [bootSequence, setBootSequence] = useState(true);
-  
+
   const isXyrtaniaGatewayHash = (hashStr: string) => {
     const clean = hashStr.replace(/^#/, '');
     return clean === 'xyrtania' || clean === 'xyrtania-gateway' || clean === 'gateway';
@@ -644,8 +646,8 @@ export default function App() {
 
   // Smart domain-level or query/hash-level routing to serve Xyrtania cinematic site automatically
   const isXyrtaniaDomain = typeof window !== 'undefined' && (
-    window.location.hostname.includes('xyrtania') || 
-    window.location.search.includes('site=xyrtania') || 
+    window.location.hostname.includes('xyrtania') ||
+    window.location.search.includes('site=xyrtania') ||
     isXyrtaniaGatewayHash(window.location.hash)
   );
   const [siteMode, setSiteMode] = useState<'studio' | 'xyrtania'>('studio');
@@ -654,7 +656,7 @@ export default function App() {
     if (initialHash === 'version' || initialHash === 'changelog' || initialHash === 'manifest' || initialHash === 'system-version') return 'version';
     if (guildSubAnchors.includes(initialHash)) return 'guild-hall';
     if (initialHash === 'emulator' || initialHash === 'the-forge') return 'forge';
-    const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version'];
+    const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version', 'developer'];
     if (validTabs.includes(initialHash)) return initialHash;
     if (chroniclesData.some(e => e.id === initialHash)) return 'chronicles';
     return 'field-desk';
@@ -664,7 +666,7 @@ export default function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [launchedAppUrl, setLaunchedAppUrl] = useState<string | null>(null);
-  
+
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMusicOn, setIsMusicOn] = useState(false);
   const [isSfxOn, setIsSfxOn] = useState(false);
@@ -681,7 +683,7 @@ export default function App() {
 
   const scrollToContent = () => {
     if (window.innerWidth < 1024 && mainRef.current) {
-      const yOffset = -20; 
+      const yOffset = -20;
       const y = mainRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: 'smooth' });
     } else {
@@ -695,8 +697,8 @@ export default function App() {
       return;
     }
     const query = searchQuery.toLowerCase();
-    const results = searchIndexData.filter(item => 
-      item.title.toLowerCase().includes(query) || 
+    const results = searchIndexData.filter(item =>
+      item.title.toLowerCase().includes(query) ||
       item.description.toLowerCase().includes(query) ||
       item.tags.some(tag => tag.toLowerCase().includes(query))
     );
@@ -706,7 +708,7 @@ export default function App() {
   const handleSearchClick = (item: typeof searchIndexData[0]) => {
     setSearchQuery('');
     setSearchResults([]);
-    
+
     if (item.url.includes('window.open')) {
       const match = item.url.match(/'([^']+)'/);
       if (match && match[1]) {
@@ -720,7 +722,7 @@ export default function App() {
       }
       return;
     }
-    
+
     window.location.hash = item.id;
   };
 
@@ -796,7 +798,7 @@ export default function App() {
     const handleHashChange = () => {
       setMobileMenuOpen(false);
       const hash = window.location.hash.replace('#', '');
-      
+
       if (isXyrtaniaGatewayHash(hash)) {
         setSiteMode('studio'); setActiveTab('forge'); setActiveProject('xyrtania-specs'); window.history.replaceState(null, '', '#xyrtania-specs');
         window.scrollTo({ top: 0, behavior: 'instant' });
@@ -807,9 +809,9 @@ export default function App() {
 
       if (!hash) return;
 
-      const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version'];
+      const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version', 'developer'];
       const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
-      
+
       // Direct app launcher via deep link: #launch=app-id or #play=app-id
       if (hash.startsWith('launch=') || hash.startsWith('play=') || hash.startsWith('emulator=')) {
         const appId = hash.split('=')[1];
@@ -878,7 +880,7 @@ export default function App() {
     };
 
     window.addEventListener('hashchange', handleHashChange);
-    
+
     if (window.location.hash) {
       const hash = window.location.hash.replace('#', '');
       if (isXyrtaniaGatewayHash(hash)) {
@@ -895,7 +897,7 @@ export default function App() {
           }
         }
       } else {
-        const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version'];
+        const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version', 'developer'];
         const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
         if (hash === 'emulator' || hash === 'the-forge') {
           setActiveTab('forge');
@@ -1025,15 +1027,15 @@ export default function App() {
       const projectHtml = projectsData[activeProject] || `<div class="text-zinc-400">Project data not found for: ${activeProject}</div>`;
       return (
         <div className="animate-in fade-in duration-500">
-          <button 
+          <button
             onClick={() => handleTabChange(activeTab)}
             className="mb-8 flex items-center space-x-2 text-zinc-500 hover:text-emerald-400 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="text-sm font-bold uppercase tracking-wider">Back to {activeTab.replace('-', ' ')}</span>
           </button>
-          
-          {project ? <ProjectOverview key={project.id} project={project} technicalHtml={projectsData[activeProject]} onLaunchApp={handleLaunchApp} /> : <div
+
+          {activeProject === 'infinite-drafting' ? <DraftingDetails html={projectHtml} /> : project ? <ProjectOverview key={project.id} project={project} technicalHtml={projectsData[activeProject]} onLaunchApp={handleLaunchApp} /> : <div
             className="prose prose-invert prose-zinc max-w-none prose-a:text-emerald-400 hover:prose-a:text-emerald-300"
             dangerouslySetInnerHTML={{ __html: projectHtml }}
           />}
@@ -1048,6 +1050,7 @@ export default function App() {
       case 'ledger': return <TheLedgerContent onOpenProject={handleOpenProject} />;
       case 'cargo-bay': return <TheCargoBayContent />;
       case 'chronicles': return <TheChroniclesContent />;
+      case 'developer': return <DeveloperBio />;
       case 'guild-hall': return <TheGuildHallContent onNavigate={handleTabChange} />;
       case 'rookery': return <FeedbackWorkshop onLaunchApp={handleLaunchApp} />;
       case 'version': return <TheVersionContent onNavigate={handleTabChange} />;
@@ -1066,7 +1069,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-300 font-mono relative selection:bg-emerald-500/30 selection:text-emerald-200">
       {crtEnabled && <div className="crt-overlay" aria-hidden="true" />}
-      
+
       {/* App Launch Overlay */}
       {launchedAppUrl && (
         <div className="fixed inset-0 z-[100] bg-zinc-950 flex flex-col animate-in fade-in duration-300">
@@ -1076,14 +1079,14 @@ export default function App() {
               <span>APP_RUNNING</span>
             </div>
             <div className="flex items-center space-x-4">
-              <button 
+              <button
                 onClick={() => window.open(launchedAppUrl, '_blank')}
                 className="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center space-x-1 text-xs font-bold"
               >
                 <ExternalLink className="w-3 h-3" />
                 <span>NEW TAB</span>
               </button>
-              <button 
+              <button
                 onClick={() => setLaunchedAppUrl(null)}
                 className="text-zinc-400 hover:text-red-400 transition-colors text-sm font-bold tracking-wider"
               >
@@ -1091,8 +1094,8 @@ export default function App() {
               </button>
             </div>
           </div>
-          <iframe 
-            src={launchedAppUrl} 
+          <iframe
+            src={launchedAppUrl}
             className="w-full flex-1 border-none bg-zinc-950"
             title="Launched App"
           />
@@ -1100,7 +1103,7 @@ export default function App() {
       )}
 
       <div className="studio-shell max-w-6xl mx-auto px-4 py-12 md:py-20 grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
-        
+
         {/* Sidebar / Navigation */}
         <aside className="studio-sidebar lg:col-span-3 space-y-8">
           <div className="space-y-2">
@@ -1130,7 +1133,7 @@ export default function App() {
                 </span>
               </div>
               {isInstallable && (
-                <button 
+                <button
                   onClick={handleInstallClick}
                   className="mt-4 w-full py-2 px-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 rounded hover:bg-emerald-500/30 transition-colors flex items-center justify-center space-x-2 font-bold tracking-wider"
                 >
@@ -1148,21 +1151,21 @@ export default function App() {
           <div className="relative">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input 
-                type="text" 
-                placeholder="Search archives..." 
+              <input
+                type="text"
+                placeholder="Search archives..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-zinc-900 border border-zinc-800 text-zinc-300 pl-10 pr-4 py-2 rounded-lg text-sm focus:outline-none focus:border-emerald-500/50 transition-colors"
               />
             </div>
-            
+
             {searchQuery && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                 {searchResults.length > 0 ? (
                   <div className="p-2 space-y-1">
                     {searchResults.slice(0, 5).map(item => (
-                      <button 
+                      <button
                         key={item.id}
                         onClick={() => handleSearchClick(item)}
                         className="w-full text-left p-3 hover:bg-zinc-800 rounded transition-colors group"
@@ -1195,7 +1198,7 @@ export default function App() {
             <NavItem icon={GitCommit} label="The Manifest" onClick={() => handleTabChange('version')} active={activeTab === 'version'} />
           </nav>
 
-          <button 
+          <button
             onClick={() => {
               if (isSfxOn) {
                 audio.playClick();
@@ -1217,40 +1220,40 @@ export default function App() {
               <SocialLink icon={Facebook} label="Facebook" href="https://www.facebook.com/andysdevstudio.pages.dev" />
               <SocialLink icon={Github} label="GitHub" href="https://github.com/kayrugold" />
               <SocialLink icon={PinterestIcon} label="Pinterest" href="https://www.pinterest.com/andysdevstudio/" />
-              <SocialLink icon={MessageSquare} label="Discord" href="https://discord.gg/2RtH68T9fn" />
+              <SocialLink icon={MessageSquare} label="Discord" href="https://discord.gg/nXtrdRYWfH" />
               <SocialLink icon={Instagram} label="Instagram" href="https://instagram.com/andysdevstudio" />
               <SocialLink icon={Youtube} label="YouTube" href="https://www.youtube.com/@andysdevstudio" />
             </div>
 
             <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-zinc-800/50">
-              <button 
+              <button
                 onClick={toggleFullscreen}
                 className={`p-2 rounded border transition-all flex items-center justify-center ${isFullscreen ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30'}`}
                 title="Toggle Fullscreen"
               >
                 {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
               </button>
-              
+
               <button onClick={toggleCrt} aria-pressed={crtEnabled} aria-label={`CRT effects ${crtEnabled ? 'on' : 'off'}`} title="Toggle CRT effects" className="p-2 rounded border border-zinc-700 text-emerald-400 flex items-center justify-center"><Monitor className="w-4 h-4" /></button>
-              <button 
+              <button
                 onClick={toggleMusic}
                 className={`p-2 rounded border transition-all flex items-center justify-center ${isMusicOn ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30'}`}
                 title="Toggle Music" aria-pressed={isMusicOn}
               >
                 {isMusicOn ? <Music2 className="w-4 h-4 animate-pulse" /> : <Music className="w-4 h-4" />}
               </button>
-              
-              <button 
+
+              <button
                 onClick={toggleSfx}
                 className={`p-2 rounded border transition-all flex items-center justify-center ${isSfxOn ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/30'}`}
                 title="Toggle SFX" aria-pressed={isSfxOn}
               >
                 {isSfxOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
-              
-              <a 
-                href="https://www.buymeacoffee.com/kayrugold" 
-                target="_blank" 
+
+              <a
+                href="https://www.buymeacoffee.com/kayrugold"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded border bg-[#FFDD00]/10 border-[#FFDD00]/30 text-[#FFDD00] hover:bg-[#FFDD00]/20 transition-all flex items-center justify-center"
                 title="Buy Me A Coffee"
@@ -1276,7 +1279,7 @@ export default function App() {
             <span>&copy; {new Date().getFullYear()} Andy's Dev Studio. All rights reserved.</span>
           </div>
           <div className="flex items-center space-x-4">
-            <button 
+            <button
               onClick={() => handleTabChange('version')}
               className="flex items-center hover:text-emerald-400 transition-colors cursor-pointer"
               title="View Version Manifest & Git Commits"
@@ -1289,23 +1292,23 @@ export default function App() {
           </div>
         </div>
       </footer>
-      
+
       {showMediaPlayer && (
-        <MediaPlayer 
-          onClose={() => setShowMediaPlayer(false)} 
-          audioMode={audioMode} 
-          setAudioMode={handleSetAudioMode} 
+        <MediaPlayer
+          onClose={() => setShowMediaPlayer(false)}
+          audioMode={audioMode}
+          setAudioMode={handleSetAudioMode}
           isMusicOn={isMusicOn}
           toggleMusic={toggleMusic}
         />
       )}
-      
+
       {showSmiley && (
         <SmileyOverlay onComplete={() => setShowSmiley(false)} />
       )}
-      
+
       <SiteChat />
-      <TerminalPrompt 
+      <TerminalPrompt
         onNavigateTab={handleTabChange}
         onOpenProject={handleOpenProject}
         onToggleMusic={toggleMusic}
