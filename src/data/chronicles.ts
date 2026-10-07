@@ -11,6 +11,42 @@ export interface ChronicleEntry {
 
 export const chroniclesData: ChronicleEntry[] = [
   {
+    id: 'infinite-drafting-walkthrough',
+    title: 'The 23-Minute Tour, The Social Media Blitz, and Exactly One Sale',
+    date: 'October 7, 2026',
+    summary: 'Infinite Drafting is officially out in the wild. I sat down for a complete 23-minute deep-dive walkthrough covering every tool and nuance of the app. Then came the launch day reality check: blasting every social platform, and celebrating my very first sale.',
+    image: '/assets/infinite-drafting/walkthrough-canvas.webp',
+    tags: ['Infinite Drafting', 'Walkthrough', 'Video', 'IndieDev', 'Milestone'],
+    content: `
+<p><strong>The hands-on demonstration is finally here—and the reality of being an indie developer has officially arrived.</strong></p>
+<p>In my last post, I announced that Infinite Drafting had crossed the finish line from the workbench to Google Play and itch.io. But a short promo clip only shows the polish. Today, I'm delivering on my promise: a full, uncut, 23-minute deep-dive walkthrough showing exactly how the engine runs, how the tools feel, and what you can build with it.</p>
+<h3>23 Minutes Under the Hood</h3>
+<p>In this video, I take you across the entire graph-paper workspace. We cover freehand drawing, straight-line snapping, custom layer stacks, the interactive protractor and angle guides, numbered grids, and project import/export. Whether you're planning out a garage build, drafting a floor layout, or just letting a stray idea run across an infinite canvas, this walkthrough covers every single knob and lever.</p>
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 4px; border: 1px solid rgba(255,215,0,0.3); margin-top: 20px;">
+  <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="https://www.youtube-nocookie.com/embed/lys0ESPFk30?rel=0&playsinline=1" title="Infinite Drafting 23-minute deep-dive walkthrough" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
+<p><a href="https://youtu.be/lys0ESPFk30" target="_blank" rel="noopener noreferrer">Watch the 23-minute walkthrough on YouTube ↗</a></p>
+<h3>The Social Media Gauntlet</h3>
+<p>Finishing the code is only half the battle—and honestly, for a guy whose natural habitat is the cab of a semi-truck with a laptop balanced on the steering wheel, it might be the easy half. Once the builds were uploaded to Google Play and itch.io, the next gauntlet began: marketing.</p>
+<p>I took screenshots, generated packages, wrote descriptions, and blasted announcements across every social media outlet I could find. Reddit threads, Discord servers, X/Twitter posts, developer forums—you name it, I posted it. If you've ever tried shouting into the roaring wind of the internet on launch day, you know that surreal feeling of hitting "Submit" and waiting for the floodgates to open.</p>
+<h3>The Grand Total: Exactly One Sale (And I Couldn't Be Prouder)</h3>
+<p>So, what was the grand return after days of compiling, tweaking store graphics, and launching across the web?</p>
+<p><strong>Exactly one sale.</strong></p>
+<p>And you know what? That one sale put a smile on my face that lasted for miles. In the world of tech startups, people talk about venture rounds and viral metrics. But out here on the road, where I spend 11 hours behind the wheel hauling freight and every spare minute learning TypeScript and canvas rendering engines, <em>someone out there in the world decided my app was worth $1.99 of their hard-earned money</em>.</p>
+<p>Whoever you are: thank you. You bought my very first software sale as a self-taught developer. That milestone is locked in forever.</p>
+<h3>From Highway Miles to Code Lines</h3>
+<p>The journey from truck driver to software developer isn't glamorous. It's written in rest-area Wi-Fi passwords, late-night keyboard clatter while the diesel engine cools down, and an unrelenting itch to create something lasting with code. Infinite Drafting is out there. It works, it's fast, and it's built with genuine care.</p>
+<p>If you'd like to check it out or support the project:</p>
+<ul>
+  <li><a href="https://play.google.com/store/apps/details?id=com.andysdevstudio.infinitedrafting" target="_blank" rel="noopener noreferrer">Infinite Drafting on Google Play ($1.99 USD)</a></li>
+  <li><a href="https://kayrugold.itch.io/infinite-drafting" target="_blank" rel="noopener noreferrer">Web & Desktop Edition on itch.io (Free / Pay-what-you-want)</a></li>
+  <li><a href="#infinite-drafting">Try the interactive preview right here in The Ledger</a></li>
+</ul>
+<p>Drop by the <a href="https://discord.gg/nXtrdRYWfH" target="_blank" rel="noopener noreferrer">Discord community</a> to share your thoughts, critique my code, or just say hello.</p>
+<p style="color: #10b981; font-family: monospace; font-size: 0.9em; margin-top: 24px;">#IndieDev #TruckerDev #InfiniteDrafting #SoloDev #BuildInPublic #GooglePlay #itchio #DevJourney</p>
+<p>Keep the wheels turning and the drafts rolling.<br>— Andy</p>`
+  },
+  {
     id: 'infinite-drafting-launch',
     title: 'Infinite Drafting Is Live — From the Workbench to Google Play',
     date: 'October 5, 2026',
