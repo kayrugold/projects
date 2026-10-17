@@ -14,3 +14,6 @@ coverage/
 
 # Original store marketing exports; website copies live in public/assets/infinite-drafting/.
 /InfiniteDraftingMarketing/
+/bear0ads/
+*.password.txt
+studio-recovery-*.json

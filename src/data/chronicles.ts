@@ -11,6 +11,66 @@ export interface ChronicleEntry {
 
 export const chroniclesData: ChronicleEntry[] = [
   {
+    id: 'bear-cutout-freebie',
+    title: 'Free Community Asset: Grizzly Bear Vector & Cricut Cutout Pack',
+    date: 'October 17, 2026',
+    summary: 'A free gift for makers, crafters, and woodworkers: high-res vector SVG, cut-ready Cricut stencil, vector PDF, and detailed woodcut illustration. Free for personal and commercial craft projects. Plus what is coming next in The Cargo Bay and late-night game progress on "The Sky Courier".',
+    image: '/assets/freebies/bear_detailed.jpg',
+    tags: ['Freebie', 'Vector', 'Cricut', 'Crafting', 'Woodworking', 'LaserCutting', 'Gamedev'],
+    content: `
+<p><strong>To everyone joining from Instagram, Pinterest, and the maker community: welcome to the workshop!</strong></p>
+<p>If you tapped the link in my Instagram bio looking for the Grizzly Bear illustration—you're in the right place, and it's completely yours to download and create with.</p>
+
+<p>As a developer and maker who builds software and designs physical goods from the cab of a truck and quiet rest stops, I know how hard it can be to find clean, genuinely cut-friendly vectors that don't shatter into a thousand useless slivers the moment you send them to Cricut Design Space or a laser cutter. So I created this bundle and decided to put it out into the wild for free.</p>
+
+<div style="background: rgba(16, 27, 20, 0.85); border: 1px solid rgba(110, 231, 183, 0.35); border-radius: 10px; padding: 22px; margin: 24px 0;">
+  <h4 style="color: #6ee7b7; margin-top: 0; font-size: 1.15em; font-family: ui-sans-serif, system-ui, sans-serif; display: flex; align-items: center; gap: 8px;">
+    <span>⚡</span> Quick Download & Cloud Mirrors
+  </h4>
+  <p style="color: #d1fae5; font-size: 0.95em; margin-bottom: 16px;">
+    Get the complete bundle formatted and ready for Cricut, Silhouette, Glowforge, xTool, LightBurn, or print:
+  </p>
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+    <a href="/assets/freebies/bear0_ads_bundle.zip" download style="display: inline-flex; align-items: center; gap: 8px; background: #6ee7b7; color: #064e3b; font-weight: 700; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-size: 0.9em;">
+      💾 Download Complete ZIP Bundle (740 KB)
+    </a>
+    <a href="https://drive.google.com/drive/folders/1YhRrwpVc1RhrvKal8aJruCLTmqRw3rzQ?usp=drive_link" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(30, 41, 59, 0.8); border: 1px solid #64748b; color: #f1f5f9; font-weight: 600; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-size: 0.9em;">
+      ☁️ Open Google Drive Folder ↗
+    </a>
+    <a href="#cargo-bay" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #a7f3d0; font-weight: 600; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-size: 0.9em;">
+      📦 View in The Cargo Bay →
+    </a>
+  </div>
+  <div style="font-size: 0.85em; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; display: flex; flex-wrap: wrap; gap: 16px;">
+    <span>Direct files:</span>
+    <a href="/assets/freebies/bear0.svg" download style="color: #6ee7b7; text-decoration: underline;">bear0.svg</a>
+    <a href="/assets/freebies/bear0_ads.png" download style="color: #6ee7b7; text-decoration: underline;">bear0_ads.png</a>
+    <a href="/assets/freebies/bear0_ads.pdf" download style="color: #6ee7b7; text-decoration: underline;">bear0_ads.pdf</a>
+    <a href="/assets/freebies/bear_detailed.jpg" download style="color: #6ee7b7; text-decoration: underline;">bear_detailed.jpg</a>
+  </div>
+</div>
+
+<h3>Two Editions in One Bundle</h3>
+<p>Inside the download package, you will find two distinct variations of the design:</p>
+<ul>
+  <li><strong>1. The Cricut / Laser Cutout Stencil (SVG, PNG, PDF):</strong> Engineered with thick, continuous geometry. All positive and negative cut paths are bridge-supported so that vinyl cutters weed cleanly and laser cutters / scroll saws don't drop loose islands or tear thin paper and cardstock.</li>
+  <li><strong>2. The Detailed Woodcut Wildlife Illustration (High-Res JPG):</strong> A 2752×1536 high-resolution woodcut line-art graphic featuring the grizzly framed with mountain pine boughs. Perfect for sublimation printing, screen-printed t-shirts, framed wall posters, or raster laser engraving on hardwood.</li>
+</ul>
+
+<h3>License & Usage: 100% Free For Your Crafts</h3>
+<p>You have full permission to use these files for <strong>both personal projects and commercial physical items</strong>. Make t-shirts, laser-cut signs, vinyl decals, coffee mugs, or scroll saw gifts for your shop, craft fair, or friends. The only rule is simple: please don't resell or redistribute the digital design files themselves.</p>
+<p>If you make something awesome with it, tag me on Instagram <a href="https://instagram.com/andysdevstudio" target="_blank" rel="noopener noreferrer">@andysdevstudio</a> or pop into our <a href="https://discord.gg/nXtrdRYWfH" target="_blank" rel="noopener noreferrer">Discord community</a>—I would love to see your finished work!</p>
+
+<h3>What's Next: Freebies, Paid Packs & "The Sky Courier"</h3>
+<p>This bear is just the beginning. I am setting up <strong>The Cargo Bay</strong> right here on the site as a home for both free community design drops and future paid premium vector packs (including multi-layer laser inlay sets and geometric precision patterns). Be sure to bookmark the site or check back often.</p>
+
+<p>When I'm not drafting vector designs or hauling freight across the highway, I spend my late-night hours writing code. Right now, in the quiet 4:00 AM hours, I am pouring heart and soul into <strong>"The Sky Courier"</strong>, my upcoming video game project, as well as our browser 3D multiplayer world <strong>Xyrtania</strong>.</p>
+
+<p>Keep your blades sharp, your lasers focused, and thank you for supporting an independent builder.</p>
+<p style="color: #10b981; font-family: monospace; font-size: 0.9em; margin-top: 24px;">#Cricut #LaserCutting #Glowforge #Woodworking #FreeSVG #MakerCommunity #IndieDev #TheSkyCourier #AndysDevStudio</p>
+<p>Stay creative,<br>— Andy</p>`
+  },
+  {
     id: 'infinite-drafting-walkthrough',
     title: 'The 23-Minute Tour, The Social Media Blitz, and Exactly One Sale',
     date: 'October 7, 2026',

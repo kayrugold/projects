@@ -3,7 +3,7 @@ import { ProductDemo } from './ProductDemo';
 import { XyrtaniaConsole } from './XyrtaniaConsole';
 import { StudioBeacon } from './StudioBeacon';
 import React, { useState } from 'react';
-import { ArrowRight, Play, FileText, Copy, Mail, Terminal, Compass, MessageSquare } from 'lucide-react';
+import { ArrowRight, Play, FileText, Copy, Mail, Terminal, Compass, MessageSquare, Download } from 'lucide-react';
 import { forgeData, ForgeEntry } from '../data/forge';
 import { projectGuides } from '../data/projectGuides';
 
@@ -15,6 +15,42 @@ const Header = ({ code, title, children }: { code: string; title: string; childr
 export function StudioHome({ onNavigate, onOpenProject }: { onNavigate: (id: string) => void; onOpenProject: (id: string) => void }) {
   return <div className="studio-page">
     <header className="studio-welcome drafting-grid"><span className="studio-kicker">~/FIELD-DESK · WELCOME TO THE WORKSHOP</span><h2>Curiosity, written<br />in code<span className="studio-cursor" aria-hidden="true">_</span></h2><p>I'm Andy. I build useful tools, explore the mathematics of numbers, and make room for the occasional adventure—all from a studio that travels with me.</p><div className="studio-actions"><a className="drafting-button" href="https://xyrtania.andy-596.workers.dev">Enter Xyrtania <ArrowRight size={16} /></a><button className="studio-button" onClick={() => onNavigate('forge')}>Explore the tools</button><button className="studio-button" onClick={() => onNavigate('developer')}>Meet the developer</button></div><span className="studio-footnote">Forged in code, tested on the road.</span></header>
+    <section className="studio-feature border-emerald-500/50 bg-gradient-to-br from-emerald-950/20 via-zinc-950 to-zinc-950" id="bear-freebie-spotlight">
+      <div>
+        <span className="studio-kicker text-emerald-400">COMMUNITY ASSET DROP · FREE VECTOR & CRICUT PACK</span>
+        <h3>Grizzly Bear Cutout & Vector Pack</h3>
+        <p>
+          Visiting from Instagram or Pinterest? Grab the freebie here. Scalable SVG vector, cut-ready Cricut stencil, printable PDF, and high-res woodcut line-art. Free for both personal and commercial crafted physical goods.
+        </p>
+        <div className="studio-tags">
+          <span>SVG Vector</span>
+          <span>PNG Cutout</span>
+          <span>PDF Printable</span>
+          <span>JPG Art</span>
+          <span>Cricut & Laser Ready</span>
+        </div>
+        <div className="studio-actions">
+          <a className="drafting-button" href="/assets/freebies/bear0_ads_bundle.zip" download>
+            <Download size={16} /> Download Free Pack (.ZIP)
+          </a>
+          <button className="studio-button" onClick={() => onNavigate('cargo-bay')}>
+            Explore The Cargo Bay <ArrowRight size={16} />
+          </button>
+          <a className="studio-text-link" href="https://drive.google.com/drive/folders/1YhRrwpVc1RhrvKal8aJruCLTmqRw3rzQ?usp=drive_link" target="_blank" rel="noopener noreferrer">
+            Google Drive Mirror ↗
+          </a>
+        </div>
+      </div>
+      <div className="bg-zinc-950/90 p-6 flex flex-col items-center justify-center border-l border-zinc-800 relative group overflow-hidden">
+        <span className="absolute top-3 right-3 text-[10px] tracking-wider text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded bg-emerald-950/50 font-mono">100% FREE</span>
+        <img
+          src="/assets/freebies/bear0_ads.png"
+          alt="Grizzly Bear Cricut Stencil Vector Cutout"
+          className="w-full max-h-56 object-contain filter invert contrast-125 group-hover:scale-105 transition-transform duration-300"
+        />
+        <span className="text-[11px] text-zinc-400 mt-2 font-mono">Cricut Cut-Ready Vector Stencil</span>
+      </div>
+    </section>
     <section className="studio-flagship"><div><span className="studio-kicker">FLAGSHIP GAME / EARLY ALPHA</span><h3>XYRTANIA</h3><p>A world beyond the workshop.</p><div className="studio-actions"><a className="drafting-button" href="https://xyrtania.andy-596.workers.dev">Enter Xyrtania <ArrowRight size={16}/></a><button className="studio-text-link" onClick={()=>onOpenProject('xyrtania-specs')}>Project details →</button></div><small>Enter the game in this tab.</small></div><img src="/assets/xyrtania_card.webp" alt="Xyrtania fire and ice concept artwork"/></section>
     <section className="studio-feature"><div><span className="studio-kicker">OUT NOW / FIRST GOOGLE PLAY RELEASE</span><h3>Infinite Drafting</h3><p>Room for your next big idea. An infinite graph-paper canvas for sketches, layouts, and the patterns you haven't quite figured out yet.</p><div className="studio-tags"><span>Android · $1.99</span><span>Free on itch.io</span></div><button className="drafting-button" onClick={() => onOpenProject('infinite-drafting')}>Discover Infinite Drafting <ArrowRight size={16} /></button></div><img src="/assets/infinitedrafting1.webp" alt="Infinite Drafting promotional artwork" width="2048" height="2048" /></section>
     <section><Header code="CHOOSE A DIRECTION" title="Find something worth exploring.">A working studio, with finished tools and experiments still taking shape.</Header><div className="studio-paths">{[

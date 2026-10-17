@@ -9,6 +9,22 @@ export interface SearchItem {
 
 export const searchIndexData: SearchItem[] = [
   {
+    "id": "bear0-cricut-cutout",
+    "title": "GRIZZLY BEAR CRICUT CUTOUT & VECTOR PACK (FREE)",
+    "description": "Free digital craft download: SVG vector, cut-ready Cricut stencil, PDF, and high-res woodcut art for laser cutting, woodworking & vinyl.",
+    "category": "Freebie",
+    "url": "#cargo-bay",
+    "tags": ["Bear", "Cricut", "SVG", "Vector", "Freebie", "Download", "Laser", "Cutout", "Woodworking", "Craft", "Silhouette", "Glowforge", "PNG", "PDF"]
+  },
+  {
+    "id": "bear-cutout-freebie",
+    "title": "CHRONICLE: GRIZZLY BEAR VECTOR DROP & STUDIO UPDATE",
+    "description": "Blog dispatch introducing the free grizzly bear cut pack, studio design provisions, and late-night progress on The Sky Courier.",
+    "category": "Chronicles",
+    "url": "#bear-cutout-freebie",
+    "tags": ["Chronicles", "Blog", "Bear", "Cricut", "Freebie", "The Sky Courier", "Crafting", "Woodworking"]
+  },
+  {
     "id": "system-version",
     "title": "SYSTEM MANIFEST & VERSION CONTROL",
     "description": "Release milestones, architecture manifest, and Git commit logs for Andy's Dev Studio (v4.70).",

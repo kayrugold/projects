@@ -9,7 +9,7 @@ import { StudioHome, ForgeGallery, FeedbackWorkshop, ProjectOverview, projectFor
 import './studio.css';
 import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Youtube, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2, SkipForward, SkipBack, Play, Pause, Sparkles, GitCommit, Check, CheckCircle2 } from 'lucide-react';
 import { chroniclesData } from './data/chronicles';
-import { cargoData } from './data/cargo';
+import { cargoData, freebiesData, upcomingPackagesData } from './data/cargo';
 import { projectsData } from './data/projects';
 import { forgeData } from './data/forge';
 import { ledgerData } from './data/ledger';
@@ -32,7 +32,7 @@ const NavItem = ({ icon: Icon, label, onClick, active = false }: { icon: React.E
       }`}
   >
     <Icon className={`w-5 h-5 ${active ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-emerald-400'}`} />
-    <span className="font-medium tracking-wide">{label}<span className="studio-nav-subtitle">{({'The Field Desk': 'Start here', 'The Forge': 'Tools & experiments', 'The Ledger': 'Software & releases', 'The Cargo Bay': 'Studio merchandise', 'The Chronicles': 'Development journal', 'The Guild Hall': 'About, contact & policies', 'The Rookery': 'Feedback workshop', 'The Manifest': 'Website changelog'} as Record<string, string>)[label]}</span></span>
+    <span className="font-medium tracking-wide">{label}<span className="studio-nav-subtitle">{({'The Field Desk': 'Start here', 'The Forge': 'Tools & experiments', 'The Ledger': 'Software & releases', 'The Cargo Bay': 'Freebies, assets & merch', 'The Chronicles': 'Development journal', 'The Guild Hall': 'About, contact & policies', 'The Rookery': 'Feedback workshop', 'The Manifest': 'Website changelog'} as Record<string, string>)[label]}</span></span>
   </button>
 );
 
@@ -104,43 +104,303 @@ const TheLedgerContent = ({ onOpenProject }: { onOpenProject?: (id: string) => v
   </TerminalSection>
 );
 
-const TheCargoBayContent = () => (
-  <TerminalSection title="The Cargo Bay" subtitle="The quartermaster's stash. Official studio provisions.">
-    <div className="columns-1 sm:columns-2 gap-6">
-      {cargoData.map((item) => (
-        <div key={item.id} className="break-inside-avoid mb-6 border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg text-center space-y-4 flex flex-col group">
-          <div className="w-full aspect-square bg-zinc-950 border border-zinc-800 rounded flex items-center justify-center mb-4 overflow-hidden relative">
-            {item.image ? (
-              <img
-                src={item.image}
-                alt={item.title}
-                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <Image className="w-12 h-12 text-zinc-700" />
-            )}
-          </div>
-          <div className="flex-1 flex flex-col">
-            <h3 className="text-zinc-200 font-bold text-lg mb-1">{item.title}</h3>
-            <span className="text-emerald-500 font-bold text-sm mb-3">{item.price}</span>
-            <p className="text-zinc-500 text-sm mb-6 flex-1">{item.description}</p>
+const TheCargoBayContent = () => {
+  const [activeCategory, setActiveCategory] = useState<'all' | 'freebies' | 'upcoming' | 'merch'>('all');
+  const [bearPreviewMode, setBearPreviewMode] = useState<'stencil' | 'detailed'>('stencil');
 
-            <div className="mt-auto">
-              <button
-                onClick={() => window.open(item.actionUrl, '_blank')}
-                className="w-full py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded hover:bg-emerald-500/20 transition-colors text-sm font-bold flex items-center justify-center space-x-2"
+  return (
+    <TerminalSection title="The Cargo Bay" subtitle="Digital craft provisions, free community assets, and official studio gear.">
+      {/* Category filter buttons */}
+      <div className="flex flex-wrap gap-2 mb-8 border-b border-zinc-800 pb-4">
+        {[
+          { id: 'all', label: 'All Cargo' },
+          { id: 'freebies', label: '⚡ Free Digital Downloads' },
+          { id: 'upcoming', label: '📦 Upcoming Packs' },
+          { id: 'merch', label: '👕 Studio Apparel' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveCategory(tab.id as any)}
+            className={`px-3 py-1.5 rounded text-xs font-semibold tracking-wider transition-all cursor-pointer ${
+              activeCategory === tab.id
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 shadow-sm'
+                : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-12">
+        {/* FREEBIES SECTION */}
+        {(activeCategory === 'all' || activeCategory === 'freebies') && (
+          <div id="bear-cutout" className="space-y-6 scroll-mt-24">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-lg font-bold text-emerald-400 uppercase tracking-wider">
+                  Free Community Downloads
+                </h3>
+              </div>
+              <span className="text-xs text-zinc-400 font-mono">100% Free · Personal & Commercial Physical Crafts</span>
+            </div>
+
+            {freebiesData.map((freebie) => (
+              <div
+                key={freebie.id}
+                className="border border-emerald-500/30 bg-gradient-to-br from-zinc-900/90 via-zinc-950 to-zinc-900/90 rounded-xl overflow-hidden shadow-xl"
               >
-                <span>{item.icon}</span>
-                <span>{item.buttonText}</span>
-              </button>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+                  {/* Left Column: Visual Showcase & Interactive Mode */}
+                  <div className="lg:col-span-5 bg-zinc-950 p-6 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-zinc-800/80">
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="text-[10px] tracking-widest text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded bg-emerald-950/40 font-mono">
+                          FEATURED ASSET
+                        </span>
+                        {/* Toggle preview mode */}
+                        <div className="flex bg-zinc-900 border border-zinc-800 rounded p-0.5 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setBearPreviewMode('stencil')}
+                            className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+                              bearPreviewMode === 'stencil'
+                                ? 'bg-emerald-500/20 text-emerald-400 font-bold'
+                                : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            Cricut Stencil
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBearPreviewMode('detailed')}
+                            className={`px-2 py-1 rounded transition-colors cursor-pointer ${
+                              bearPreviewMode === 'detailed'
+                                ? 'bg-emerald-500/20 text-emerald-400 font-bold'
+                                : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            Detailed Art
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Image Frame */}
+                      <div className="aspect-square bg-zinc-900/70 border border-zinc-800 rounded-lg overflow-hidden flex items-center justify-center p-4 relative group">
+                        {bearPreviewMode === 'stencil' ? (
+                          <div className="w-full h-full flex flex-col items-center justify-center">
+                            <img
+                              src={freebie.stencilImage}
+                              alt="Cricut Cutout Stencil"
+                              className="max-h-full max-w-full object-contain filter invert contrast-125 transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-xs text-[10px] text-zinc-400 px-2 py-0.5 rounded border border-zinc-800 font-mono">
+                              Cut-Ready Continuous Contours
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center">
+                            <img
+                              src={freebie.primaryImage}
+                              alt="Detailed Woodcut Illustration"
+                              className="max-h-full max-w-full object-contain rounded transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-xs text-[10px] text-zinc-400 px-2 py-0.5 rounded border border-zinc-800 font-mono">
+                              2752×1536 High-Res Woodcut Art
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-400">
+                      <span>Designed by Andy Davis</span>
+                      <a
+                        href={freebie.driveFolderUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-400 hover:underline flex items-center space-x-1"
+                      >
+                        <span>Google Drive Folder</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Copy, Features & Download Suite */}
+                  <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-6">
+                    <div>
+                      <div className="text-xs text-emerald-400 font-mono tracking-wider mb-1">
+                        {freebie.date.toUpperCase()} · {freebie.category.toUpperCase()}
+                      </div>
+                      <h4 className="text-xl sm:text-2xl font-bold text-zinc-100 mb-2">
+                        {freebie.title}
+                      </h4>
+                      <p className="text-sm text-zinc-300 leading-relaxed mb-4">
+                        {freebie.description}
+                      </p>
+
+                      {/* Features */}
+                      <div className="space-y-2 mb-6 bg-zinc-950/60 p-4 rounded-lg border border-zinc-800/80">
+                        <div className="text-xs font-bold text-zinc-200 uppercase tracking-wider mb-2">
+                          Maker & Crafting Highlights
+                        </div>
+                        <ul className="space-y-1.5 text-xs text-zinc-400">
+                          {freebie.features.map((feature, i) => (
+                            <li key={i} className="flex items-start space-x-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Direct format buttons */}
+                      <div className="space-y-2 mb-6">
+                        <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                          Individual Format Direct Downloads
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {freebie.formats.filter(f => f.ext !== 'ZIP').map((fmt) => (
+                            <a
+                              key={fmt.ext}
+                              href={fmt.url}
+                              download
+                              className="p-2.5 bg-zinc-900 border border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-800 rounded text-center transition-all group"
+                              title={fmt.description}
+                            >
+                              <div className="text-emerald-400 font-bold text-xs tracking-wider group-hover:text-emerald-300">
+                                .{fmt.ext}
+                              </div>
+                              <div className="text-[10px] text-zinc-500 truncate">{fmt.format}</div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Download Actions */}
+                    <div className="pt-4 border-t border-zinc-800 flex flex-col sm:flex-row gap-3">
+                      <a
+                        href={freebie.downloadBundleUrl}
+                        download
+                        className="flex-1 py-3.5 px-4 bg-emerald-500 text-zinc-950 font-bold rounded-lg hover:bg-emerald-400 transition-colors flex items-center justify-center space-x-2 text-sm shadow-lg shadow-emerald-500/10 cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>DOWNLOAD COMPLETE ZIP (740 KB)</span>
+                      </a>
+                      <a
+                        href={freebie.driveFolderUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-3.5 px-4 bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white hover:border-emerald-500/50 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm font-semibold"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span>CLOUD DRIVE</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* UPCOMING DESIGN PACKS */}
+        {(activeCategory === 'all' || activeCategory === 'upcoming') && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <h3 className="text-lg font-bold text-amber-300 uppercase tracking-wider">
+                  Upcoming Design Bundles (Preview)
+                </h3>
+              </div>
+              <span className="text-xs text-zinc-500">In The Studio Queue</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {upcomingPackagesData.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className="p-5 border border-zinc-800 bg-zinc-900/60 rounded-lg flex flex-col justify-between space-y-3"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] uppercase font-mono tracking-wider text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded bg-amber-950/20">
+                        {pkg.status}
+                      </span>
+                      <span className="text-xs font-bold text-zinc-300">{pkg.price}</span>
+                    </div>
+                    <h4 className="text-base font-bold text-zinc-100 mb-1">{pkg.title}</h4>
+                    <p className="text-xs text-zinc-400 leading-relaxed mb-3">{pkg.description}</p>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 text-[11px] text-zinc-500">
+                    <span className="font-mono">Formats: {pkg.formats.join(' · ')}</span>
+                    <span className="text-emerald-400/80">Coming to Cargo Bay</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      ))}
-    </div>
-  </TerminalSection>
-);
+        )}
+
+        {/* OFFICIAL STUDIO MERCHANDISE */}
+        {(activeCategory === 'all' || activeCategory === 'merch') && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+              <div className="flex items-center space-x-2">
+                <Package className="w-4 h-4 text-zinc-400" />
+                <h3 className="text-lg font-bold text-zinc-200 uppercase tracking-wider">
+                  Official Studio Apparel
+                </h3>
+              </div>
+              <span className="text-xs text-zinc-500">Fulfilled by Printify</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {cargoData.map((item) => (
+                <div
+                  key={item.id}
+                  className="border border-zinc-800 bg-zinc-900/80 p-6 rounded-lg text-center space-y-4 flex flex-col group"
+                >
+                  <div className="w-full aspect-square bg-zinc-950 border border-zinc-800 rounded flex items-center justify-center mb-4 overflow-hidden relative">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.title}
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <Image className="w-12 h-12 text-zinc-700" />
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col">
+                    <h3 className="text-zinc-200 font-bold text-lg mb-1">{item.title}</h3>
+                    <span className="text-emerald-500 font-bold text-sm mb-3">{item.price}</span>
+                    <p className="text-zinc-500 text-sm mb-6 flex-1">{item.description}</p>
+
+                    <div className="mt-auto">
+                      <button
+                        onClick={() => window.open(item.actionUrl, '_blank')}
+                        className="w-full py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded hover:bg-emerald-500/20 transition-colors text-sm font-bold flex items-center justify-center space-x-2 cursor-pointer"
+                      >
+                        <span>{item.icon}</span>
+                        <span>{item.buttonText}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </TerminalSection>
+  );
+};
 
 const TheChroniclesContent = () => {
   const [visibleCount, setVisibleCount] = useState(5);
@@ -848,6 +1108,18 @@ export default function App() {
             if (hash === 'shipping') targetId = 'shipping-policy';
             if (hash === 'return-policy' || hash === 'returns') targetId = 'return-policy-physical';
             const el = document.getElementById(targetId);
+            if (el) {
+              const yOffset = -100;
+              const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+              window.scrollTo({ top: y, behavior: 'smooth' });
+            }
+          }, 100);
+          setIsTransitioning(false);
+        } else if (['freebies', 'downloads', 'bear-cutout', 'bear', 'cricut'].includes(hash)) {
+          setActiveTab('cargo-bay');
+          setActiveProject(null);
+          setTimeout(() => {
+            const el = document.getElementById('bear-cutout');
             if (el) {
               const yOffset = -100;
               const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
