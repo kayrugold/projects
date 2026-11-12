@@ -9,6 +9,38 @@ export interface SearchItem {
 
 export const searchIndexData: SearchItem[] = [
   {
+    "id": "three-new-drops-november-2026",
+    "title": "CHRONICLE: SECTOR 04, THE SKY COURIER & THE DAILY ABSURD",
+    "description": "Studio release dispatch introducing three new browser projects in The Forge: Sector 04, The Sky Courier, and The Daily Absurd.",
+    "category": "Chronicles",
+    "url": "#three-new-drops-november-2026",
+    "tags": ["Chronicles", "Blog", "Sector 04", "The Sky Courier", "The Daily Absurd", "Release", "Games", "Three.js"]
+  },
+  {
+    "id": "sector-04",
+    "title": "SECTOR 04",
+    "description": "Night Watch air traffic control & emergency radar sim. Manage live weather cells, Mayday calls, and runway slots.",
+    "category": "Forge",
+    "url": "javascript:launchApp('https://sector04.pages.dev')",
+    "tags": ["Games", "ATC", "Radar", "Simulation", "Sector 04"]
+  },
+  {
+    "id": "the-sky-courier",
+    "title": "THE SKY COURIER",
+    "description": "A 3D hoverboard delivery runner through a stylized neighborhood. Snag packages, hitch vehicles, and deploy your glider.",
+    "category": "Forge",
+    "url": "javascript:launchApp('https://theskycourier.pages.dev')",
+    "tags": ["Games", "3D", "Three.js", "Hoverboard", "The Sky Courier", "PWA"]
+  },
+  {
+    "id": "the-daily-absurd",
+    "title": "THE DAILY ABSURD",
+    "description": "A living satire web publication featuring an interactive animated cover, living comic strips, and sketches.",
+    "category": "Forge",
+    "url": "javascript:launchApp('https://the-daily-absurd.pages.dev')",
+    "tags": ["Creative tools", "Satire", "Interactive", "Comics", "The Daily Absurd"]
+  },
+  {
     "id": "bear0-cricut-cutout",
     "title": "GRIZZLY BEAR CRICUT CUTOUT & VECTOR PACK (FREE)",
     "description": "Free digital craft download: SVG vector, cut-ready Cricut stencil, PDF, and high-res woodcut art for laser cutting, woodworking & vinyl.",

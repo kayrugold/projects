@@ -47,6 +47,84 @@ export const forgeData: ForgeEntry[] = [
     "action": "launchApp('https://xyrtania.andy-596.workers.dev')"
   },
   {
+    "id": "sector-04",
+    "title": "SECTOR 04",
+    "description": "Night Watch air traffic control & emergency radar sim. Manage live weather cells, Mayday calls, and runway slots under pressure.",
+    "longDescription": "Sector 04 · Night Watch is a browser-based air traffic control and emergency consequences game. Monitor radar traffic, track storm cells, answer recorded Mayday radio calls, and issue heading, altitude, and runway clearance orders before fuel or fire timers run out.",
+    "features": [
+      "Live Radar & Weather Cell Tracking",
+      "Recorded Pilot Voice & Serialized Radio Queue",
+      "Three Authored Shifts (Oxygen Masks, One Runway, The Long Way Home)",
+      "Deterministic Replay Seeds & Pause/Resume"
+    ],
+    "tech": [
+      "HTML5 / Vanilla JS",
+      "Web Audio & Recorded Voice",
+      "Deterministic Simulation"
+    ],
+    "projectPage": "sector-04",
+    "type": "Games",
+    "version": "V0.9.0",
+    "status": "LIVE",
+    "statusClass": "badge-live",
+    "buttonText": "ENTER TOWER",
+    "icon": "📡",
+    "image": "/assets/sector04.jpg",
+    "action": "launchApp('https://sector04.pages.dev')"
+  },
+  {
+    "id": "the-sky-courier",
+    "title": "THE SKY COURIER",
+    "description": "A 3D hoverboard delivery runner through a stylized neighborhood. Snag packages, hitch vehicles, deploy your glider, and beat the clock.",
+    "longDescription": "The Sky Courier · Sunset Express is a fast-paced 3D neighborhood delivery game built with Three.js and Vite. Carve down city streets, jump and glide off ramps, hitch rides behind moving trucks, and complete 6 bonus deliveries in a 2.5-minute run—with no accounts or purchases.",
+    "features": [
+      "Three.js 3D Neighborhood & Stylized Character",
+      "Hoverboard Steering, Sliding, Jumping & Glider Flight",
+      "Vehicle Hitching & Boost (NOS) Mechanics",
+      "Offline-Ready PWA Support"
+    ],
+    "tech": [
+      "Three.js / WebGL",
+      "Vite",
+      "Service Worker / PWA"
+    ],
+    "projectPage": "the-sky-courier",
+    "type": "Games",
+    "version": "V0.3",
+    "status": "LIVE",
+    "statusClass": "badge-live",
+    "buttonText": "LET'S RIDE",
+    "icon": "📦",
+    "image": "/assets/the-sky-courier.jpg",
+    "action": "launchApp('https://theskycourier.pages.dev')"
+  },
+  {
+    "id": "the-daily-absurd",
+    "title": "THE DAILY ABSURD",
+    "description": "A living satire web publication featuring an interactive animated cover, living comic strips, sketches, and breaking nonsense.",
+    "longDescription": "The Daily Absurd is an interactive satirical newspaper and living comic experiment. Browse Issue No. 001 with an animated cover ('The Great Button Crisis!'), a breaking-news ticker, living strips, and playable/watchable comedy bits.",
+    "features": [
+      "Interactive Animated Newspaper Cover",
+      "Live Breaking Nonsense Ticker",
+      "Living Strips & Sketch Showcase",
+      "Editorial Manifesto & Issue Archive Layout"
+    ],
+    "tech": [
+      "HTML5 / CSS3",
+      "Interactive SVG / DOM Animation",
+      "Cloudflare Pages"
+    ],
+    "projectPage": "the-daily-absurd",
+    "type": "Interactive",
+    "version": "ISSUE 001",
+    "status": "LIVE",
+    "statusClass": "badge-live",
+    "buttonText": "READ ISSUE",
+    "icon": "📰",
+    "image": "/assets/the-daily-absurd.jpg",
+    "action": "launchApp('https://the-daily-absurd.pages.dev')"
+  },
+  {
     "id": "factor-hunter-ultimate",
     "title": "FACTOR HUNTER (ULTIMATE)",
     "description": "High-performance number theory engine. Hunt factors using algebraic forms, quadratic reciprocity, and parallel sieves.",

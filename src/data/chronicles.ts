@@ -11,6 +11,69 @@ export interface ChronicleEntry {
 
 export const chroniclesData: ChronicleEntry[] = [
   {
+    id: 'three-new-drops-november-2026',
+    title: 'Three New Drops in The Forge: Sector 04, The Sky Courier, and The Daily Absurd',
+    date: 'November 12, 2026',
+    summary: 'A triple-header studio update: emergency night-watch air traffic control in Sector 04, a playable 3D hoverboard delivery run in The Sky Courier, and Issue No. 001 of The Daily Absurd—all live in your browser.',
+    image: '/assets/the-sky-courier.jpg',
+    tags: ['Release', 'Sector 04', 'The Sky Courier', 'The Daily Absurd', 'Gamedev', 'Three.js'],
+    content: `
+<p><strong>The Forge just got a lot busier.</strong></p>
+<p>Over the past few weeks, I have been pushing hard on three very different browser projects—and all three are now live on Cloudflare Pages and wired straight into <a href="#forge">The Forge</a>.</p>
+<p>Whether you want high-stakes air traffic control under storm pressure, a 2.5-minute 3D hoverboard delivery sprint through a neighborhood, or a satirical broadsheet with animated illustrations that have opinions of their own, there is something new waiting for you to test.</p>
+
+<hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 28px 0;">
+
+<h3>1. SECTOR 04 · Night Watch</h3>
+<p><em>"Mayday, mayday, mayday. Harbor two fourteen. We have smoke entering the cockpit."</em></p>
+<figure style="margin: 18px 0;">
+  <img src="/assets/sector04.jpg" alt="SECTOR 04 Night Watch radar and Mayday call interface" style="width: 100%; border-radius: 6px; border: 1px solid rgba(52, 211, 153, 0.35);" />
+</figure>
+<p><strong>Sector 04</strong> is a deterministic air traffic control and emergency consequences prototype (v0.9.0). You are on the night watch radar scope at Harbor, juggling active traffic, moving weather cells (Moderate to Heavy), and incoming Mayday radio calls.</p>
+<ul>
+  <li><strong>Real Radio &amp; Consequences:</strong> Recorded pilot distress calls and a serialized radio queue where urgent safety breaks can interrupt readbacks, while fuel and fire timers keep ticking.</li>
+  <li><strong>Three Authored Shifts:</strong> Test your prioritization across <em>Oxygen Masks</em>, <em>One Runway</em>, and <em>The Long Way Home</em>.</li>
+  <li><strong>Deterministic Seeds:</strong> Replay the exact same shift seed to refine your response, or roll a new seed in the briefing.</li>
+</ul>
+<p><a href="https://sector04.pages.dev" target="_blank" rel="noopener noreferrer" style="color: #34d399; font-weight: 700;">Play Sector 04 at sector04.pages.dev ↗</a> · <a href="#sector-04">View in The Forge →</a></p>
+
+<hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 28px 0;">
+
+<h3>2. THE SKY COURIER · Sunset Express (Playable Demo v.03)</h3>
+<p><em>Pick your road. Snag a package. Slingshot through the neighborhood.</em></p>
+<figure style="margin: 18px 0;">
+  <img src="/assets/the-sky-courier.jpg" alt="The Sky Courier 3D neighborhood hoverboard delivery game" style="width: 100%; border-radius: 6px; border: 1px solid rgba(163, 230, 53, 0.35);" />
+</figure>
+<p>Earlier in the Chronicles I mentioned pouring late-night hours into <strong>The Sky Courier</strong>. Now the playable v.03 demo is live! Built with Three.js and Vite, it drops you onto a stylized city street with 2½ minutes on the clock and 6 bonus deliveries to pull off.</p>
+<ul>
+  <li><strong>Flow &amp; Momentum:</strong> Carve onto sidewalks for package handoffs, slide under barriers, hit launch ramps to deploy your cyan glider, and tap BOOST for NOS.</li>
+  <li><strong>Vehicle Hitching:</strong> Tap a passing truck or car to hitch a ride, then release to slingshot ahead.</li>
+  <li><strong>Zero Friction:</strong> No accounts, no tracking, no purchases—just play in your desktop or mobile browser (and installable via Add to Home Screen).</li>
+</ul>
+<p><a href="https://theskycourier.pages.dev" target="_blank" rel="noopener noreferrer" style="color: #a3e635; font-weight: 700;">Ride now at theskycourier.pages.dev ↗</a> · <a href="#the-sky-courier">View in The Forge →</a></p>
+
+<hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 28px 0;">
+
+<h3>3. THE DAILY ABSURD · Issue No. 001</h3>
+<p><em>Independent Nonsense Since Tomorrow — The world's most unreliable source of extremely reliable laughter.</em></p>
+<figure style="margin: 18px 0;">
+  <img src="/assets/the-daily-absurd.jpg" alt="The Daily Absurd Issue No. 001 interactive satire cover" style="width: 100%; border-radius: 6px; border: 1px solid rgba(248, 113, 113, 0.35);" />
+</figure>
+<p>Sometimes you need a break from radar scopes and collision physics to build something purely weird. <strong>The Daily Absurd</strong> is a living satire web publication—part Sunday broadsheet, part animated comic strip.</p>
+<ul>
+  <li><strong>The Interactive Cover:</strong> Issue No. 001 opens with <em>The Great Button Crisis!</em> alongside animated illustrations that react right on the front page.</li>
+  <li><strong>Living Strips &amp; Sketches:</strong> Dive into pieces like <em>Democracy Tries Turning It Off and On Again</em> ("After six meetings, everyone agrees the problem is probably someone else's department") and a live breaking-nonsense ticker.</li>
+</ul>
+<p><a href="https://the-daily-absurd.pages.dev" target="_blank" rel="noopener noreferrer" style="color: #f87171; font-weight: 700;">Read Issue 001 at the-daily-absurd.pages.dev ↗</a> · <a href="#the-daily-absurd">View in The Forge →</a></p>
+
+<hr style="border: 0; border-top: 1px dashed #3f3f46; margin: 28px 0;">
+
+<h3>Try Them &amp; Share What Broke</h3>
+<p>All three projects are now listed in <a href="#forge">The Forge</a> with direct launch buttons and project details. If you spot a bug, an awkward mobile control, or have an idea for the next shift, delivery route, or absurd headline, drop a note in <a href="#rookery">The Rookery</a> or hop into our <a href="https://discord.gg/nXtrdRYWfH" target="_blank" rel="noopener noreferrer">Discord</a>.</p>
+<p style="color: #10b981; font-family: monospace; font-size: 0.9em; margin-top: 24px;">#Sector04 #TheSkyCourier #TheDailyAbsurd #IndieDev #ThreeJS #WebGames #AndysDevStudio</p>
+<p>See you out there,<br>— Andy</p>`
+  },
+  {
     id: 'bear-cutout-freebie',
     title: 'Free Community Asset: Grizzly Bear Vector & Cricut Cutout Pack',
     date: 'October 17, 2026',

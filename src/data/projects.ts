@@ -933,4 +933,71 @@ export const projectsData: Record<string, string> = {
 
 projectsData["xyrtania-specs"] = projectsData["xyrtania"];
 
+projectsData["sector-04"] = `
+<h2 style="font-size: 1.5rem; font-weight: bold; color: #34d399; margin-bottom: 0.5rem;">SECTOR 04 · NIGHT WATCH (v0.9.0)</h2>
+<p style="font-family: monospace; font-size: 0.8rem; color: #fbbf24; margin-bottom: 2rem;">
+    SYSTEM: Deterministic ATC &amp; Emergency Consequences Prototype
+</p>
+
+<div class="project-details" style="color: #a1a1aa; font-size: 0.9rem; line-height: 1.6;">
+    <p style="margin-bottom: 1.5rem;"><strong>The Shift:</strong> Sector 04 puts you on the night watch radar scope at Harbor. Three authored shifts—<em>Oxygen Masks</em>, <em>One Runway</em>, and <em>The Long Way Home</em>—test how you prioritize Mayday calls, storm cell avoidance, and runway occupancy when every second counts.</p>
+
+    <h4 style="font-size: 1.1rem; font-weight: bold; color: #e4e4e7; margin-bottom: 0.5rem;">Radio &amp; Simulation Architecture</h4>
+    <ul style="list-style-type: square; padding-left: 1.5rem; margin-bottom: 2rem;">
+        <li style="margin-bottom: 0.5rem;"><strong>Audio-Independent Timing:</strong> Simulation slots use canonical durations independent of device speech synthesis, keeping response budgets fair and deterministic.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Serialized Playback Queue:</strong> Recorded pilot distress audio and readbacks run in a bounded queue with safety-break interruptions for urgent calls.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Deterministic Seeds:</strong> Replay any shift with the same seed or change seeds in the briefing for different dialogue and checklist outcomes.</li>
+    </ul>
+</div>
+
+<button onclick="window.launchApp('https://sector04.pages.dev')" style="background: #34d399; color: #064e3b; border: none; padding: 0.75rem 1.5rem; font-weight: bold; border-radius: 0.25rem; cursor: pointer;">
+    LAUNCH SECTOR 04
+</button>
+`;
+
+projectsData["the-sky-courier"] = `
+<h2 style="font-size: 1.5rem; font-weight: bold; color: #a3e635; margin-bottom: 0.5rem;">THE SKY COURIER · SUNSET EXPRESS (v0.3)</h2>
+<p style="font-family: monospace; font-size: 0.8rem; color: #fbbf24; margin-bottom: 2rem;">
+    SYSTEM: Three.js 3D Neighborhood Hoverboard Runner
+</p>
+
+<div class="project-details" style="color: #a1a1aa; font-size: 0.9rem; line-height: 1.6;">
+    <p style="margin-bottom: 1.5rem;"><strong>The Run:</strong> Pick your road, snag a package, and slingshot through the neighborhood. You have 2.5 minutes and 6 bonus deliveries to make your way there—no accounts, no tracking, and no purchases.</p>
+
+    <h4 style="font-size: 1.1rem; font-weight: bold; color: #e4e4e7; margin-bottom: 0.5rem;">Controls &amp; Physics</h4>
+    <ul style="list-style-type: square; padding-left: 1.5rem; margin-bottom: 2rem;">
+        <li style="margin-bottom: 0.5rem;"><strong>Steering &amp; Sidewalks:</strong> Use A/D, arrow keys, or swipe sideways to weave through traffic and ride onto sidewalks for package handoffs.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Glider &amp; Ramps:</strong> Collect a cyan glider, hit a launch ramp or raised surface, and press Space (or tap) mid-air to glide over traffic.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Vehicle Hitching &amp; NOS:</strong> Tap a vehicle to hitch a ride and release to slingshot forward, or tap BOOST for a burst of speed.</li>
+    </ul>
+</div>
+
+<button onclick="window.launchApp('https://theskycourier.pages.dev')" style="background: #a3e635; color: #1a2e05; border: none; padding: 0.75rem 1.5rem; font-weight: bold; border-radius: 0.25rem; cursor: pointer;">
+    PLAY THE SKY COURIER
+</button>
+`;
+
+projectsData["the-daily-absurd"] = `
+<h2 style="font-size: 1.5rem; font-weight: bold; color: #f87171; margin-bottom: 0.5rem;">THE DAILY ABSURD · ISSUE NO. 001</h2>
+<p style="font-family: monospace; font-size: 0.8rem; color: #fbbf24; margin-bottom: 2rem;">
+    SYSTEM: Living Satire &amp; Interactive Editorial Zine
+</p>
+
+<div class="project-details" style="color: #a1a1aa; font-size: 0.9rem; line-height: 1.6;">
+    <p style="margin-bottom: 1.5rem;"><strong>Independent Nonsense Since Tomorrow:</strong> The Daily Absurd is a living satire web publication—equal parts broadsheet parody, animated editorial cartoon, and interactive sketchpad.</p>
+
+    <h4 style="font-size: 1.1rem; font-weight: bold; color: #e4e4e7; margin-bottom: 0.5rem;">Inside Issue No. 001</h4>
+    <ul style="list-style-type: square; padding-left: 1.5rem; margin-bottom: 2rem;">
+        <li style="margin-bottom: 0.5rem;"><strong>The Interactive Cover:</strong> Featuring <em>The Great Button Crisis!</em> with animated illustrations that react as you explore.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Living Strips &amp; Sketches:</strong> Short-form visual bits like <em>Democracy Tries Turning It Off and On Again</em>.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Breaking Nonsense Ticker:</strong> A continuous headline crawl of escalating bureaucratic absurdity.</li>
+    </ul>
+</div>
+
+<button onclick="window.launchApp('https://the-daily-absurd.pages.dev')" style="background: #ef4444; color: #fff; border: none; padding: 0.75rem 1.5rem; font-weight: bold; border-radius: 0.25rem; cursor: pointer;">
+    READ THE DAILY ABSURD
+</button>
+`;
+
+
 
