@@ -12,9 +12,23 @@ const statusLabel = (status: string) => ({ DEV: 'In development', ALPHA: 'Alpha'
 export const projectForPage = (id: string) => forgeData.find(p => p.projectPage === id || p.id === id);
 const Header = ({ code, title, children }: { code: string; title: string; children: React.ReactNode }) => <header className="studio-header"><span className="studio-kicker">{code}</span><h2>{title}</h2><p>{children}</p></header>;
 
+export function RouteWeatherCard() {
+  return <section className="studio-feature">
+    <div>
+      <span className="studio-kicker">MAPS &amp; WEATHER</span>
+      <h3>Route Weather</h3>
+      <p>Plan a drive around the forecast along your route. Try radar, state road reports, and available live traffic before deciding whether the Android app is right for you.</p>
+      <div className="studio-tags"><span>Live browser demo</span><span>Android · $9.99 planned</span></div>
+      <a className="drafting-button" href="/route-weather.html">Explore Route Weather <ArrowRight size={16} /></a>
+    </div>
+    <img src="/assets/route-weather.svg" alt="" width="192" height="192" />
+  </section>;
+}
+
 export function StudioHome({ onNavigate, onOpenProject }: { onNavigate: (id: string) => void; onOpenProject: (id: string) => void }) {
   return <div className="studio-page">
     <header className="studio-welcome drafting-grid"><span className="studio-kicker">~/FIELD-DESK · WELCOME TO THE WORKSHOP</span><h2>Curiosity, written<br />in code<span className="studio-cursor" aria-hidden="true">_</span></h2><p>I'm Andy. I build useful tools, explore the mathematics of numbers, and make room for the occasional adventure—all from a studio that travels with me.</p><div className="studio-actions"><a className="drafting-button" href="https://xyrtania.andy-596.workers.dev">Enter Xyrtania <ArrowRight size={16} /></a><button className="studio-button" onClick={() => onNavigate('forge')}>Explore the tools</button><button className="studio-button" onClick={() => onNavigate('developer')}>Meet the developer</button></div><span className="studio-footnote">Forged in code, tested on the road.</span></header>
+    <RouteWeatherCard />
     <section className="studio-feature border-emerald-500/50 bg-gradient-to-br from-emerald-950/20 via-zinc-950 to-zinc-950" id="bear-freebie-spotlight">
       <div>
         <span className="studio-kicker text-emerald-400">COMMUNITY ASSET DROP · FREE VECTOR & CRICUT PACK</span>

@@ -5,7 +5,7 @@ import { ContextDiscussion, SiteChat } from './components/Community';
 import { ProductDemo } from './components/ProductDemo';
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Menu, X, Monitor } from 'lucide-react';
-import { StudioHome, ForgeGallery, FeedbackWorkshop, ProjectOverview, projectForPage } from './components/StudioPages';
+import { StudioHome, ForgeGallery, FeedbackWorkshop, ProjectOverview, projectForPage, RouteWeatherCard } from './components/StudioPages';
 import './studio.css';
 import { Terminal, Code2, BookOpen, Package, Download, Users, Shield, Github, MessageSquare, Facebook, Instagram, Youtube, RefreshCw, Radio, Target, Hash, Swords, Globe, Smartphone, ExternalLink, Calendar, Wrench, Activity, Bug, Copy, Send, Coffee, FileText, ShieldCheck, RefreshCcw, Image, Mail, ArrowLeft, Search, Truck, Maximize, Minimize, Volume2, VolumeX, Music, Music2, SkipForward, SkipBack, Play, Pause, Sparkles, GitCommit, Check, CheckCircle2 } from 'lucide-react';
 import { chroniclesData } from './data/chronicles';
@@ -79,6 +79,7 @@ const TerminalSection = ({ title, subtitle, children }: { title: string, subtitl
 const TheLedgerContent = ({ onOpenProject }: { onOpenProject?: (id: string) => void }) => (
   <TerminalSection title="The Ledger" subtitle="Independent tools, thoughtful utilities, and the next studio release.">
     <div className="space-y-6">
+      <RouteWeatherCard />
       {ledgerData.map((item) => (
         <article key={item.id} className="drafting-card">
           <div className="drafting-card-art">
