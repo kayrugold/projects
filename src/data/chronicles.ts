@@ -20,6 +20,24 @@ export const chroniclesData: ChronicleEntry[] = [
 <p><a href="#route-weather">Route Weather has its own page in the studio</a>, with the live demo at the top. Pick a drive you know, enter the start and destination, and tap a forecast marker to see what conditions are expected when you get there.</p>
 <p>I’ve opened a discussion at the bottom of the project page. I’d like to know what you looked for first, what you missed, and whether the forecast markers helped you make a decision about your drive. If something went wrong, tell me what device you used and the steps that led up to it. Town names are plenty for an example route.</p>
 <p>The Android release is planned for Google Play at $9.99 in the US. The browser demo is available now, and the <a href="https://github.com/kayrugold/route-weather/tree/v0.21">source for version 0.21 is public</a>.</p>
+<section class="chronicle-route-weather" aria-labelledby="route-weather-gallery-title">
+  <h3 id="route-weather-gallery-title">A look inside Route Weather</h3>
+  <div class="chronicle-route-weather-gallery">
+    <figure><a href="/assets/route-weather/Route-Weather-desktop-route-1600x900.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/Route-Weather-desktop-route-1600x900.webp" width="1600" height="900" loading="lazy" alt="Anderson-to-Redding route with three weather forecasts marked on the map"></a><figcaption>Forecasts at your estimated arrival times</figcaption></figure>
+    <figure><a href="/assets/route-weather/Route-Weather-desktop-hourly-1600x900.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/Route-Weather-desktop-hourly-1600x900.webp" width="1600" height="900" loading="lazy" alt="Hourly forecast table with the closest hour to arrival highlighted"></a><figcaption>Hourly conditions for a point along the route</figcaption></figure>
+    <figure><a href="/assets/route-weather/Tab-Forecast-radar-Redding-to-Portland.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/Tab-Forecast-radar-Redding-to-Portland.webp" width="1920" height="1080" loading="lazy" alt="Forecast precipitation bands crossing the 422-mile route from Redding to Portland"></a><figcaption>Forecast radar along the Redding-to-Portland drive</figcaption></figure>
+    <figure><a href="/assets/route-weather/tab-05-Caltrans-QuickMap-road-reports.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-05-Caltrans-QuickMap-road-reports.webp" width="1920" height="1080" loading="lazy" alt="Caltrans road-report markers and an open closure detail in the San Francisco Bay Area"></a><figcaption>Caltrans road reports from the QuickMap feeds</figcaption></figure>
+    <figure><a href="/assets/route-weather/tab-06-Toll-roads-and-managed-lanes.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-06-Toll-roads-and-managed-lanes.webp" width="1920" height="1080" loading="lazy" alt="Purple toll roads and a report for the Dolphin Expressway near Miami"></a><figcaption>Mapped toll roads and managed lanes</figcaption></figure>
+    <figure><a href="/assets/route-weather/tab-07-Reported-low-clearances.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-07-Reported-low-clearances.webp" width="1920" height="1080" loading="lazy" alt="Reported low-clearance markers and source details on a New York City map"></a><figcaption>Reported low clearances with source links</figcaption></figure>
+    <figure><a href="/assets/route-weather/tab-09-Satellite-hotspots.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-09-Satellite-hotspots.webp" width="1920" height="1080" loading="lazy" alt="Satellite heat detections in the northern Sierra Nevada with their report details"></a><figcaption>Satellite hotspot detections</figcaption></figure>
+    <figure><a href="/assets/route-weather/tab-10-Reported-wildfires.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-10-Reported-wildfires.webp" width="1920" height="1080" loading="lazy" alt="The Grasshopper wildfire report and a mapped fire perimeter in Oregon"></a><figcaption>Reported wildfires and mapped perimeters</figcaption></figure>
+  </div>
+  <h3 id="route-weather-video-title">Redding to Portland in Route Weather</h3>
+  <video controls playsinline preload="none" width="1920" height="1080" poster="/assets/route-weather/Route-Weather-Play-feature-1024x500.webp" aria-labelledby="route-weather-video-title">
+    <source src="/assets/route-weather/route-weather-preview.mp4" type="video/mp4">
+    <a href="/assets/route-weather/route-weather-preview.mp4">Download the Route Weather preview</a>
+  </video>
+</section>
     `,
   },
   {

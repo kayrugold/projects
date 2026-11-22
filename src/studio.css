@@ -92,3 +92,14 @@
   .route-weather-intro { grid-template-columns: minmax(0, 1fr); }
   .route-weather-intro img { grid-row: 1; }
 }
+
+.chronicle-route-weather { margin: 28px 0; }
+.chronicle-route-weather h3 { font: 650 1.35rem/1.25 ui-sans-serif, system-ui, sans-serif; margin: 24px 0 14px; }
+.chronicle-route-weather-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.chronicle-route-weather-gallery figure { margin: 0; overflow: hidden; border: 1px solid #3b4c43; border-radius: 8px; background: #101914; }
+.chronicle-route-weather-gallery img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; }
+.chronicle-route-weather-gallery figcaption { padding: 9px 12px; color: #bdccc3; font-size: .8rem; line-height: 1.4; }
+.chronicle-route-weather video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0b1724; border: 1px solid #3b4c43; border-radius: 8px; }
+@media (max-width: 640px) {
+  .chronicle-route-weather-gallery { grid-template-columns: minmax(0, 1fr); }
+}
