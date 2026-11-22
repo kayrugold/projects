@@ -1,5 +1,6 @@
 import { DeveloperBio } from './components/DeveloperBio';
 import { DraftingDetails } from './components/DraftingDetails';
+import { RouteWeatherDetails } from './components/RouteWeatherDetails';
 import { StudioBoot } from './components/StudioBoot';
 import { ContextDiscussion, SiteChat } from './components/Community';
 import { ProductDemo } from './components/ProductDemo';
@@ -79,7 +80,7 @@ const TerminalSection = ({ title, subtitle, children }: { title: string, subtitl
 const TheLedgerContent = ({ onOpenProject }: { onOpenProject?: (id: string) => void }) => (
   <TerminalSection title="The Ledger" subtitle="Independent tools, thoughtful utilities, and the next studio release.">
     <div className="space-y-6">
-      <RouteWeatherCard />
+      <RouteWeatherCard onOpenProject={onOpenProject} />
       {ledgerData.map((item) => (
         <article key={item.id} className="drafting-card">
           <div className="drafting-card-art">
@@ -1058,7 +1059,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       setMobileMenuOpen(false);
-      const hash = window.location.hash.replace('#', '');
+      const hash = window.location.hash.slice(1) || 'field-desk';
 
       if (isXyrtaniaGatewayHash(hash)) {
         setSiteMode('studio'); setActiveTab('forge'); setActiveProject('xyrtania-specs'); window.history.replaceState(null, '', '#xyrtania-specs');
@@ -1067,8 +1068,6 @@ export default function App() {
       } else {
         setSiteMode('studio');
       }
-
-      if (!hash) return;
 
       const validTabs = ['field-desk', 'forge', 'ledger', 'cargo-bay', 'chronicles', 'guild-hall', 'rookery', 'version', 'developer'];
       const guildSubAnchors = ['privacy-policy', 'privacy', 'eula', 'terms', 'legal-scrolls', 'shipping-policy', 'shipping', 'return-policy-physical', 'return-policy-digital', 'return-policy', 'returns'];
@@ -1129,8 +1128,8 @@ export default function App() {
           }, 100);
           setIsTransitioning(false);
           return;
-        } else if (projectsData[hash] || projectForPage(hash)) {
-          setActiveTab(hash === 'infinite-drafting' ? 'ledger' : 'forge');
+        } else if (hash === 'route-weather' || projectsData[hash] || projectForPage(hash)) {
+          setActiveTab(hash === 'infinite-drafting' || hash === 'route-weather' ? 'ledger' : 'forge');
           setActiveProject(hash);
         } else if (chroniclesData.some(e => e.id === hash)) {
           setActiveTab('chronicles');
@@ -1193,8 +1192,8 @@ export default function App() {
               window.scrollTo({ top: y, behavior: 'smooth' });
             }
           }, 300);
-        } else if (projectsData[hash] || projectForPage(hash)) {
-          setActiveTab(hash === 'infinite-drafting' ? 'ledger' : 'forge');
+        } else if (hash === 'route-weather' || projectsData[hash] || projectForPage(hash)) {
+          setActiveTab(hash === 'infinite-drafting' || hash === 'route-weather' ? 'ledger' : 'forge');
           setActiveProject(hash);
         } else if (chroniclesData.some(e => e.id === hash)) {
           setActiveTab('chronicles');
@@ -1308,7 +1307,7 @@ export default function App() {
             <span className="text-sm font-bold uppercase tracking-wider">Back to {activeTab.replace('-', ' ')}</span>
           </button>
 
-          {activeProject === 'infinite-drafting' ? <DraftingDetails html={projectHtml} /> : project ? <ProjectOverview key={project.id} project={project} technicalHtml={projectsData[activeProject]} onLaunchApp={handleLaunchApp} /> : <div
+          {activeProject === 'route-weather' ? <RouteWeatherDetails onGoHome={() => handleTabChange('field-desk')} /> : activeProject === 'infinite-drafting' ? <DraftingDetails html={projectHtml} /> : project ? <ProjectOverview key={project.id} project={project} technicalHtml={projectsData[activeProject]} onLaunchApp={handleLaunchApp} /> : <div
             className="prose prose-invert prose-zinc max-w-none prose-a:text-emerald-400 hover:prose-a:text-emerald-300"
             dangerouslySetInnerHTML={{ __html: projectHtml }}
           />}

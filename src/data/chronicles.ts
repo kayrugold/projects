@@ -19,7 +19,7 @@ export const chroniclesData: ChronicleEntry[] = [
     content: `
 <p>I built Route Weather to answer a question I run into on long drives: what will the weather be doing when I get there? A forecast for home and one for the destination can miss a lot in between.</p>
 <p>Enter the start and destination and the app puts forecasts along the route at your expected arrival times. GPS follow and optional spoken directions are there when you want them. Live traffic uses a limited allowance, so I’ve worked on reducing how many requests the map makes during a drive.</p>
-<p><a href="/route-weather.html">Try the live Route Weather demo</a> and run a trip you know. If something is confusing or there’s a feature that would make your drive easier, <a href="mailto:andys.dev.studio@gmail.com?subject=Route%20Weather%20feedback">tell me what you’d change</a>.</p>
+<p><a href="#route-weather">Try the live Route Weather demo</a> and run a trip you know. If something is confusing or there’s a feature that would make your drive easier, <a href="mailto:andys.dev.studio@gmail.com?subject=Route%20Weather%20feedback">tell me what you’d change</a>.</p>
     `,
   },
   {

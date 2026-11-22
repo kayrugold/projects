@@ -72,3 +72,23 @@
 .developer-bio .studio-welcome { margin-top: 16px; }
 .developer-avatar { width: 112px; height: 112px; border-radius: 16px; border: 1px solid #6ee7b766; float: right; margin: 0 0 20px 20px; }
 @media(max-width: 480px) { .developer-avatar { width: 76px; height: 76px; } }
+
+.route-weather-demo > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+.route-weather-demo h1 { font: 700 clamp(26px, 4vw, 40px)/1.1 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.04em; color: #eaf5ef; }
+.route-weather-demo header p { margin-top: 5px; color: #a8b5ad; font-size: 12px; }
+.route-weather-demo iframe { display: block; width: 100%; height: clamp(520px, 75svh, 770px); border: 1px solid #486158; border-radius: 10px; background: #141b17; }
+.route-weather-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(16px, 4vw, 38px); align-items: center; }
+.route-weather-intro img { width: clamp(72px, 13vw, 144px); height: auto; border-radius: 16px; box-shadow: 0 12px 36px #050b08a8; }
+.route-weather-features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.route-weather-features svg { color: #6ee7b7; }
+.route-weather-features .studio-panel { padding: 20px; }
+.route-weather-features .studio-panel h3 { font-size: 20px; }
+.route-weather-features .studio-panel p { font-size: 15px; }
+.route-weather-project > .studio-panel > p + p { margin-top: 12px; }
+@media (max-width: 720px) {
+  .route-weather-features { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 420px) {
+  .route-weather-intro { grid-template-columns: minmax(0, 1fr); }
+  .route-weather-intro img { grid-row: 1; }
+}
