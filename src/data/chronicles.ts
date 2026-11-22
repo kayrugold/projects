@@ -11,6 +11,18 @@ export interface ChronicleEntry {
 
 export const chroniclesData: ChronicleEntry[] = [
   {
+    id: 'route-weather-demo-and-feedback',
+    title: 'Route Weather: Try a Trip and Tell Me What You Find',
+    date: 'November 21, 2026',
+    summary: 'The live demo has a home in the studio, and there’s a place to leave questions, bug reports, and ideas.',
+    tags: ['Route Weather', 'Browser demo', 'Community'],
+    content: `
+<p><a href="#route-weather">Route Weather has its own page in the studio</a>, with the live demo at the top. Pick a drive you know, enter the start and destination, and tap a forecast marker to see what conditions are expected when you get there.</p>
+<p>I’ve opened a discussion at the bottom of the project page. I’d like to know what you looked for first, what you missed, and whether the forecast markers helped you make a decision about your drive. If something went wrong, tell me what device you used and the steps that led up to it. Town names are plenty for an example route.</p>
+<p>The Android release is planned for Google Play at $9.99 in the US. The browser demo is available now, and the <a href="https://github.com/kayrugold/route-weather/tree/v0.21">source for version 0.21 is public</a>.</p>
+    `,
+  },
+  {
     id: 'route-weather-field-notes',
     title: 'Route Weather: Planning a Drive Around the Forecast',
     date: 'November 21, 2026',

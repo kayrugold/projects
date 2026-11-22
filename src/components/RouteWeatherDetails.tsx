@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUpRight, CloudSun, Map, Route } from 'lucide-react';
+import { ContextDiscussion } from './Community';
 
 const demoUrl = 'https://route-weather.andy-596.workers.dev/';
 
@@ -54,10 +55,11 @@ export function RouteWeatherDetails({ onGoHome }: { onGoHome: () => void }) {
 
     <footer className="studio-actions">
       <button className="studio-button" onClick={onGoHome}><ArrowLeft size={15} /> The Field Desk</button>
-      <a className="studio-button" href="#route-weather-field-notes">The Chronicles</a>
+      <a className="studio-button" href="#route-weather-demo-and-feedback">The Chronicles</a>
       <a className="studio-button" href="mailto:andys.dev.studio@gmail.com?subject=Route%20Weather%20feedback">Send feedback</a>
       <a className="studio-button" href={demoUrl + 'route-weather-privacy.html'} target="_blank" rel="noopener noreferrer">Privacy policy</a>
       <a className="studio-button" href="https://github.com/kayrugold/route-weather/archive/refs/tags/v0.21.zip">Download GPLv3 source</a>
     </footer>
+    <ContextDiscussion scope="Route Weather" title="Route Weather" />
   </article>;
 }
