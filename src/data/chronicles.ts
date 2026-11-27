@@ -33,10 +33,16 @@ export const chroniclesData: ChronicleEntry[] = [
     <figure><a href="/assets/route-weather/tab-10-Reported-wildfires.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-10-Reported-wildfires.webp" width="1920" height="1080" loading="lazy" alt="The Grasshopper wildfire report and a mapped fire perimeter in Oregon"></a><figcaption>Reported wildfires and mapped perimeters</figcaption></figure>
   </div>
   <h3 id="route-weather-video-title">Redding to Portland in Route Atlas: GPS &amp; Weather</h3>
-  <video controls playsinline preload="none" width="1920" height="1080" poster="/assets/route-weather/Route-Weather-Play-feature-1024x500.webp" aria-labelledby="route-weather-video-title">
-    <source src="/assets/route-weather/route-weather-preview.mp4" type="video/mp4">
-    <a href="/assets/route-weather/route-weather-preview.mp4">Download the Route Atlas preview</a>
-  </video>
+  <iframe
+    src="https://www.youtube-nocookie.com/embed/JA3ckbB4Flg?rel=0"
+    title="Route Atlas: GPS & Weather — Official App Preview"
+    loading="lazy"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen
+    aria-labelledby="route-weather-video-title"
+  ></iframe>
+  <p style="margin-top:8px;font-size:.82rem"><a href="https://www.youtube.com/watch?v=JA3ckbB4Flg" target="_blank" rel="noopener noreferrer">Watch on YouTube ↗</a></p>
 </section>
     `,
   },

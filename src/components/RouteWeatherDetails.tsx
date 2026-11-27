@@ -47,6 +47,26 @@ export function RouteWeatherDetails({ onGoHome }: { onGoHome: () => void }) {
       </div>
     </section>
 
+    <section className="studio-panel route-weather-video" aria-labelledby="route-weather-preview-video">
+      <div className="route-weather-video-head">
+        <div>
+          <span className="studio-kicker">30-SECOND PREVIEW</span>
+          <h3 id="route-weather-preview-video">See Route Atlas in action</h3>
+        </div>
+        <a className="studio-button" href="https://www.youtube.com/watch?v=JA3ckbB4Flg" target="_blank" rel="noopener noreferrer">
+          Watch on YouTube <ArrowUpRight size={15} />
+        </a>
+      </div>
+      <iframe
+        src="https://www.youtube-nocookie.com/embed/JA3ckbB4Flg?rel=0"
+        title="Route Atlas: GPS & Weather — Official App Preview"
+        loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerPolicy="strict-origin-when-cross-origin"
+        allowFullScreen
+      />
+    </section>
+
     <section className="studio-panel">
       <h3>Before you head out</h3>
       <p>Use an address, town or map pin. For a particular business, look up its street address and enter it in Plan.</p>

@@ -104,7 +104,9 @@
 .chronicle-route-weather-gallery figure { margin: 0; overflow: hidden; border: 1px solid #3b4c43; border-radius: 8px; background: #101914; }
 .chronicle-route-weather-gallery img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; }
 .chronicle-route-weather-gallery figcaption { padding: 9px 12px; color: #bdccc3; font-size: .8rem; line-height: 1.4; }
-.chronicle-route-weather video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0b1724; border: 1px solid #3b4c43; border-radius: 8px; }
+.chronicle-route-weather video, .chronicle-route-weather iframe, .route-weather-video iframe { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #0b1724; border: 1px solid #3b4c43; border-radius: 8px; }
+.route-weather-video-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.route-weather-video-head .studio-button { margin-top: 0; }
 @media (max-width: 640px) {
   .chronicle-route-weather-gallery { grid-template-columns: minmax(0, 1fr); }
 }
