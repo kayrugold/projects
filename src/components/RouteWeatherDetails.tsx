@@ -8,14 +8,14 @@ export function RouteWeatherDetails({ onGoHome }: { onGoHome: () => void }) {
     <section className="route-weather-demo" aria-labelledby="route-weather-title">
       <header>
         <div>
-          <h1 id="route-weather-title">Route Weather</h1>
+          <h1 id="route-weather-title">Route Atlas: GPS &amp; Weather</h1>
           <p>Live browser demo</p>
         </div>
         <a className="studio-button" href={demoUrl} target="_blank" rel="noopener noreferrer">
           Open in a new tab <ArrowUpRight size={15} />
         </a>
       </header>
-      <iframe src={demoUrl} title="Route Weather live browser demo"
+      <iframe src={demoUrl} title="Route Atlas: GPS & Weather live browser demo"
         allow="geolocation https://route-weather.andy-596.workers.dev" />
       <p className="studio-footnote">Open Plan, enter a start and destination, and calculate a route. Select a forecast point along the route, or try Radar and Layers. If location or voice access is unavailable in the preview, open it in a new tab.</p>
     </section>
@@ -23,13 +23,13 @@ export function RouteWeatherDetails({ onGoHome }: { onGoHome: () => void }) {
     <section className="studio-welcome drafting-grid route-weather-intro" aria-labelledby="route-weather-intro">
       <div>
         <h2 id="route-weather-intro">See the weather you’ll drive into.</h2>
-        <p>A forecast at either end can miss what’s happening along the way. Route Weather puts forecasts on your route at the times you expect to reach them, so you can see where conditions might change.</p>
+        <p>A forecast at either end can miss what’s happening along the way. Route Atlas: GPS &amp; Weather puts forecasts on your route at the times you expect to reach them, so you can see where conditions might change.</p>
         <div className="studio-tags"><span>Google Play release planned</span><span>$9.99 US · one-time purchase</span></div>
       </div>
-      <img src="/assets/route-weather.svg" alt="" width="192" height="192" />
+      <img src="/assets/route-weather.svg" alt="Route Atlas: GPS & Weather app icon" width="192" height="192" />
     </section>
 
-    <section className="route-weather-features" aria-label="Route Weather features">
+    <section className="route-weather-features" aria-label="Route Atlas: GPS & Weather features">
       <div className="studio-panel">
         <CloudSun aria-hidden="true" />
         <h3>Forecasts along your route</h3>
@@ -56,10 +56,10 @@ export function RouteWeatherDetails({ onGoHome }: { onGoHome: () => void }) {
     <footer className="studio-actions">
       <button className="studio-button" onClick={onGoHome}><ArrowLeft size={15} /> The Field Desk</button>
       <a className="studio-button" href="#route-weather-demo-and-feedback">The Chronicles</a>
-      <a className="studio-button" href="mailto:andys.dev.studio@gmail.com?subject=Route%20Weather%20feedback">Send feedback</a>
+      <a className="studio-button" href="mailto:andys.dev.studio@gmail.com?subject=Route%20Atlas%20feedback">Send feedback</a>
       <a className="studio-button" href={demoUrl + 'route-weather-privacy.html'} target="_blank" rel="noopener noreferrer">Privacy policy</a>
       <a className="studio-button" href="https://github.com/kayrugold/route-weather/archive/refs/tags/v0.21.zip">Download GPLv3 source</a>
     </footer>
-    <ContextDiscussion scope="Route Weather" title="Route Weather" />
+    <ContextDiscussion scope="Route Weather" title="Route Atlas: GPS & Weather" />
   </article>;
 }

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { communityRequest, createIdentity, loadIdentity, exportIdentity, restoreIdentity, type Identity, type Entry, type Configuration } from '../utils/community';
 import { terminalProjects } from '../data/terminalCatalog';
 import { chroniclesData } from '../data/chronicles';
-const scopes = [{id:'Studio',title:'Studio'}, {id:'Route Weather',title:'Route Weather'}, ...terminalProjects.map(p=>({id:p.title,title:p.title})), ...chroniclesData.map(p=>({id:`article:${p.id}`,title:p.title}))];
+const scopes = [{id:'Studio',title:'Studio'}, {id:'Route Weather',title:'Route Atlas: GPS & Weather'}, ...terminalProjects.map(p=>({id:p.title,title:p.title})), ...chroniclesData.map(p=>({id:`article:${p.id}`,title:p.title}))];
 const scopeTitle = (id:string) => scopes.find(s=>s.id===id)?.title || id;
 import './community.css';
 const CommunityContext = createContext<{ identity:Identity|null; setIdentity:(i:Identity)=>void; config:Configuration|null; error:string; retry:()=>void }>({ identity:null,setIdentity:()=>{},config:null,error:'',retry:()=>{} });

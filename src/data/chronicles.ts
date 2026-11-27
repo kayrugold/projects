@@ -12,16 +12,16 @@ export interface ChronicleEntry {
 export const chroniclesData: ChronicleEntry[] = [
   {
     id: 'route-weather-demo-and-feedback',
-    title: 'Route Weather: Try a Trip and Tell Me What You Find',
+    title: 'Route Atlas: GPS & Weather — Try a Trip and Tell Me What You Find',
     date: 'November 21, 2026',
     summary: 'The live demo has a home in the studio, and there’s a place to leave questions, bug reports, and ideas.',
-    tags: ['Route Weather', 'Browser demo', 'Community'],
+    tags: ['Route Atlas: GPS & Weather', 'Browser demo', 'Community'],
     content: `
-<p><a href="#route-weather">Route Weather has its own page in the studio</a>, with the live demo at the top. Pick a drive you know, enter the start and destination, and tap a forecast marker to see what conditions are expected when you get there.</p>
+<p><a href="#route-weather">Route Atlas: GPS &amp; Weather has its own page in the studio</a>, with the live demo at the top. Pick a drive you know, enter the start and destination, and tap a forecast marker to see what conditions are expected when you get there.</p>
 <p>I’ve opened a discussion at the bottom of the project page. I’d like to know what you looked for first, what you missed, and whether the forecast markers helped you make a decision about your drive. If something went wrong, tell me what device you used and the steps that led up to it. Town names are plenty for an example route.</p>
 <p>The Android release is planned for Google Play at $9.99 in the US. The browser demo is available now, and the <a href="https://github.com/kayrugold/route-weather/tree/v0.21">source for version 0.21 is public</a>.</p>
 <section class="chronicle-route-weather" aria-labelledby="route-weather-gallery-title">
-  <h3 id="route-weather-gallery-title">A look inside Route Weather</h3>
+  <h3 id="route-weather-gallery-title">A look inside Route Atlas: GPS &amp; Weather</h3>
   <div class="chronicle-route-weather-gallery">
     <figure><a href="/assets/route-weather/Route-Weather-desktop-route-1600x900.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/Route-Weather-desktop-route-1600x900.webp" width="1600" height="900" loading="lazy" alt="Anderson-to-Redding route with three weather forecasts marked on the map"></a><figcaption>Forecasts at your estimated arrival times</figcaption></figure>
     <figure><a href="/assets/route-weather/Route-Weather-desktop-hourly-1600x900.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/Route-Weather-desktop-hourly-1600x900.webp" width="1600" height="900" loading="lazy" alt="Hourly forecast table with the closest hour to arrival highlighted"></a><figcaption>Hourly conditions for a point along the route</figcaption></figure>
@@ -32,24 +32,24 @@ export const chroniclesData: ChronicleEntry[] = [
     <figure><a href="/assets/route-weather/tab-09-Satellite-hotspots.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-09-Satellite-hotspots.webp" width="1920" height="1080" loading="lazy" alt="Satellite heat detections in the northern Sierra Nevada with their report details"></a><figcaption>Satellite hotspot detections</figcaption></figure>
     <figure><a href="/assets/route-weather/tab-10-Reported-wildfires.webp" target="_blank" rel="noopener"><img src="/assets/route-weather/tab-10-Reported-wildfires.webp" width="1920" height="1080" loading="lazy" alt="The Grasshopper wildfire report and a mapped fire perimeter in Oregon"></a><figcaption>Reported wildfires and mapped perimeters</figcaption></figure>
   </div>
-  <h3 id="route-weather-video-title">Redding to Portland in Route Weather</h3>
+  <h3 id="route-weather-video-title">Redding to Portland in Route Atlas: GPS &amp; Weather</h3>
   <video controls playsinline preload="none" width="1920" height="1080" poster="/assets/route-weather/Route-Weather-Play-feature-1024x500.webp" aria-labelledby="route-weather-video-title">
     <source src="/assets/route-weather/route-weather-preview.mp4" type="video/mp4">
-    <a href="/assets/route-weather/route-weather-preview.mp4">Download the Route Weather preview</a>
+    <a href="/assets/route-weather/route-weather-preview.mp4">Download the Route Atlas preview</a>
   </video>
 </section>
     `,
   },
   {
     id: 'route-weather-field-notes',
-    title: 'Route Weather: Planning a Drive Around the Forecast',
+    title: 'Route Atlas: GPS & Weather — Planning a Drive Around the Forecast',
     date: 'November 21, 2026',
-    summary: 'Why I built Route Weather, what the live demo can show you, and where I’d like feedback from other drivers.',
-    tags: ['Route Weather', 'Android', 'Field notes'],
+    summary: 'Why I built Route Atlas: GPS & Weather, what the live demo can show you, and where I’d like feedback from other drivers.',
+    tags: ['Route Atlas: GPS & Weather', 'Android', 'Field notes'],
     content: `
-<p>I built Route Weather to answer a question I run into on long drives: what will the weather be doing when I get there? A forecast for home and one for the destination can miss a lot in between.</p>
+<p>I built Route Atlas: GPS &amp; Weather to answer a question I run into on long drives: what will the weather be doing when I get there? A forecast for home and one for the destination can miss a lot in between.</p>
 <p>Enter the start and destination and the app puts forecasts along the route at your expected arrival times. GPS follow and optional spoken directions are there when you want them. Live traffic uses a limited allowance, so I’ve worked on reducing how many requests the map makes during a drive.</p>
-<p><a href="#route-weather">Try the live Route Weather demo</a> and run a trip you know. If something is confusing or there’s a feature that would make your drive easier, <a href="mailto:andys.dev.studio@gmail.com?subject=Route%20Weather%20feedback">tell me what you’d change</a>.</p>
+<p><a href="#route-weather">Try the live Route Atlas: GPS &amp; Weather demo</a> and run a trip you know. If something is confusing or there’s a feature that would make your drive easier, <a href="mailto:andys.dev.studio@gmail.com?subject=Route%20Atlas%20feedback">tell me what you’d change</a>.</p>
     `,
   },
   {

@@ -13,15 +13,17 @@ export const projectForPage = (id: string) => forgeData.find(p => p.projectPage 
 const Header = ({ code, title, children }: { code: string; title: string; children: React.ReactNode }) => <header className="studio-header"><span className="studio-kicker">{code}</span><h2>{title}</h2><p>{children}</p></header>;
 
 export function RouteWeatherCard({ onOpenProject }: { onOpenProject?: (id: string) => void }) {
-  return <section className="studio-feature">
+  return <section className="studio-feature route-weather-feature">
     <div>
       <span className="studio-kicker">MAPS &amp; WEATHER</span>
-      <h3>Route Weather</h3>
-      <p>Plan a drive around the forecast along your route. Try radar, state road reports, and available live traffic before deciding whether the Android app is right for you.</p>
+      <h3>Route Atlas: GPS &amp; Weather</h3>
+      <p>Plan a drive around the forecast along your route. Try radar, state road reports, emergency alerts, and available live traffic before deciding whether the Android app is right for you.</p>
       <div className="studio-tags"><span>Live browser demo</span><span>Android · $9.99 planned</span></div>
-      <button className="drafting-button" onClick={() => onOpenProject?.('route-weather')}>Explore Route Weather <ArrowRight size={16} /></button>
+      <button className="drafting-button" onClick={() => onOpenProject?.('route-weather')}>Explore Route Atlas <ArrowRight size={16} /></button>
     </div>
-    <img src="/assets/route-weather.svg" alt="" width="192" height="192" />
+    <div className="route-weather-art">
+      <img src="/assets/route-weather.svg" alt="Route Atlas: GPS & Weather app icon" width="192" height="192" />
+    </div>
   </section>;
 }
 
